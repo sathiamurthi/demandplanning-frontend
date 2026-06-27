@@ -31,6 +31,7 @@ export default function SuperadminLayout({ children }: { children: React.ReactNo
           <Link href="/superadmin/messages" className="block py-2 hover:text-[#6c63ff]">Messages</Link>
           <Link href="/superadmin/subscriptions" className="block py-2 hover:text-[#6c63ff]">Subscriptions</Link>
           <Link href="/superadmin/explore-analytics" className="block py-2 hover:text-[#6c63ff]">Explore Analytics</Link>
+          <Link href="/superadmin/ai-usage" className="block py-2 hover:text-orange-400 font-semibold">🤖 AI Usage & Pipeline</Link>
         </nav>
       </aside>
 
