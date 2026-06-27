@@ -1,7 +1,18 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  devIndicators: {
+    port: 4000
+  },
+  async rewrites() {
+    const backendBase = process.env.BACKEND_URL
+      || `http://localhost:${process.env.API_PORT || "5000"}`;
+    return [
+      {
+        source: "/v1/:path*",
+        destination: `${backendBase}/v1/:path*`,
+      },
+    ];
+  },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

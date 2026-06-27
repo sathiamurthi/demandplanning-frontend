@@ -1,0 +1,236 @@
+/* src/app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Layout dimensions ─── */
+:root {
+  --sidebar-width: 240px;
+  --header-height: 64px;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  min-height: 100dvh;
+}
+
+/* ─────────────────────────────────────────────────────
+   GOLD / WHITE THEME  (data-theme="gold")
+   ASG-style: dark navy sidebar + warm white content + gold accents
+──────────────────────────────────────────────────────── */
+[data-theme="gold"] {
+  /* Sidebar */
+  --sb-bg:          #1C1A2E;
+  --sb-border:      rgba(255,255,255,0.08);
+  --sb-text:        rgba(255,255,255,0.60);
+  --sb-text-hover:  rgba(255,255,255,0.90);
+  --sb-active-bg:   rgba(212,168,67,0.15);
+  --sb-active-text: #D4A843;
+  --sb-active-pill: #D4A843;
+  --sb-section:     rgba(255,255,255,0.25);
+  --sb-avatar-bg:   rgba(212,168,67,0.25);
+
+  /* Top bar */
+  --tb-bg:      #FFFFFF;
+  --tb-border:  #EDE8DC;
+  --tb-text:    #1A1510;
+
+  /* Main content */
+  --content-bg: #F7F8FA;
+  --card-bg:    #FFFFFF;
+  --card-border:#E5E7EB;
+
+  /* Accent */
+  --accent:       #D4A843;
+  --accent-hover: #B8922A;
+  --accent-text:  #FFFFFF;
+
+  /* Primary button */
+  --btn-primary:       #1C1A2E;
+  --btn-primary-hover: #2D2B40;
+  --btn-primary-text:  #FFFFFF;
+}
+
+/* ─────────────────────────────────────────────────────
+   LIGHT THEME  (data-theme="light")
+──────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --sb-bg:          #FFFFFF;
+  --sb-border:      #E5E7EB;
+  --sb-text:        #6B7280;
+  --sb-text-hover:  #111827;
+  --sb-active-bg:   #FEF3C7;
+  --sb-active-text: #92400E;
+  --sb-active-pill: #D97706;
+  --sb-section:     #9CA3AF;
+  --sb-avatar-bg:   #FEF3C7;
+
+  --tb-bg:      #FFFFFF;
+  --tb-border:  #E5E7EB;
+  --tb-text:    #111827;
+
+  --content-bg: #F9FAFB;
+  --card-bg:    #FFFFFF;
+  --card-border:#E5E7EB;
+
+  --accent:       #D97706;
+  --accent-hover: #B45309;
+  --accent-text:  #FFFFFF;
+
+  --btn-primary:       #D97706;
+  --btn-primary-hover: #B45309;
+  --btn-primary-text:  #FFFFFF;
+}
+
+/* ─────────────────────────────────────────────────────
+   DARK THEME  (data-theme="dark")
+──────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --sb-bg:          #0D1117;
+  --sb-border:      rgba(255,255,255,0.06);
+  --sb-text:        rgba(255,255,255,0.55);
+  --sb-text-hover:  rgba(255,255,255,0.85);
+  --sb-active-bg:   rgba(212,168,67,0.12);
+  --sb-active-text: #D4A843;
+  --sb-active-pill: #D4A843;
+  --sb-section:     rgba(255,255,255,0.20);
+  --sb-avatar-bg:   rgba(255,255,255,0.10);
+
+  --tb-bg:      #161B22;
+  --tb-border:  #21262D;
+  --tb-text:    #E6EDF3;
+
+  --content-bg: #0D1117;
+  --card-bg:    #161B22;
+  --card-border:#21262D;
+
+  --accent:       #D4A843;
+  --accent-hover: #E5BB55;
+  --accent-text:  #0D1117;
+
+  --btn-primary:       #D4A843;
+  --btn-primary-hover: #E5BB55;
+  --btn-primary-text:  #0D1117;
+}
+
+/* ─── Apply theme vars to admin shell elements ─── */
+
+[data-theme] .theme-sidebar {
+  background-color: var(--sb-bg) !important;
+  border-color: var(--sb-border);
+  color: var(--sb-text);
+}
+
+[data-theme] .theme-sidebar-link {
+  color: var(--sb-text) !important;
+}
+
+[data-theme] .theme-sidebar-link:hover {
+  color: var(--sb-text-hover) !important;
+  background-color: rgba(0,0,0,0.04) !important;
+}
+
+[data-theme="gold"] .theme-sidebar-link:hover,
+[data-theme="dark"] .theme-sidebar-link:hover {
+  background-color: rgba(255,255,255,0.06) !important;
+}
+
+[data-theme] .theme-sidebar-link-active {
+  background-color: var(--sb-active-bg) !important;
+  color: var(--sb-active-text) !important;
+}
+
+[data-theme] .theme-sidebar-pill {
+  background-color: var(--sb-active-pill) !important;
+}
+
+[data-theme] .theme-sidebar-section {
+  color: var(--sb-section) !important;
+}
+
+[data-theme] .theme-topbar {
+  background-color: var(--tb-bg) !important;
+  border-color: var(--tb-border) !important;
+  color: var(--tb-text) !important;
+}
+
+[data-theme] .theme-content {
+  background-color: var(--content-bg) !important;
+}
+
+[data-theme] .theme-card {
+  background-color: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+}
+
+[data-theme] .theme-btn-primary {
+  background-color: var(--btn-primary) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+[data-theme] .theme-btn-primary:hover {
+  background-color: var(--btn-primary-hover) !important;
+}
+
+[data-theme] .theme-accent {
+  color: var(--accent) !important;
+}
+
+/* ─── Dark theme content overrides ─── */
+
+[data-theme="dark"] .theme-content {
+  color: #E6EDF3;
+}
+
+[data-theme="dark"] .theme-card {
+  color: #E6EDF3;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: #0D1117;
+  border-color: #30363D;
+  color: #E6EDF3;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #8B949E;
+}
+
+/* ─── Custom scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #30363D;
+}
+
+/* ─── Mobile base improvements ─── */
+
+@media (max-width: 1023px) {
+  .sidebar-overlay-active {
+    overflow: hidden;
+  }
+}

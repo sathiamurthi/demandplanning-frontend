@@ -1,0 +1,38 @@
+/* ---------------- Google Fonts (MUST BE FIRST) ---------------- */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+
+/* ---------------- Tailwind ---------------- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------- Base ---------------- */
+@layer base {
+  :root {
+    --background: 222 20% 8%;
+    --foreground: 210 20% 96%;
+    --border: 222 15% 18%;
+  }
+
+  body {
+    @apply bg-[#0d0f14] text-white font-sans antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+.input {
+  @apply w-full bg-[#0d0f14] border border-white/10 rounded-lg px-3 py-2 text-sm;
+}
+/* ❌ REMOVE THIS (causes many issues)
+/* * { border: 1px solid rgba(255,255,255,0.08); } */
+
+/* ---------------- Utilities ---------------- */
+@layer utilities {
+  .font-heading {
+    font-family: "Space Grotesk", sans-serif;
+  }
+}
