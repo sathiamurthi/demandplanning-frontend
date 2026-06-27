@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -49,7 +49,7 @@ const JOURNEYS = [
     badge: "No login needed",
     badgeColor: "bg-purple-100 text-purple-700",
     title: "Explore Stores",
-    description: "Browse stores, search products, and check availability across Grocery, Pharma, Auto Parts & Tea — no account required.",
+    description: "Browse stores, search products, and check availability across Grocery, Pharma, Auto Parts & Tea â€” no account required.",
     features: ["Search any product", "Browse all stores", "Check stock availability"],
     cta: "Explore now",
     action: "/explore",
@@ -177,7 +177,7 @@ export default function LoginPage() {
         )}
 
         <p className="text-center text-xs text-white/20 mt-6">
-          Powered by GenericDemandAI · v2.0
+          Powered by DemandGenius Â· v2.0
         </p>
       </div>
     </div>

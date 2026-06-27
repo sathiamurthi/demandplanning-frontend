@@ -9,13 +9,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Nexus OS — AI Daily Companion",
-  description: "Expenses · Nearby Search · Services · Trip Planner · Fashion · Education — all in one free app.",
+  title: "DemandGenius — AI Life Dashboard",
+  description: "Nearby Search · Expenses · Services · Trip Planner · Store Management — all in one free app.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Nexus OS",
+    title: "DemandGenius",
   },
   icons: {
     icon: [
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Nexus OS",
+    "apple-mobile-web-app-title": "DemandGenius",
     "msapplication-TileColor": "#f97316",
     "msapplication-tap-highlight": "no",
   },

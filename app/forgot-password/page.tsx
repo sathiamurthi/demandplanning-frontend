@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
                     className="mt-3 flex items-center justify-center rounded-xl bg-amber-600
                                px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 transition-colors"
                   >
-                    Open reset link →
+                    Open reset link â†’
                   </Link>
                 </div>
               )}
@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                   className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white
                              hover:bg-gray-800 transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Sending…" : "Send reset link"}
+                  {loading ? "Sendingâ€¦" : "Send reset link"}
                 </button>
               </form>
 
@@ -125,7 +125,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <p className="text-center text-xs text-white/30 mt-6">
-          Powered by GenericDemandAI · v2.0
+          Powered by DemandGenius Â· v2.0
         </p>
       </div>
     </div>

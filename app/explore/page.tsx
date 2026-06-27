@@ -145,8 +145,8 @@ function GuestGate({ onDone }: { onDone: (g: GuestIdentity) => void }) {
         <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl">🌟</span>
         </div>
-        <h2 className="text-gray-900 font-bold text-xl text-center mb-1">Welcome to Nexus OS</h2>
-        <p className="text-gray-600 text-sm text-center mb-6">Your personal life dashboard. No account needed.</p>
+        <h2 className="text-gray-900 font-bold text-xl text-center mb-1">Welcome to DemandGenius</h2>
+        <p className="text-gray-600 text-sm text-center mb-6">Your AI-powered life dashboard. No account needed.</p>
         <form onSubmit={e => { e.preventDefault(); if (name.trim()) onDone(createGuest(name, phone)); }} className="space-y-3">
           <input type="text" value={name} onChange={e => setName(e.target.value)}
             placeholder="Your name *" autoFocus
@@ -196,7 +196,7 @@ function ContributeModal({ onClose }: { onClose: () => void }) {
           <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-orange-100">
             <Heart size={24} className="text-orange-500" />
           </div>
-          <h2 className="text-gray-900 font-black text-lg">Support Nexus OS</h2>
+          <h2 className="text-gray-900 font-black text-lg">Support DemandGenius</h2>
           <p className="text-gray-600 text-sm mt-1">Help keep this free for everyone</p>
         </div>
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center mb-4">
@@ -248,7 +248,7 @@ function ThirtyDayGate({ guest, onClose }: { guest: GuestIdentity; onClose: () =
             <span className="text-2xl">🎉</span>
           </div>
           <h2 className="text-gray-900 font-black text-lg">You've been here {daysSince} days!</h2>
-          <p className="text-gray-500 text-sm mt-1">Thank you for using Nexus OS. If this has been helpful, consider adding a listing or supporting us — it keeps the service free for everyone.</p>
+          <p className="text-gray-500 text-sm mt-1">Thank you for using DemandGenius. If this has been helpful, consider adding a listing or supporting us — it keeps the service free for everyone.</p>
         </div>
         {!contributed ? (
           <div className="space-y-2">
@@ -265,14 +265,14 @@ function ThirtyDayGate({ guest, onClose }: { guest: GuestIdentity; onClose: () =
             <button onClick={onClose} className="w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-semibold">Continue</button>
           </div>
         )}
-        <p className="text-gray-400 text-xs text-center mt-4">Nexus OS is free forever · No ads · No data selling</p>
+        <p className="text-gray-400 text-xs text-center mt-4">DemandGenius is free forever · No ads · No data selling</p>
       </div>
     </div>
   );
 }
 
 // ── Main Component ─────────────────────────────────────────────
-export default function NexusOS() {
+export default function DemandGeniusApp() {
   const [guest, setGuest]             = useState<GuestIdentity | null>(null);
   const [guestReady, setGuestReady]   = useState(false);
   const [section, setSection]         = useState<Section>("dashboard");
@@ -341,8 +341,8 @@ export default function NexusOS() {
       <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-xl border border-gray-100">
         <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><span className="text-2xl">🔒</span></div>
         <h2 className="text-gray-900 font-black text-xl mb-2">Access Paused</h2>
-        <p className="text-gray-500 text-sm mb-5">Your Nexus OS access has been paused by an administrator. This may be due to inactivity or a policy update. To restore access, please reach out.</p>
-        <a href="mailto:support@nexusos.app" className="block w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-semibold mb-2">Contact Support</a>
+        <p className="text-gray-500 text-sm mb-5">Your DemandGenius access has been paused by an administrator. This may be due to inactivity or a policy update. To restore access, please reach out.</p>
+        <a href="mailto:support@demandgenius.app" className="block w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-semibold mb-2">Contact Support</a>
         <button onClick={() => { clearGuest(); setGuest(null); setIsDeactivated(false); }} className="w-full border border-gray-200 text-gray-500 py-2.5 rounded-xl text-sm hover:bg-gray-50">Switch Account</button>
       </div>
     </div>
@@ -365,7 +365,7 @@ export default function NexusOS() {
               <span className="text-white font-black text-xs">N</span>
             </div>
             <div>
-              <div className="font-black text-sm text-gray-900 leading-tight">Nexus OS</div>
+              <div className="font-black text-sm text-gray-900 leading-tight">DemandGenius</div>
               <div className="text-[10px] text-gray-500 tracking-widest font-semibold uppercase">Life Dashboard</div>
             </div>
           </div>
@@ -3157,10 +3157,10 @@ function InstallPanel() {
       <div className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-orange-200 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/nexus-icon-512.svg" alt="Nexus OS" className="w-full h-full object-cover"/>
+          <img src="/nexus-icon-512.svg" alt="DemandGenius" className="w-full h-full object-cover"/>
         </div>
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Nexus OS</h1>
+          <h1 className="text-2xl font-black text-gray-900">DemandGenius</h1>
           <p className="text-gray-500 text-sm">Install on your phone — works offline, no app store needed</p>
           <div className="flex items-center gap-1.5 mt-1">
             {swReady ? <Wifi size={11} className="text-green-500"/> : <WifiOff size={11} className="text-gray-300"/>}
@@ -3173,7 +3173,7 @@ function InstallPanel() {
       <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white">
         <p className="text-orange-100 text-xs font-bold uppercase tracking-widest mb-1">App Key</p>
         <p className="text-4xl font-black tracking-widest font-mono">{APP_KEY}</p>
-        <p className="text-orange-200 text-xs mt-2">Share this key + the QR code below to invite others to install Nexus OS</p>
+        <p className="text-orange-200 text-xs mt-2">Share this key + the QR code below to invite others to install DemandGenius</p>
       </div>
 
       {/* Install status / button */}
@@ -3182,13 +3182,13 @@ function InstallPanel() {
           <CheckCircle2 size={36} className="text-green-500 shrink-0"/>
           <div>
             <p className="font-black text-gray-900">App Installed!</p>
-            <p className="text-gray-600 text-sm">Nexus OS is running as a standalone app on your device.</p>
+            <p className="text-gray-600 text-sm">DemandGenius is running as a standalone app on your device.</p>
           </div>
         </div>
       ) : installPrompt ? (
         <button onClick={install}
           className="w-full flex items-center justify-center gap-3 bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-black text-lg transition-all active:scale-95">
-          <Download size={22}/>Install Nexus OS App
+          <Download size={22}/>Install DemandGenius App
         </button>
       ) : null}
 
@@ -3210,7 +3210,7 @@ function InstallPanel() {
                 className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors">
                 <Copy size={11}/>{copied?"Copied!":"Copy Link"}
               </button>
-              <a href={`https://wa.me/15556660240?text=${encodeURIComponent("Install Nexus OS app: "+appUrl+" — App Key: "+APP_KEY)}`}
+              <a href={`https://wa.me/15556660240?text=${encodeURIComponent("Install DemandGenius app: "+appUrl+" — App Key: "+APP_KEY)}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
                 <Share2 size={11}/>Share via WA

@@ -1,7 +1,7 @@
 {
-  "name": "Nexus OS",
-  "short_name": "NexusOS",
-  "description": "AI-powered daily companion — expenses, nearby search, services, trips & more",
+  "name": "DemandGenius",
+  "short_name": "DemandGenius",
+  "description": "AI-powered life dashboard — nearby search, expenses, services, trips & store management",
   "start_url": "/explore",
   "scope": "/explore",
   "display": "standalone",

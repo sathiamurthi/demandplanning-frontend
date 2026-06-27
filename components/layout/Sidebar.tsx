@@ -1,4 +1,4 @@
-// src/components/layout/Sidebar.tsx
+﻿// src/components/layout/Sidebar.tsx
 'use client';
 
 import Link from 'next/link';
@@ -52,7 +52,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           G
         </div>
         <div>
-          <div className="font-semibold text-white text-sm">GenericDemandAI</div>
+          <div className="font-semibold text-white text-sm">DemandGenius</div>
           <div className="text-xs text-slate-400">Demand Planning</div>
         </div>
       </div>

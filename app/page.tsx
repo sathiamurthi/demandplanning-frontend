@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -10,7 +10,7 @@ import {
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw,
 } from "lucide-react";
 
-/* ── INDUSTRIES ─────────────────────────────────────── */
+/* â”€â”€ INDUSTRIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const industries = [
   {
     icon: ShoppingCart,
@@ -47,18 +47,18 @@ const industries = [
     title: "Tea Procurement",
     desc: "Full grower-to-factory workflow: collections, dispatch, settlements, payments.",
     link: "/tea",
-    badge: "Live Demo →",
+    badge: "Live Demo â†’",
   },
 ];
 
-/* ── FEATURES ───────────────────────────────────────── */
+/* â”€â”€ FEATURES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const features = [
   {
     icon: BarChart3,
     color: "text-indigo-400",
     bg: "bg-indigo-500/10",
     title: "Real-Time Analytics",
-    desc: "Live dashboards with sales velocity, stock turns, and revenue tracking — updated every minute.",
+    desc: "Live dashboards with sales velocity, stock turns, and revenue tracking â€” updated every minute.",
   },
   {
     icon: Brain,
@@ -86,14 +86,14 @@ const features = [
     color: "text-green-400",
     bg: "bg-green-500/10",
     title: "Multi-User Roles",
-    desc: "Owner, manager, staff — each with fine-grained permissions and a full audit log.",
+    desc: "Owner, manager, staff â€” each with fine-grained permissions and a full audit log.",
   },
   {
     icon: Globe,
     color: "text-cyan-400",
     bg: "bg-cyan-500/10",
     title: "Public Store Search",
-    desc: "Customers can find your store on the Explore page — with map links and product search.",
+    desc: "Customers can find your store on the Explore page â€” with map links and product search.",
   },
   {
     icon: Truck,
@@ -111,7 +111,7 @@ const features = [
   },
 ];
 
-/* ── USER JOURNEYS ───────────────────────────────────── */
+/* â”€â”€ USER JOURNEYS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const journeys = [
   {
     role: "Store Owner",
@@ -163,15 +163,15 @@ const journeys = [
   },
 ];
 
-/* ── BENEFITS ────────────────────────────────────────── */
+/* â”€â”€ BENEFITS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const benefits = [
   { stat: "40%",  label: "Fewer stockouts",       sub: "AI reorder recommendations" },
-  { stat: "3×",   label: "Faster invoicing",      sub: "Automated PO & receipt flow" },
+  { stat: "3Ã—",   label: "Faster invoicing",      sub: "Automated PO & receipt flow" },
   { stat: "100%", label: "Audit-ready",            sub: "Every action logged" },
-  { stat: "∞",    label: "Tenants & stores",       sub: "True multi-tenant SaaS" },
+  { stat: "âˆž",    label: "Tenants & stores",       sub: "True multi-tenant SaaS" },
 ];
 
-/* ── TESTIMONIALS ────────────────────────────────────── */
+/* â”€â”€ TESTIMONIALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const testimonials = [
   {
     name: "Ravi Kumar",
@@ -181,7 +181,7 @@ const testimonials = [
   {
     name: "Priya Mehta",
     role: "MedCare Pharmacy, Indiranagar",
-    text: "Expiry tracking alone saved us ₹80K in write-offs last quarter.",
+    text: "Expiry tracking alone saved us â‚¹80K in write-offs last quarter.",
   },
   {
     name: "ABC Tea Agency",
@@ -190,7 +190,7 @@ const testimonials = [
   },
 ];
 
-/* ── COMPONENT ───────────────────────────────────────── */
+/* â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -198,7 +198,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#07090f] text-white flex flex-col overflow-x-hidden">
 
-      {/* ── NAV ── */}
+      {/* â”€â”€ NAV â”€â”€ */}
       <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between bg-white/4 backdrop-blur-xl border border-white/8 rounded-2xl px-5 py-3 shadow-xl shadow-black/20">
           <Link href="/" className="flex items-center gap-2.5">
@@ -230,7 +230,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ── HERO ── */}
+      {/* â”€â”€ HERO â”€â”€ */}
       <section className="relative px-4 pt-28 pb-20 text-center overflow-hidden">
         {/* Glow */}
         <div className="absolute inset-0 pointer-events-none">
@@ -240,7 +240,7 @@ export default function HomePage() {
 
         <div className={`relative transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
           <span className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full mb-6">
-            <Zap size={11} /> AI-powered · Multi-tenant · Domain-specific
+            <Zap size={11} /> AI-powered Â· Multi-tenant Â· Domain-specific
           </span>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight tracking-tight">
@@ -252,7 +252,7 @@ export default function HomePage() {
 
           <p className="mt-5 text-white/50 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
             One platform for Grocery, Auto Parts, Pharma, and Tea Procurement.
-            AI-driven forecasting, real-time inventory, and multi-tenant SaaS — all in one.
+            AI-driven forecasting, real-time inventory, and multi-tenant SaaS â€” all in one.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
@@ -272,7 +272,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BENEFIT STATS ── */}
+      {/* â”€â”€ BENEFIT STATS â”€â”€ */}
       <section className="px-4 pb-16">
         <div className="max-w-4xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4">
           {benefits.map((b) => (
@@ -285,7 +285,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── INDUSTRY VERTICALS ── */}
+      {/* â”€â”€ INDUSTRY VERTICALS â”€â”€ */}
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
@@ -318,12 +318,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── FEATURES GRID ── */}
+      {/* â”€â”€ FEATURES GRID â”€â”€ */}
       <section className="px-4 pb-20 bg-[#0a0c12]">
         <div className="max-w-5xl mx-auto pt-16">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">Everything you need</h2>
-            <p className="text-white/40 mt-2 text-sm">From day-1 setup to enterprise scale — no add-ons required.</p>
+            <p className="text-white/40 mt-2 text-sm">From day-1 setup to enterprise scale â€” no add-ons required.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map((f) => {
@@ -342,12 +342,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── USER JOURNEYS ── */}
+      {/* â”€â”€ USER JOURNEYS â”€â”€ */}
       <section className="px-4 py-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">User Journeys</h2>
-            <p className="text-white/40 mt-2 text-sm">Every role has a tailored workflow — from owner to guest.</p>
+            <p className="text-white/40 mt-2 text-sm">Every role has a tailored workflow â€” from owner to guest.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {journeys.map((j) => (
@@ -375,7 +375,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── TEA MODULE SPOTLIGHT ── */}
+      {/* â”€â”€ TEA MODULE SPOTLIGHT â”€â”€ */}
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto">
           <div className="bg-gradient-to-br from-green-950/60 to-emerald-950/30 border border-green-500/20 rounded-3xl p-8 sm:p-10 flex flex-col lg:flex-row gap-8 items-start">
@@ -387,12 +387,12 @@ export default function HomePage() {
                 <span className="text-green-400 font-semibold text-sm">Tea Procurement Module</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3">
-                From leaf to ledger — every step tracked
+                From leaf to ledger â€” every step tracked
               </h3>
               <p className="text-white/50 text-sm leading-relaxed mb-6">
                 The Tea Procurement module handles the complete small-holder tea supply chain:
                 register growers, log daily collections by grade, dispatch to factories, settle
-                invoices, and pay growers weekly — with AI rate recommendations and cash-flow risk alerts.
+                invoices, and pay growers weekly â€” with AI rate recommendations and cash-flow risk alerts.
               </p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
@@ -428,8 +428,8 @@ export default function HomePage() {
                   { label: "KG Collected",       value: "374.7 kg", color: "text-green-400" },
                   { label: "Active Growers",      value: "3",        color: "text-blue-400" },
                   { label: "Dispatches Pending",  value: "1",        color: "text-yellow-400" },
-                  { label: "Factory Receivable",  value: "₹12,378",  color: "text-purple-400" },
-                  { label: "Grower Payments Due", value: "₹8,390",   color: "text-orange-400" },
+                  { label: "Factory Receivable",  value: "â‚¹12,378",  color: "text-purple-400" },
+                  { label: "Grower Payments Due", value: "â‚¹8,390",   color: "text-orange-400" },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                     <span className="text-white/40 text-xs">{row.label}</span>
@@ -442,7 +442,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── PUBLIC EXPLORE ── */}
+      {/* â”€â”€ PUBLIC EXPLORE â”€â”€ */}
       <section className="px-4 pb-20 bg-[#0a0c12]">
         <div className="max-w-5xl mx-auto pt-16">
           <div className="bg-[#0d1117] border border-white/8 rounded-3xl p-8 sm:p-10 flex flex-col lg:flex-row gap-8 items-center">
@@ -453,7 +453,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3">Find any store, anywhere</h3>
               <p className="text-white/50 text-sm leading-relaxed mb-6">
-                Customers can discover stores on the Explore page — search by name or product,
+                Customers can discover stores on the Explore page â€” search by name or product,
                 filter by city or domain, sort by distance, toggle card/grid layout, open Google Maps,
                 and reveal the store phone number.
               </p>
@@ -471,7 +471,7 @@ export default function HomePage() {
               <div className="bg-[#0a0c10] border border-white/8 rounded-2xl p-4 text-xs space-y-2.5">
                 <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2">
                   <Search size={12} className="text-white/30" />
-                  <span className="text-white/30">Search stores or products…</span>
+                  <span className="text-white/30">Search stores or productsâ€¦</span>
                 </div>
                 {[
                   { name: "FreshMart Koramangala", type: "Grocery", dist: "0.8 km" },
@@ -494,7 +494,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
+      {/* â”€â”€ TESTIMONIALS â”€â”€ */}
       <section className="px-4 py-20">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">What our customers say</h2>
@@ -517,13 +517,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
+      {/* â”€â”€ CTA â”€â”€ */}
       <section className="px-4 pb-24">
         <div className="max-w-2xl mx-auto text-center">
           <div className="bg-gradient-to-br from-indigo-950/60 to-purple-950/40 border border-indigo-500/20 rounded-3xl p-10">
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">Ready to get started?</h2>
             <p className="text-white/50 text-sm mb-8">
-              Free plan · No credit card · Set up in minutes
+              Free plan Â· No credit card Â· Set up in minutes
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/register"

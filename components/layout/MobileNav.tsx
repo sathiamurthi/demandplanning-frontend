@@ -1,4 +1,4 @@
-// src/components/layout/MobileNav.tsx
+﻿// src/components/layout/MobileNav.tsx
 'use client';
 
 import { Fragment } from 'react';
@@ -29,7 +29,7 @@ export function MobileNav({ isOpen, onClose, onOpen }: MobileNavProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white text-sm font-bold">
             G
           </div>
-          <span className="font-semibold text-slate-800">GenericDemandAI</span>
+          <span className="font-semibold text-slate-800">DemandGenius</span>
         </div>
       </header>
 

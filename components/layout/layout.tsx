@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'GenericDemandAI - Medicine Inventory',
+  title: 'DemandGenius - Medicine Inventory',
   description: 'Pharmacy demand planning and inventory management',
 };
 

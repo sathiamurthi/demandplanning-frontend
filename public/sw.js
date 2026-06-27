@@ -1,5 +1,5 @@
-// Nexus OS Service Worker
-const CACHE_NAME = 'nexus-os-v1';
+// DemandGenius Service Worker
+const CACHE_NAME = 'demandgenius-v1';
 const SHELL_URLS = [
   '/explore',
   '/manifest.json',
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
-      }).catch(() => cached || new Response('Offline — open Nexus OS when connected.', { status: 503 }));
+      }).catch(() => cached || new Response('Offline — open DemandGenius when connected.', { status: 503 }));
 
       // Stale-while-revalidate: return cache immediately, update in bg
       return cached || fetchPromise;

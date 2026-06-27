@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -71,11 +71,11 @@ function ResetPasswordForm() {
                 <CheckCircle2 className="h-7 w-7 text-emerald-500" />
               </div>
               <h1 className="text-lg font-bold text-gray-900">Password reset!</h1>
-              <p className="text-sm text-gray-500">Your password has been updated. Redirecting to login…</p>
+              <p className="text-sm text-gray-500">Your password has been updated. Redirecting to loginâ€¦</p>
               <Link href="/login"
                 className="flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5
                            text-sm font-semibold text-white hover:bg-gray-800 transition-colors">
-                Go to login →
+                Go to login â†’
               </Link>
             </div>
           ) : (
@@ -168,7 +168,7 @@ function ResetPasswordForm() {
                   className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white
                              hover:bg-gray-800 transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Saving…" : "Reset password"}
+                  {loading ? "Savingâ€¦" : "Reset password"}
                 </button>
               </form>
 
@@ -183,7 +183,7 @@ function ResetPasswordForm() {
         </div>
 
         <p className="text-center text-xs text-white/30 mt-6">
-          Powered by GenericDemandAI · v2.0
+          Powered by DemandGenius Â· v2.0
         </p>
       </div>
     </div>
@@ -194,7 +194,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#0F1729] flex items-center justify-center">
-        <div className="text-white/50 text-sm">Loading…</div>
+        <div className="text-white/50 text-sm">Loadingâ€¦</div>
       </div>
     }>
       <ResetPasswordForm />

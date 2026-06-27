@@ -1,4 +1,4 @@
-// src/app/layout.tsx
+﻿// src/app/layout.tsx
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'GenericDemandAI - Medicine Inventory',
+  title: 'DemandGenius - Medicine Inventory',
   description: 'Pharmacy demand planning and inventory management',
 };
 
