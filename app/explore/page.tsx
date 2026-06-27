@@ -28,7 +28,7 @@ interface Job       { id:string; company:string; role:string; status:string; app
 interface Reminder  { id:string; text:string; due?:string; done:boolean; }
 interface TripItem  { id:string; destination:string; fromDate:string; toDate:string; budget:number; notes:string; done:boolean; checklist:{text:string;done:boolean}[]; }
 interface Listing   { id:string; type:string; mode?:string; name:string; phone:string; city:string|null; state:string|null; address:string|null; description:string|null; rate_info:string|null; discount:string|null; services:any[]; available_now:boolean; lat?:number; lon?:number; dist?:number; }
-interface PlacePOI  { id:string; name:string; kind:string; lat:number; lon:number; dist:number; }
+interface PlacePOI  { id:string; name:string; kind:string; lat:number; lon:number; dist:number; description?:string; tip?:string; }
 interface UserLocation { lat:number; lon:number; city:string; state:string; country:string; accuracy:number; }
 interface SearchHistory { id:string; query:string; type:string; city:string; results:number; ts:string; }
 
@@ -2499,10 +2499,80 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
   const searchQuick = async (qs:typeof QUICK_SEARCHES[0]) => {
     if (!userLoc) { captureLocation(); return; }
     setLoading(false); setOsmLoad(true); setError(""); setListings([]); setOsmSecs([]); setSearched(true);
+
+    // Map frontend kind → backend cache categories
+    const kindToCats: Record<string,string[]> = {
+      hotel:['hotel'], restaurant:['restaurant'], pharmacy:['pharmacy'],
+      bank:['bank','atm'], hospital:['hospital'], fuel:['fuel'], school:['school'],
+      attraction:['temple','mosque','church'],
+    };
+    const backendCats = kindToCats[qs.kind] || [qs.kind];
+
+    // STEP 1 — Local temp cache (instant, no network)
+    const localPois: PlacePOI[] = backendCats.flatMap(c =>
+      (cacheData[c]||[]).map((it:any,i:number)=>({ id:`${c}${i}${it.name}`, name:it.name, kind:c, lat:0, lon:0, dist:it.dist_km||0 }))
+    );
+    if (localPois.length > 0) {
+      setOsmSecs([{label:qs.label, emoji:qs.icon, pois:localPois}]);
+    }
+
+    // STEP 2 — Backend cache (populated by background service every 2 min)
+    let gotData = localPois.length > 0;
     try {
-      const pois = await runOsmQuery(qs.osmQ(radius,userLoc.lat,userLoc.lon),userLoc.lat,userLoc.lon);
-      setOsmSecs([{label:qs.label,emoji:qs.icon,pois}]);
-    } catch { setError("Search failed. Check connection."); }
+      const fetches = backendCats.map(cat =>
+        fetch(`/v1/public/quicksearch?lat=${userLoc.lat}&lng=${userLoc.lon}&category=${cat}`)
+          .then(r=>r.json())
+          .then(d=>({ cat, items: (d.success ? (d.data[cat]||[]) : []) as any[] }))
+          .catch(()=>({ cat, items:[] as any[] }))
+      );
+      const backendResults = await Promise.all(fetches);
+      const backendPois: PlacePOI[] = backendResults.flatMap(r =>
+        r.items.map((it:any,i:number)=>({ id:`${r.cat}${i}${it.name}`, name:it.name, kind:r.cat, lat:0, lon:0, dist:it.dist_km||0 }))
+      );
+      if (backendPois.length > 0) {
+        gotData = true;
+        setCacheData(prev => {
+          const next = {...prev};
+          backendResults.forEach(r => { if (r.items.length) next[r.cat] = r.items; });
+          return next;
+        });
+        setOsmSecs([{label:qs.label, emoji:qs.icon, pois:backendPois}]);
+      }
+    } catch {}
+
+    // STEP 3 — Overpass API (external OSM, may be slow or rate-limited)
+    if (!gotData) {
+      try {
+        const pois = await runOsmQuery(qs.osmQ(radius,userLoc.lat,userLoc.lon),userLoc.lat,userLoc.lon);
+        if (pois.length > 0) {
+          gotData = true;
+          setCacheData(prev=>({...prev,[qs.kind]:pois.map(p=>({name:p.name,dist_km:p.dist}))}));
+          setOsmSecs([{label:qs.label, emoji:qs.icon, pois}]);
+        }
+      } catch {}
+    }
+
+    // STEP 4 — AI fallback, then write result into local temp cache
+    if (!gotData) {
+      try {
+        const p = new URLSearchParams({ lat:String(userLoc.lat), lng:String(userLoc.lon), ai:"true", q:`${qs.label} near me within ${radius}km` });
+        const resp = await fetch(`/v1/public/quicksearch?${p}`);
+        const d = await resp.json();
+        const aiPois: PlacePOI[] = [];
+        if (d.success) {
+          setCacheData(prev=>({...prev,...d.data}));
+          Object.entries(d.data||{}).forEach(([cat,items]:any) =>
+            (items as any[]).forEach((it:any,i:number)=>aiPois.push({ id:`ai${cat}${i}`, name:it.name, kind:cat, lat:0, lon:0, dist: it.dist_km ?? it.dist_km_estimate ?? 0, description:it.description, tip:it.tip }))
+          );
+        }
+        if (aiPois.length > 0) {
+          setOsmSecs([{label:`${qs.label} (AI)`, emoji:qs.icon, pois:aiPois}]);
+        } else {
+          setError("Nothing found nearby. Try a larger radius or Scan All.");
+        }
+      } catch { setError("Search failed. Check connection."); }
+    }
+
     setOsmLoad(false);
   };
 
@@ -2708,7 +2778,9 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                 <span className="text-xl shrink-0">{PLACE_ICON[p.kind]||"📍"}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{p.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{p.kind.replace(/_/g," ")} · <span className="font-mono">{p.dist<1?`${Math.round(p.dist*1000)}m`:`${p.dist.toFixed(2)}km`}</span></p>
+                  <p className="text-xs text-gray-500 capitalize">{p.kind.replace(/_/g," ")}{p.dist>0?<> · <span className="font-mono">{p.dist<1?`${Math.round(p.dist*1000)}m`:`${p.dist.toFixed(2)}km`}</span></>:null}</p>
+                  {p.description&&<p className="text-xs text-gray-400 truncate mt-0.5">{p.description}</p>}
+                  {p.tip&&<p className="text-xs text-purple-500 truncate mt-0.5 italic">{p.tip}</p>}
                 </div>
                 <MapPin size={11} className="text-gray-300 shrink-0 group-hover:text-orange-400"/>
               </a>
@@ -3150,10 +3222,10 @@ function InstallPanel() {
                 className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors">
                 <Copy size={11}/>{copied?"Copied!":"Copy Link"}
               </button>
-              <a href={`https://wa.me/?text=${encodeURIComponent("Install Nexus OS app: "+appUrl+" — App Key: "+APP_KEY)}`}
+              <a href={`https://wa.me/15556660240?text=${encodeURIComponent("Install Nexus OS app: "+appUrl+" — App Key: "+APP_KEY)}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
-                <Share2 size={11}/>Share
+                <Share2 size={11}/>Share via WA
               </a>
             </div>
           </div>
