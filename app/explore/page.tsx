@@ -2540,19 +2540,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
       }
     } catch {}
 
-    // STEP 3 — Overpass API (external OSM, may be slow or rate-limited)
-    if (!gotData) {
-      try {
-        const pois = await runOsmQuery(qs.osmQ(radius,userLoc.lat,userLoc.lon),userLoc.lat,userLoc.lon);
-        if (pois.length > 0) {
-          gotData = true;
-          setCacheData(prev=>({...prev,[qs.kind]:pois.map(p=>({name:p.name,dist_km:p.dist}))}));
-          setOsmSecs([{label:qs.label, emoji:qs.icon, pois}]);
-        }
-      } catch {}
-    }
-
-    // STEP 4 — AI fallback, then write result into local temp cache
+    // STEP 3 — AI fallback (backend handles Overpass via fetchAndCacheCategory, then AI)
     if (!gotData) {
       try {
         const p = new URLSearchParams({ lat:String(userLoc.lat), lng:String(userLoc.lon), ai:"true", q:`${qs.label} near me within ${radius}km` });
