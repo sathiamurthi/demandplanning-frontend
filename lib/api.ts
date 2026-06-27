@@ -1,4 +1,5 @@
-const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}`;
+// Use relative /v1 so Next.js rewrites proxy it to the backend — no NEXT_PUBLIC_API_URL needed
+const API_BASE = '/v1';
 
 // Build common headers
 function getAuthHeaders(): Record<string, string> {
@@ -21,8 +22,8 @@ function decodeJwtExp(token: string): number {
 // Refresh token logic
 async function refreshToken(): Promise<boolean> {
   try {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
-    const TOKEN_STRATEGY = process.env.NEXT_PUBLIC_TOKEN_STRATEGY as "cookie" | "localStorage";
+    const API_BASE = '/v1';
+    const TOKEN_STRATEGY = (process.env.NEXT_PUBLIC_TOKEN_STRATEGY || "localStorage") as "cookie" | "localStorage";
 
     let body: string | undefined = undefined;
     let headers: Record<string, string> = { "Content-Type": "application/json" };
