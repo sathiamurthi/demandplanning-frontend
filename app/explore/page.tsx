@@ -2540,17 +2540,17 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
       }
     } catch {}
 
-    // STEP 3 — Browser-side Overpass (direct OSM when backend/server Overpass is slow)
+    // STEP 3 — Overpass via server-side proxy (no CORS — /api/overpass is same-origin)
     if (!gotData) {
       const osmTagMap: Record<string,string[]> = {
-        hotel:       ['tourism=hotel','tourism=guest_house'],
+        hotel:       ['tourism=hotel','tourism=guest_house','tourism=hostel'],
         restaurant:  ['amenity=restaurant','amenity=fast_food','amenity=cafe'],
         pharmacy:    ['amenity=pharmacy'],
         bank:        ['amenity=bank'],
         atm:         ['amenity=atm'],
         hospital:    ['amenity=hospital','amenity=clinic'],
         fuel:        ['amenity=fuel'],
-        school:      ['amenity=school'],
+        school:      ['amenity=school','amenity=college','amenity=university'],
         temple:      ['amenity=place_of_worship][religion=hindu'],
         mosque:      ['amenity=place_of_worship][religion=muslim'],
         church:      ['amenity=place_of_worship][religion=christian'],
@@ -2558,10 +2558,6 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
       };
       const radiusM = Math.max(radius, 3) * 1000;
       const osmPois: PlacePOI[] = [];
-      const overpassEndpoints = [
-        'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-      ];
       for (const cat of backendCats) {
         const tags = osmTagMap[cat];
         if (!tags?.length) continue;
@@ -2569,19 +2565,17 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
           `node[${t}](around:${radiusM},${userLoc.lat},${userLoc.lon});`,
           `way[${t}](around:${radiusM},${userLoc.lat},${userLoc.lon});`,
         ]).join('\n');
-        const body = `data=${encodeURIComponent(`[out:json][timeout:20];(\n${parts}\n);out center 30;`)}`;
-        for (const ep of overpassEndpoints) {
-          try {
-            const r = await fetch(ep,{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout(15000)});
-            const d = await r.json();
-            const els = (d.elements||[]).filter((el:any)=>el.tags?.name);
-            els.forEach((el:any)=>{
-              const elLat=el.lat??el.center?.lat??0; const elLon=el.lon??el.center?.lon??0;
-              osmPois.push({id:`osm${cat}${el.id}`,name:el.tags.name,kind:cat,lat:elLat,lon:elLon,dist:haversine(userLoc.lat,userLoc.lon,elLat,elLon)});
-            });
-            if (els.length>0) break;
-          } catch {}
-        }
+        const body = `data=${encodeURIComponent(`[out:json][timeout:20];(\n${parts}\n);out center 40;`)}`;
+        try {
+          // /api/overpass is a Next.js route that proxies server-side — no CORS
+          const r = await fetch('/api/overpass',{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout(20000)});
+          const d = await r.json();
+          const els = (d.elements||[]).filter((el:any)=>el.tags?.name);
+          els.forEach((el:any)=>{
+            const elLat=el.lat??el.center?.lat??0; const elLon=el.lon??el.center?.lon??0;
+            osmPois.push({id:`osm${cat}${el.id}`,name:el.tags.name,kind:cat,lat:elLat,lon:elLon,dist:haversine(userLoc.lat,userLoc.lon,elLat,elLon)});
+          });
+        } catch {}
       }
       if (osmPois.length>0) {
         gotData=true;
