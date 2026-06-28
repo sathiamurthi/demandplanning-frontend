@@ -207,25 +207,21 @@ export default function HomePage() {
             </div>
             <span className="font-bold text-white text-sm tracking-tight">DemandGenius</span>
           </Link>
-          <nav className="hidden sm:flex items-center gap-1">
-            <Link href="/explore" className="flex items-center gap-1.5 text-white/60 hover:text-white text-xs px-3 py-1.5 rounded-lg hover:bg-white/6 transition-all">
-              <Search size={11} /> Explore
-            </Link>
-            <Link href="/tea" className="flex items-center gap-1.5 text-green-400/80 hover:text-green-300 text-xs px-3 py-1.5 rounded-lg hover:bg-green-500/8 transition-all">
-              <Leaf size={11} /> TeaLeaf Collect Pro
-            </Link>
-            <div className="w-px h-4 bg-white/10 mx-1" />
-            <Link href="/login" className="text-xs text-white/60 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/6 transition-all">
-              Log in
-            </Link>
+          <nav className="hidden sm:flex items-center gap-4">
+            <a href="mailto:paariwalaconnect@gmail.com" className="flex items-center gap-2 text-xs text-white/70 hover:text-white transition-colors bg-white/5 border border-white/8 px-3 py-1.5 rounded-xl">
+              <img src="/contact_avatar.jpg" alt="Contact Avatar" className="w-5 h-5 rounded-full object-cover border border-white/20" />
+              <span>paariwalaconnect@gmail.com</span>
+            </a>
             <Link href="/register" className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg font-medium transition-all">
               Get Started
             </Link>
           </nav>
           {/* Mobile */}
           <div className="flex sm:hidden items-center gap-2">
-            <Link href="/explore" className="text-xs border border-white/15 text-white/70 px-3 py-1.5 rounded-lg">Explore</Link>
-            <Link href="/login" className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg">Login</Link>
+            <a href="mailto:paariwalaconnect@gmail.com" className="flex items-center gap-1.5 text-[10px] text-white/70 bg-white/5 border border-white/8 px-2.5 py-1 rounded-xl">
+              <img src="/contact_avatar.jpg" alt="Contact" className="w-4 h-4 rounded-full object-cover" />
+              <span>paariwalaconnect@gmail.com</span>
+            </a>
           </div>
         </div>
       </header>
