@@ -198,15 +198,15 @@ export function Sidebar() {
           <select
             value={storeId}
             onChange={(e) => handleStoreChange(e.target.value)}
-            className="w-full rounded bg-white/10 px-2 py-1 text-sm"
+            className="w-full rounded bg-white/10 px-2 py-1 text-sm text-white"
           >
             {loading ? (
-              <option>Loading...</option>
+              <option className="text-gray-900 bg-white">Loading...</option>
             ) : stores.length === 0 ? (
-              <option>No stores</option>
+              <option className="text-gray-900 bg-white">No stores</option>
             ) : (
               stores.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={s.id} className="text-gray-900 bg-white">
                   {s.name}
                 </option>
               ))

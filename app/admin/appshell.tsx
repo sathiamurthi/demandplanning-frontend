@@ -111,10 +111,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         const saved = localStorage.getItem("storeId");
 
-        if (saved) {
+        if (saved && data.some((s) => s.id === saved)) {
           setStoreIdState(saved);
         } else if (data.length > 0) {
           setStoreIdState(data[0].id);
+          localStorage.setItem("storeId", data[0].id);
+        } else {
+          setStoreIdState("");
+          localStorage.setItem("storeId", "");
         }
       } catch (err) {
         console.error("Store fetch failed:", err);
