@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { apiGet } from "@/lib/api";
 import {
   LayoutDashboard, Users, Store, Settings2, Tag, Package,
   ShoppingCart, Shield, ChevronLeft, ChevronRight,
@@ -106,7 +107,32 @@ export function Sidebar({
   const { collapsed, toggle, mobileOpen, setMobileOpen } = useSidebar();
   const pathname = usePathname();
 
-  const canAccess = (roles?: string[]) => !roles || roles.includes(role);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const tenantId = localStorage.getItem("tenantId");
+        if (!tenantId) return;
+        const res = await apiGet<any>(`/tenants/${tenantId}/users/me`);
+        if (res?.success && res?.data) {
+          setProfileData(res.data);
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const firstName = profileData?.first_name || "";
+  const lastName = profileData?.last_name || "";
+  const fullName = (firstName + " " + lastName).trim() || userEmail || "User Profile";
+  const initials = (firstName?.[0] || "") + (lastName?.[0] || "") || (userEmail?.[0]?.toUpperCase() || "U");
+  const userRole = profileData?.role || role || "staff";
+
+  const canAccess = (roles?: string[]) => !roles || roles.includes(userRole);
 
   const isActive = (href: string) =>
     href === "/admin/dashboard"
@@ -265,40 +291,44 @@ export function Sidebar({
         {/* ── User strip ── */}
         <div className="shrink-0 border-t p-3"
              style={{ borderColor: "var(--sb-border, rgba(255,255,255,0.10))" }}>
-          <div className={`flex items-center gap-3 rounded-lg px-2 py-2
-                           ${collapsed ? "justify-center" : ""}`}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
-                            text-xs font-semibold"
-                 style={{ backgroundColor: "var(--sb-avatar-bg, rgba(212,168,67,0.25))",
-                          color: "var(--sb-active-text, #D4A843)" }}>
-              {userEmail ? userEmail.slice(0, 2).toUpperCase() : "??"}
+          <div 
+            onClick={() => setProfileOpen(true)}
+            className={`flex items-center gap-3 rounded-lg px-2 py-2 cursor-pointer hover:bg-white/5 transition
+                           ${collapsed ? "justify-center" : ""}`}
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white bg-gradient-to-tr from-yellow-500 to-amber-600 shadow">
+              {initials}
             </div>
             {!collapsed && (
               <>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium"
-                     style={{ color: "var(--sb-text-hover, #fff)" }}>
-                    {userEmail || "User"}
+                  <p className="truncate text-xs font-semibold text-white">
+                    {fullName}
                   </p>
-                  <p className="truncate text-[11px] capitalize"
-                     style={{ color: "var(--sb-text, rgba(255,255,255,0.4))" }}>{role}</p>
+                  <p className="truncate text-[11px] capitalize text-white/40">{userRole}</p>
                 </div>
-                <button
-                  onClick={onSignOut}
-                  className="rounded p-1 transition-colors hover:opacity-80"
-                  style={{ color: "var(--sb-text, rgba(255,255,255,0.3))" }}
-                  aria-label="Sign out"
-                  title="Sign out"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
+                {onSignOut && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSignOut();
+                    }}
+                    className="rounded p-1 transition-colors text-white/40 hover:text-white"
+                    aria-label="Sign out"
+                    title="Sign out"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </>
             )}
             {collapsed && onSignOut && (
               <button
-                onClick={onSignOut}
-                className="mt-1 rounded p-1 hover:opacity-80"
-                style={{ color: "var(--sb-text, rgba(255,255,255,0.3))" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSignOut();
+                }}
+                className="mt-1 rounded p-1 text-white/40 hover:text-white"
                 title="Sign out"
               >
                 <LogOut className="h-3.5 w-3.5" />
@@ -307,6 +337,76 @@ export function Sidebar({
           </div>
         </div>
       </aside>
+
+      {/* PROFILE DETAILS MODAL */}
+      {profileOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/20 bg-gray-900 text-white p-6 shadow-2xl transition-all duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                <Users className="text-yellow-400" size={20} />
+                User Profile Details
+              </h3>
+              <button
+                onClick={() => setProfileOpen(false)}
+                className="rounded-full p-1 text-white/60 hover:bg-white/10 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4">
+              {/* Profile Avatar / Initials */}
+              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-xl font-bold shadow-lg text-white">
+                  {initials}
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold">{fullName}</h4>
+                  <span className="inline-flex items-center gap-1 rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-semibold text-yellow-400 capitalize">
+                    {userRole}
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid Details */}
+              <div className="grid grid-cols-1 gap-3 bg-white/5 p-4 rounded-xl border border-white/5 text-sm">
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Phone Number</label>
+                  <p className="mt-0.5 text-white font-mono">{profileData?.phone || "N/A"}</p>
+                </div>
+                <hr className="border-white/5" />
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Email Address</label>
+                  <p className="mt-0.5 text-white break-all">{profileData?.email || "N/A"}</p>
+                </div>
+                <hr className="border-white/5" />
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Tenant / Company</label>
+                  <p className="mt-0.5 text-white">{profileData?.tenant_name || "N/A"}</p>
+                </div>
+                <hr className="border-white/5" />
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Active Store</label>
+                  <p className="mt-0.5 text-white">{profileData?.store_name || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer / Close Button */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setProfileOpen(false)}
+                className="rounded bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold transition text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

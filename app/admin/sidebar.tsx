@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { apiGet } from "@/lib/api";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -118,6 +119,31 @@ export function Sidebar() {
   const router = useRouter();
 
   const { stores, storeId, setStoreId, loading } = useStore();
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const tenantId = localStorage.getItem("tenantId");
+        if (!tenantId) return;
+        const res = await apiGet<any>(`/tenants/${tenantId}/users/me`);
+        if (res?.success && res?.data) {
+          setProfileData(res.data);
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const firstName = profileData?.first_name || "";
+  const lastName = profileData?.last_name || "";
+  const fullName = (firstName + " " + lastName).trim() || profileData?.email || "User Profile";
+  const initials = (firstName?.[0] || "") + (lastName?.[0] || "") || (profileData?.email?.[0]?.toUpperCase() || "U");
+  const userRole = profileData?.role || "staff";
 
   const width = collapsed ? "w-16" : "w-60";
 
@@ -252,23 +278,107 @@ export function Sidebar() {
 
         {/* FOOTER */}
         <div className="border-t border-white/10 p-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs">
-              AK
+          <div 
+            onClick={() => setProfileOpen(true)}
+            className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-1 rounded transition"
+          >
+            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-xs font-bold text-white">
+              {initials}
             </div>
 
             {!collapsed && (
               <>
-                <div className="text-xs">
-                  <div>Arjun Kumar</div>
-                  <div className="text-white/40">admin</div>
+                <div className="text-xs flex-1 min-w-0">
+                  <div className="truncate font-semibold">{fullName}</div>
+                  <div className="text-white/40 truncate capitalize">{userRole}</div>
                 </div>
-                <LogOut size={14} className="ml-auto" />
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    localStorage.clear();
+                    router.push("/login");
+                  }}
+                  className="p-1 hover:bg-white/10 rounded text-white/60 hover:text-white"
+                  title="Logout"
+                >
+                  <LogOut size={14} />
+                </button>
               </>
             )}
           </div>
         </div>
       </aside>
+
+      {/* PROFILE DETAILS MODAL */}
+      {profileOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/20 bg-gray-900 text-white p-6 shadow-2xl transition-all duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                <Users className="text-yellow-400" size={20} />
+                User Profile Details
+              </h3>
+              <button
+                onClick={() => setProfileOpen(false)}
+                className="rounded-full p-1 text-white/60 hover:bg-white/10 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4">
+              {/* Profile Avatar / Initials */}
+              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-xl font-bold shadow-lg text-white">
+                  {initials}
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold">{fullName}</h4>
+                  <span className="inline-flex items-center gap-1 rounded bg-yellow-500/20 px-2 py-0.5 text-xs font-semibold text-yellow-400 capitalize">
+                    {userRole}
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid Details */}
+              <div className="grid grid-cols-1 gap-3 bg-white/5 p-4 rounded-xl border border-white/5 text-sm">
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Phone Number</label>
+                  <p className="mt-0.5 text-white font-mono">{profileData?.phone || "N/A"}</p>
+                </div>
+                <hr className="border-white/5" />
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Email Address</label>
+                  <p className="mt-0.5 text-white break-all">{profileData?.email || "N/A"}</p>
+                </div>
+                <hr className="border-white/5" />
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Tenant / Company</label>
+                  <p className="mt-0.5 text-white">{profileData?.tenant_name || "N/A"}</p>
+                </div>
+                <hr className="border-white/5" />
+                <div>
+                  <label className="block text-xs text-white/40 uppercase font-medium">Active Store</label>
+                  <p className="mt-0.5 text-white">{profileData?.store_name || "N/A"}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer / Close Button */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setProfileOpen(false)}
+                className="rounded bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold transition text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }
