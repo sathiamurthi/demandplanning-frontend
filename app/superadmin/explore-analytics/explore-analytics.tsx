@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 import { useState, useEffect, useCallback } from "react";
+import { BarChart2, Users, Activity, Star, Search, RefreshCw } from "lucide-react";
 
 interface Stats {
   total_guests: number;
@@ -72,72 +73,81 @@ export default function ExploreAnalytics() {
         setActionMsg(`Guest ${action}d successfully`);
         loadGuests();
         setTimeout(() => setActionMsg(""), 3000);
-      } else {
-        setError(d.error);
-      }
-    } catch (e: any) {
-      setError(e.message);
-    }
+      } else setError(d.error);
+    } catch (e: any) { setError(e.message); }
   };
 
   const maxVisits = stats ? Math.max(...stats.sessions.map(s => s.visits), 1) : 1;
+
+  const statCards = [
+    { label: "Total Guests",     value: stats?.total_guests ?? "—",                                     icon: Users,    color: "text-blue-600",   bg: "bg-blue-50"   },
+    { label: `Active (${range})`,value: stats?.active_guests ?? "—",                                    icon: Activity, color: "text-green-600",  bg: "bg-green-50"  },
+    { label: "Total Sessions",   value: stats?.sessions.reduce((a, s) => a + s.visits, 0) ?? "—",      icon: BarChart2,color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Top Contributors", value: stats?.top_contributors.length ?? "—",                          icon: Star,     color: "text-orange-600", bg: "bg-orange-50" },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Explore Analytics</h1>
-          <p className="text-gray-400 text-sm">DemandGenius explore users and engagement</p>
+          <h1 className="text-2xl font-black text-gray-900">Explore Analytics</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Guest users and engagement on /explore</p>
         </div>
-        <div className="flex gap-1 bg-[#1f2430] rounded-xl p-1">
-          {(["daily", "weekly", "monthly"] as const).map(r => (
-            <button key={r} onClick={() => setRange(r)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all capitalize
-                ${range === r ? "bg-[#6c63ff] text-white" : "text-gray-400 hover:text-white"}`}>
-              {r}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            {(["daily", "weekly", "monthly"] as const).map(r => (
+              <button key={r} onClick={() => setRange(r)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
+                  ${range === r ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:text-gray-700"}`}>
+                {r}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { loadStats(); loadGuests(); }} className="text-gray-400 hover:text-orange-500 transition-colors">
+            <RefreshCw size={15} className={loadingStats ? "animate-spin" : ""} />
+          </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-800 rounded-xl p-4 text-red-300 text-sm flex items-center justify-between">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="text-red-400 hover:text-red-200 ml-4">âœ•</button>
+          <button onClick={() => setError("")} className="text-red-400 hover:text-red-600 ml-4 font-bold">×</button>
         </div>
       )}
       {actionMsg && (
-        <div className="bg-green-900/30 border border-green-800 rounded-xl p-3 text-green-300 text-sm">{actionMsg}</div>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-700 text-sm">{actionMsg}</div>
       )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: "Total Guests", value: stats?.total_guests ?? "â€”", color: "text-blue-400" },
-          { label: `Active (${range})`, value: stats?.active_guests ?? "â€”", color: "text-green-400" },
-          { label: "Sessions (chart)", value: stats?.sessions.reduce((a, s) => a + s.visits, 0) ?? "â€”", color: "text-purple-400" },
-          { label: "Top Contributors", value: stats?.top_contributors.length ?? "â€”", color: "text-orange-400" },
-        ].map(c => (
-          <div key={c.label} className="bg-[#161a23] border border-gray-800 rounded-xl p-4">
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-1">{c.label}</p>
-            <p className={`text-3xl font-black ${c.color}`}>{loadingStats ? "â€¦" : c.value}</p>
-          </div>
-        ))}
+        {statCards.map(c => {
+          const Icon = c.icon;
+          return (
+            <div key={c.label} className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className={`w-8 h-8 rounded-xl ${c.bg} flex items-center justify-center mb-3`}>
+                <Icon size={15} className={c.color} />
+              </div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">{c.label}</p>
+              <p className={`text-3xl font-black mt-0.5 ${c.color}`}>{loadingStats ? "…" : c.value}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Session Chart */}
       {stats && stats.sessions.length > 0 && (
-        <div className="bg-[#161a23] border border-gray-800 rounded-xl p-5">
-          <h2 className="text-white font-bold mb-4">Daily Visits</h2>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5">
+          <h2 className="font-bold text-gray-900 mb-4">Visits Over Time</h2>
           <div className="flex items-end gap-1.5 h-32 overflow-x-auto pb-2">
             {stats.sessions.map(s => (
               <div key={s.date} className="flex flex-col items-center gap-1 min-w-[36px]">
-                <span className="text-[10px] text-gray-500">{s.visits}</span>
+                <span className="text-[10px] text-gray-400">{s.visits}</span>
                 <div
-                  className="w-7 bg-[#6c63ff] rounded-t-md transition-all"
+                  className="w-7 bg-orange-400 rounded-t-md transition-all hover:bg-orange-500"
                   style={{ height: `${Math.max(4, (s.visits / maxVisits) * 96)}px` }}
                 />
-                <span className="text-[9px] text-gray-600 rotate-[-45deg] origin-top-left translate-y-2 translate-x-1 whitespace-nowrap">
+                <span className="text-[9px] text-gray-400 rotate-[-45deg] origin-top-left translate-y-2 translate-x-1 whitespace-nowrap">
                   {s.date.slice(5)}
                 </span>
               </div>
@@ -148,31 +158,31 @@ export default function ExploreAnalytics() {
 
       {/* Top Contributors */}
       {stats && stats.top_contributors.length > 0 && (
-        <div className="bg-[#161a23] border border-gray-800 rounded-xl p-5">
-          <h2 className="text-white font-bold mb-4">Top Contributors</h2>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5">
+          <h2 className="font-bold text-gray-900 mb-4">Top Contributors</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
-                  <th className="text-left pb-2">Guest</th>
-                  <th className="text-right pb-2">Listings</th>
-                  <th className="text-right pb-2">Sessions</th>
-                  <th className="text-right pb-2">Last Seen</th>
-                  <th className="text-right pb-2">Status</th>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Guest</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Listings</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sessions</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Seen</th>
+                  <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {stats.top_contributors.map(g => (
-                  <tr key={g.guest_id} className="border-b border-gray-900 hover:bg-gray-800/30">
-                    <td className="py-2.5 text-white">
-                      <div className="font-semibold">{g.guest_name}</div>
-                      <div className="text-[10px] text-gray-600 font-mono">{g.guest_id}</div>
+                  <tr key={g.guest_id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-3 py-2.5">
+                      <div className="font-semibold text-gray-900">{g.guest_name}</div>
+                      <div className="text-[10px] text-gray-400 font-mono">{g.guest_id}</div>
                     </td>
-                    <td className="py-2.5 text-right text-orange-400 font-bold">{g.listing_count}</td>
-                    <td className="py-2.5 text-right text-gray-300">{g.total_sessions}</td>
-                    <td className="py-2.5 text-right text-gray-500 text-xs">{g.last_seen}</td>
-                    <td className="py-2.5 text-right">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.is_active ? "bg-green-900/50 text-green-400" : "bg-red-900/50 text-red-400"}`}>
+                    <td className="px-3 py-2.5 text-right text-orange-600 font-bold">{g.listing_count}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-600">{g.total_sessions}</td>
+                    <td className="px-3 py-2.5 text-right text-gray-400 text-xs">{g.last_seen}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
                         {g.is_active ? "Active" : "Off"}
                       </span>
                     </td>
@@ -184,54 +194,56 @@ export default function ExploreAnalytics() {
         </div>
       )}
 
-      {/* All Guests Table */}
-      <div className="bg-[#161a23] border border-gray-800 rounded-xl p-5">
+      {/* All Guests */}
+      <div className="bg-white border border-gray-100 rounded-2xl p-5">
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <h2 className="text-white font-bold">All Guests <span className="text-gray-500 font-normal text-sm">({guestTotal})</span></h2>
-          <input value={search} onChange={e => { setSearch(e.target.value); setGuestPage(1); }}
-            placeholder="Search guest ID or nameâ€¦"
-            className="bg-[#0d0f14] border border-gray-700 rounded-xl px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#6c63ff] w-64" />
+          <h2 className="font-bold text-gray-900">All Guests <span className="text-gray-400 font-normal text-sm">({guestTotal})</span></h2>
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <input value={search} onChange={e => { setSearch(e.target.value); setGuestPage(1); }}
+              placeholder="Search guest ID or name…"
+              className="border border-gray-200 rounded-xl pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:border-orange-400 w-56" />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
-                <th className="text-left pb-2">Guest</th>
-                <th className="text-right pb-2">First Seen</th>
-                <th className="text-right pb-2">Last Seen</th>
-                <th className="text-right pb-2">Sessions</th>
-                <th className="text-right pb-2">Listings</th>
-                <th className="text-right pb-2">Status</th>
-                <th className="text-right pb-2">Action</th>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Guest</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">First Seen</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Seen</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sessions</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Listings</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
               </tr>
             </thead>
             <tbody>
               {loadingGuests ? (
-                <tr><td colSpan={7} className="py-8 text-center text-gray-600">Loadingâ€¦</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-gray-400 text-sm">Loading…</td></tr>
               ) : guests.length === 0 ? (
-                <tr><td colSpan={7} className="py-8 text-center text-gray-600">No guests found</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-gray-400 text-sm">No guests found</td></tr>
               ) : guests.map(g => (
-                <tr key={g.guest_id} className={`border-b border-gray-900 hover:bg-gray-800/30 ${!g.is_active ? "opacity-50" : ""}`}>
-                  <td className="py-2.5">
-                    <div className="text-white font-semibold">{g.guest_name}</div>
-                    <div className="text-[10px] text-gray-600 font-mono">{g.guest_id}</div>
+                <tr key={g.guest_id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${!g.is_active ? "opacity-50" : ""}`}>
+                  <td className="px-3 py-2.5">
+                    <div className="font-semibold text-gray-900">{g.guest_name}</div>
+                    <div className="text-[10px] text-gray-400 font-mono">{g.guest_id}</div>
                   </td>
-                  <td className="py-2.5 text-right text-gray-500 text-xs">{g.first_seen}</td>
-                  <td className="py-2.5 text-right text-gray-400 text-xs">{g.last_seen}</td>
-                  <td className="py-2.5 text-right text-gray-300">{g.total_sessions}</td>
-                  <td className="py-2.5 text-right text-orange-400 font-bold">{g.listing_count}</td>
-                  <td className="py-2.5 text-right">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.is_active ? "bg-green-900/50 text-green-400" : "bg-red-900/50 text-red-400"}`}>
-                      {g.is_active ? "Active" : "Deactivated"}
+                  <td className="px-3 py-2.5 text-right text-gray-400 text-xs">{g.first_seen}</td>
+                  <td className="px-3 py-2.5 text-right text-gray-500 text-xs">{g.last_seen}</td>
+                  <td className="px-3 py-2.5 text-right text-gray-700">{g.total_sessions}</td>
+                  <td className="px-3 py-2.5 text-right text-orange-600 font-bold">{g.listing_count}</td>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
+                      {g.is_active ? "Active" : "Off"}
                     </span>
-                    {g.deactivated_by && <div className="text-[9px] text-gray-600 mt-0.5">by {g.deactivated_by}</div>}
+                    {g.deactivated_by && <div className="text-[9px] text-gray-400 mt-0.5">by {g.deactivated_by}</div>}
                   </td>
-                  <td className="py-2.5 text-right">
+                  <td className="px-3 py-2.5 text-right">
                     <button onClick={() => toggleGuest(g.guest_id, g.is_active)}
                       className={`text-xs px-3 py-1 rounded-lg font-semibold transition-colors ${g.is_active
-                        ? "bg-red-900/50 text-red-400 hover:bg-red-900"
-                        : "bg-green-900/50 text-green-400 hover:bg-green-900"
-                      }`}>
+                        ? "bg-red-50 text-red-500 hover:bg-red-100"
+                        : "bg-green-50 text-green-600 hover:bg-green-100"}`}>
                       {g.is_active ? "Deactivate" : "Reactivate"}
                     </button>
                   </td>
@@ -240,14 +252,13 @@ export default function ExploreAnalytics() {
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
         {guestTotal > 30 && (
           <div className="flex items-center justify-between mt-4 text-sm">
             <button onClick={() => setGuestPage(p => Math.max(1, p - 1))} disabled={guestPage === 1}
-              className="px-3 py-1 bg-gray-800 text-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-700">â† Prev</button>
-            <span className="text-gray-500">Page {guestPage} Â· {guestTotal} total</span>
+              className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-200">← Prev</button>
+            <span className="text-gray-400 text-xs">Page {guestPage} · {guestTotal} total</span>
             <button onClick={() => setGuestPage(p => p + 1)} disabled={guestPage * 30 >= guestTotal}
-              className="px-3 py-1 bg-gray-800 text-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-700">Next â†’</button>
+              className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-200">Next →</button>
           </div>
         )}
       </div>

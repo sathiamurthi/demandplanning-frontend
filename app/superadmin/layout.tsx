@@ -1,11 +1,29 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  LayoutDashboard, Users, Building2, Shield, Bell,
+  MessageSquare, CreditCard, BarChart2, Bot, LogOut,
+  ChevronRight, Menu, X,
+} from "lucide-react";
+
+const NAV = [
+  { href: "/superadmin",                  label: "Dashboard",        icon: LayoutDashboard },
+  { href: "/superadmin/tenants",          label: "Tenants",          icon: Building2 },
+  { href: "/superadmin/users",            label: "Users",            icon: Users },
+  { href: "/superadmin/permissions",      label: "Permissions",      icon: Shield },
+  { href: "/superadmin/notifications",    label: "Notifications",    icon: Bell },
+  { href: "/superadmin/messages",         label: "Messages",         icon: MessageSquare },
+  { href: "/superadmin/subscriptions",    label: "Subscriptions",    icon: CreditCard },
+  { href: "/superadmin/explore-analytics",label: "Explore Analytics",icon: BarChart2 },
+  { href: "/superadmin/ai-usage",         label: "AI & Pipeline",    icon: Bot },
+];
 
 export default function SuperadminLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const router   = useRouter();
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -13,62 +31,76 @@ export default function SuperadminLayout({ children }: { children: React.ReactNo
     router.push("/login");
   };
 
+  const isActive = (href: string) =>
+    href === "/superadmin" ? pathname === "/superadmin" : pathname.startsWith(href);
+
   return (
-    <div className="flex min-h-screen bg-[#0d0f14] text-white">
+    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+      {/* Mobile overlay */}
+      {open && (
+        <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside
-        className={`fixed lg:static top-0 left-0 h-full w-64 bg-[#161a23] transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-transform duration-200 ease-in-out z-50`}
-      >
-        <div className="p-6 font-bold text-xl">Demand Genius</div>
-        <nav className="space-y-2 px-4">
-          <Link href="/superadmin" className="block py-2 hover:text-[#6c63ff]">Dashboard</Link>
-          <Link href="/superadmin/users" className="block py-2 hover:text-[#6c63ff]">Users</Link>
-          <Link href="/superadmin/tenants" className="block py-2 hover:text-[#6c63ff]">Tenants</Link>
-          <Link href="/superadmin/permissions" className="block py-2 hover:text-[#6c63ff]">Permissions</Link>
-          <Link href="/superadmin/notifications" className="block py-2 hover:text-[#6c63ff]">Notifications</Link>
-          <Link href="/superadmin/messages" className="block py-2 hover:text-[#6c63ff]">Messages</Link>
-          <Link href="/superadmin/subscriptions" className="block py-2 hover:text-[#6c63ff]">Subscriptions</Link>
-          <Link href="/superadmin/explore-analytics" className="block py-2 hover:text-[#6c63ff]">Explore Analytics</Link>
-          <Link href="/superadmin/ai-usage" className="block py-2 hover:text-orange-400 font-semibold">🤖 AI Usage & Pipeline</Link>
+      <aside className={`fixed top-0 left-0 h-full w-60 bg-white border-r border-gray-100 shadow-sm z-50
+          flex flex-col transition-transform duration-200
+          ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+
+        {/* Brand */}
+        <div className="px-5 py-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <p className="font-black text-gray-900 text-base leading-none">Nexus OS</p>
+            <p className="text-[10px] text-orange-500 font-semibold tracking-widest uppercase mt-0.5">Superadmin</p>
+          </div>
+          <button className="lg:hidden text-gray-400 hover:text-gray-600" onClick={() => setOpen(false)}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+          {NAV.map(({ href, label, icon: Icon }) => {
+            const active = isActive(href);
+            return (
+              <Link key={href} href={href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
+                  ${active
+                    ? "bg-orange-50 text-orange-600 font-semibold"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"}`}>
+                <Icon size={16} className={active ? "text-orange-500" : "text-gray-400"} />
+                <span className="flex-1">{label}</span>
+                {active && <ChevronRight size={12} className="text-orange-400" />}
+              </Link>
+            );
+          })}
         </nav>
+
+        {/* Logout */}
+        <div className="px-3 py-4 border-t border-gray-100">
+          <button onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all">
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-64">
-        {/* Top Bar */}
-        <header className="flex justify-between items-center bg-[#161a23] p-4 shadow-md">
-          {/* Hamburger for mobile */}
-          <button
-            className="lg:hidden text-gray-300"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            ☰
+      {/* Main */}
+      <div className="flex-1 flex flex-col lg:ml-60 min-w-0">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+          <button className="lg:hidden text-gray-500 hover:text-gray-800" onClick={() => setOpen(true)}>
+            <Menu size={20} />
           </button>
-
-          {/* Right side: Profile */}
-          <div className="flex items-center space-x-4 ml-auto">
-            <div className="relative group">
-              <button className="w-10 h-10 rounded-full bg-[#6c63ff] flex items-center justify-center">
-                SA
-              </button>
-              {/* Dropdown */}
-              <div className="absolute right-0 mt-2 w-40 bg-[#1f2430] rounded shadow-lg hidden group-hover:block">
-                <Link href="/superadmin/profile" className="block px-4 py-2 hover:bg-[#2a2f3d]">Profile</Link>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 hover:bg-[#2a2f3d]"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
+          <div className="flex-1" />
+          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-black text-xs">
+            SA
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="p-6">{children}</main>
+        {/* Content */}
+        <main className="flex-1 p-5 md:p-6">{children}</main>
       </div>
     </div>
   );

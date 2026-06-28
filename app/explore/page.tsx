@@ -18,7 +18,7 @@ import {
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"nearby"|"services"|"install";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -166,22 +166,25 @@ function GuestGate({ onDone }: { onDone: (g: GuestIdentity) => void }) {
 }
 
 // ── Sidebar Nav ────────────────────────────────────────────────
-const NAV: { id: Section; label: string; icon: any; group?: string }[] = [
-  { id:"dashboard",  label:"Dashboard",        icon:LayoutDashboard },
-  { id:"nearby",     label:"Nearby AI",        icon:Navigation2,    group:"DISCOVER" },
-  { id:"search",     label:"Store Search",     icon:Store },
-  { id:"services",   label:"Services Hub",     icon:Wrench },
-  { id:"travel",     label:"Travel Hub",       icon:Compass },
-  { id:"trips",      label:"Trip Planner",     icon:Plane },
-  { id:"expenses",   label:"Daily Expenses",   icon:Receipt,     group:"PERSONAL" },
-  { id:"reminders",  label:"Reminders",        icon:Bell },
-  { id:"notes",      label:"Quick Notes",      icon:StickyNote },
-  { id:"water",      label:"Water & Mood",     icon:Droplets },
-  { id:"skills",     label:"Skill Track",      icon:Zap,         group:"GROWTH" },
-  { id:"jobs",       label:"Job Board",        icon:Briefcase },
-  { id:"ideas",      label:"Ideas",            icon:Lightbulb,   group:"COMMUNITY" },
-  { id:"contacts",   label:"Safe Directory",   icon:Shield },
-  { id:"install",    label:"Install App",      icon:Download,    group:"APP" },
+const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: boolean }[] = [
+  { id:"assistant",  label:"Personal Assistant", icon:Bot,           group:"AI" },
+  { id:"dashboard",  label:"Dashboard",          icon:LayoutDashboard },
+  { id:"nearby",     label:"Nearby AI",          icon:Navigation2,   group:"DISCOVER" },
+  { id:"search",     label:"Store Search",       icon:Store },
+  { id:"services",   label:"Services Hub",       icon:Wrench },
+  { id:"providers",  label:"Providers",          icon:Users,         isSubItem:true },
+  { id:"seekers",    label:"Seekers",            icon:Inbox,         isSubItem:true },
+  { id:"travel",     label:"Travel Hub",         icon:Compass },
+  { id:"trips",      label:"Trip Planner",       icon:Plane },
+  { id:"expenses",   label:"Daily Expenses",     icon:Receipt,       group:"PERSONAL" },
+  { id:"reminders",  label:"Reminders",          icon:Bell },
+  { id:"notes",      label:"Quick Notes",        icon:StickyNote },
+  { id:"water",      label:"Water & Mood",       icon:Droplets },
+  { id:"skills",     label:"Skill Track",        icon:Zap,           group:"GROWTH" },
+  { id:"jobs",       label:"Job Board",          icon:Briefcase },
+  { id:"ideas",      label:"Ideas",              icon:Lightbulb,     group:"COMMUNITY" },
+  { id:"contacts",   label:"Safe Directory",     icon:Shield },
+  { id:"install",    label:"Install App",        icon:Download,      group:"APP" },
 ];
 
 // ── Contribute Modal ───────────────────────────────────────────
@@ -385,21 +388,38 @@ export default function DemandGeniusApp() {
           {NAV.map((item, i) => {
             const Icon = item.icon;
             const prev = NAV[i - 1];
-            const showGroup = item.group && item.group !== prev?.group;
+            const showGroup = !item.isSubItem && item.group && item.group !== prev?.group;
+            const parentActive = item.id === "services" && (section === "providers" || section === "seekers");
+            const isActive = section === item.id || parentActive;
             return (
               <div key={item.id}>
                 {showGroup && <p className="text-[10px] font-bold tracking-widest text-gray-500 px-2 pt-4 pb-1 uppercase">{item.group}</p>}
-                <button
-                  onClick={() => { setSection(item.id); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
-                    section === item.id
-                      ? "bg-orange-50 text-orange-600 font-semibold"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <Icon size={15} />
-                  {item.label}
-                </button>
+                {item.isSubItem ? (
+                  <button
+                    onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-2 pl-7 pr-3 py-1.5 rounded-xl text-xs transition-all ${
+                      section === item.id
+                        ? "text-orange-600 font-semibold bg-orange-50"
+                        : "text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${section === item.id ? "bg-orange-500" : "bg-gray-200"}`}/>
+                    <Icon size={12}/>
+                    {item.label}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
+                      isActive
+                        ? "bg-orange-50 text-orange-600 font-semibold"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <Icon size={15} />
+                    {item.label}
+                  </button>
+                )}
               </div>
             );
           })}
@@ -469,10 +489,13 @@ export default function DemandGeniusApp() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          {section === "assistant"  && <PersonalAssistantPanel guest={guest} setSection={setSection}/>}
           {section === "dashboard"  && <DashboardPanel guest={guest} gk={gk} setSection={setSection} />}
           {section === "search"     && <StoreSearchPanel />}
           {section === "nearby"     && <NearbyPanel userLoc={userLoc} captureLocation={captureLocation} locLoading={locLoading} gk={gk} />}
-          {section === "services"   && <ServicesPanel userLoc={userLoc} />}
+          {(section === "services" || section === "providers" || section === "seekers") && (
+            <ServicesPanel userLoc={userLoc} defaultMode={section==="providers"?"provider":section==="seekers"?"seeker":undefined}/>
+          )}
           {section === "travel"     && <TravelPanel />}
           {section === "trips"      && <TripPlanPanel gk={gk} />}
           {section === "expenses"   && <ExpensesPanel  gk={gk} />}
@@ -2586,7 +2609,13 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
     // STEP 4 — AI fallback (always returns something via Claude)
     if (!gotData) {
       try {
-        const p = new URLSearchParams({ lat:String(userLoc.lat), lng:String(userLoc.lon), ai:"true", q:`${qs.label} near me within ${radius}km` });
+        const p = new URLSearchParams({
+          lat: String(userLoc.lat),
+          lng: String(userLoc.lon),
+          ai: "true",
+          q: `${qs.label} near me within ${radius}km`,
+          t: String(Date.now())
+        });
         const resp = await fetch(`/v1/public/quicksearch?${p}`);
         const d = await resp.json();
         const aiPois: PlacePOI[] = [];
@@ -2855,9 +2884,9 @@ const SERVICE_GROUPS = [
   { id:"education",  label:"Education",     icon:GraduationCap,types:["tuition_center","private_teacher","student_need","online_class","study_group"],  hint:"Tuitions, Teachers, Study Groups…" },
 ];
 
-function ServicesPanel({ userLoc }: { userLoc:UserLocation|null }) {
-  const [tab,      setTab]     = useState<string>("home");
-  const [mode,     setMode]    = useState<"provider"|"seeker">("provider");
+function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; defaultMode?:"provider"|"seeker" }) {
+  const [tab,      setTab]     = useState<string>(defaultMode ? "onboard" : "home");
+  const [mode,     setMode]    = useState<"provider"|"seeker">(defaultMode||"provider");
   const [listings, setListings]= useState<Listing[]>([]);
   const [loading,  setLoading] = useState(false);
   const [error,    setError]   = useState("");
@@ -2869,7 +2898,8 @@ function ServicesPanel({ userLoc }: { userLoc:UserLocation|null }) {
   const [comparing,setComparing]=useState(false);
 
   // Onboard form
-  const [ob, setOb]           = useState({ type:"plumber", mode:"provider", name:"", phone:"", city:"", state:"", address:"", description:"", rate_info:"", discount:"", available_now:true });
+  const [ob, setOb]           = useState({ type:"plumber", mode:defaultMode||"provider", name:"", phone:"", city:"", state:"", address:"", description:"", rate_info:"", discount:"", available_now:true });
+  useEffect(() => { if (defaultMode) { setMode(defaultMode); setTab("onboard"); setOb(p=>({...p,mode:defaultMode})); } }, [defaultMode]);
   const [obServices, setObServices] = useState<{name:string;rate:string}[]>([{name:"",rate:""}]);
   const [locCapturing, setLocCapturing] = useState(false);
   const [obLat, setObLat]     = useState<number|null>(null);
@@ -3325,6 +3355,421 @@ function InstallPanel() {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Personal Assistant ─────────────────────────────────────────
+type PAStatus = "pending"|"approved"|"rejected"|"held"|"executing"|"done";
+interface PAField  { key:string; label:string; type:"text"|"number"|"select"|"textarea"|"date"; required?:boolean; options?:string[]; placeholder?:string; prefix?:string; }
+interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"; status:PAStatus; icon:string; fields?:PAField[]; }
+interface PAMsg    { id:string; role:"user"|"assistant"; text:string; ts:number; wfTasks?:PATask[]; }
+
+function paUid(): string { return Math.random().toString(36).slice(2,9); }
+
+function detectPAIntent(text:string): { intent:string; params:Record<string,string> } {
+  const t = text.toLowerCase();
+  if (/food|order|eat|dinner|lunch|breakfast|pizza|biryani|burger|swiggy|zomato/.test(t)) return { intent:"food_order", params:{} };
+  if (/ride|cab|taxi|auto|uber|ola|driver|drop|pickup/.test(t)) return { intent:"book_ride", params:{} };
+  if (/expense|spent|paid|bought|spend|cost/.test(t)) return { intent:"add_expense", params:{} };
+  if (/remind|reminder|alarm|alert/.test(t)) return { intent:"set_reminder", params:{} };
+  if (/trip|travel|holiday|vacation|tour/.test(t)) return { intent:"plan_trip", params:{} };
+  const svc = t.match(/plumber|electrician|carpenter|painter|ac repair|pest|handyman/);
+  if (svc || /find.*(service|provider|professional)/.test(t)) return { intent:"find_service", params:{ stype: svc?.[0]||"service" } };
+  return { intent:"general", params:{ q:text } };
+}
+
+function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:string): PATask[] {
+  const mk = (s:string) => `${wfId}_${s}`;
+  const flows: Record<string,PATask[]> = {
+    food_order: [
+      { id:mk("t1"), label:"Enter Food Details", desc:"What would you like to order?", type:"input", status:"pending", icon:"🍕",
+        fields:[
+          { key:"items", label:"Items to order", type:"textarea", placeholder:"e.g. 2x Margherita Pizza, 1x Coke", required:true },
+          { key:"restaurant", label:"From (restaurant)", type:"text", placeholder:"Restaurant name or 'any nearby'", required:true },
+          { key:"address", label:"Delivery address", type:"textarea", placeholder:"Your full delivery address", required:true },
+        ]},
+      { id:mk("t2"), label:"Confirm Order", desc:"Review your order before placing it", type:"confirm", status:"pending", icon:"✅" },
+      { id:mk("t3"), label:"Payment Details", desc:"Enter card details to complete the order", type:"payment", status:"pending", icon:"💳",
+        fields:[
+          { key:"card", label:"Card Number", type:"text", placeholder:"1234 5678 9012 3456", required:true },
+          { key:"expiry", label:"Expiry (MM/YY)", type:"text", placeholder:"MM/YY", required:true },
+          { key:"cvv", label:"CVV", type:"text", placeholder:"123", required:true },
+          { key:"name", label:"Name on Card", type:"text", placeholder:"Your name", required:true },
+        ]},
+      { id:mk("t4"), label:"Order Placed!", desc:"Your food order has been placed. Estimated delivery: 30-45 min", type:"info", status:"pending", icon:"🎉" },
+    ],
+    book_ride: [
+      { id:mk("t1"), label:"Trip Details", desc:"Where are you going?", type:"input", status:"pending", icon:"🚗",
+        fields:[
+          { key:"pickup", label:"Pickup location", type:"text", placeholder:"Current location or address", required:true },
+          { key:"drop", label:"Drop location", type:"text", placeholder:"Where to?", required:true },
+          { key:"when", label:"When", type:"select", options:["Now","In 30 min","In 1 hour","Schedule for later"], required:true },
+        ]},
+      { id:mk("t2"), label:"Select Ride", desc:"Found: Auto (est. 45) · Car (est. 120) · Traveller (est. 250). Approve to confirm best option.", type:"confirm", status:"pending", icon:"🔍" },
+      { id:mk("t3"), label:"Payment", desc:"How would you like to pay?", type:"payment", status:"pending", icon:"💳",
+        fields:[
+          { key:"mode", label:"Payment mode", type:"select", options:["Cash","UPI","Card","Wallet"], required:true },
+          { key:"upi", label:"UPI ID (if UPI)", type:"text", placeholder:"name@upi" },
+        ]},
+    ],
+    add_expense: [
+      { id:mk("t1"), label:"Expense Details", desc:"What did you spend on?", type:"input", status:"pending", icon:"💰",
+        fields:[
+          { key:"label", label:"Description", type:"text", placeholder:"e.g. Lunch at Meghana Foods", required:true },
+          { key:"amount", label:"Amount", type:"number", placeholder:"500", required:true, prefix:"Rs." },
+          { key:"category", label:"Category", type:"select", options:EXPENSE_CATS, required:true },
+          { key:"date", label:"Date", type:"date", required:true },
+        ]},
+      { id:mk("t2"), label:"Save Expense", desc:"Approve to add this to your expense tracker", type:"confirm", status:"pending", icon:"✅" },
+    ],
+    set_reminder: [
+      { id:mk("t1"), label:"Reminder Details", desc:"What should I remind you about?", type:"input", status:"pending", icon:"⏰",
+        fields:[
+          { key:"text", label:"Reminder text", type:"text", placeholder:"e.g. Call doctor, Pay rent", required:true },
+          { key:"due", label:"Due date (optional)", type:"date" },
+        ]},
+      { id:mk("t2"), label:"Set Reminder", desc:"Approve to save this reminder", type:"confirm", status:"pending", icon:"✅" },
+    ],
+    plan_trip: [
+      { id:mk("t1"), label:"Trip Details", desc:"Where are you planning to go?", type:"input", status:"pending", icon:"✈️",
+        fields:[
+          { key:"destination", label:"Destination", type:"text", placeholder:"e.g. Goa, Paris, Bali", required:true },
+          { key:"from", label:"Departure date", type:"date", required:true },
+          { key:"to", label:"Return date", type:"date", required:true },
+          { key:"budget", label:"Budget (optional)", type:"number", placeholder:"50000", prefix:"Rs." },
+        ]},
+      { id:mk("t2"), label:"Add to Trip Planner", desc:"Approve to save this trip to your planner", type:"confirm", status:"pending", icon:"✅" },
+    ],
+    find_service: [
+      { id:mk("t1"), label:`Find ${params.stype||"Service"}`, desc:`I will navigate to Services Hub to find ${params.stype||"service"} providers near you`, type:"confirm", status:"pending", icon:"🔧" },
+    ],
+    general: [
+      { id:mk("t1"), label:"Processing", desc:`Working on: "${params.q||"your request"}"`, type:"info", status:"pending", icon:"🤖" },
+    ],
+  };
+  return flows[intent]||flows.general;
+}
+
+function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; setSection:(s:Section)=>void }) {
+  const gk = (k:string) => guestKey(guest.id, `pa.${k}`);
+  const [msgs,       setMsgs]       = useLocalStore<PAMsg[]>(gk("msgs"), []);
+  const [taskState,  setTaskState]  = useLocalStore<Record<string,PAStatus>>(gk("tstate"), {});
+  const [taskValues, setTaskValues] = useLocalStore<Record<string,Record<string,string>>>(gk("tvals"), {});
+  const [input,    setInput]   = useState("");
+  const [thinking, setThinking]= useState(false);
+  const [fv,       setFv]      = useState<Record<string,Record<string,string>>>({});
+  const chatRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:"smooth"}); }, [msgs]);
+
+  useEffect(() => {
+    if (msgs.length === 0) {
+      const first = guest.name.split(" ")[0];
+      setMsgs([{ id:paUid(), role:"assistant", ts:Date.now(),
+        text:`Hi ${first}! I am your Personal Assistant.\n\nI orchestrate multi-step tasks with Approve / Hold / Reject controls at every step.\n\nTry saying:\n- "Order food"\n- "Book a ride"\n- "Add an expense"\n- "Set a reminder"\n- "Plan a trip"\n- "Find a plumber"`,
+      }]);
+    }
+  }, []);
+
+  const getSt = (task:PATask): PAStatus => taskState[task.id]||task.status;
+
+  const isActive = (task:PATask, all:PATask[]): boolean => {
+    if (getSt(task)!=="pending") return false;
+    const idx = all.findIndex(t=>t.id===task.id);
+    if (idx===0) return true;
+    return getSt(all[idx-1])==="done";
+  };
+
+  const setFieldVal = (taskId:string, key:string, val:string) => {
+    setFv(prev=>({...prev,[taskId]:{...(prev[taskId]||{}),[key]:val}}));
+  };
+
+  const handleApprove = async (task:PATask, allTasks:PATask[]) => {
+    const vals = {...(taskValues[task.id]||{}), ...(fv[task.id]||{})};
+    const missing = (task.fields||[]).filter(f=>f.required && !vals[f.key]?.trim());
+    if (missing.length) {
+      setMsgs(prev=>[...prev,{ id:paUid(), role:"assistant", ts:Date.now(), text:`Please fill in: ${missing.map(f=>f.label).join(", ")}` }]);
+      return;
+    }
+    if (task.type==="input"||task.type==="payment") setTaskValues(prev=>({...prev,[task.id]:vals}));
+    setTaskState(prev=>({...prev,[task.id]:"executing"}));
+    await new Promise(r=>setTimeout(r,900));
+    setTaskState(prev=>({...prev,[task.id]:"done"}));
+
+    // Side effects: navigate, save expense/reminder/trip
+    if (/services hub|navigate/i.test(task.desc)) setTimeout(()=>setSection("services"),800);
+    if (/save expense/i.test(task.label)) {
+      const inp = allTasks.find(t=>t.type==="input");
+      const pv = taskValues[inp?.id||""]||{};
+      if (pv.label&&pv.amount) {
+        try {
+          const k = guestKey(guest.id,"expenses");
+          const ex = JSON.parse(localStorage.getItem(k)||"[]");
+          localStorage.setItem(k,JSON.stringify([{id:paUid(),label:pv.label,category:pv.category||"Other",amount:parseFloat(pv.amount),date:pv.date||new Date().toISOString().slice(0,10)},...ex]));
+        } catch {}
+      }
+    }
+    if (/set reminder/i.test(task.label)) {
+      const inp = allTasks.find(t=>t.type==="input");
+      const pv = taskValues[inp?.id||""]||{};
+      if (pv.text) {
+        try {
+          const k = guestKey(guest.id,"reminders");
+          const ex = JSON.parse(localStorage.getItem(k)||"[]");
+          localStorage.setItem(k,JSON.stringify([{id:paUid(),text:pv.text,due:pv.due||"",done:false},...ex]));
+        } catch {}
+      }
+    }
+    if (/trip planner/i.test(task.label)) {
+      const inp = allTasks.find(t=>t.type==="input");
+      const pv = taskValues[inp?.id||""]||{};
+      if (pv.destination) {
+        try {
+          const k = guestKey(guest.id,"trips");
+          const ex = JSON.parse(localStorage.getItem(k)||"[]");
+          localStorage.setItem(k,JSON.stringify([{id:paUid(),destination:pv.destination,fromDate:pv.from||"",toDate:pv.to||"",budget:parseFloat(pv.budget||"0"),notes:"Added via Personal Assistant",done:false,checklist:[]},...ex]));
+        } catch {}
+      }
+    }
+
+    const taskIdx = allTasks.findIndex(t=>t.id===task.id);
+    const nextTask = allTasks[taskIdx+1];
+    const isLast = !nextTask || allTasks.slice(taskIdx+1).every(t=>{ const s=taskState[t.id]||t.status; return s==="done"||s==="rejected"; });
+    setMsgs(prev=>[...prev,{ id:paUid(), role:"assistant", ts:Date.now(),
+      text:isLast
+        ? ["All done! Let me know if you need anything else.","Task completed successfully!","Done! Anything else I can help with?"][Math.floor(Math.random()*3)]
+        : ["Step done! Next step is ready.","Got it! Moving to the next step."][Math.floor(Math.random()*2)],
+    }]);
+  };
+
+  const handleReject = (task:PATask) => {
+    setTaskState(prev=>({...prev,[task.id]:"rejected"}));
+    setMsgs(prev=>[...prev,{ id:paUid(), role:"assistant", ts:Date.now(), text:"Task rejected. Let me know if you would like to try something different." }]);
+  };
+
+  const handleHold = (task:PATask) => {
+    setTaskState(prev=>({...prev,[task.id]:"held"}));
+    setMsgs(prev=>[...prev,{ id:paUid(), role:"assistant", ts:Date.now(), text:"Task is on hold. Click Resume when you are ready to continue." }]);
+  };
+
+  const ST_BADGE: Record<PAStatus,string> = {
+    pending:"bg-gray-100 text-gray-500",  approved:"bg-blue-100 text-blue-600",
+    rejected:"bg-red-100 text-red-500",   held:"bg-yellow-100 text-yellow-700",
+    executing:"bg-orange-100 text-orange-600", done:"bg-green-100 text-green-600",
+  };
+  const ST_LABEL: Record<PAStatus,string> = {
+    pending:"Waiting", approved:"Approved", rejected:"Rejected",
+    held:"On Hold", executing:"Processing", done:"Done",
+  };
+
+  const renderTask = (task:PATask, allTasks:PATask[]) => {
+    const st = getSt(task);
+    const active = isActive(task, allTasks);
+    const vals = {...(taskValues[task.id]||{}), ...(fv[task.id]||{})};
+    return (
+      <div key={task.id} className={`rounded-xl border-2 p-3 transition-all ${
+        active&&st==="pending" ? "border-orange-300 bg-orange-50/60" :
+        st==="done"            ? "border-green-200 bg-green-50/40 opacity-75" :
+        st==="rejected"        ? "border-red-200 bg-red-50/40 opacity-50" :
+        st==="held"            ? "border-yellow-300 bg-yellow-50" :
+        st==="executing"       ? "border-orange-200 bg-orange-50/40" :
+                                 "border-gray-100 bg-white opacity-40"
+      }`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-base">{task.icon}</span>
+          <span className="text-xs font-bold text-gray-800 flex-1">{task.label}</span>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${ST_BADGE[st]}`}>{ST_LABEL[st]}</span>
+        </div>
+        <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">{task.desc}</p>
+
+        {/* Summary of previous input for confirm tasks */}
+        {(task.type==="confirm"||task.type==="info") && active && (() => {
+          const inp = allTasks.find(t=>t.type==="input");
+          const pv = inp ? (taskValues[inp.id]||{}) : {};
+          const entries = Object.entries(pv).filter(([,v])=>v);
+          if (!entries.length) return null;
+          return (
+            <div className="bg-white border border-gray-100 rounded-lg p-2 mb-2 space-y-0.5">
+              {entries.map(([k,v])=>(
+                <div key={k} className="flex gap-2 text-[11px]">
+                  <span className="text-gray-400 capitalize w-24 shrink-0">{k}:</span>
+                  <span className="text-gray-700 font-medium">{v}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Input fields */}
+        {active && (task.type==="input"||task.type==="payment") && task.fields && (
+          <div className="space-y-2 mb-3">
+            {task.fields.map(f => {
+              const v = vals[f.key]||"";
+              return (
+                <div key={f.key}>
+                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                    {f.label}{f.required&&<span className="text-red-400 ml-0.5">*</span>}
+                  </label>
+                  {f.type==="select" ? (
+                    <select value={v} onChange={e=>setFieldVal(task.id,f.key,e.target.value)}
+                      className="mt-0.5 w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:border-orange-400">
+                      <option value="">Select...</option>
+                      {f.options?.map(o=><option key={o}>{o}</option>)}
+                    </select>
+                  ) : f.type==="textarea" ? (
+                    <textarea value={v} onChange={e=>setFieldVal(task.id,f.key,e.target.value)}
+                      placeholder={f.placeholder} rows={2}
+                      className="mt-0.5 w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:border-orange-400 resize-none"/>
+                  ) : (
+                    <div className="relative mt-0.5">
+                      {f.prefix&&<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">{f.prefix}</span>}
+                      <input type={f.type==="number"?"number":f.type==="date"?"date":"text"} value={v}
+                        onChange={e=>setFieldVal(task.id,f.key,e.target.value)} placeholder={f.placeholder}
+                        className={`w-full border border-gray-200 rounded-lg py-1.5 text-sm focus:outline-none focus:border-orange-400 ${f.prefix?"pl-9 pr-2.5":"px-2.5"}`}/>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {st==="executing" && (
+          <div className="flex items-center gap-1.5 py-1"><Loader2 size={13} className="animate-spin text-orange-500"/><span className="text-xs text-orange-600 font-medium">Processing...</span></div>
+        )}
+
+        {active && st==="pending" && task.type!=="info" && (
+          <div className="flex gap-1.5 mt-1">
+            <button onClick={()=>handleApprove(task,allTasks)}
+              className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-lg transition-colors">
+              <CheckCircle2 size={11}/> Approve
+            </button>
+            <button onClick={()=>handleHold(task)}
+              className="flex items-center gap-1 border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 text-xs font-bold py-2 px-3 rounded-lg transition-colors">
+              <Bell size={11}/> Hold
+            </button>
+            <button onClick={()=>handleReject(task)}
+              className="flex items-center gap-1 border border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold py-2 px-3 rounded-lg transition-colors">
+              <X size={11}/> Reject
+            </button>
+          </div>
+        )}
+        {active && st==="pending" && task.type==="info" && (
+          <button onClick={()=>handleApprove(task,allTasks)}
+            className="w-full flex items-center justify-center gap-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2 rounded-lg transition-colors">
+            <CheckCircle2 size={11}/> Got it
+          </button>
+        )}
+        {st==="held" && (
+          <button onClick={()=>setTaskState(prev=>({...prev,[task.id]:"pending"}))}
+            className="w-full text-xs font-semibold text-yellow-700 border border-yellow-200 hover:bg-yellow-50 py-2 rounded-lg transition-colors mt-1">
+            Resume
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()||thinking) return;
+    const text = input.trim();
+    setInput("");
+    setMsgs(prev=>[...prev,{ id:paUid(), role:"user", text, ts:Date.now() }]);
+    setThinking(true);
+    await new Promise(r=>setTimeout(r,600+Math.random()*500));
+    const { intent, params } = detectPAIntent(text);
+    const wfId = paUid();
+    const wfTasks = buildPAWorkflow(intent, params, wfId);
+    const REPLIES: Record<string,string> = {
+      food_order:   "Great! Let me help you place a food order. Fill in the details below.",
+      book_ride:    "On it! Enter your trip details and I will find you a ride.",
+      add_expense:  "I will log that expense. Fill in the details below.",
+      set_reminder: "I will set that reminder. What should I remind you about?",
+      plan_trip:    "Exciting! Let me help plan your trip.",
+      find_service: `I will help find ${params.stype||"service"} providers. Approve below to open Services Hub.`,
+      general:      "Working on it! Here is what I will do:",
+    };
+    setMsgs(prev=>[...prev,{ id:paUid(), role:"assistant", text:REPLIES[intent]||"Let me help with that!", ts:Date.now(), wfTasks }]);
+    setThinking(false);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col" style={{height:"calc(100vh - 160px)",minHeight:"520px"}}>
+      {/* Header */}
+      <div className="mb-4 flex items-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
+          <Bot size={20} className="text-white"/>
+        </div>
+        <div>
+          <h1 className="text-xl font-black text-gray-900">Personal Assistant</h1>
+          <p className="text-gray-500 text-xs">AI orchestrator · Approve / Hold / Reject</p>
+        </div>
+        <button onClick={()=>{ if(window.confirm("Clear chat history?")){ setMsgs([]); setTaskState({}); setTaskValues({}); } }}
+          className="ml-auto text-[11px] text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2 py-1 transition-colors">
+          Clear
+        </button>
+      </div>
+
+      {/* Quick-action chips */}
+      <div className="flex gap-1.5 flex-wrap mb-3">
+        {[{e:"🍕",l:"Food",c:"Order food"},{e:"🚗",l:"Ride",c:"Book a ride"},{e:"💰",l:"Expense",c:"Add an expense"},{e:"⏰",l:"Remind",c:"Set a reminder"},{e:"✈️",l:"Trip",c:"Plan a trip"},{e:"🔧",l:"Service",c:"Find a plumber"}].map(a=>(
+          <button key={a.c} onClick={()=>setInput(a.c)}
+            className="text-[11px] border border-gray-200 rounded-xl px-2.5 py-1 hover:bg-gray-50 text-gray-600 transition-colors">
+            {a.e} {a.l}
+          </button>
+        ))}
+      </div>
+
+      {/* Chat history */}
+      <div ref={chatRef} className="flex-1 overflow-y-auto space-y-4 pb-2 pr-1">
+        {msgs.map(msg=>(
+          <div key={msg.id} className={`flex gap-2 ${msg.role==="user"?"flex-row-reverse":""}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-1 text-[11px] font-bold ${
+              msg.role==="assistant"?"bg-gradient-to-br from-purple-500 to-indigo-600 text-white":"bg-orange-100 text-orange-600"
+            }`}>
+              {msg.role==="assistant"?<Bot size={12}/>:guest.name[0].toUpperCase()}
+            </div>
+            <div className={`flex-1 min-w-0 ${msg.role==="user"?"flex flex-col items-end":""}`}>
+              <div className={`rounded-2xl px-3.5 py-2 text-sm whitespace-pre-line leading-relaxed ${
+                msg.role==="assistant"
+                  ? "bg-white border border-gray-100 text-gray-800 rounded-tl-sm max-w-[90%]"
+                  : "bg-orange-500 text-white rounded-tr-sm max-w-[75%]"
+              }`}>{msg.text}</div>
+              <p className="text-[9px] text-gray-400 mt-0.5 px-1">{new Date(msg.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</p>
+              {msg.wfTasks&&msg.wfTasks.length>0&&(
+                <div className="w-full mt-1 space-y-2">
+                  {msg.wfTasks.map(t=>renderTask(t,msg.wfTasks!))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {thinking&&(
+          <div className="flex gap-2">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0 mt-1">
+              <Bot size={12} className="text-white"/>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
+              {[0,150,300].map(d=>(
+                <span key={d} className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{animationDelay:`${d}ms`}}/>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input bar */}
+      <div className="mt-3 flex gap-2">
+        <input value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}}
+          placeholder="Order food, book ride, add expense, set reminder..."
+          className="flex-1 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 bg-white"/>
+        <button onClick={sendMessage} disabled={!input.trim()||thinking}
+          className="w-10 h-10 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-2xl flex items-center justify-center transition-colors shrink-0">
+          <Send size={14}/>
+        </button>
       </div>
     </div>
   );

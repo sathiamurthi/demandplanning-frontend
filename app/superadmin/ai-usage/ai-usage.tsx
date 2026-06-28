@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback } from "react";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ const featureLabel: Record<string, string> = {
   suggest: "Suggestions", quicksearch: "Quick Search",
 };
 const healthColor: Record<string, string> = {
-  good: "text-green-400", warning: "text-yellow-400", critical: "text-red-400",
+  good: "text-green-600", warning: "text-yellow-400", critical: "text-red-500",
 };
 const priorityColor: Record<string, string> = {
   P1: "bg-red-600", P2: "bg-yellow-600", P3: "bg-blue-700",
@@ -141,7 +141,7 @@ export default function AIUsagePage() {
   const maxCalls = Math.max(1, ...(summary?.byFeature.map(f => f.calls) ?? [1]));
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="space-y-6 text-gray-900">
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -149,12 +149,12 @@ export default function AIUsagePage() {
           <p className="text-gray-400 text-sm mt-0.5">Track every Claude API call · Run multi-agent demand analysis pipelines</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setTab("usage")} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${tab === "usage" ? "bg-[#6c63ff] text-white" : "bg-[#1f2430] text-gray-300 hover:bg-[#2a3040]"}`}>Usage Report</button>
-          <button onClick={() => setTab("pipeline")} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${tab === "pipeline" ? "bg-orange-600 text-white" : "bg-[#1f2430] text-gray-300 hover:bg-[#2a3040]"}`}>AI Pipeline</button>
+          <button onClick={() => setTab("usage")} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${tab === "usage" ? "bg-orange-500 text-gray-900" : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"}`}>Usage Report</button>
+          <button onClick={() => setTab("pipeline")} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${tab === "pipeline" ? "bg-orange-600 text-gray-900" : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"}`}>AI Pipeline</button>
         </div>
       </div>
 
-      {error && <div className="bg-red-900/40 border border-red-700 rounded-lg p-3 text-red-300 text-sm">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">{error}</div>}
 
       {/* ━━━━━━━━━━━━━━━━━━━ TAB: USAGE REPORT ━━━━━━━━━━━━━━━━━━━ */}
       {tab === "usage" && (
@@ -162,9 +162,9 @@ export default function AIUsagePage() {
           {/* Range selector */}
           <div className="flex gap-2">
             {(["daily", "weekly", "monthly"] as const).map(r => (
-              <button key={r} onClick={() => setRange(r)} className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize ${range === r ? "bg-[#6c63ff]" : "bg-[#1f2430] text-gray-400 hover:bg-[#2a3040]"}`}>{r}</button>
+              <button key={r} onClick={() => setRange(r)} className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize ${range === r ? "bg-orange-500" : "bg-white border border-gray-100 text-gray-400 hover:bg-gray-50"}`}>{r}</button>
             ))}
-            <button onClick={loadUsage} className="ml-auto px-3 py-1 rounded-lg text-xs bg-[#1f2430] text-gray-400 hover:bg-[#2a3040]">↻ Refresh</button>
+            <button onClick={loadUsage} className="ml-auto px-3 py-1 rounded-lg text-xs bg-white border border-gray-100 text-gray-400 hover:bg-gray-50">↻ Refresh</button>
           </div>
 
           {loadingUsage ? (
@@ -180,9 +180,9 @@ export default function AIUsagePage() {
                   { label: "Success Rate", value: summary.successRate + "%", sub: "of all calls", icon: "✅" },
                   { label: "Avg Latency", value: summary.avgLatencyMs + "ms", sub: "per API call", icon: "⚡" },
                 ].map(c => (
-                  <div key={c.label} className="bg-[#1f2430] rounded-xl p-4 border border-[#2a3040]">
+                  <div key={c.label} className="bg-white border border-gray-100 rounded-xl p-4 border border-gray-100">
                     <div className="text-2xl mb-1">{c.icon}</div>
-                    <div className="text-xl font-bold text-white">{c.value}</div>
+                    <div className="text-xl font-bold text-gray-900">{c.value}</div>
                     <div className="text-xs text-gray-400 mt-0.5">{c.label}</div>
                     <div className="text-[10px] text-gray-500">{c.sub}</div>
                   </div>
@@ -190,8 +190,8 @@ export default function AIUsagePage() {
               </div>
 
               {/* By Feature breakdown */}
-              <div className="bg-[#1f2430] rounded-xl p-5 border border-[#2a3040]">
-                <h3 className="font-semibold text-gray-200 mb-4">Usage by Feature</h3>
+              <div className="bg-white border border-gray-100 rounded-xl p-5 border border-gray-100">
+                <h3 className="font-semibold text-gray-700 mb-4">Usage by Feature</h3>
                 {summary.byFeature.length === 0 ? (
                   <p className="text-gray-500 text-sm">No AI calls recorded yet in this period. Calls appear here after forecasts, searches, or pipelines run.</p>
                 ) : (
@@ -199,10 +199,10 @@ export default function AIUsagePage() {
                     {summary.byFeature.map(f => (
                       <div key={f.feature}>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-gray-300 font-semibold">{featureLabel[f.feature] || f.feature}</span>
+                          <span className="text-gray-600 font-semibold">{featureLabel[f.feature] || f.feature}</span>
                           <span className="text-gray-400">{f.calls} calls · {(f.tokens / 1000).toFixed(1)}K tokens</span>
                         </div>
-                        <div className="h-2 bg-[#0d0f14] rounded-full overflow-hidden">
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${featureColor[f.feature] || "bg-gray-600"}`}
                             style={{ width: `${(f.calls / maxCalls) * 100}%` }}
@@ -216,8 +216,8 @@ export default function AIUsagePage() {
 
               {/* Daily trend */}
               {summary.trend.length > 0 && (
-                <div className="bg-[#1f2430] rounded-xl p-5 border border-[#2a3040]">
-                  <h3 className="font-semibold text-gray-200 mb-4">Daily Call Trend</h3>
+                <div className="bg-white border border-gray-100 rounded-xl p-5 border border-gray-100">
+                  <h3 className="font-semibold text-gray-700 mb-4">Daily Call Trend</h3>
                   <div className="flex items-end gap-1 h-24 overflow-x-auto">
                     {summary.trend.map(t => {
                       const maxV = Math.max(1, ...summary.trend.map(x => x.calls));
@@ -225,7 +225,7 @@ export default function AIUsagePage() {
                       return (
                         <div key={t.date} className="flex flex-col items-center gap-1 flex-shrink-0" style={{ minWidth: 28 }}>
                           <div className="text-[9px] text-gray-500">{t.calls}</div>
-                          <div className="w-5 bg-[#6c63ff] rounded-t" style={{ height: h }} title={`${t.date}: ${t.calls} calls`} />
+                          <div className="w-5 bg-orange-500 rounded-t" style={{ height: h }} title={`${t.date}: ${t.calls} calls`} />
                           <div className="text-[8px] text-gray-600 rotate-[-45deg] whitespace-nowrap">{t.date.slice(5)}</div>
                         </div>
                       );
@@ -235,16 +235,16 @@ export default function AIUsagePage() {
               )}
 
               {/* Recent logs */}
-              <div className="bg-[#1f2430] rounded-xl border border-[#2a3040] overflow-hidden">
-                <div className="p-4 border-b border-[#2a3040]">
-                  <h3 className="font-semibold text-gray-200">Recent AI Calls (last 50)</h3>
+              <div className="bg-white border border-gray-100 rounded-xl border border-gray-100 overflow-hidden">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-700">Recent AI Calls (last 50)</h3>
                 </div>
                 {summary.recentLogs.length === 0 ? (
                   <div className="p-8 text-center text-gray-500 text-sm">No AI calls yet. Run a forecast, search, or pipeline to see logs here.</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-[#161a23] text-gray-400">
+                      <thead className="bg-gray-50 text-gray-400">
                         <tr>
                           {["Feature", "Agent", "Model", "Tokens", "Latency", "Status", "Time"].map(h => (
                             <th key={h} className="text-left px-3 py-2 font-semibold">{h}</th>
@@ -253,7 +253,7 @@ export default function AIUsagePage() {
                       </thead>
                       <tbody>
                         {summary.recentLogs.map((l, i) => (
-                          <tr key={l.id} className={`border-t border-[#2a3040] ${i % 2 === 0 ? "" : "bg-[#161a23]/30"}`}>
+                          <tr key={l.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "" : "bg-gray-50/30"}`}>
                             <td className="px-3 py-2">
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${featureColor[l.feature] || "bg-gray-700"}`}>
                                 {featureLabel[l.feature] || l.feature}
@@ -261,7 +261,7 @@ export default function AIUsagePage() {
                             </td>
                             <td className="px-3 py-2 text-gray-400">{l.agent_name || "—"}</td>
                             <td className="px-3 py-2 text-gray-500 font-mono truncate max-w-[120px]">{l.model.replace("claude-", "")}</td>
-                            <td className="px-3 py-2 text-gray-300">{(l.prompt_tokens + l.completion_tokens).toLocaleString()}</td>
+                            <td className="px-3 py-2 text-gray-600">{(l.prompt_tokens + l.completion_tokens).toLocaleString()}</td>
                             <td className="px-3 py-2 text-gray-400">{l.latency_ms}ms</td>
                             <td className="px-3 py-2">
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${l.status === "success" ? "bg-green-800 text-green-200" : "bg-red-800 text-red-200"}`}>
@@ -287,11 +287,11 @@ export default function AIUsagePage() {
       {tab === "pipeline" && (
         <div className="space-y-5">
           {/* Pipeline trigger panel */}
-          <div className="bg-[#1f2430] rounded-xl p-5 border border-[#2a3040] space-y-4">
+          <div className="bg-white border border-gray-100 rounded-xl p-5 border border-gray-100 space-y-4">
             <div className="flex items-start gap-3">
               <div className="text-3xl">🔗</div>
               <div>
-                <h3 className="font-bold text-white text-lg">Run AI Agent Pipeline</h3>
+                <h3 className="font-bold text-gray-900 text-lg">Run AI Agent Pipeline</h3>
                 <p className="text-gray-400 text-sm mt-0.5">
                   Sequentially runs 6 specialized AI agents on a store's inventory.
                   Each agent passes its structured output to the next.
@@ -303,7 +303,7 @@ export default function AIUsagePage() {
             <div className="flex items-center gap-1 flex-wrap text-xs">
               {["DataCollector","TrendAnalyzer","RiskAssessor","ForecastEngine","RecommendationAgent","ReportWriter"].map((a, i, arr) => (
                 <div key={a} className="flex items-center gap-1">
-                  <div className="bg-[#0d0f14] border border-[#3a4050] rounded-lg px-2.5 py-1.5 text-gray-300 font-semibold">
+                  <div className="bg-gray-100 border border-[#3a4050] rounded-lg px-2.5 py-1.5 text-gray-600 font-semibold">
                     <span className="mr-1">{AGENT_ICONS[a]}</span>{a}
                   </div>
                   {i < arr.length - 1 && <span className="text-orange-400 font-bold">→</span>}
@@ -318,7 +318,7 @@ export default function AIUsagePage() {
                 <select
                   value={selectedStore?.id || ""}
                   onChange={e => setSelectedStore(stores.find(s => s.id === e.target.value) || null)}
-                  className="w-full bg-[#0d0f14] border border-[#2a3040] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6c63ff]"
+                  className="w-full bg-gray-100 border border-gray-100 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#6c63ff]"
                 >
                   {stores.length === 0 && <option value="">No stores found</option>}
                   {stores.map(s => (
@@ -340,19 +340,19 @@ export default function AIUsagePage() {
             </div>
 
             {pipelineError && (
-              <div className="bg-red-900/40 border border-red-700 rounded-lg p-3 text-red-300 text-sm">{pipelineError}</div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">{pipelineError}</div>
             )}
           </div>
 
           {/* Running indicator */}
           {running && (
-            <div className="bg-[#1f2430] rounded-xl p-5 border border-orange-700/50 space-y-3">
+            <div className="bg-white border border-gray-100 rounded-xl p-5 border border-orange-700/50 space-y-3">
               <h3 className="font-semibold text-orange-300">Pipeline Running…</h3>
               <div className="space-y-2">
                 {["DataCollector","TrendAnalyzer","RiskAssessor","ForecastEngine","RecommendationAgent","ReportWriter"].map(a => (
                   <div key={a} className="flex items-center gap-2">
                     <span className="text-lg animate-pulse">{AGENT_ICONS[a]}</span>
-                    <span className="text-sm text-gray-300">{a}</span>
+                    <span className="text-sm text-gray-600">{a}</span>
                     <span className="ml-auto text-xs text-orange-400 animate-pulse">processing…</span>
                   </div>
                 ))}
@@ -366,10 +366,10 @@ export default function AIUsagePage() {
           )}
 
           {/* Past runs */}
-          <div className="bg-[#1f2430] rounded-xl border border-[#2a3040] overflow-hidden">
-            <div className="p-4 border-b border-[#2a3040] flex justify-between items-center">
-              <h3 className="font-semibold text-gray-200">Pipeline Run History</h3>
-              <button onClick={loadRuns} className="text-xs text-gray-400 hover:text-gray-200">↻ Refresh</button>
+          <div className="bg-white border border-gray-100 rounded-xl border border-gray-100 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-semibold text-gray-700">Pipeline Run History</h3>
+              <button onClick={loadRuns} className="text-xs text-gray-400 hover:text-gray-700">↻ Refresh</button>
             </div>
             {loadingRuns ? (
               <div className="p-6 text-center text-gray-400">Loading…</div>
@@ -378,7 +378,7 @@ export default function AIUsagePage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-[#161a23] text-gray-400">
+                  <thead className="bg-gray-50 text-gray-400">
                     <tr>
                       {["Store","Status","Agents","Tokens","Duration","Started",""].map(h => (
                         <th key={h} className="text-left px-3 py-2 font-semibold">{h}</th>
@@ -387,8 +387,8 @@ export default function AIUsagePage() {
                   </thead>
                   <tbody>
                     {runs.map((r, i) => (
-                      <tr key={r.id} className={`border-t border-[#2a3040] ${i % 2 === 0 ? "" : "bg-[#161a23]/30"}`}>
-                        <td className="px-3 py-2 text-gray-200 font-semibold">{r.store_name || "—"}</td>
+                      <tr key={r.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "" : "bg-gray-50/30"}`}>
+                        <td className="px-3 py-2 text-gray-700 font-semibold">{r.store_name || "—"}</td>
                         <td className="px-3 py-2">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${r.status === "completed" ? "bg-green-800 text-green-200" : r.status === "running" ? "bg-yellow-800 text-yellow-200" : "bg-red-800 text-red-200"}`}>
                             {r.status}
@@ -400,7 +400,7 @@ export default function AIUsagePage() {
                         <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{new Date(r.started_at).toLocaleString()}</td>
                         <td className="px-3 py-2">
                           {r.status === "completed" && (
-                            <button onClick={() => viewRun(r.id)} className="text-[#6c63ff] hover:underline text-[10px]">View</button>
+                            <button onClick={() => viewRun(r.id)} className="text-orange-500 hover:underline text-[10px]">View</button>
                           )}
                         </td>
                       </tr>
@@ -414,7 +414,7 @@ export default function AIUsagePage() {
           {/* Selected historical run detail */}
           {selectedRun?.result && !running && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-gray-200">
+              <h3 className="font-semibold text-gray-700">
                 Run Detail — {selectedRun.store_name} · {new Date(selectedRun.started_at).toLocaleString()}
               </h3>
               <PipelineResultView result={{ ...selectedRun, result: selectedRun.result, agents: [] }} />
@@ -433,22 +433,22 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
   if (!r) return null;
 
   const healthColor: Record<string, string> = {
-    good: "text-green-400", warning: "text-yellow-400", critical: "text-red-400",
+    good: "text-green-600", warning: "text-yellow-400", critical: "text-red-500",
   };
 
   return (
     <div className="space-y-4">
       {/* Agent steps (if fresh run) */}
       {result.agents && result.agents.length > 0 && (
-        <div className="bg-[#1f2430] rounded-xl p-4 border border-green-700/40 space-y-2">
+        <div className="bg-white border border-gray-100 rounded-xl p-4 border border-green-700/40 space-y-2">
           <h3 className="font-semibold text-green-300 text-sm">✅ Pipeline Completed in {((result.durationMs || 0) / 1000).toFixed(1)}s · {result.totalTokens?.toLocaleString()} tokens</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
             {result.agents.map(a => (
-              <div key={a.name} className={`rounded-lg p-2.5 text-center border ${a.status === "success" ? "bg-green-900/20 border-green-700/40" : "bg-red-900/20 border-red-700/40"}`}>
+              <div key={a.name} className={`rounded-lg p-2.5 text-center border ${a.status === "success" ? "bg-green-100/20 border-green-700/40" : "bg-red-900/20 border-red-700/40"}`}>
                 <div className="text-xl">{AGENT_ICONS[a.name] || "🤖"}</div>
-                <div className="text-[10px] font-bold text-white mt-1">{a.name}</div>
+                <div className="text-[10px] font-bold text-gray-900 mt-1">{a.name}</div>
                 <div className="text-[9px] text-gray-400 mt-0.5">{a.latencyMs}ms</div>
-                <div className={`text-[9px] mt-0.5 font-semibold ${a.status === "success" ? "text-green-400" : "text-red-400"}`}>{a.status}</div>
+                <div className={`text-[9px] mt-0.5 font-semibold ${a.status === "success" ? "text-green-600" : "text-red-500"}`}>{a.status}</div>
               </div>
             ))}
           </div>
@@ -461,8 +461,8 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
           <div className="flex items-start gap-3">
             <span className="text-3xl">📋</span>
             <div className="flex-1">
-              <h3 className="font-bold text-white text-lg">Executive Report</h3>
-              <p className="text-gray-300 text-sm mt-2 leading-relaxed">{r.report.executiveSummary}</p>
+              <h3 className="font-bold text-gray-900 text-lg">Executive Report</h3>
+              <p className="text-gray-600 text-sm mt-2 leading-relaxed">{r.report.executiveSummary}</p>
               {r.report.keyMetrics && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                   {[
@@ -471,9 +471,9 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
                     { label: "Need Reorder", value: r.report.keyMetrics.reorderItems, icon: "📦" },
                     { label: "Est. Spend", value: "₹" + (r.report.keyMetrics.estimatedSpend || 0).toLocaleString(), icon: "💰" },
                   ].map(m => (
-                    <div key={m.label} className="bg-[#0d0f14] rounded-lg p-3 text-center">
+                    <div key={m.label} className="bg-gray-100 rounded-lg p-3 text-center">
                       <div className="text-xl">{m.icon}</div>
-                      <div className="text-lg font-bold text-white mt-1">{m.value}</div>
+                      <div className="text-lg font-bold text-gray-900 mt-1">{m.value}</div>
                       <div className="text-[10px] text-gray-500 mt-0.5">{m.label}</div>
                     </div>
                   ))}
@@ -483,8 +483,8 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
                 <div className="mt-4">
                   <div className="text-xs font-semibold text-gray-400 mb-2">Next Steps</div>
                   {r.report.nextSteps.map((s: string, i: number) => (
-                    <div key={i} className="flex items-start gap-2 text-sm text-gray-300 mb-1">
-                      <span className="text-[#6c63ff] font-bold shrink-0">{i + 1}.</span>{s}
+                    <div key={i} className="flex items-start gap-2 text-sm text-gray-600 mb-1">
+                      <span className="text-orange-500 font-bold shrink-0">{i + 1}.</span>{s}
                     </div>
                   ))}
                 </div>
@@ -502,11 +502,11 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
             preview: r.trend ? `Health: ${r.trend.overallHealth} · ${r.trend.trends?.length || 0} trends identified` : "—",
             content: r.trend && (
               <div className="space-y-3">
-                <p className={`font-bold text-lg ${healthColor[r.trend.overallHealth] || "text-white"}`}>
+                <p className={`font-bold text-lg ${healthColor[r.trend.overallHealth] || "text-gray-900"}`}>
                   Overall Health: {r.trend.overallHealth?.toUpperCase()}
                 </p>
                 {r.trend.insights?.map((ins: string, i: number) => (
-                  <div key={i} className="flex gap-2 text-sm text-gray-300">
+                  <div key={i} className="flex gap-2 text-sm text-gray-600">
                     <span className="text-blue-400">•</span>{ins}
                   </div>
                 ))}
@@ -516,9 +516,9 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
                       <thead><tr className="text-gray-500">{["Category","Direction","Change%","Confidence","Note"].map(h=><th key={h} className="text-left pb-1 pr-4">{h}</th>)}</tr></thead>
                       <tbody>
                         {r.trend.trends.map((t: any, i: number) => (
-                          <tr key={i} className="border-t border-[#2a3040]">
-                            <td className="py-1.5 pr-4 text-gray-200 font-semibold">{t.category}</td>
-                            <td className="py-1.5 pr-4"><span className={`font-bold ${t.direction==="rising"?"text-green-400":t.direction==="declining"?"text-red-400":"text-gray-400"}`}>{t.direction}</span></td>
+                          <tr key={i} className="border-t border-gray-100">
+                            <td className="py-1.5 pr-4 text-gray-700 font-semibold">{t.category}</td>
+                            <td className="py-1.5 pr-4"><span className={`font-bold ${t.direction==="rising"?"text-green-600":t.direction==="declining"?"text-red-500":"text-gray-400"}`}>{t.direction}</span></td>
                             <td className="py-1.5 pr-4 text-gray-400">{t.change_pct ?? 0}%</td>
                             <td className="py-1.5 pr-4 text-gray-400">{t.confidence ?? 0}%</td>
                             <td className="py-1.5 text-gray-500 text-[11px]">{t.note}</td>
@@ -538,19 +538,19 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
                   <div>
-                    <div className="text-3xl font-black text-white">{r.risk.riskScore}<span className="text-base font-normal text-gray-400">/100</span></div>
+                    <div className="text-3xl font-black text-gray-900">{r.risk.riskScore}<span className="text-base font-normal text-gray-400">/100</span></div>
                     <div className="text-xs text-gray-400">Risk Score</div>
                   </div>
-                  <div className="flex-1 bg-[#0d0f14] rounded-full h-3 overflow-hidden">
+                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                     <div className={`h-full rounded-full ${r.risk.riskScore > 70 ? "bg-red-500" : r.risk.riskScore > 40 ? "bg-yellow-500" : "bg-green-500"}`} style={{ width: `${r.risk.riskScore}%` }} />
                   </div>
                 </div>
-                <p className="text-gray-300 text-sm">{r.risk.summary}</p>
+                <p className="text-gray-600 text-sm">{r.risk.summary}</p>
                 {r.risk.risks?.slice(0, 8).map((risk: any, i: number) => (
-                  <div key={i} className="flex items-start gap-3 bg-[#0d0f14] rounded-lg p-2.5">
+                  <div key={i} className="flex items-start gap-3 bg-gray-100 rounded-lg p-2.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${risk.severity==="high"?"bg-red-700 text-red-200":risk.severity==="medium"?"bg-yellow-700 text-yellow-200":"bg-blue-800 text-blue-200"}`}>{risk.severity?.toUpperCase()}</span>
                     <div>
-                      <div className="text-sm font-semibold text-white">{risk.itemName}</div>
+                      <div className="text-sm font-semibold text-gray-900">{risk.itemName}</div>
                       <div className="text-[11px] text-gray-400">{risk.riskType} · {risk.action}</div>
                     </div>
                   </div>
@@ -564,16 +564,16 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
             content: r.forecast && (
               <div className="space-y-3">
                 <div className="flex gap-6 text-sm">
-                  <div><span className="text-gray-400">Est. Reorder Spend:</span> <span className="font-bold text-white">₹{(r.forecast.totalOrderValue || 0).toLocaleString()}</span></div>
-                  <div><span className="text-gray-400">Forecast Confidence:</span> <span className="font-bold text-white">{r.forecast.forecastConfidence || 0}%</span></div>
+                  <div><span className="text-gray-400">Est. Reorder Spend:</span> <span className="font-bold text-gray-900">₹{(r.forecast.totalOrderValue || 0).toLocaleString()}</span></div>
+                  <div><span className="text-gray-400">Forecast Confidence:</span> <span className="font-bold text-gray-900">{r.forecast.forecastConfidence || 0}%</span></div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead><tr className="text-gray-500">{["Item","30d Forecast","Confidence","Order?","Qty","Est. Cost"].map(h=><th key={h} className="text-left pb-1 pr-4">{h}</th>)}</tr></thead>
                     <tbody>
                       {r.forecast.forecasts?.slice(0, 10).map((f: any, i: number) => (
-                        <tr key={i} className="border-t border-[#2a3040]">
-                          <td className="py-1.5 pr-4 text-gray-200 font-semibold">{f.itemName}</td>
+                        <tr key={i} className="border-t border-gray-100">
+                          <td className="py-1.5 pr-4 text-gray-700 font-semibold">{f.itemName}</td>
                           <td className="py-1.5 pr-4 text-gray-400">{f.predicted30d}</td>
                           <td className="py-1.5 pr-4 text-gray-400">{f.confidence}%</td>
                           <td className="py-1.5 pr-4"><span className={`font-bold ${f.shouldOrder?"text-orange-400":"text-gray-500"}`}>{f.shouldOrder?"YES":"NO"}</span></td>
@@ -593,15 +593,15 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
             content: r.recommendation && (
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-white">Urgency:</span>
+                  <span className="text-sm font-semibold text-gray-900">Urgency:</span>
                   <span className="text-sm font-bold">{urgencyLabel[r.recommendation.urgency] || r.recommendation.urgency}</span>
                 </div>
                 <p className="text-gray-400 text-sm">{r.recommendation.estimatedImpact}</p>
                 {r.recommendation.recommendations?.map((rec: any, i: number) => (
-                  <div key={i} className="flex items-start gap-3 bg-[#0d0f14] rounded-lg p-3">
+                  <div key={i} className="flex items-start gap-3 bg-gray-100 rounded-lg p-3">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black shrink-0 ${priorityColor[rec.priority] || "bg-gray-700"}`}>{rec.priority}</span>
                     <div>
-                      <div className="text-sm font-semibold text-white">{rec.action}</div>
+                      <div className="text-sm font-semibold text-gray-900">{rec.action}</div>
                       <div className="text-[11px] text-gray-400 mt-0.5">{rec.impact} · <span className="text-orange-400">{rec.deadline}</span></div>
                     </div>
                   </div>
@@ -610,14 +610,14 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
             ),
           },
         ].map(section => (
-          <div key={section.key} className="bg-[#1f2430] rounded-xl border border-[#2a3040] overflow-hidden">
+          <div key={section.key} className="bg-white border border-gray-100 rounded-xl border border-gray-100 overflow-hidden">
             <button
               onClick={() => setOpen(open === section.key ? "" : section.key)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#2a3040] transition-colors text-left"
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
             >
               <div className="flex items-center gap-2">
                 <span className="text-lg">{section.icon}</span>
-                <span className="font-semibold text-gray-200 text-sm">{section.label}</span>
+                <span className="font-semibold text-gray-700 text-sm">{section.label}</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">{section.preview}</span>
@@ -625,7 +625,7 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
               </div>
             </button>
             {open === section.key && section.content && (
-              <div className="px-4 pb-4 pt-2 border-t border-[#2a3040]">{section.content}</div>
+              <div className="px-4 pb-4 pt-2 border-t border-gray-100">{section.content}</div>
             )}
           </div>
         ))}
@@ -633,3 +633,4 @@ function PipelineResultView({ result }: { result: Partial<PipelineResult> & { re
     </div>
   );
 }
+
