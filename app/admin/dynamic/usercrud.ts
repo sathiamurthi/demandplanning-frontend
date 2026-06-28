@@ -53,7 +53,7 @@ export type UseCrudReturn<T extends CrudRecord> = {
 
 /* ─────────────────────────── API helpers ─────────────────────────── */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/v1";
 
 // auth.ts
 export function getAuthHeaders(): Record<string, string> {
@@ -71,7 +71,7 @@ export function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
-const TOKEN_STRATEGY = process.env.NEXT_PUBLIC_TOKEN_STRATEGY as
+const TOKEN_STRATEGY = (process.env.NEXT_PUBLIC_TOKEN_STRATEGY || "localStorage") as
   | "cookie"
   | "localStorage";
 

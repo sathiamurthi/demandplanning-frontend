@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (saved && data.some((s: Store) => s.id === saved)) {
           setStoreIdState(saved);
         } else if (data.length > 0) {
-          setStoreIdState(data[0].id);
+          setStoreId(data[0].id);
         }
       } catch (err) {
         console.error("Store fetch failed:", err);
