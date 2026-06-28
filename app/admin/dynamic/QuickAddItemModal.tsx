@@ -37,6 +37,9 @@ export function QuickAddItemModal({ isOpen, onClose, onCreated }: Props) {
   const [expiryDate, setExpiryDate] = useState("");
   const [showDates, setShowDates] = useState(false);
 
+  const [discountType, setDiscountType] = useState("none");
+  const [discountValue, setDiscountValue] = useState("");
+
   const [suggestion, setSuggestion] = useState<AISuggestion | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -48,6 +51,7 @@ export function QuickAddItemModal({ isOpen, onClose, onCreated }: Props) {
 
   const reset = () => {
     setName(""); setSku(""); setPrice(""); setStock("");
+    setDiscountType("none"); setDiscountValue("");
     setMfgDate(""); setExpiryDate(""); setShowDates(false);
     setSuggestion(null); setAiError(""); setError("");
   };
@@ -104,6 +108,8 @@ export function QuickAddItemModal({ isOpen, onClose, onCreated }: Props) {
             currentStock: parseInt(stock) || 0,
             manufactureDate: mfgDate || undefined,
             expiryDate: expiryDate || undefined,
+            discountType,
+            discountValue: parseFloat(discountValue) || 0,
           }),
         }
       );
@@ -247,6 +253,44 @@ export function QuickAddItemModal({ isOpen, onClose, onCreated }: Props) {
                            focus:ring-2 focus:ring-gold-400/20"
               />
             </div>
+          </div>
+
+          {/* Discount details */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-700">Discount type</label>
+              <select
+                value={discountType}
+                onChange={(e) => {
+                  setDiscountType(e.target.value);
+                  if (e.target.value === "none") setDiscountValue("");
+                }}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm
+                           focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-400/20 bg-white"
+              >
+                <option value="none">None</option>
+                <option value="percentage">Percentage (%)</option>
+                <option value="flat">Flat (₹)</option>
+              </select>
+            </div>
+            {discountType !== "none" && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">
+                  Discount value {discountType === "percentage" ? "(%)" : "(₹)"}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm
+                             placeholder-gray-400 focus:border-gold-400 focus:outline-none
+                             focus:ring-2 focus:ring-gold-400/20"
+                />
+              </div>
+            )}
           </div>
 
           {/* Dates toggle */}

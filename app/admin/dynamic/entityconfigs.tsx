@@ -433,6 +433,8 @@ type Item = {
   sellingPrice: number;
   mrp?: number;
   gstRate?: number;
+  discountType?: string;
+  discountValue?: number;
 
   // Batch / Expiry
   batchNumber?: string | null;
@@ -510,6 +512,8 @@ blankForm: {
   sellingPrice: 0,
   mrp: 0,
   gstRate: 0,
+  discountType: "none",
+  discountValue: 0,
 
   batchNumber: "",
   manufactureDate: "",
@@ -527,6 +531,8 @@ blankForm: {
     sku: f.sku?.trim(),
 
     sellingPrice: Number(f.sellingPrice || 0),
+    discountType: f.discountType || "none",
+    discountValue: Number(f.discountValue || 0),
 
     categoryId: f.categoryId || undefined,
     primaryUnitId: f.primaryUnitId || undefined,
@@ -647,6 +653,11 @@ blankForm: {
         {/* Industry-specific badges */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {stockBadge(item.currentStock)}
+          {item.discountType && item.discountType !== "none" && item.discountValue && Number(item.discountValue) > 0 && (
+            <Badge variant="success">
+              {item.discountType === "percentage" ? `${parseFloat(String(item.discountValue))}% Off` : `₹${parseFloat(String(item.discountValue))} Off`}
+            </Badge>
+          )}
           {reorder && (
             <Badge variant="warning">Reorder</Badge>
           )}

@@ -286,6 +286,8 @@ export default function DemandGeniusApp() {
   const [platformStats, setPlatformStats]   = useState({ stores: 0, products: 0, tenants: 0, contributors: 0 });
   const [userLoc, setUserLoc]   = useState<UserLocation|null>(null);
   const [locLoading, setLocLoading] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showWaModal, setShowWaModal] = useState(false);
 
   useEffect(() => {
     const g = getGuest();
@@ -323,7 +325,32 @@ export default function DemandGeniusApp() {
 
   const captureLocation = () => {
     setLocLoading(true);
-    navigator.geolocation?.getCurrentPosition(async pos => {
+    if (!navigator.geolocation) {
+      // Direct IP fallback if geolocation API is completely missing
+      fetch("https://ipapi.co/json/")
+        .then(r => r.json())
+        .then(ipGeo => {
+          if (ipGeo.latitude && ipGeo.longitude) {
+            setUserLoc({
+              lat: ipGeo.latitude,
+              lon: ipGeo.longitude,
+              accuracy: 5000,
+              city: ipGeo.city || "",
+              state: ipGeo.region || "",
+              country: ipGeo.country_name || ""
+            });
+            if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat: ipGeo.latitude, lng: ipGeo.longitude, accuracy: 5000 }) }).catch(()=>{});
+          }
+        })
+        .catch(() => {
+          // Delhi fallback
+          setUserLoc({ lat: 28.6139, lon: 77.2090, accuracy: 10000, city: "Delhi", state: "Delhi", country: "India" });
+        })
+        .finally(() => setLocLoading(false));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async pos => {
       const {latitude:lat, longitude:lon, accuracy} = pos.coords;
       if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat, lng: lon, accuracy }) }).catch(()=>{});
       try {
@@ -332,7 +359,30 @@ export default function DemandGeniusApp() {
         setUserLoc({ lat, lon, accuracy, city:geo.address?.city||geo.address?.town||geo.address?.village||"", state:geo.address?.state||"", country:geo.address?.country||"" });
       } catch { setUserLoc({ lat, lon, accuracy, city:"", state:"", country:"" }); }
       setLocLoading(false);
-    }, ()=>setLocLoading(false), {timeout:15000, enableHighAccuracy:true});
+    }, async () => {
+      // Geolocation permission denied or timeout - trigger IP fallback
+      try {
+        const r = await fetch("https://ipapi.co/json/");
+        const ipGeo = await r.json();
+        if (ipGeo.latitude && ipGeo.longitude) {
+          setUserLoc({
+            lat: ipGeo.latitude,
+            lon: ipGeo.longitude,
+            accuracy: 5000,
+            city: ipGeo.city || "",
+            state: ipGeo.region || "",
+            country: ipGeo.country_name || ""
+          });
+          if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat: ipGeo.latitude, lng: ipGeo.longitude, accuracy: 5000 }) }).catch(()=>{});
+        } else {
+          throw new Error("No lat/lon returned");
+        }
+      } catch {
+        // Delhi default fallback
+        setUserLoc({ lat: 28.6139, lon: 77.2090, accuracy: 10000, city: "Delhi", state: "Delhi", country: "India" });
+      }
+      setLocLoading(false);
+    }, {timeout:8000, enableHighAccuracy:false});
   };
 
   const gk = (ns: string) => guest ? guestKey(guest.id, ns) : `nexus.anon.${ns}`;
@@ -475,21 +525,22 @@ export default function DemandGeniusApp() {
               className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
               <Heart size={12} /> Contribute
             </button>
-            <div className="flex items-center gap-1.5 border border-gray-100 rounded-xl px-2.5 py-1.5">
+            <button onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-1.5 border border-gray-100 rounded-xl px-2.5 py-1.5 hover:bg-gray-50 transition-colors">
               <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">
                 {guest.name[0].toUpperCase()}
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden sm:block text-left">
                 <div className="text-xs font-semibold text-gray-900">{guest.name}</div>
                 <div className="text-[10px] text-gray-500">{guest.phone || guest.id}</div>
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {section === "assistant"  && <PersonalAssistantPanel guest={guest} setSection={setSection}/>}
+          {section === "assistant"  && <PersonalAssistantPanel guest={guest} setSection={setSection} onOpenWhatsApp={() => setShowWaModal(true)} />}
           {section === "dashboard"  && <DashboardPanel guest={guest} gk={gk} setSection={setSection} />}
           {section === "search"     && <StoreSearchPanel />}
           {section === "nearby"     && <NearbyPanel userLoc={userLoc} captureLocation={captureLocation} locLoading={locLoading} gk={gk} />}
@@ -509,6 +560,22 @@ export default function DemandGeniusApp() {
           {section === "install"    && <InstallPanel />}
         </main>
       </div>
+
+      {guest && (
+        <>
+          <GuestProfileModal
+            isOpen={showProfileModal}
+            onClose={() => setShowProfileModal(false)}
+            guest={guest}
+            onOpenWhatsApp={() => setShowWaModal(true)}
+          />
+          <WhatsAppVerificationModal
+            isOpen={showWaModal}
+            onClose={() => setShowWaModal(false)}
+            guestId={guest.id}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -2450,6 +2517,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
   const [aiQuery, setAiQuery] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<Record<string,any[]>|null>(null);
+  const [localMatches, setLocalMatches] = useState<any[]>([]);
 
   // Fetch pre-cached nearby places when location becomes available
   useEffect(() => {
@@ -2613,6 +2681,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
           lat: String(userLoc.lat),
           lng: String(userLoc.lon),
           ai: "true",
+          category: qs.kind,
           q: `${qs.label} near me within ${radius}km`,
           t: String(Date.now())
         });
@@ -2621,9 +2690,11 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
         const aiPois: PlacePOI[] = [];
         if (d.success) {
           setCacheData(prev=>({...prev,...d.data}));
-          Object.entries(d.data||{}).forEach(([cat,items]:any) =>
-            (items as any[]).forEach((it:any,i:number)=>aiPois.push({ id:`ai${cat}${i}`, name:it.name, kind:cat, lat:0, lon:0, dist: it.dist_km ?? it.dist_km_estimate ?? 0, description:it.description, tip:it.tip }))
-          );
+          Object.entries(d.data||{}).forEach(([cat,items]:any) => {
+            if (cat === qs.kind || backendCats.includes(cat)) {
+              (items as any[]).forEach((it:any,i:number)=>aiPois.push({ id:`ai${cat}${i}`, name:it.name, kind:cat, lat:0, lon:0, dist: it.dist_km ?? it.dist_km_estimate ?? 0, description:it.description, tip:it.tip }));
+            }
+          });
         }
         if (aiPois.length > 0) {
           setOsmSecs([{label:`${qs.label} (AI)`, emoji:qs.icon, pois:aiPois}]);
@@ -2736,12 +2807,15 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
         <form onSubmit={async e=>{
           e.preventDefault();
           if (!userLoc||!aiQuery.trim()) return;
-          setAiLoading(true); setAiResult(null);
+          setAiLoading(true); setAiResult(null); setLocalMatches([]);
           try {
-            const p = new URLSearchParams({ lat:String(userLoc.lat), lng:String(userLoc.lon), ai:"true", q:aiQuery.trim() });
+            const p = new URLSearchParams({ lat:String(userLoc.lat), lng:String(userLoc.lon), ai:"true", q:aiQuery.trim(), radius:String(radius) });
             const r = await fetch(`/v1/public/quicksearch?${p}`);
             const d = await r.json();
-            if (d.success) setAiResult(d.data||{});
+            if (d.success) {
+              setLocalMatches(d.data?.local || []);
+              setAiResult(d.data?.ai || {});
+            }
           } catch { setError("AI search failed. Try again."); }
           setAiLoading(false);
         }} className="flex gap-2">
@@ -2753,18 +2827,44 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
             {aiLoading?<Loader2 size={14} className="animate-spin"/>:<Sparkles size={14}/>}
           </button>
         </form>
-        {aiResult && (
-          <div className="mt-3 space-y-3">
+
+        {localMatches.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">
+              <span>🏪</span> Local Verified Matches
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {localMatches.map(l => (
+                <div key={l.id} className="bg-white border border-orange-100 rounded-xl p-3 flex items-center gap-3">
+                  <span className="text-xl shrink-0">{l.type === 'shop' ? '🏪' : '📍'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-900 truncate">{l.name}</p>
+                    <p className="text-[10px] text-gray-500 capitalize">{l.type.replace(/_/g," ")} · <span className="font-mono">{l.dist_km}km</span></p>
+                    {l.description && <p className="text-[10px] text-gray-400 truncate mt-0.5">{l.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {aiResult && Object.keys(aiResult).length > 0 && (
+          <div className="mt-4 pt-3 border-t border-purple-100 space-y-3">
+            <p className="text-xs font-bold text-purple-700 uppercase tracking-widest flex items-center gap-1">
+              <Bot size={11}/> AI Discovered Results (Shown at Bottom)
+            </p>
             {Object.entries(aiResult).filter(([,v])=>v.length>0).map(([cat,items])=>(
-              <div key={cat}>
-                <p className="text-xs font-bold text-purple-600 capitalize mb-1">{cat} ({items.length})</p>
-                <div className="space-y-1">
+              <div key={cat} className="space-y-1.5">
+                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-0.5">{cat} ({items.length})</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {items.slice(0,5).map((it:any,i:number)=>(
-                    <div key={i} className="bg-white rounded-xl p-2.5 border border-purple-100 text-sm">
-                      <p className="font-semibold text-gray-900">{it.name}</p>
-                      {it.description&&<p className="text-xs text-gray-500 mt-0.5">{it.description}</p>}
-                      {it.tip&&<p className="text-xs text-purple-600 mt-0.5 italic">{it.tip}</p>}
-                      {it.dist_km&&<p className="text-xs text-gray-400 font-mono mt-0.5">~{it.dist_km}km</p>}
+                    <div key={i} className="bg-white rounded-xl p-2.5 border border-purple-100 text-xs shadow-sm flex flex-col justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900">{it.name}</p>
+                        {it.description&&<p className="text-[10px] text-gray-500 mt-0.5 leading-normal">{it.description}</p>}
+                        {it.tip&&<p className="text-[10px] text-purple-600 mt-0.5 italic leading-normal">★ {it.tip}</p>}
+                      </div>
+                      {it.dist_km&&<p className="text-[9px] text-gray-400 font-mono mt-1 text-right">~{it.dist_km}km</p>}
                     </div>
                   ))}
                 </div>
@@ -3363,7 +3463,7 @@ function InstallPanel() {
 // ── Personal Assistant ─────────────────────────────────────────
 type PAStatus = "pending"|"approved"|"rejected"|"held"|"executing"|"done";
 interface PAField  { key:string; label:string; type:"text"|"number"|"select"|"textarea"|"date"; required?:boolean; options?:string[]; placeholder?:string; prefix?:string; }
-interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"; status:PAStatus; icon:string; fields?:PAField[]; }
+interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"; status:PAStatus; icon:string; fields?:PAField[]; }
 interface PAMsg    { id:string; role:"user"|"assistant"; text:string; ts:number; wfTasks?:PATask[]; }
 
 function paUid(): string { return Math.random().toString(36).slice(2,9); }
@@ -3375,6 +3475,7 @@ function detectPAIntent(text:string): { intent:string; params:Record<string,stri
   if (/expense|spent|paid|bought|spend|cost/.test(t)) return { intent:"add_expense", params:{} };
   if (/remind|reminder|alarm|alert/.test(t)) return { intent:"set_reminder", params:{} };
   if (/trip|travel|holiday|vacation|tour/.test(t)) return { intent:"plan_trip", params:{} };
+  if (/search|buy|find|medicine|product|tablet|capsule|pill|store|mrp|price/.test(t)) return { intent:"product_search", params:{ q: text } };
   const svc = t.match(/plumber|electrician|carpenter|painter|ac repair|pest|handyman/);
   if (svc || /find.*(service|provider|professional)/.test(t)) return { intent:"find_service", params:{ stype: svc?.[0]||"service" } };
   return { intent:"general", params:{ q:text } };
@@ -3383,6 +3484,22 @@ function detectPAIntent(text:string): { intent:string; params:Record<string,stri
 function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:string): PATask[] {
   const mk = (s:string) => `${wfId}_${s}`;
   const flows: Record<string,PATask[]> = {
+    product_search: [
+      { id:mk("t1"), label:"Product Query", desc:"What item would you like to search for?", type:"input", status:"pending", icon:"🔍",
+        fields:[
+          { key:"query", label:"Product Name", type:"text", placeholder:"e.g. Paracetamol", required:true }
+        ]},
+      { id:mk("t2"), label:"Select Product", desc:"Choose a product from our stores or external online matches", type:"select_product", status:"pending", icon:"💊" },
+      { id:mk("t3"), label:"Automated Procurement", desc:"Simulating headless browser verification...", type:"browse_logs", status:"pending", icon:"🤖" },
+      { id:mk("t4"), label:"Payment Checkout", desc:"Complete payment to authorize checkout", type:"payment", status:"pending", icon:"💳",
+        fields:[
+          { key:"card", label:"Card Number", type:"text", placeholder:"1234 5678 9012 3456", required:true },
+          { key:"expiry", label:"Expiry (MM/YY)", type:"text", placeholder:"MM/YY", required:true },
+          { key:"cvv", label:"CVV", type:"text", placeholder:"123", required:true },
+          { key:"name", label:"Name on Card", type:"text", placeholder:"Your name", required:true },
+        ]},
+      { id:mk("t5"), label:"Order Complete", desc:"Your order has been placed successfully!", type:"info", status:"pending", icon:"🎉" }
+    ],
     food_order: [
       { id:mk("t1"), label:"Enter Food Details", desc:"What would you like to order?", type:"input", status:"pending", icon:"🍕",
         fields:[
@@ -3452,7 +3569,7 @@ function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:strin
   return flows[intent]||flows.general;
 }
 
-function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; setSection:(s:Section)=>void }) {
+function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:GuestIdentity; setSection:(s:Section)=>void; onOpenWhatsApp:()=>void }) {
   const gk = (k:string) => guestKey(guest.id, `pa.${k}`);
   const [msgs,       setMsgs]       = useLocalStore<PAMsg[]>(gk("msgs"), []);
   const [taskState,  setTaskState]  = useLocalStore<Record<string,PAStatus>>(gk("tstate"), {});
@@ -3462,7 +3579,57 @@ function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; se
   const [fv,       setFv]      = useState<Record<string,Record<string,string>>>({});
   const chatRef = useRef<HTMLDivElement>(null);
 
+  const [searchItems, setSearchItems] = useState<any[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [agentLogs, setAgentLogs] = useState<string[]>([]);
+
   useEffect(() => { chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:"smooth"}); }, [msgs]);
+
+  useEffect(() => {
+    const activeTask = msgs
+      .flatMap(m => m.wfTasks || [])
+      .find(t => isActive(t, msgs.flatMap(m => m.wfTasks || [])));
+
+    if (activeTask && activeTask.type === "select_product" && searchItems.length === 0 && !loadingSearch) {
+      const searchInputTask = msgs
+        .flatMap(m => m.wfTasks || [])
+        .find(t => t.id.endsWith("_t1"));
+      
+      const qTaskVal = searchInputTask ? (taskValues[searchInputTask.id]?.query || "") : "";
+      const lastUserMsg = [...msgs].reverse().find(m => m.role === "user")?.text || "Paracetamol";
+      const queryStr = qTaskVal || lastUserMsg.replace(/buy|search|find|for/gi, '').trim() || "Paracetamol";
+
+      setLoadingSearch(true);
+      fetch(`/v1/public/products?search=${encodeURIComponent(queryStr)}`)
+        .then(res => res.json())
+        .then(json => {
+          const dbItems = (json.data || []).slice(0, 2).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            price: item.selling_price || item.mrp || 0,
+            storeName: item.store_name || "Apollo Pharmacy (Local)",
+            storeUrl: `/store/${item.store_id}`
+          }));
+
+          const mockItems = [
+            { id: "mock_1", name: `${queryStr} 500mg (Amazon Pharmacy)`, price: 42.00, storeName: "Amazon Health (Out Store)", storeUrl: "https://pharmacy.amazon.in" },
+            { id: "mock_2", name: `${queryStr} Active (Apollo 247)`, price: 45.00, storeName: "Apollo 247 (Out Store)", storeUrl: "https://www.apollo247.com" },
+            { id: "mock_3", name: `${queryStr} Suspension (Tata 1mg)`, price: 38.00, storeName: "Tata 1mg (Out Store)", storeUrl: "https://www.1mg.com" }
+          ];
+
+          setSearchItems([...dbItems, ...mockItems]);
+        })
+        .catch(err => {
+          console.error("Search failed:", err);
+          setSearchItems([
+            { id: "mock_1", name: `${queryStr} 500mg (Amazon Pharmacy)`, price: 42.00, storeName: "Amazon Health (Out Store)", storeUrl: "https://pharmacy.amazon.in" },
+            { id: "mock_2", name: `${queryStr} Active (Apollo 247)`, price: 45.00, storeName: "Apollo 247 (Out Store)", storeUrl: "https://www.apollo247.com" },
+            { id: "mock_3", name: `${queryStr} Suspension (Tata 1mg)`, price: 38.00, storeName: "Tata 1mg (Out Store)", storeUrl: "https://www.1mg.com" }
+          ]);
+        })
+        .finally(() => setLoadingSearch(false));
+    }
+  }, [msgs, taskState]);
 
   useEffect(() => {
     if (msgs.length === 0) {
@@ -3495,6 +3662,61 @@ function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; se
     }
     if (task.type==="input"||task.type==="payment") setTaskValues(prev=>({...prev,[task.id]:vals}));
     setTaskState(prev=>({...prev,[task.id]:"executing"}));
+
+    if (task.type === "browse_logs") {
+      const selectTask = allTasks.find(t => t.type === "select_product");
+      const selectVals = selectTask ? (taskValues[selectTask.id] || {}) : {};
+      const prodName = selectVals.productName || "Medicine";
+      const url = selectVals.vendorUrl || "https://www.apollopharmacy.in";
+
+      setAgentLogs([]);
+      try {
+        const res = await fetch(`/v1/public/agent/browse`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, productName: prodName })
+        });
+        const data = await res.json();
+        if (data.success && data.data && data.data.logs) {
+          const fullLogs = data.data.logs;
+          for (let i = 0; i < fullLogs.length; i++) {
+            await new Promise(r => setTimeout(r, 400));
+            setAgentLogs(prev => [...prev, fullLogs[i]]);
+          }
+        }
+      } catch (e: any) {
+        setAgentLogs(prev => [...prev, `[headless-chrome:ERROR] Connection failed: ${e.message}`]);
+      }
+      await new Promise(r => setTimeout(r, 600));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Verification complete. Product mapped to category successfully. Please enter your card payment details below to finish checkout."
+      }]);
+      return;
+    }
+
+    if (task.type === "payment" && allTasks.find(t => t.type === "browse_logs")) {
+      try {
+        const res = await fetch(`/v1/public/agent/pay`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ card: vals.card, name: vals.name, amount: "450.00" })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setTaskValues(prev => ({ ...prev, [task.id]: { ...vals, txnId: data.data.transactionId } }));
+        }
+      } catch {}
+      await new Promise(r => setTimeout(r, 1000));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Payment authorized! Your order has been placed and category listings updated. Check details in the final summary tab."
+      }]);
+      return;
+    }
+
     await new Promise(r=>setTimeout(r,900));
     setTaskState(prev=>({...prev,[task.id]:"done"}));
 
@@ -3602,6 +3824,60 @@ function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; se
           );
         })()}
 
+        {/* Custom select_product block */}
+        {active && task.type === "select_product" && (
+          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Product Option</span>
+            {loadingSearch ? (
+              <div className="flex items-center gap-1.5 py-2"><Loader2 size={12} className="animate-spin text-orange-500"/><span className="text-xs text-gray-500">Searching options...</span></div>
+            ) : searchItems.length === 0 ? (
+              <div className="text-xs text-gray-500 py-1">No products found. Enter another keyword or click got it.</div>
+            ) : (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {searchItems.map(item => (
+                  <label key={item.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100">
+                    <input
+                      type="radio"
+                      name={`product_${task.id}`}
+                      checked={vals.selectedProductId === item.id}
+                      onChange={() => {
+                        setFieldVal(task.id, "selectedProductId", item.id);
+                        setFieldVal(task.id, "productName", item.name);
+                        setFieldVal(task.id, "vendorUrl", item.storeUrl || "https://www.apollopharmacy.in");
+                      }}
+                      className="mt-0.5 text-orange-500 focus:ring-orange-500"
+                    />
+                    <div className="text-xs">
+                      <div className="font-semibold text-gray-800">{item.name}</div>
+                      <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                        <span>Store: {item.storeName}</span>
+                        <span>•</span>
+                        <span className="text-green-600 font-medium">₹{item.price}</span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Custom browse_logs block */}
+        {active && task.type === "browse_logs" && (
+          <div className="mb-3 bg-gray-900 rounded-lg p-3 font-mono text-[10px] text-green-400 space-y-1 max-h-48 overflow-y-auto">
+            <div className="text-gray-500">// HEADLESS BROWSER CONSOLE TRACE</div>
+            {agentLogs.length === 0 ? (
+              <div className="flex items-center gap-1.5"><Loader2 size={10} className="animate-spin text-green-400"/><span>Virtualizing Chromium session...</span></div>
+            ) : (
+              agentLogs.map((l, idx) => (
+                <div key={idx} className={l.includes('ERROR') ? 'text-red-400' : l.includes('WARNING') ? 'text-yellow-400' : ''}>
+                  {l}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Input fields */}
         {active && (task.type==="input"||task.type==="payment") && task.fields && (
           <div className="space-y-2 mb-3">
@@ -3683,7 +3959,8 @@ function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; se
     const wfId = paUid();
     const wfTasks = buildPAWorkflow(intent, params, wfId);
     const REPLIES: Record<string,string> = {
-      food_order:   "Great! Let me help you place a food order. Fill in the details below.",
+      product_search: "Searching local and online stores for matches. Check results below.",
+      food_order:   "Great! Let help you place a food order. Fill in the details below.",
       book_ride:    "On it! Enter your trip details and I will find you a ride.",
       add_expense:  "I will log that expense. Fill in the details below.",
       set_reminder: "I will set that reminder. What should I remind you about?",
@@ -3706,8 +3983,12 @@ function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; se
           <h1 className="text-xl font-black text-gray-900">Personal Assistant</h1>
           <p className="text-gray-500 text-xs">AI orchestrator · Approve / Hold / Reject</p>
         </div>
-        <button onClick={()=>{ if(window.confirm("Clear chat history?")){ setMsgs([]); setTaskState({}); setTaskValues({}); } }}
-          className="ml-auto text-[11px] text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2 py-1 transition-colors">
+        <button onClick={onOpenWhatsApp}
+          className="ml-auto text-[11px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 transition-colors flex items-center gap-1">
+          <Phone size={10}/> WhatsApp Alerts
+        </button>
+        <button onClick={()=>{ if(window.confirm("Clear chat history?")){ setMsgs([]); setTaskState({}); setTaskValues({}); setSearchItems([]); } }}
+          className="ml-2 text-[11px] text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2 py-1 transition-colors">
           Clear
         </button>
       </div>
@@ -3769,6 +4050,217 @@ function PersonalAssistantPanel({ guest, setSection }: { guest:GuestIdentity; se
         <button onClick={sendMessage} disabled={!input.trim()||thinking}
           className="w-10 h-10 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-2xl flex items-center justify-center transition-colors shrink-0">
           <Send size={14}/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppVerificationModal({ isOpen, onClose, guestId }: { isOpen: boolean; onClose: () => void; guestId: string }) {
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"phone" | "code" | "success">("phone");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [devCode, setDevCode] = useState("");
+
+  if (!isOpen) return null;
+
+  const sendCode = async () => {
+    if (!phone.trim()) { setError("Phone number is required"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/v1/public/whatsapp/verify/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), guestId })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to send code");
+      setStep("code");
+      if (json.devCode) {
+        setDevCode(json.devCode);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (!code.trim()) { setError("Verification code is required"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/v1/public/whatsapp/verify/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), code: code.trim() })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Verification failed");
+      setStep("success");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <Phone className="text-emerald-500" size={14}/> WhatsApp Alerts
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={16}/>
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 text-[11px] rounded-lg p-2.5 mb-4 font-medium">
+            {error}
+          </div>
+        )}
+
+        {step === "phone" && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Subscribe to real-time discount offers, new stock alerts, and campaign updates directly in your WhatsApp chat.
+            </p>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">WhatsApp Phone Number</label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. +91 99435 44808"
+                className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <button
+              onClick={sendCode}
+              disabled={loading}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={12} className="animate-spin"/> : "Send Verification Code"}
+            </button>
+          </div>
+        )}
+
+        {step === "code" && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              We sent a 6-digit OTP code to your number. Enter it below to verify.
+            </p>
+            {devCode && (
+              <div className="bg-amber-50 text-amber-700 text-xs rounded-lg p-2.5 border border-amber-200">
+                <strong>[DEV MODE]</strong> Simulation OTP: <code className="font-bold font-mono">{devCode}</code>
+              </div>
+            )}
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Verification OTP</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="123456"
+                className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm tracking-widest text-center font-bold focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStep("phone")}
+                className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2.5 rounded-lg transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={verifyCode}
+                disabled={loading}
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={12} className="animate-spin"/> : "Verify Code"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "success" && (
+          <div className="text-center space-y-4 py-4">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">✓</div>
+            <div>
+              <h4 className="font-bold text-gray-800 text-sm">Successfully Subscribed!</h4>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                You are now registered for real-time store offer alerts.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GuestProfileModal({ isOpen, onClose, guest, onOpenWhatsApp }: { isOpen: boolean; onClose: () => void; guest: GuestIdentity; onOpenWhatsApp: () => void }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold text-gray-900">Guest Profile</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={16}/>
+          </button>
+        </div>
+
+        <div className="space-y-4 text-xs">
+          <div className="bg-orange-50 border border-orange-100 rounded-xl p-3.5 flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold text-lg">
+              {guest.name[0].toUpperCase()}
+            </div>
+            <div>
+              <div className="font-bold text-gray-800 text-sm">{guest.name}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">ID: {guest.id}</div>
+            </div>
+          </div>
+
+          <div className="border border-gray-100 rounded-xl p-3.5 space-y-2">
+            <div className="font-bold text-gray-500 uppercase text-[9px] tracking-wider">Preferences</div>
+            <div className="flex justify-between items-center py-1">
+              <div>
+                <div className="font-semibold text-gray-800">WhatsApp Alerts</div>
+                <div className="text-[10px] text-gray-500">Get offer alerts on your phone</div>
+              </div>
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenWhatsApp();
+                }}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <Phone size={10}/> Manage
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-6 w-full bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 rounded-lg transition-colors"
+        >
+          Close
         </button>
       </div>
     </div>

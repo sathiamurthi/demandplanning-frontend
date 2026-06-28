@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -7,7 +7,7 @@ import {
   BarChart3, Package, TrendingUp, Shield, ArrowRight, Star,
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
-  MapPin, Phone, CreditCard, FileText, Brain, RefreshCw,
+  MapPin, Phone, CreditCard, FileText, Brain, RefreshCw, Navigation2,
 } from "lucide-react";
 
 /* â”€â”€ INDUSTRIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -181,7 +181,7 @@ const testimonials = [
   {
     name: "Priya Mehta",
     role: "MedCare Pharmacy, Indiranagar",
-    text: "Expiry tracking alone saved us â‚¹80K in write-offs last quarter.",
+    text: "Expiry tracking alone saved us ₹80K in write-offs last quarter.",
   },
   {
     name: "ABC Tea Agency",
@@ -190,7 +190,7 @@ const testimonials = [
   },
 ];
 
-/* â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ──── COMPONENT ────────────────────────────────────────────────────────── */
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -198,14 +198,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#07090f] text-white flex flex-col overflow-x-hidden">
 
-      {/* â”€â”€ NAV â”€â”€ */}
+      {/* ──── NAV ──── */}
       <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between bg-white/4 backdrop-blur-xl border border-white/8 rounded-2xl px-5 py-3 shadow-xl shadow-black/20">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
               <BarChart3 size={14} className="text-white" />
             </div>
-            <span className="font-bold text-white text-sm tracking-tight">DemandPlanning</span>
+            <span className="font-bold text-white text-sm tracking-tight">DemandGenius</span>
           </Link>
           <nav className="hidden sm:flex items-center gap-1">
             <Link href="/explore" className="flex items-center gap-1.5 text-white/60 hover:text-white text-xs px-3 py-1.5 rounded-lg hover:bg-white/6 transition-all">
@@ -230,7 +230,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* â”€â”€ HERO â”€â”€ */}
+      {/* ──── HERO ──── */}
       <section className="relative px-4 pt-28 pb-20 text-center overflow-hidden">
         {/* Glow */}
         <div className="absolute inset-0 pointer-events-none">
@@ -240,34 +240,95 @@ export default function HomePage() {
 
         <div className={`relative transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
           <span className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full mb-6">
-            <Zap size={11} /> AI-powered Â· Multi-tenant Â· Domain-specific
+            <Zap size={11} /> AI-powered · Multi-tenant · Domain-specific
           </span>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight tracking-tight">
-            Demand Planning<br />
+          <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
+            DemandGenius<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
-              that thinks ahead
+              smart local commerce
             </span>
           </h1>
 
-          <p className="mt-5 text-white/50 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
-            One platform for Grocery, Auto Parts, Pharma, and Tea Procurement.
-            AI-driven forecasting, real-time inventory, and multi-tenant SaaS â€” all in one.
+          <p className="mt-4 text-white/50 max-w-xl mx-auto text-sm">
+            Interactive multi-tenant ecosystem connecting store owners, tea brokers, and local search visitors through intelligent forecasting and verified geo-location maps.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/register"
-              className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-7 py-3.5 rounded-xl font-semibold text-sm transition-all hover:shadow-lg hover:shadow-indigo-500/25">
-              Start Free <ArrowRight size={15} />
-            </Link>
-            <Link href="/explore"
-              className="inline-flex items-center justify-center gap-2 border border-white/15 hover:border-white/30 bg-white/5 hover:bg-white/8 text-white/80 px-7 py-3.5 rounded-xl font-medium text-sm transition-all">
-              <Search size={14} /> Explore Stores
-            </Link>
-            <Link href="/tea"
-              className="inline-flex items-center justify-center gap-2 border border-green-500/25 hover:border-green-400/50 bg-green-500/5 hover:bg-green-500/10 text-green-400 px-7 py-3.5 rounded-xl font-medium text-sm transition-all">
-              <Leaf size={14} /> TeaLeaf Collect Pro
-            </Link>
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto text-left">
+            {/* Card 1: Store Owner */}
+            <div className="bg-[#0f1218] border border-indigo-500/20 rounded-2xl p-6 flex flex-col justify-between hover:border-indigo-500/40 hover:-translate-y-1 transition-all shadow-xl shadow-indigo-950/10">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-indigo-400 font-black bg-indigo-500/10 px-2.5 py-1 rounded-full">I AM A Merchant / Owner</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center border border-indigo-500/25 shrink-0">
+                    <BarChart3 className="text-indigo-400" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">DemandGenius Business</h3>
+                    <p className="text-[10px] text-white/40">Inventory & forecasting suite</p>
+                  </div>
+                </div>
+                <p className="text-white/60 text-xs leading-relaxed mb-6">
+                  Manage stock levels dynamically, access AI-powered forecast reports, customize system settings, and broadcast offer alerts to WhatsApp verified customers.
+                </p>
+              </div>
+              <div className="flex gap-2.5 pt-4 border-t border-white/5">
+                <Link href="/register" className="flex-1 text-center bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors">
+                  Register
+                </Link>
+                <Link href="/login" className="flex-1 text-center border border-white/10 hover:bg-white/5 text-white/80 text-xs font-medium py-2.5 rounded-lg transition-colors">
+                  Login
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 2: Visitor / Explorer */}
+            <div className="bg-[#0f1218] border border-orange-500/20 rounded-2xl p-6 flex flex-col justify-between hover:border-orange-500/40 hover:-translate-y-1 transition-all shadow-xl shadow-orange-950/10">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-orange-400 font-black bg-orange-500/10 px-2.5 py-1 rounded-full">I AM A Customer / Explorer</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center border border-orange-500/25 shrink-0">
+                    <Navigation2 className="text-orange-400" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">Local Explorer</h3>
+                    <p className="text-[10px] text-white/40">Verified nearby directory</p>
+                  </div>
+                </div>
+                <p className="text-white/60 text-xs leading-relaxed mb-6">
+                  <strong>Our Aim:</strong> To instantly connect you with verified local pharmacies, restaurants, grocers, and hotels. Find real-time coordinates, products, and direct contact options.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/5">
+                <Link href="/explore" className="block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-2.5 rounded-lg transition-all shadow-md shadow-orange-500/15">
+                  Explore Nearby
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 3: Tea Procurement */}
+            <div className="bg-[#0f1218] border border-emerald-500/20 rounded-2xl p-6 flex flex-col justify-between hover:border-emerald-500/40 hover:-translate-y-1 transition-all shadow-xl shadow-emerald-950/10">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-emerald-400 font-black bg-emerald-500/10 px-2.5 py-1 rounded-full">I AM A Tea Broker / Grower</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/25 shrink-0">
+                    <Leaf className="text-emerald-400" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">TeaLeaf Collect</h3>
+                    <p className="text-[10px] text-white/40">Supply-chain & settlements</p>
+                  </div>
+                </div>
+                <p className="text-white/60 text-xs leading-relaxed mb-6">
+                  Record daily batch collections from tea growers, manage dispatcher logistics, generate factory invoices, track settlements, and initiate secure weekly grower payments.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/5">
+                <Link href="/tea" className="block text-center bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors">
+                  Open Tea Hub
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>

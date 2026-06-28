@@ -61,7 +61,7 @@ const NAV: NavGroup[] = [
     items: [
       { label: "AI Settings",   href: "/admin/dynamic/ai-settings",  icon: Sparkles },
       { label: "Permissions",   href: "/admin/dynamic/permissions",   icon: Shield   },
-      { label: "Notifications", href: "/notifications",               icon: Bell     },
+      { label: "Notifications", href: "/admin/dynamic/notifications",               icon: Bell     },
     ],
   },
 ];

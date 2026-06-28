@@ -560,6 +560,24 @@ export const ITEM_FIELDS: FieldDef[] = [
     span: "half",
     min: 0,
   },
+  {
+    key: "discountType",
+    label: "Discount Type",
+    type: "select",
+    span: "half",
+    options: [
+      { label: "None", value: "none" },
+      { label: "Percentage (%)", value: "percentage" },
+      { label: "Flat (₹)", value: "flat" },
+    ],
+  },
+  {
+    key: "discountValue",
+    label: "Discount Value",
+    type: "number",
+    span: "half",
+    min: 0,
+  },
 
   // Batch / Expiry
   {

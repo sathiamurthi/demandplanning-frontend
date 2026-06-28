@@ -88,8 +88,8 @@ type ContactType = "email" | "phone";
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step,        setStep]        = useState(1); // 1=role, 2=industry(owner), 3=details
-  const [role,        setRole]        = useState<string | null>(null);
+  const [step,        setStep]        = useState(1); // 1=industry, 2=details
+  const [role,        setRole]        = useState<string | null>("owner");
   const [industries,  setIndustries]  = useState<Industry[]>(STATIC_INDUSTRIES);
   const [industryId,  setIndustryId]  = useState<string | null>(null);
   const [contactType, setContactType] = useState<ContactType>("email");
@@ -101,14 +101,14 @@ function RegisterContent() {
   const [error,    setError]    = useState<string | null>(null);
   const [success,  setSuccess]  = useState(false);
 
-  const totalSteps = role === "owner" ? 3 : 2;
+  const totalSteps = 2;
 
   useEffect(() => {
     const ind = searchParams.get("industry");
     if (ind) {
       setRole("owner");
       setIndustryId(ind);
-      setStep(3);
+      setStep(2);
     }
   }, [searchParams]);
 
@@ -197,7 +197,7 @@ function RegisterContent() {
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl
                            bg-gold-400 text-sm font-black text-gray-950">DP</span>
-          <span className="text-xl font-bold text-white tracking-tight">DemandPlan</span>
+          <span className="text-xl font-bold text-white tracking-tight">DemandGenius</span>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -215,60 +215,16 @@ function RegisterContent() {
               <span className="ml-2 text-xs text-gray-400">Step {step} of {totalSteps}</span>
             </div>
             <h1 className="text-lg font-bold text-gray-900">
-              {step === 1 ? "Choose your role"
-               : step === 2 && role === "owner" ? "Select your industry"
-               : "Your details"}
+              {step === 1 ? "Select your industry" : "Your details"}
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {step === 1 ? "How will you use DemandPlan?"
-               : step === 2 && role === "owner" ? "We'll customize your experience."
-               : "Create your account to get started."}
+              {step === 1 ? "We'll customize your experience." : "Create your account to get started."}
             </p>
           </div>
 
           <div className="p-6">
-            {/* Step 1: Role */}
+            {/* Step 1: Industry Selection */}
             {step === 1 && (
-              <div className="space-y-3">
-                {ROLES.map(r => (
-                  <button
-                    key={r.key}
-                    onClick={() => setRole(r.key)}
-                    className={`w-full flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-all
-                      ${role === r.key ? "border-gray-900 bg-gray-50" : "border-gray-100 hover:border-gray-200 bg-white"}`}
-                  >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
-                      ${role === r.key ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}>
-                      <r.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-900 text-sm">{r.label}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${r.badgeColor}`}>
-                          {r.badge}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{r.description}</p>
-                    </div>
-                    <div className={`mt-1 h-4 w-4 rounded-full border-2 shrink-0 flex items-center justify-center
-                      ${role === r.key ? "border-gray-900 bg-gray-900" : "border-gray-200"}`}>
-                      {role === r.key && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
-                    </div>
-                  </button>
-                ))}
-                <button
-                  onClick={nextStep}
-                  disabled={!role}
-                  className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gray-900
-                             py-3 text-sm font-semibold text-white hover:bg-gray-800 transition-colors disabled:opacity-40"
-                >
-                  Continue <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
-            {/* Step 2: Industry (owner only) */}
-            {step === 2 && role === "owner" && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   {industries.map(ind => {
@@ -292,13 +248,13 @@ function RegisterContent() {
                   })}
                 </div>
                 <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => setStep(1)}
+                  <Link
+                    href="/login"
                     className="flex items-center gap-1 rounded-xl border border-gray-200 px-4 py-3
                                text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Back
-                  </button>
+                    <ArrowLeft className="h-4 w-4" /> Cancel
+                  </Link>
                   <button
                     onClick={nextStep}
                     disabled={!industryId}
@@ -311,13 +267,13 @@ function RegisterContent() {
               </div>
             )}
 
-            {/* Final step: Details */}
-            {((step === 2 && role !== "owner") || step === 3) && (
+            {/* Step 2: Details */}
+            {step === 2 && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Back button */}
                 <button
                   type="button"
-                  onClick={() => setStep(s => s - 1)}
+                  onClick={() => setStep(1)}
                   className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-2"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Back
