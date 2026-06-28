@@ -126,9 +126,7 @@ export function Sidebar() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const tenantId = localStorage.getItem("tenantId");
-        if (!tenantId) return;
-        const res = await apiGet<any>(`/tenants/${tenantId}/users/me`);
+        const res = await apiGet<any>(`/auth/me`);
         if (res?.success && res?.data) {
           setProfileData(res.data);
         }

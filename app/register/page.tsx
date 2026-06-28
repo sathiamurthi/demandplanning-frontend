@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { apiGet, apiPost } from "@/lib/api";
 import {
@@ -85,8 +85,9 @@ function StepDot({ active, done, n }: { active: boolean; done: boolean; n: numbe
 
 type ContactType = "email" | "phone";
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step,        setStep]        = useState(1); // 1=role, 2=industry(owner), 3=details
   const [role,        setRole]        = useState<string | null>(null);
   const [industries,  setIndustries]  = useState<Industry[]>(STATIC_INDUSTRIES);
@@ -101,6 +102,15 @@ export default function RegisterPage() {
   const [success,  setSuccess]  = useState(false);
 
   const totalSteps = role === "owner" ? 3 : 2;
+
+  useEffect(() => {
+    const ind = searchParams.get("industry");
+    if (ind) {
+      setRole("owner");
+      setIndustryId(ind);
+      setStep(3);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     apiGet<{ success: boolean; data: Industry[] }>("/industries")
@@ -139,6 +149,7 @@ export default function RegisterPage() {
           ...basePayload,
           companyName: form.companyName || `${form.firstName}'s Business`,
           industry_id: industryId,
+          source: searchParams.get("source") || searchParams.get("industry") || "direct",
         });
       } else {
         await apiPost("/auth/register", { ...basePayload, role });
@@ -477,5 +488,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-sm font-semibold text-gray-500 animate-pulse">Loading onboarding...</div>
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
   );
 }
