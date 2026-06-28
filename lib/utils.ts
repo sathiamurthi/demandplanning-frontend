@@ -4,7 +4,7 @@ import { twMerge } from 'tailwind-merge';
 
 export function getTenantId(): string | null {
   if (typeof window === "undefined") return null;
-  const strategy = process.env.NEXT_PUBLIC_TOKEN_STRATEGY as "cookie" | "localStorage";
+  const strategy = (process.env.NEXT_PUBLIC_TOKEN_STRATEGY || "localStorage") as "cookie" | "localStorage";
 
   if (strategy === "localStorage") {
     return localStorage.getItem("tenantId");
@@ -17,7 +17,7 @@ export function getTenantId(): string | null {
 
 export function getStoreId(): string | null {
   if (typeof window === "undefined") return null;
-  const strategy = process.env.NEXT_PUBLIC_TOKEN_STRATEGY as "cookie" | "localStorage";
+  const strategy = (process.env.NEXT_PUBLIC_TOKEN_STRATEGY || "localStorage") as "cookie" | "localStorage";
 
   if (strategy === "localStorage") {
     return localStorage.getItem("storeId");
