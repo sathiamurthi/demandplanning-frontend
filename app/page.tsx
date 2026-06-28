@@ -291,8 +291,8 @@ export default function HomePage() {
                     <Navigation2 className="text-orange-400" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-white">Local Explorer</h3>
-                    <p className="text-[10px] text-white/40">Verified nearby directory</p>
+                    <h3 className="font-bold text-base text-white">PigeonSearch AI</h3>
+                    <p className="text-[10px] text-white/40">AI-powered nearby directory</p>
                   </div>
                 </div>
                 <p className="text-white/60 text-xs leading-relaxed mb-6">
