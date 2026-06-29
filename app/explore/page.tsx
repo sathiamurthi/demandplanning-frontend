@@ -3749,7 +3749,7 @@ function InstallPanel() {
 // ── Personal Assistant ─────────────────────────────────────────
 type PAStatus = "pending"|"approved"|"rejected"|"held"|"executing"|"done";
 interface PAField  { key:string; label:string; type:"text"|"number"|"select"|"textarea"|"date"; required?:boolean; options?:string[]; placeholder?:string; prefix?:string; }
-interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"|"select_provider"|"select_dishes"|"review_cart"|"track_delivery"; status:PAStatus; icon:string; fields?:PAField[]; }
+interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"|"select_provider"|"select_dishes"|"review_cart"|"track_delivery"|"select_hotel_provider"|"select_hotels"|"review_hotel_cart"|"track_hotel_booking"|"select_trip_provider"|"select_trips"|"review_trip_cart"|"track_trip_booking"; status:PAStatus; icon:string; fields?:PAField[]; }
 interface PAMsg    { id:string; role:"user"|"assistant"; text:string; ts:number; wfTasks?:PATask[]; }
 
 function paUid(): string { return Math.random().toString(36).slice(2,9); }
@@ -3757,6 +3757,8 @@ function paUid(): string { return Math.random().toString(36).slice(2,9); }
 function detectPAIntent(text:string): { intent:string; params:Record<string,string> } {
   const t = text.toLowerCase();
   if (/food|order|eat|dinner|lunch|breakfast|pizza|biryani|burger|swiggy|zomato|dosa/.test(t)) return { intent:"food_order", params:{} };
+  if (/hotel|room|stay|resort|lodging|booking/.test(t)) return { intent:"hotel_booking", params:{} };
+  if (/ticket|bus|train|flight|irctc|redbus|boarding/.test(t)) return { intent:"trip_booking", params:{} };
   if (/ride|cab|taxi|auto|uber|ola|driver|drop|pickup/.test(t)) return { intent:"book_ride", params:{} };
   if (/expense|spent|paid|bought|spend|cost/.test(t)) return { intent:"add_expense", params:{} };
   if (/remind|reminder|alarm|alert/.test(t)) return { intent:"set_reminder", params:{} };
@@ -3798,6 +3800,33 @@ function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:strin
       { id:mk("t4"), label:"Stage 3: Cart Review", desc:"Verify items and total cost. Type Approve to pay, or Reject to cancel:", type:"review_cart", status:"pending", icon:"🧾" },
       { id:mk("t5"), label:"Stage 4: UPI Transaction", desc:"Authenticate the transaction via your phone's UPI app (GPay/PhonePe):", type:"upi_payment", status:"pending", icon:"💳" },
       { id:mk("t6"), label:"Stage 4: Track Delivery", desc:"Courier updates and live delivery ETA:", type:"track_delivery", status:"pending", icon:"🛵" }
+    ],
+    hotel_booking: [
+      { id:mk("t1"), label:"Stage 1: Preferences", desc:"Enter your stay requirements and check-in context:", type:"input", status:"pending", icon:"🏨",
+        fields:[
+          { key:"destination", label:"City / Destination", type:"text", placeholder:"e.g., Goa, Mumbai, Delhi", required:true },
+          { key:"checkin", label:"Check-in Date", type:"date", required:true },
+          { key:"roomtype", label:"Room Type", type:"select", options:["Deluxe Room", "Super Deluxe", "Executive Suite", "Standard Sharing"], required:true }
+        ]},
+      { id:mk("t2"), label:"Stage 2: Portal Selection", desc:"Select the best hotel booking portal for your stay:", type:"select_hotel_provider", status:"pending", icon:"💻" },
+      { id:mk("t3"), label:"Stage 3: Hotel Matches", desc:"Select a hotel match verified by RoomAgent to add to your itinerary:", type:"select_hotels", status:"pending", icon:"🔍" },
+      { id:mk("t4"), label:"Stage 3: Reservation Review", desc:"Review booking fees, stay taxes, and total tariff:", type:"review_hotel_cart", status:"pending", icon:"🧾" },
+      { id:mk("t5"), label:"Stage 4: Payment Confirm", desc:"Authenticate the transaction via secure UPI gateway (GPay/PhonePe):", type:"upi_payment", status:"pending", icon:"💳" },
+      { id:mk("t6"), label:"Stage 4: Track Reservation", desc:"Switch to reservation confirmation tracker:", type:"track_hotel_booking", status:"pending", icon:"🏨" }
+    ],
+    trip_booking: [
+      { id:mk("t1"), label:"Stage 1: Travel Details", desc:"Provide your travel details to locate matching routes:", type:"input", status:"pending", icon:"✈️",
+        fields:[
+          { key:"mode", label:"Mode of Transit", type:"select", options:["Bus (RedBus/KSRTC)", "Train (IRCTC/Shatabdi)", "Flight (IndiGo/Air India)"], required:true },
+          { key:"source", label:"From (Source)", type:"text", placeholder:"e.g., Bengaluru", required:true },
+          { key:"destination", label:"To (Destination)", type:"text", placeholder:"e.g., Hyderabad", required:true },
+          { key:"traveldate", label:"Date of Travel", type:"date", required:true }
+        ]},
+      { id:mk("t2"), label:"Stage 2: Provider Selection", desc:"Select your preferred travel aggregator or route operator:", type:"select_trip_provider", status:"pending", icon:"🎫" },
+      { id:mk("t3"), label:"Stage 3: Route Curation", desc:"Select your preferred departure route or coach seat:", type:"select_trips", status:"pending", icon:"🔍" },
+      { id:mk("t4"), label:"Stage 3: Fare Breakdown", desc:"Verify ticket fares, convenience fees, and tax details:", type:"review_trip_cart", status:"pending", icon:"🧾" },
+      { id:mk("t5"), label:"Stage 4: Payment Confirm", desc:"Enter your UPI PIN to authenticate ticket purchase:", type:"upi_payment", status:"pending", icon:"💳" },
+      { id:mk("t6"), label:"Stage 4: Download Ticket", desc:"Switch to ticket tracking and boarding pass viewer:", type:"track_trip_booking", status:"pending", icon:"🎟️" }
     ],
     book_ride: [
       { id:mk("t1"), label:"Trip Details", desc:"Where are you going?", type:"input", status:"pending", icon:"🚗",
@@ -3962,6 +3991,26 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
       setMsgs(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
         text: "Order delivered! 🥞 Enjoy your hot meal! Let me know if you need anything else."
+      }]);
+      return;
+    }
+
+    if (task.type === "track_hotel_booking") {
+      await new Promise(r => setTimeout(r, 1000));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Hotel room booked successfully! 🎉 Voucher details and check-in confirmation have been sent to your email. Have a great stay!"
+      }]);
+      return;
+    }
+
+    if (task.type === "track_trip_booking") {
+      await new Promise(r => setTimeout(r, 1000));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Tickets booked successfully! 🎫 Boarding pass, E-ticket PDF, and PNR details have been shared to your WhatsApp alerts. Safe travels!"
       }]);
       return;
     }
@@ -4385,7 +4434,8 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
         {/* Custom review_cart block */}
         {active && task.type === "review_cart" && (() => {
           const selectDishesTask = allTasks.find(t => t.type === "select_dishes");
-          const selectedList = selectDishesTask ? (taskValues[selectDishesTask.id]?.selectedDishes || "").split(",").filter(Boolean) : [];
+          const selectVals = selectDishesTask ? { ...(taskValues[selectDishesTask.id] || {}), ...(fv[selectDishesTask.id] || {}) } : {};
+          const selectedList = selectVals.selectedDishes ? selectVals.selectedDishes.split(",").filter(Boolean) : [];
           
           const dishMap: Record<string, { name: string; price: number }> = {
             c1: { name: "Classic Salted Lays Chips", price: 30 },
@@ -4467,6 +4517,269 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
                 <div className="bg-orange-500 h-1.5 rounded-full animate-pulse" style={{width: "45%"}}/>
               </div>
               <p className="text-[10px] text-gray-400">Rider (Ramesh) is assigned. Estimated arrival in 22 minutes.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Custom select_hotel_provider block */}
+        {active && task.type === "select_hotel_provider" && (
+          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Portal Checklist</span>
+            <div className="space-y-1.5">
+              {[
+                { id: "hp1", name: "Booking.com", tag: "Best for international & verified options" },
+                { id: "hp2", name: "MakeMyTrip", tag: "Best for domestic reviews & deals" },
+                { id: "hp3", name: "Agoda", tag: "Best for budget hotel packages" }
+              ].map(opt => (
+                <label key={opt.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                  <input
+                    type="radio"
+                    name={`hotel_prov_${task.id}`}
+                    checked={vals.selectedHotelProvider === opt.id}
+                    onChange={() => {
+                      setFieldVal(task.id, "selectedHotelProvider", opt.id);
+                      setFieldVal(task.id, "hotelProviderName", opt.name);
+                    }}
+                    className="mt-0.5 text-purple-600 focus:ring-purple-500"
+                  />
+                  <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                    <span className="font-bold text-gray-800">{opt.name}</span>
+                    <span className="text-gray-400 font-semibold italic text-[10px]">{opt.tag}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom select_hotels block */}
+        {active && task.type === "select_hotels" && (() => {
+          const prefTask = allTasks.find(t => t.type === "input");
+          const prefVals = prefTask ? { ...(taskValues[prefTask.id] || {}), ...(fv[prefTask.id] || {}) } : {};
+          const dest = (prefVals.destination || "").toLowerCase().trim();
+
+          const hotels = [
+            { id: "h1", name: "Royal Orchid Beach Resort", rate: "⭐ 4.7", price: 5500, loc: "goa" },
+            { id: "h2", name: "Green View Executive Residency", rate: "⭐ 4.5", price: 3200, loc: "goa" },
+            { id: "h3", name: "The Grand Plaza Delhi", rate: "⭐ 4.6", price: 4800, loc: "delhi" },
+            { id: "h4", name: "Comfort Inn Budget Stay", rate: "⭐ 4.2", price: 2100, loc: "delhi" },
+            { id: "h5", name: "Red Residency & Spa", rate: "⭐ 4.4", price: 3800, loc: "general" }
+          ];
+
+          const filteredHotels = hotels.filter(h => h.loc === dest || dest === "" || h.loc === "general");
+
+          return (
+            <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Hotel Matching Vibe</span>
+              <div className="space-y-1.5">
+                {filteredHotels.map(h => (
+                  <label key={h.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                    <input
+                      type="radio"
+                      name={`hotel_${task.id}`}
+                      checked={vals.selectedHotel === h.id}
+                      onChange={() => {
+                        setFieldVal(task.id, "selectedHotel", h.id);
+                        setFieldVal(task.id, "hotelName", h.name);
+                        setFieldVal(task.id, "hotelPrice", String(h.price));
+                      }}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                      <div>
+                        <p className="font-bold text-gray-800">{h.name} <span className="text-amber-500 text-[10px]">{h.rate}</span></p>
+                        <p className="text-[9px] text-gray-400 capitalize">{h.loc}</p>
+                      </div>
+                      <span className="text-green-600 font-bold">₹{h.price} / night</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Custom review_hotel_cart block */}
+        {active && task.type === "review_hotel_cart" && (() => {
+          const selectHotelsTask = allTasks.find(t => t.type === "select_hotels");
+          const selectVals = selectHotelsTask ? { ...(taskValues[selectHotelsTask.id] || {}), ...(fv[selectHotelsTask.id] || {}) } : {};
+          
+          const basePrice = parseFloat(selectVals.hotelPrice || "3500");
+          const hotelName = selectVals.hotelName || "Red Residency Goa";
+          const taxes = Math.round(basePrice * 0.18);
+          const serviceFees = 250;
+          const total = basePrice + taxes + serviceFees;
+
+          return (
+            <div className="space-y-2 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Reservation Price Breakdown</span>
+              <table className="w-full text-left border-collapse mt-1">
+                <tbody className="text-gray-700">
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 font-medium">{hotelName} (1 Night)</td>
+                    <td className="py-1.5 text-right font-semibold">₹{basePrice}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-400">Stay GST Taxes (18%)</td>
+                    <td className="py-1.5 text-right text-gray-500">₹{taxes}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-400">Booking Processing Fees</td>
+                    <td className="py-1.5 text-right text-gray-500">₹{serviceFees}</td>
+                  </tr>
+                  <tr className="font-bold text-gray-900">
+                    <td className="pt-2">Total Tariff</td>
+                    <td className="pt-2 text-right text-green-600">₹{total}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
+
+        {/* Custom track_hotel_booking block */}
+        {active && task.type === "track_hotel_booking" && (
+          <div className="space-y-3 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Live Voucher Tracker</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"/>
+                <span className="font-bold text-gray-800">Status: Voucher generated by RoomAgent</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                <div className="bg-purple-500 h-1.5 rounded-full animate-pulse" style={{width: "80%"}}/>
+              </div>
+              <p className="text-[10px] text-gray-400">Booking Reference: GP-89301. Confirmed at reception.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Custom select_trip_provider block */}
+        {active && task.type === "select_trip_provider" && (
+          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Operator Portal</span>
+            <div className="space-y-1.5">
+              {[
+                { id: "tp1", name: "redBus", tag: "Best for express bus booking & seat maps" },
+                { id: "tp2", name: "IRCTC Next-Gen", tag: "Official portal for train ticket bookings" },
+                { id: "tp3", name: "MakeMyTrip Flights", tag: "Best for domestic flights & seat lock" }
+              ].map(opt => (
+                <label key={opt.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                  <input
+                    type="radio"
+                    name={`trip_prov_${task.id}`}
+                    checked={vals.selectedTripProvider === opt.id}
+                    onChange={() => {
+                      setFieldVal(task.id, "selectedTripProvider", opt.id);
+                      setFieldVal(task.id, "tripProviderName", opt.name);
+                    }}
+                    className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                    <span className="font-bold text-gray-800">{opt.name}</span>
+                    <span className="text-gray-400 font-semibold italic text-[10px]">{opt.tag}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom select_trips block */}
+        {active && task.type === "select_trips" && (() => {
+          const prefTask = allTasks.find(t => t.type === "input");
+          const prefVals = prefTask ? { ...(taskValues[prefTask.id] || {}), ...(fv[prefTask.id] || {}) } : {};
+          const source = prefVals.source || "Bengaluru";
+          const dest = prefVals.destination || "Hyderabad";
+
+          let routes = [
+            { id: "r1", name: "KSRTC Multi-Axle Volvo Sleeper", price: 850, dep: "21:30", type: "Bus" },
+            { id: "r2", name: "Shatabdi Express AC Chair Car", price: 1200, dep: "06:15", type: "Train" },
+            { id: "r3", name: "IndiGo Flight 6E-241 Economy", price: 4500, dep: "14:20", type: "Flight" }
+          ];
+
+          return (
+            <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Route / Departure Route</span>
+              <div className="space-y-1.5">
+                {routes.map(r => (
+                  <label key={r.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                    <input
+                      type="radio"
+                      name={`route_${task.id}`}
+                      checked={vals.selectedRoute === r.id}
+                      onChange={() => {
+                        setFieldVal(task.id, "selectedRoute", r.id);
+                        setFieldVal(task.id, "routeName", r.name);
+                        setFieldVal(task.id, "routePrice", String(r.price));
+                      }}
+                      className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                      <div>
+                        <p className="font-bold text-gray-800">{r.name}</p>
+                        <p className="text-[9px] text-gray-400">Departs: {r.dep} · {source} to {dest}</p>
+                      </div>
+                      <span className="text-green-600 font-bold">₹{r.price}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Custom review_trip_cart block */}
+        {active && task.type === "review_trip_cart" && (() => {
+          const selectTripsTask = allTasks.find(t => t.type === "select_trips");
+          const selectVals = selectTripsTask ? { ...(taskValues[selectTripsTask.id] || {}), ...(fv[selectTripsTask.id] || {}) } : {};
+          
+          const baseFare = parseFloat(selectVals.routePrice || "1200");
+          const routeName = selectVals.routeName || "Shatabdi Express AC Chair Car";
+          const taxes = Math.round(baseFare * 0.05);
+          const convenienceFee = 60;
+          const total = baseFare + taxes + convenienceFee;
+
+          return (
+            <div className="space-y-2 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Ticket Fare Breakdown</span>
+              <table className="w-full text-left border-collapse mt-1">
+                <tbody className="text-gray-700">
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 font-medium">{routeName}</td>
+                    <td className="py-1.5 text-right font-semibold">₹{baseFare}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-400">Service GST Taxes (5%)</td>
+                    <td className="py-1.5 text-right text-gray-500">₹{taxes}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-400">Gateway Convenience Fees</td>
+                    <td className="py-1.5 text-right text-gray-500">₹{convenienceFee}</td>
+                  </tr>
+                  <tr className="font-bold text-gray-900">
+                    <td className="pt-2">Total Ticket Cost</td>
+                    <td className="pt-2 text-right text-green-600">₹{total}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
+
+        {/* Custom track_trip_booking block */}
+        {active && task.type === "track_trip_booking" && (
+          <div className="space-y-3 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Live Trip Ticket Tracker</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"/>
+                <span className="font-bold text-gray-800">Status: E-Ticket PDF generated</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                <div className="bg-blue-500 h-1.5 rounded-full animate-pulse" style={{width: "90%"}}/>
+              </div>
+              <p className="text-[10px] text-gray-400">PNR Reference: 483-9031. Download link shared on WhatsApp alerts.</p>
             </div>
           </div>
         )}
