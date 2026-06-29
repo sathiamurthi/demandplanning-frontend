@@ -186,6 +186,8 @@ function GuestGate({ onDone }: { onDone: (g: GuestIdentity) => void }) {
 // ── Sidebar Nav ────────────────────────────────────────────────
 const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: boolean }[] = [
   { id:"assistant",  label:"Personal Assistant", icon:Bot,           group:"AI" },
+  { id:"travel_companion", label:"Travel Companion", icon:Compass, isSubItem:true },
+  { id:"event_companion",  label:"Event Companion",  icon:Sparkles, isSubItem:true },
   { id:"dashboard",  label:"Dashboard",          icon:LayoutDashboard },
   { id:"nearby",     label:"Nearby AI",          icon:Navigation2,   group:"DISCOVER" },
   { id:"search",     label:"Store Search",       icon:Store },
@@ -194,8 +196,6 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"seekers",    label:"Seekers",            icon:Inbox,         isSubItem:true },
   { id:"travel",     label:"Travel Hub",         icon:Compass },
   { id:"trips",      label:"Trip Planner",       icon:Plane },
-  { id:"travel_companion", label:"Travel Companion", icon:Bot, isSubItem:true },
-  { id:"event_companion",  label:"Event Companion",  icon:Sparkles, isSubItem:true },
   { id:"expenses",   label:"Daily Expenses",     icon:Receipt,       group:"PERSONAL" },
   { id:"reminders",  label:"Reminders",          icon:Bell },
   { id:"notes",      label:"Quick Notes",        icon:StickyNote },
