@@ -3582,6 +3582,7 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
   const [searchItems, setSearchItems] = useState<any[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
+  const [dishFilter, setDishFilter] = useState("");
 
   useEffect(() => { chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:"smooth"}); }, [msgs]);
 
@@ -4010,43 +4011,94 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
         )}
 
         {/* Custom select_dishes block */}
-        {active && task.type === "select_dishes" && (
-          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Curated Dishes</span>
-            <div className="space-y-1.5">
-              {[
-                { id: "d1", name: "Spicy Masala Dosa", price: 140, type: "South Indian" },
-                { id: "d2", name: "Comfort Paneer Roll", price: 160, type: "Rolls" },
-                { id: "d3", name: "Rebel Butter Chicken", price: 280, type: "Curry" },
-                { id: "d4", name: "Sweet Gulab Jamun (2 pcs)", price: 80, type: "Dessert" }
-              ].map(dish => {
-                const selected = (vals.selectedDishes || "").split(",").includes(dish.id);
-                return (
-                  <label key={dish.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => {
-                        let list = (vals.selectedDishes || "").split(",").filter(Boolean);
-                        if (selected) {
-                          list = list.filter(x => x !== dish.id);
-                        } else {
-                          list.push(dish.id);
-                        }
-                        setFieldVal(task.id, "selectedDishes", list.join(","));
-                      }}
-                      className="rounded text-orange-500 focus:ring-orange-500"
-                    />
-                    <div className="text-xs flex-1 flex justify-between items-center ml-2">
-                      <span className="font-bold text-gray-800">{dish.name} <span className="text-[9px] text-gray-400 font-normal capitalize">({dish.type})</span></span>
-                      <span className="text-green-600 font-bold">₹{dish.price}</span>
-                    </div>
-                  </label>
-                );
-              })}
+        {active && task.type === "select_dishes" && (() => {
+          const ALL_FOODS = [
+            { id: "c1", name: "Classic Salted Lays Chips", price: 30, type: "Snacks", tags: ["chips", "salted", "snack", "lays"] },
+            { id: "c2", name: "Spicy Masala Banana Chips", price: 60, type: "Snacks", tags: ["chips", "banana", "masala", "spicy", "snack"] },
+            { id: "c3", name: "Cheesy Nacho Chips with Salsa", price: 120, type: "Snacks", tags: ["chips", "cheese", "nachos", "snack"] },
+            { id: "c4", name: "Peri Peri French Fries", price: 90, type: "Snacks", tags: ["fries", "spicy", "peri peri", "snack"] },
+            { id: "s1", name: "Spicy Masala Dosa", price: 140, type: "South Indian", tags: ["dosa", "masala", "spicy", "south indian"] },
+            { id: "s2", name: "Ghee Podi Idli (4 pcs)", price: 110, type: "South Indian", tags: ["idli", "podi", "ghee", "south indian"] },
+            { id: "s3", name: "Crispy Medu Vada (2 pcs)", price: 80, type: "South Indian", tags: ["vada", "crispy", "south indian"] },
+            { id: "s4", name: "Rava Idli with Sambar", price: 90, type: "South Indian", tags: ["idli", "rava", "south indian"] },
+            { id: "m1", name: "Rebel Butter Chicken with Naan", price: 280, type: "Main Course", tags: ["chicken", "butter chicken", "curry", "comfort food"] },
+            { id: "m2", name: "Paneer Butter Masala with Roti", price: 240, type: "Main Course", tags: ["paneer", "curry", "comfort food"] },
+            { id: "m3", name: "Spicy Chicken Biryani", price: 290, type: "Main Course", tags: ["biryani", "chicken", "spicy", "comfort food"] },
+            { id: "m4", name: "Comfort Dal Khichdi", price: 160, type: "Main Course", tags: ["dal", "khichdi", "comfort food", "healthy"] },
+            { id: "f1", name: "Double Cheese Margherita Pizza", price: 190, type: "Fast Food", tags: ["pizza", "cheese", "fast food"] },
+            { id: "f2", name: "Spicy Paneer Tikka Roll", price: 160, type: "Fast Food", tags: ["paneer", "roll", "spicy", "fast food"] },
+            { id: "f3", name: "Crispy Veg Burger with Fries", price: 130, type: "Fast Food", tags: ["burger", "veg", "fast food"] },
+            { id: "f4", name: "Classic Chicken Burger", price: 160, type: "Fast Food", tags: ["burger", "chicken", "fast food"] },
+            { id: "d1", name: "Sweet Gulab Jamun (2 pcs)", price: 80, type: "Dessert", tags: ["sweet", "gulab jamun", "dessert"] },
+            { id: "d2", name: "Rich Chocolate Lava Cake", price: 110, type: "Dessert", tags: ["sweet", "cake", "chocolate", "dessert"] }
+          ];
+
+          const personalizationTask = allTasks.find(t => t.type === "input");
+          const personalizationVals = personalizationTask ? (taskValues[personalizationTask.id] || {}) : {};
+          const flavorPref = (personalizationVals.flavor || "").toLowerCase().trim();
+          const occasionPref = (personalizationVals.occasion || "").toLowerCase().trim();
+          const moodPref = (personalizationVals.mood || "").toLowerCase().trim();
+
+          const matchedFoods = ALL_FOODS.filter(food =>
+            food.tags.some(tag => 
+              (flavorPref && (flavorPref.includes(tag) || tag.includes(flavorPref))) ||
+              (occasionPref && (occasionPref.includes(tag) || tag.includes(occasionPref))) ||
+              (moodPref && (moodPref.includes(tag) || tag.includes(moodPref)))
+            )
+          );
+
+          const displayList = matchedFoods.length > 0 ? matchedFoods : ALL_FOODS;
+          const filteredDishes = displayList.filter(d => d.name.toLowerCase().includes(dishFilter.toLowerCase()));
+
+          return (
+            <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                {matchedFoods.length > 0 ? "🎯 Matches for your Taste" : "🍽️ Explore Menu"} ({filteredDishes.length})
+              </span>
+              <input
+                type="text"
+                placeholder="Search menu (e.g. chips, dosa, burger)..."
+                value={dishFilter}
+                onChange={e => setDishFilter(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-orange-400 mb-2"
+              />
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                {filteredDishes.length === 0 ? (
+                  <div className="text-gray-400 text-center py-4 italic">No items match your search.</div>
+                ) : (
+                  filteredDishes.map(dish => {
+                    const selected = (vals.selectedDishes || "").split(",").includes(dish.id);
+                    return (
+                      <label key={dish.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => {
+                            let list = (vals.selectedDishes || "").split(",").filter(Boolean);
+                            if (selected) {
+                              list = list.filter(x => x !== dish.id);
+                            } else {
+                              list.push(dish.id);
+                            }
+                            setFieldVal(task.id, "selectedDishes", list.join(","));
+                          }}
+                          className="rounded text-orange-500 focus:ring-orange-500"
+                        />
+                        <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                          <div>
+                            <p className="font-bold text-gray-800">{dish.name}</p>
+                            <p className="text-[9px] text-gray-400 capitalize">{dish.type}</p>
+                          </div>
+                          <span className="text-green-600 font-bold">₹{dish.price}</span>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Custom review_cart block */}
         {active && task.type === "review_cart" && (() => {
@@ -4054,10 +4106,24 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
           const selectedList = selectDishesTask ? (taskValues[selectDishesTask.id]?.selectedDishes || "").split(",").filter(Boolean) : [];
           
           const dishMap: Record<string, { name: string; price: number }> = {
-            d1: { name: "Spicy Masala Dosa", price: 140 },
-            d2: { name: "Comfort Paneer Roll", price: 160 },
-            d3: { name: "Rebel Butter Chicken", price: 280 },
-            d4: { name: "Sweet Gulab Jamun (2 pcs)", price: 80 }
+            c1: { name: "Classic Salted Lays Chips", price: 30 },
+            c2: { name: "Spicy Masala Banana Chips", price: 60 },
+            c3: { name: "Cheesy Nacho Chips with Salsa", price: 120 },
+            c4: { name: "Peri Peri French Fries", price: 90 },
+            s1: { name: "Spicy Masala Dosa", price: 140 },
+            s2: { name: "Ghee Podi Idli (4 pcs)", price: 110 },
+            s3: { name: "Crispy Medu Vada (2 pcs)", price: 80 },
+            s4: { name: "Rava Idli with Sambar", price: 90 },
+            m1: { name: "Rebel Butter Chicken with Naan", price: 280 },
+            m2: { name: "Paneer Butter Masala with Roti", price: 240 },
+            m3: { name: "Spicy Chicken Biryani", price: 290 },
+            m4: { name: "Comfort Dal Khichdi", price: 160 },
+            f1: { name: "Double Cheese Margherita Pizza", price: 190 },
+            f2: { name: "Spicy Paneer Tikka Roll", price: 160 },
+            f3: { name: "Crispy Veg Burger with Fries", price: 130 },
+            f4: { name: "Classic Chicken Burger", price: 160 },
+            d1: { name: "Sweet Gulab Jamun (2 pcs)", price: 80 },
+            d2: { name: "Rich Chocolate Lava Cake", price: 110 }
           };
           
           let items = selectedList.map(id => dishMap[id]).filter(Boolean);
