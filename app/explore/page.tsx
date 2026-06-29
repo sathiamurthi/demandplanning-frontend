@@ -19,7 +19,7 @@ import {
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -195,6 +195,7 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"travel",     label:"Travel Hub",         icon:Compass },
   { id:"trips",      label:"Trip Planner",       icon:Plane },
   { id:"travel_companion", label:"Travel Companion", icon:Bot, isSubItem:true },
+  { id:"event_companion",  label:"Event Companion",  icon:Sparkles, isSubItem:true },
   { id:"expenses",   label:"Daily Expenses",     icon:Receipt,       group:"PERSONAL" },
   { id:"reminders",  label:"Reminders",          icon:Bell },
   { id:"notes",      label:"Quick Notes",        icon:StickyNote },
@@ -576,6 +577,7 @@ export default function DemandGeniusApp() {
           {section === "travel"     && <TravelPanel />}
           {section === "trips"      && <TripPlanPanel gk={gk} />}
           {section === "travel_companion" && <TravelCompanionPanel gk={gk} />}
+          {section === "event_companion" && <EventCompanionPanel gk={gk} />}
           {section === "expenses"   && <ExpensesPanel  gk={gk} />}
           {section === "contacts"   && <ContactsPanel  gk={gk} />}
           {section === "ideas"      && <IdeasPanel     gk={gk} />}
@@ -4759,6 +4761,896 @@ function TravelCompanionPanel({ gk }: { gk: (s:string)=>string }) {
   );
 }
 
+// ── Event Companion Agent ────────────────────────────────────────
+const EVENT_COMPANION_CATEGORIES = [
+  {
+    id: "cake",
+    name: "Theme & Cake",
+    icon: "🎂",
+    subcategories: ["Chocolate Cake", "Fondant Cake", "3D Theme Cake", "Cupcake Tower", "Smash Cake", "Eggless Cake", "Vegan Cake", "Gluten Free", "Candy Buffet", "Macaron Towers"],
+    timingOptions: ["Notify 2 Hours before event", "Notify 4 Hours before event", "Immediate Delivery Alert"]
+  },
+  {
+    id: "catering",
+    name: "Catering & Food",
+    icon: "🍔",
+    subcategories: ["Kid-friendly Snacks", "Live Pasta Station", "Live Dosa counter", "Buffet Diners", "Dessert live counters", "Mocktail Bars", "Traditional Leaf meals", "Late Night Snacks"],
+    timingOptions: ["On dispatch from kitchen", "Pre-event verification", "Post-meal checkout"]
+  },
+  {
+    id: "decor",
+    name: "Balloon & Decor",
+    icon: "🎈",
+    subcategories: ["Balloon Arches", "Neon Balloon Walls", "Jungle Theme Decor", "Princess Theme Decor", "LED Backdrop screens", "Floral arches", "Welcome arches", "Table centerpieces"],
+    timingOptions: ["Pre-event check at morning", "Setup completion proof", "Overnight dismantling"]
+  },
+  {
+    id: "entertainment",
+    name: "Entertainment & Crew",
+    icon: "🎭",
+    subcategories: ["Magician Show", "Clown & Mascots", "Face Painting", "Puppet Show", "Game Anchor host", "Karaoke station", "DJ Party Beats", "Live Fusion Band", "Orchestra Group"],
+    timingOptions: ["Crew check-in alert", "Soundcheck verification", "Show starts countdown"]
+  },
+  {
+    id: "gifts",
+    name: "Return Gifts & Favors",
+    icon: "🎁",
+    subcategories: ["Goody Bags", "Toy hampers", "Chocolates packs", "Customized mugs", "Stationery kits", "Plant saplings", "Books & Crafts"],
+    timingOptions: ["Inventory arrival confirmation", "Pre-distribution scan"]
+  },
+  {
+    id: "backup",
+    name: "Backup Utilities",
+    icon: "⚡",
+    subcategories: ["Power Generator", "Backup AC", "Extra sound amps", "Extra tables/chairs", "Waterproof tents", "Umbrella sets"],
+    timingOptions: ["On weather warning trigger", "Power grid status alerts"]
+  },
+  {
+    id: "parking",
+    name: "Valet & Parking",
+    icon: "🚗",
+    subcategories: ["Valet Service", "Reserved VVIP parking slots", "Security Guards team", "Wheelchair access setups", "Bus parking space"],
+    timingOptions: ["Traffic bottleneck alert", "Peak arrival hours reminder"]
+  },
+  {
+    id: "media",
+    name: "Media & Streaming",
+    icon: "📸",
+    subcategories: ["Professional Photographer", "Videographer", "Drone coverage", "Live Youtube stream link", "Photo booth props booth", "Instant polaroid prints"],
+    timingOptions: ["Camera crew arrival", "Album upload sync alert"]
+  }
+];
+
+function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
+  const [subTab, setSubTab] = useState<"dashboard" | "alerts" | "smart" | "settings" | "history" | "leads">("dashboard");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Active Live Event State
+  const [eventState, setEventState] = useState<any>(null);
+  const [rsvpYes, setRsvpYes] = useState(42);
+  const [rsvpNo, setRsvpNo] = useState(6);
+  const [rsvpPending, setRsvpPending] = useState(12);
+
+  // Preference Settings State
+  const [prefValues, setPrefValues] = useState<Record<string, { enabled: boolean; subs: string[]; radius: string; budget: number; timing: string }>>({});
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiRecTypes, setAiRecTypes] = useState<string[]>(["Cake Delivery", "Catering Update", "RSVP Changes", "Weather Alert"]);
+  const [aiMode, setAiMode] = useState<"Smart" | "Minimal" | "Aggressive">("Smart");
+
+  const [toast, setToast] = useState("");
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadSearch, setLeadSearch] = useState("");
+
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<any[]>([
+    { id: "init_e", role: "assistant", text: "Welcome to your Event Companion Agent! 🎈 Syncing checkup with your active event timeline. I will track RSVPs, vendor delivery schedules, and budget balances. What can I verify for you?", ts: Date.now() }
+  ]);
+  const [aiThinking, setAiThinking] = useState(false);
+
+  // Scan localStorage for active event
+  const loadEventData = () => {
+    if (typeof window === "undefined") return;
+    try {
+      let matchedState: any = null;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("event_state_")) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            matchedState = JSON.parse(raw);
+            break;
+          }
+        }
+      }
+      
+      if (matchedState && matchedState.eventType) {
+        setEventState(matchedState);
+      } else {
+        // Fallback mock active event
+        const fallback = {
+          eventType: "Birthday Party",
+          location: "Ramamurthy Nagar",
+          targetDate: "2026-07-12",
+          categories: {
+            cat1: { name: "Joyous Kidz Play & Party Hall", price: 45000, status: "Two-Way Confirmed" },
+            cat2: { name: "Sparkle Pizza & Burger Buffet", price: 28000, status: "Two-Way Confirmed" },
+            cat3: { name: "Balloon Bliss Theme Decorators", price: 20000, status: "Two-Way Confirmed" },
+            cat4: { name: "Jolly Clown, Magician & Mascot Crew", price: 15000, status: "Two-Way Confirmed" },
+            cat5: { name: "Choco-Delight return gifts", price: 12000, status: "Two-Way Confirmed" }
+          }
+        };
+        setEventState(fallback);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadEventData();
+
+    // Load category settings
+    const loadedPrefs: any = {};
+    EVENT_COMPANION_CATEGORIES.forEach(cat => {
+      try {
+        const stored = localStorage.getItem(`dplan_event_comp_pref_${cat.id}`);
+        if (stored) {
+          loadedPrefs[cat.id] = JSON.parse(stored);
+        } else {
+          loadedPrefs[cat.id] = { enabled: true, subs: cat.subcategories.slice(0, 3), radius: "Venue zone", budget: 15000, timing: cat.timingOptions?.[0] || "Anytime" };
+        }
+      } catch {}
+    });
+    setPrefValues(loadedPrefs);
+
+    // Load leads
+    const storedLeads = localStorage.getItem("demandgenius_leads");
+    if (storedLeads) setLeads(JSON.parse(storedLeads));
+  }, [subTab]);
+
+  const saveCategoryPrefs = (catId: string, payload: any) => {
+    setPrefValues(prev => ({ ...prev, [catId]: payload }));
+    localStorage.setItem(`dplan_event_comp_pref_${catId}`, JSON.stringify(payload));
+    showToast("Preferences Auto-Saved!");
+  };
+
+  const handleActionClick = (actionName: string) => {
+    if (actionName === "Trigger RSVP Check") {
+      const yesChange = Math.floor(Math.random() * 3) + 1;
+      const pendChange = Math.max(0, rsvpPending - yesChange);
+      setRsvpYes(prev => prev + yesChange);
+      setRsvpPending(pendChange);
+      showToast(`RSVP status updated! +${yesChange} confirmed.`);
+      logLeadInApp("Event Guest RSVP", "RSVP Hub", "RSVP Tracker", `Confirmed attendance: +${yesChange} guest(s)`, "Two-Way Confirmed");
+      return;
+    }
+    if (actionName === "Invite Guests Link") {
+      navigator.clipboard.writeText(`You are cordially invited to our ${eventState?.eventType || "Special Function"} on ${eventState?.targetDate || "July 12th"} at Ramamurthy Nagar! RSVP by replying.`);
+      showToast("Invitation broadcast text copied!");
+      return;
+    }
+    showToast(`${actionName} Initiated!`);
+    logLeadInApp("Event Host", "Event Planner Console", "Companion Control", `Triggered action: ${actionName}`, "Active");
+  };
+
+  const handleAskAI = (text: string) => {
+    if (!text.trim() || aiThinking) return;
+    const userMsg = { id: paUid(), role: "user", text, ts: Date.now() };
+    setChatHistory(prev => [...prev, userMsg]);
+    setChatInput("");
+    setAiThinking(true);
+
+    setTimeout(() => {
+      let replyText = "Analyzing event dashboard feeds... Check alerts logs.";
+      let previewCard: any = null;
+      const q = text.toLowerCase();
+      const isBday = (eventState?.eventType || "").toLowerCase().includes("birth");
+
+      if (q.includes("cake") || q.includes("deliver") || q.includes("arrive")) {
+        const cakeVendor = isBday ? "Sweet Treat Bakery" : "Deluxe Tier Cake Hub";
+        replyText = `The 3kg customized cake from ${cakeVendor} has passed prep check. Scheduled for dispatch at 4:00 PM. ETA 4:30 PM.`;
+        previewCard = {
+          title: "🎂 Cake Dispatch Alert",
+          body: `Cake from ${cakeVendor} has been verified and packed in temperature-controlled boxes. Dispatch ETA: 4:30 PM.`,
+          type: "cake",
+          vendorName: cakeVendor
+        };
+      } else if (q.includes("magician") || q.includes("clown") || q.includes("artist") || q.includes("orchestra") || q.includes("band")) {
+        const entVendor = isBday ? "Jolly Clown & Magician Crew" : "Vibrant Beats Sound & Light";
+        replyText = `Magician / Entertainment crew from ${entVendor} is confirmed. Crew check-in alert scheduled for 4:45 PM.`;
+        previewCard = {
+          title: "🎭 Artist Dispatch Alert",
+          body: `Entertainment crew (${entVendor}) has verified route logistics. ETA at venue is 4:45 PM.`,
+          type: "entertainment",
+          vendorName: entVendor
+        };
+      } else if (q.includes("food") || q.includes("dinner") || q.includes("menu") || q.includes("caterer")) {
+        const caterer = isBday ? "Sparkle Pizza Buffet" : "Anupam Catering Services";
+        replyText = `The head chef at ${caterer} reports raw material audit is done. Live cooking counters start prep at 5:00 PM.`;
+        previewCard = {
+          title: "🍔 Catering Checklist Update",
+          body: `Chef check-in verified at ${caterer}. Pre-event kitchen setup completed. Buffet ready at 6:30 PM.`,
+          type: "catering",
+          vendorName: caterer
+        };
+      } else if (q.includes("payment") || q.includes("deposit") || q.includes("cost")) {
+        replyText = "Checking ledger balance: 50% initial deposits paid. 50% final payments due post-event completion.";
+        previewCard = {
+          title: "💰 Event Payment Reminder",
+          body: "Catering final invoice segment payment due. Sum: ₹15,000. Pay via secure UPI.",
+          type: "payment",
+          vendorName: "Event Ledger System"
+        };
+      } else {
+        replyText = `Active Event: ${eventState?.eventType || "Birthday Party"}. All vendor connections verified. Back-up generator status: Online.`;
+      }
+
+      setChatHistory(prev => [...prev, { id: paUid(), role: "assistant", text: replyText, ts: Date.now(), preview: previewCard }]);
+      setAiThinking(false);
+
+      if (previewCard) {
+        logLeadInApp("Event Host", previewCard.vendorName, `Event Alert: ${previewCard.type}`, "AI Companion suggestion alert clicked", "Two-Way Confirmed");
+      }
+    }, 1200);
+  };
+
+  const filteredCategories = EVENT_COMPANION_CATEGORIES.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.subcategories.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 border border-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg animate-bounce flex items-center gap-1.5">
+          <CheckCircle2 size={13}/>
+          <span>{toast}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+          <Sparkles size={20} className="text-white"/>
+        </div>
+        <div>
+          <h1 className="text-xl font-black text-gray-900 leading-tight">Event Companion Agent</h1>
+          <p className="text-gray-500 text-xs">Monitor confirmations, RSVP tracking, payments & vendor checks</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl">
+        {[
+          { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { id: "alerts", label: "Alert Preferences", icon: Sliders },
+          { id: "smart", label: "AI Smart Planner", icon: Bot },
+          { id: "settings", label: "Trigger Settings", icon: Bell },
+          { id: "history", label: "Alert Logs", icon: History },
+          { id: "leads", label: "Super Leads Tracker", icon: Shield }
+        ].map(t => {
+          const Icon = t.icon;
+          const isActive = subTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => { setSubTab(t.id as any); setActiveCategory(null); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                isActive ? "bg-white shadow-sm text-orange-500" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <Icon size={12}/>
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 1: EVENT COMPANION DASHBOARD */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "dashboard" && (
+        <div className="space-y-4">
+          {/* Active Event Card */}
+          <div className="bg-gradient-to-br from-purple-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-4 border border-purple-950">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider block">Live Active Event</span>
+                <h3 className="text-lg font-black mt-0.5">{eventState?.eventType || "Birthday Party"}</h3>
+              </div>
+              <span className="bg-purple-500 text-white text-[9px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"/> LIVE TRACKING
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-purple-200 block">Target Date</span>
+                <span className="text-sm font-extrabold block mt-0.5 truncate">{eventState?.targetDate || "2026-07-12"}</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-purple-200 block">Location</span>
+                <span className="text-sm font-extrabold block mt-0.5 truncate">{eventState?.location || "Ramamurthy Nagar"}</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-purple-200 block">Confirmed RSVPs</span>
+                <span className="text-sm font-extrabold block mt-0.5 text-green-400">{rsvpYes} Guests</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-purple-200 block">Total Vendors</span>
+                <span className="text-sm font-extrabold block mt-0.5 text-yellow-400">5 Selected</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center text-[10px] text-purple-200 pt-2 border-t border-white/10">
+              <span className="flex items-center gap-1">📍 Venue: <strong>{eventState?.categories?.cat1?.name || "Joyous Play Hall"}</strong></span>
+              <span className="flex items-center gap-1">💰 Budget Status: <strong>Within limits</strong></span>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white border border-gray-150 rounded-2xl p-4 space-y-2">
+            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block mb-1">Event Master Actions</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button onClick={() => handleActionClick("Invite Guests Link")} className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2.5 text-[10px] font-bold shadow-sm">Invite Guests</button>
+              <button onClick={() => handleActionClick("Trigger RSVP Check")} className="border border-indigo-400 text-indigo-700 hover:bg-indigo-50 rounded-xl py-2.5 text-[10px] font-bold">Simulate RSVP +1</button>
+              <button onClick={() => handleActionClick("Budget Verification Run")} className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-2.5 text-[10px] font-bold border border-gray-200">Verify Budget</button>
+              <button onClick={() => handleActionClick("Emergency Backup Standby")} className="bg-red-600 hover:bg-red-700 text-white rounded-xl py-2.5 text-[10px] font-extrabold shadow-sm">Backup Services</button>
+            </div>
+          </div>
+
+          {/* Live Ask AI Chat */}
+          <div className="bg-purple-50/50 border border-purple-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Bot size={16} className="text-purple-600"/>
+              <h4 className="text-xs font-black text-gray-900">Ask AI Event Coordinator</h4>
+            </div>
+
+            {/* Chat Box */}
+            <div className="bg-white border border-purple-100 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2">
+              {chatHistory.map(msg => (
+                <div key={msg.id} className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                  <div className={`p-2.5 rounded-xl text-[11px] leading-relaxed max-w-[85%] ${
+                    msg.role === "user" ? "bg-purple-600 text-white rounded-tr-none" : "bg-gray-100 text-gray-800 rounded-tl-none"
+                  }`}>
+                    {msg.text}
+                  </div>
+                  {msg.preview && (
+                    <div className="mt-1 w-72 bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 text-xs space-y-1.5 shadow-sm">
+                      <div className="flex justify-between items-center text-[10px] text-emerald-800 font-bold border-b border-emerald-100 pb-1">
+                        <span>💬 WhatsApp Preview Alert</span>
+                        <span>Now</span>
+                      </div>
+                      <p className="font-extrabold text-gray-900">{msg.preview.title}</p>
+                      <p className="text-[10px] text-gray-600 leading-normal">{msg.preview.body}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          showToast(`Routing/Checking status with ${msg.preview.vendorName}...`);
+                          logLeadInApp("Event Host", msg.preview.vendorName, `Event Companion Alert: ${msg.preview.type}`, "Clicked Alert Preview confirmation", "Verified");
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold py-1.5 rounded-lg text-center"
+                      >
+                        Acknowledge & Confirm
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {aiThinking && (
+                <div className="flex gap-1 items-center py-1">
+                  <Loader2 size={11} className="animate-spin text-purple-600"/>
+                  <span className="text-[10px] text-gray-400">Coordinator is thinking...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Predefined Questions */}
+            <div className="flex flex-wrap gap-1.5">
+              {["Verify cake dispatch", "Is the magician confirmed?", "Check caterer menu status", "Calculate ledger payments"].map(q => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => handleAskAI(q)}
+                  className="bg-white border border-purple-100 hover:bg-purple-50 text-[10px] font-medium text-gray-600 rounded-lg px-2.5 py-1"
+                >
+                  "{q}"
+                </button>
+              ))}
+            </div>
+
+            {/* Input Bar */}
+            <div className="flex gap-2">
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAskAI(chatInput)}
+                placeholder="Ask Coordinator (e.g. Is the catering setup ready?)..."
+                className="flex-1 border border-purple-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-purple-400 bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => handleAskAI(chatInput)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+
+          {/* Active Vendor List & RSVP Feed */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Vendor List */}
+            <div className="bg-white border border-gray-150 rounded-2xl p-4 space-y-2">
+              <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Active Selected Vendors</span>
+              <div className="space-y-1.5 text-[10px] font-medium text-gray-700">
+                {Object.entries(eventState?.categories || {}).map(([key, cat]: any) => (
+                  <div key={key} className="flex justify-between items-center p-2 rounded-lg bg-gray-50 border border-gray-100">
+                    <div>
+                      <p className="font-extrabold text-gray-900">{cat.name}</p>
+                      <p className="text-[9px] text-gray-400">Budget: ₹{cat.price.toLocaleString()}</p>
+                    </div>
+                    <span className="text-[8px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-150 font-bold uppercase">{cat.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* RSVP Feed Chart */}
+            <div className="bg-white border border-gray-150 rounded-2xl p-4 space-y-3">
+              <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">RSVP Live Analytics</span>
+              <div className="space-y-2 text-xs font-semibold">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-gray-500">Confirmed Attendance (Yes)</span>
+                  <span className="text-green-600 font-extrabold">{rsvpYes} Guests</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(rsvpYes / (rsvpYes + rsvpNo + rsvpPending)) * 100}%` }}/>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] pt-1">
+                  <span className="text-gray-500">Declined Attendance (No)</span>
+                  <span className="text-red-600 font-extrabold">{rsvpNo} Guests</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(rsvpNo / (rsvpYes + rsvpNo + rsvpPending)) * 100}%` }}/>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] pt-1">
+                  <span className="text-gray-500">Pending Invitation Responses</span>
+                  <span className="text-yellow-600 font-extrabold">{rsvpPending} Guests</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${(rsvpPending / (rsvpYes + rsvpNo + rsvpPending)) * 100}%` }}/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 2: EVENT ALERT PREFERENCES */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "alerts" && (
+        <div className="space-y-4">
+          {activeCategory ? (() => {
+            const cat = EVENT_COMPANION_CATEGORIES.find(c => c.id === activeCategory)!;
+            const values = prefValues[cat.id] || { enabled: true, subs: [], radius: "Venue zone", budget: 15000, timing: cat.timingOptions?.[0] || "Anytime" };
+
+            const handleToggleSub = (sub: string) => {
+              const nextSubs = values.subs.includes(sub)
+                ? values.subs.filter(x => x !== sub)
+                : [...values.subs, sub];
+              saveCategoryPrefs(cat.id, { ...values, subs: nextSubs });
+            };
+
+            const toggleAll = (select: boolean) => {
+              saveCategoryPrefs(cat.id, { ...values, subs: select ? cat.subcategories : [] });
+            };
+
+            return (
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory(null)}
+                  className="text-xs font-bold text-orange-500 flex items-center gap-1"
+                >
+                  ← Back to Preferences
+                </button>
+
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{cat.icon}</span>
+                    <h3 className="text-sm font-black text-gray-900">{cat.name} Settings</h3>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={values.enabled}
+                      onChange={e => saveCategoryPrefs(cat.id, { ...values, enabled: e.target.checked })}
+                      className="accent-purple-600 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs font-bold text-gray-800">Enable Alert category</span>
+                  </label>
+                </div>
+
+                {values.enabled ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sub-features Checklist</label>
+                        <div className="flex gap-2 text-[9px] font-bold text-purple-600">
+                          <button type="button" onClick={() => toggleAll(true)}>Select All</button>
+                          <span>•</span>
+                          <button type="button" onClick={() => toggleAll(false)}>Clear All</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {cat.subcategories.map(sub => {
+                          const isChecked = values.subs.includes(sub);
+                          return (
+                            <label key={sub} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-[10px] font-semibold transition-all ${
+                              isChecked ? "border-purple-300 bg-purple-50/20 text-purple-900" : "border-gray-150 hover:bg-gray-50 text-gray-700"
+                            }`}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleSub(sub)}
+                                className="accent-purple-600 w-3.5 h-3.5 rounded"
+                              />
+                              <span className="truncate">{sub}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Timing Alert Trigger</label>
+                      <select
+                        value={values.timing}
+                        onChange={e => saveCategoryPrefs(cat.id, { ...values, timing: e.target.value })}
+                        className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white focus:outline-none"
+                      >
+                        {cat.timingOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-center py-6 text-gray-400 text-xs italic">Alerts for this category are disabled.</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory(null)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold py-2.5 rounded-xl shadow-sm"
+                >
+                  Save & Go Back
+                </button>
+              </div>
+            );
+          })() : (
+            <div className="space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search event settings categories..."
+                  className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none bg-white"
+                />
+              </div>
+
+              {/* Categories Grid */}
+              <div className="space-y-2">
+                {filteredCategories.map(cat => {
+                  const values = prefValues[cat.id] || { enabled: true, subs: [] };
+                  const activeCount = values.enabled ? values.subs.length : 0;
+                  return (
+                    <div
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      className="bg-white border border-gray-150 rounded-xl p-3.5 flex items-center justify-between hover:border-purple-300 transition-all cursor-pointer shadow-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{cat.icon}</span>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-xs leading-tight">{cat.name}</h4>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{cat.subcategories.slice(0, 3).join(", ")}…</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {values.enabled ? (
+                          <span className="text-[9px] bg-purple-50 text-purple-600 font-bold px-2 py-0.5 rounded-full">
+                            {activeCount} Alert{activeCount !== 1 ? "s" : ""} Active
+                          </span>
+                        ) : (
+                          <span className="text-[9px] bg-gray-100 text-gray-400 font-medium px-2 py-0.5 rounded-full">
+                            Off
+                          </span>
+                        )}
+                        <ChevronRight size={14} className="text-gray-300"/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 3: AI SMART PLANNER */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "smart" && (
+        <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-5 shadow-sm text-xs">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <Bot size={20} className="text-purple-600 animate-pulse"/>
+              <div>
+                <h3 className="text-xs font-black text-gray-900">AI Autonomous Event Coordinator</h3>
+                <p className="text-[10px] text-gray-500">Enable real-time checklist auditing, duplicate check & smart weather alerts</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={e => { setAiEnabled(e.target.checked); showToast(e.target.checked ? "AI Event Coordination Active!" : "AI Coordination Stopped"); }}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+
+          {aiEnabled ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Coordination Mode</label>
+                <div className="flex gap-2">
+                  {["Smart Planner", "Minimal Alerts", "Aggressive Suggestion"].map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setAiMode(mode as any); showToast(`Event planner set to: ${mode}`); }}
+                      className={`flex-1 py-2.5 rounded-xl border text-[10px] font-extrabold transition-all ${
+                        aiMode === mode ? "bg-purple-600 text-white border-purple-600 shadow-sm" : "bg-white text-gray-600 border-gray-200"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Autopilot Suggestion Categories</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {["Cake Delivery", "Catering Update", "RSVP Changes", "Weather Alert", "Entertainment Setup Check", "Valet Traffic Warnings"].map(type => {
+                    const isChecked = aiRecTypes.includes(type);
+                    return (
+                      <label key={type} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-[10px] font-semibold transition-all ${
+                        isChecked ? "border-purple-300 bg-purple-50/20 text-purple-950" : "border-gray-150 hover:bg-gray-50 text-gray-600"
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const next = isChecked ? aiRecTypes.filter(x => x !== type) : [...aiRecTypes, type];
+                            setAiRecTypes(next);
+                          }}
+                          className="accent-purple-600 w-3.5 h-3.5 rounded"
+                        />
+                        <span>{type}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-center py-6 text-gray-400 text-xs italic">Autopilot recommendations are deactivated.</p>
+          )}
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 4: TRIGGER SETTINGS */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "settings" && (
+        <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-sm text-xs">
+          <h3 className="text-xs font-black text-gray-900 border-b border-gray-100 pb-2">Trigger Notification Settings</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Checklist Audit Frequency</label>
+              <select className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white">
+                <option>Real-time updates</option>
+                <option>Every 1 Hour</option>
+                <option>Morning & Evening summary</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Weather Delay Warning Buffer</label>
+              <select className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white">
+                <option>Alert for delay &gt; 30 mins</option>
+                <option>Alert for delay &gt; 1 hour</option>
+                <option>Notify immediately on rain forecast</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Notification Channels</label>
+              <div className="grid grid-cols-4 gap-2">
+                {["WhatsApp", "Push", "SMS", "Email"].map(ch => (
+                  <div key={ch} className="p-2 border border-purple-100 bg-purple-50/20 text-purple-900 text-center font-bold rounded-lg text-[9px]">{ch}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 5: ALERT LOGS & WHATSAPP BROADCASTS */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "history" && (
+        <div className="space-y-4 text-xs">
+          <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Event Dispatch Alert logs</span>
+          <div className="space-y-3">
+            {[
+              {
+                icon: "🎂",
+                title: "Cake Delivery Update",
+                body: `The 3kg Chocolate Theme cake from Sweet Treat Bakery has completed quality check. Dispatching van.`,
+                meta: "Temp-controlled courier assigned · ETA 4:30 PM",
+                vendor: "Sweet Treat Bakery"
+              },
+              {
+                icon: "🎭",
+                title: "Magician Crew Check-In",
+                body: "Magician Jolly Clown Mascot team is 4 km from venue. Sound engineer reported setup completion.",
+                meta: "GPS verified · ETA at main hall: 4:45 PM",
+                vendor: "Jolly Magician Crew"
+              },
+              {
+                icon: "💰",
+                title: "Ledger Payment reminder",
+                body: "Ledger status check: Sparkle Caterers buffet deposit balance (₹15,000) check due in 2 hours.",
+                meta: "Authorized secure UPI checkout",
+                vendor: "Event Ledger System"
+              }
+            ].map((alert, idx) => (
+              <div key={idx} className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2 max-w-md mx-auto shadow-sm">
+                <div className="flex justify-between items-center text-[9px] text-emerald-800 font-bold border-b border-emerald-200 pb-1.5">
+                  <span>💬 WhatsApp Broadcast Alert Preview</span>
+                  <span>Now</span>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="text-xl shrink-0 mt-0.5">{alert.icon}</span>
+                  <div>
+                    <h5 className="font-extrabold text-gray-900">{alert.title}</h5>
+                    <p className="text-[10px] text-gray-600 mt-0.5 leading-relaxed">{alert.body}</p>
+                    <p className="text-[9px] text-gray-400 italic mt-1">{alert.meta}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast(`Acknowledged ${alert.title}!`);
+                    logLeadInApp("Event Host", alert.vendor, `Event Companion: ${alert.title}`, "Acknowledge alert in log", "Verified");
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold py-2 rounded-lg text-center"
+                >
+                  Acknowledge & Confirm Setup
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 6: SUPER ADMIN LEAD TRACKER */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "leads" && (
+        <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-sm text-xs">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+            <div>
+              <h3 className="text-xs font-black text-gray-900 flex items-center gap-1.5"><Shield className="text-orange-500" size={14}/> Super Admin Lead Tracker</h3>
+              <p className="text-[10px] text-gray-500 mt-0.5">Real-time trace of customer inquiries, transaction checkpoints, and vendor checkouts</p>
+            </div>
+            <button
+              onClick={() => {
+                const seekers = ["Rohan Patel", "Dr. Shalini", "Amit Hegde", "Priya Das", "Vikram K"];
+                const vendors = ["Apollo Pharmacy RM Nagar", "Joyous Kidz Play Hall", "Sparkle Pizza Buffet", "Express Couriers", "Sweet Treat Bakery"];
+                const cats = ["Medicine Delivery", "Birthday Party Hall", "Kids Party Buffet", "Courier Dispatch", "Birthday Cake"];
+                const actions = ["UPI PIN authorized", "Requested rate quote", "Voucher check-in generated", "Dispatched driver pick-up", "Confirmed delivery schedule"];
+                const statuses = ["Paid", "Request Raised", "Two-Way Confirmed", "Paid", "Two-Way Confirmed"];
+
+                const r = Math.floor(Math.random() * seekers.length);
+                logLeadInApp(seekers[r], vendors[r], cats[r], actions[r], statuses[r]);
+                const updated = localStorage.getItem("demandgenius_leads");
+                if (updated) setLeads(JSON.parse(updated));
+                showToast("Simulated lead captured!");
+              }}
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
+            >
+              Simulate Lead Interaction
+            </button>
+          </div>
+
+          {/* Search Filter */}
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input
+              value={leadSearch}
+              onChange={e => setLeadSearch(e.target.value)}
+              placeholder="Search leads by seeker, vendor, or category..."
+              className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-[10px] focus:outline-none"
+            />
+          </div>
+
+          {/* Leads Table */}
+          <div className="overflow-x-auto border border-gray-100 rounded-xl">
+            <table className="w-full text-left border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 font-bold uppercase">
+                  <th className="p-2.5">Time</th>
+                  <th className="p-2.5">Seeker (Guest)</th>
+                  <th className="p-2.5">Vendor / Platform</th>
+                  <th className="p-2.5">Category</th>
+                  <th className="p-2.5">Action Details</th>
+                  <th className="p-2.5 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700 font-medium divide-y divide-gray-50">
+                {leads
+                  .filter(l =>
+                    l.seekerName.toLowerCase().includes(leadSearch.toLowerCase()) ||
+                    l.vendorName.toLowerCase().includes(leadSearch.toLowerCase()) ||
+                    l.category.toLowerCase().includes(leadSearch.toLowerCase())
+                  )
+                  .map(l => {
+                    let badge = "bg-gray-100 text-gray-600";
+                    if (l.status === "Paid" || l.status === "Two-Way Confirmed") {
+                      badge = "bg-green-50 text-green-700 border border-green-150 font-bold";
+                    } else if (l.status === "Request Raised" || l.status === "Inquiry Sent") {
+                      badge = "bg-amber-50 text-amber-700 border border-amber-150";
+                    } else if (l.status === "Rejected/Unavailable") {
+                      badge = "bg-red-50 text-red-700 border border-red-150";
+                    }
+
+                    return (
+                      <tr key={l.id} className="hover:bg-gray-50/50">
+                        <td className="p-2.5 whitespace-nowrap text-gray-400">{new Date(l.timestamp).toLocaleTimeString()}</td>
+                        <td className="p-2.5 font-bold text-gray-900">{l.seekerName}</td>
+                        <td className="p-2.5 text-gray-900">{l.vendorName}</td>
+                        <td className="p-2.5 text-gray-500">{l.category}</td>
+                        <td className="p-2.5 text-gray-500 max-w-xs truncate">{l.action}</td>
+                        <td className="p-2.5 text-right whitespace-nowrap">
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${badge}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Install Panel ──────────────────────────────────────────────
 const APP_KEY = "NEXOS-2024";
 
@@ -6144,7 +7036,16 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
 
           const getCategoryOptions = (catId: string, location: string, eventType: string) => {
             const loc = location || "Ramamurthy Nagar";
+            const isBirthday = (eventType || "").toLowerCase().includes("birth") || (eventType || "").toLowerCase().includes("party");
+            
             if (catId === "cat1") {
+              if (isBirthday) {
+                return [
+                  { id: "hall_1", name: `Joyous Kidz Play & Party Hall (${loc})`, desc: "Perfect for kids birthday party, slides, indoor games", price: 45000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                  { id: "hall_2", name: "SkyHigh Rooftop Lounge", desc: "Open-air rooftop venue, sunset view, great sound setup", price: 65000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                  { id: "hall_3", name: "Sweet Banquets & Lounge", desc: "Aesthetic LED banquets, luxury buffet dining area", price: 80000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+                ];
+              }
               return [
                 { id: "hall_1", name: `Grand Royal Palace (${loc})`, desc: "Capacity: 500-1000 guests, AC, Valet Parking", price: 250000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
                 { id: "hall_2", name: "Elite Celebration Lawn", desc: "Capacity: 200-400 guests, Open Air Garden", price: 120000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
@@ -6152,6 +7053,13 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
               ];
             }
             if (catId === "cat2") {
+              if (isBirthday) {
+                return [
+                  { id: "cat_1", name: `Sparkle Pizza, Pasta & Burger Buffet (${loc})`, desc: "Kid-friendly pizzas, live pasta counter, sliders & mocktails", price: 280, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "per plate" },
+                  { id: "cat_2", name: "Dessert Wonderland & Candy Counters", desc: "Live waffles, cotton candy, cupcakes, chocolate fountain", price: 220, tag: "Standard Rate", isPartner: false, rateType: "per plate" },
+                  { id: "cat_3", name: "Funtime Grill & Dosa Hub", desc: "Multi-cuisine short eats, chat counters, mini dosas", price: 350, tag: "Standard Rate", isPartner: false, rateType: "per plate" }
+                ];
+              }
               return [
                 { id: "cat_1", name: `Anupam Catering Services (${loc})`, desc: "North & South Indian Buffet, Traditional Veg/Non-Veg", price: 450, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "per plate" },
                 { id: "cat_2", name: "Spicy Feast Kitchens", desc: "Pure Veg traditional leaf meals, Live Dosa counter", price: 350, tag: "Standard Rate", isPartner: false, rateType: "per plate" },
@@ -6159,6 +7067,13 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
               ];
             }
             if (catId === "cat3") {
+              if (isBirthday) {
+                return [
+                  { id: "dec_1", name: `Balloon Bliss Theme Decorators (${loc})`, desc: "Jungle theme, space theme, organic balloon arches & photo booth", price: 20000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                  { id: "dec_2", name: "Fairyland Magic Theme Designers", desc: "Princess or superhero LED cutouts and fairy light backdrops", price: 30000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                  { id: "dec_3", name: "Eco-Minimal Pastel Birthday Decor", desc: "Eco-friendly paper crafts, wooden props, pastel backdrops", price: 15000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+                ];
+              }
               return [
                 { id: "dec_1", name: `Dream Decorators & Flowers (${loc})`, desc: "Royal Gold Theme, fresh orchid flower arches", price: 85000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
                 { id: "dec_2", name: "Classic Orchid Floral Decor", desc: "Minimalist Pastel theme, Eco-friendly design", price: 50000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
@@ -6166,10 +7081,24 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
               ];
             }
             if (catId === "cat4") {
+              if (isBirthday) {
+                return [
+                  { id: "ent_1", name: `Jolly Clown, Magician & Mascot Crew (${loc})`, desc: "Professional magician, balloon sculpting, Mickey/Elsa mascot", price: 15000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                  { id: "ent_2", name: "DJ Neon Kids Party Beats", desc: "Party DJ playing latest chartbusters, smoke machine, laser show", price: 18000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                  { id: "ent_3", name: "Karaoke & Fun Anchor Host", desc: "Engaging game host, interactive games, spot prizes & karaoke", price: 12000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+                ];
+              }
               return [
                 { id: "ent_1", name: `Vibrant Beats Sound & Light (${loc})`, desc: "Live Fusion Band, Celebrity MC, Line array sound", price: 60000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
                 { id: "ent_2", name: "Sargam Live Orchestra", desc: "Classical singers, traditional instruments, anchor", price: 45000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
                 { id: "ent_3", name: "DJ Spark Sound & Light", desc: "EDM/Bollywood DJ, LED floor, high-wattage lights", price: 50000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+              ];
+            }
+            if (isBirthday) {
+              return [
+                { id: "log_1", name: `Choco-Delight Goody Bag & Return Gifts (${loc})`, desc: "Customized chocolates, educational toys, printed bags", price: 12000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                { id: "log_2", name: "The Balloon Box & Party Favors", desc: "Colorful return gift hampers, birthday caps, whistles & goodies", price: 8000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                { id: "log_3", name: "Premium Crafted Kids Hampers", desc: "Eco-friendly stationery kits, customized mugs & bags", price: 20000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
               ];
             }
             return [
