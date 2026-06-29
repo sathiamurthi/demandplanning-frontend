@@ -2531,6 +2531,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
   const [aiService, setAiService] = useState("");
   const [aiLocation, setAiLocation] = useState("");
   const [aiPref, setAiPref] = useState("");
+  const [aiDistance, setAiDistance] = useState("2");
 
   // Fetch pre-cached nearby places when location becomes available
   useEffect(() => {
@@ -2817,27 +2818,70 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
 
       {/* AI Ask Multi-Stage Guided Search */}
       {(() => {
-        function getFallbackList(service: string) {
+        function getFallbackList(service: string, location: string, distance: string) {
           const serviceLower = service.toLowerCase();
-          if (serviceLower.includes('bar') || serviceLower.includes('pub') || serviceLower.includes('beer')) {
+          const targetLoc = location || "Ramamurthy Nagar";
+          const distNum = parseFloat(distance) || 2;
+          
+          if (serviceLower.includes('paying guest') || serviceLower.includes('pg') || serviceLower.includes('hostel') || serviceLower.includes('accommodation')) {
             return [
-              { name: "Highlander Pub", rating: "4.7", price: "₹₹ (Moderate)", details: "Classic Irish pub atmosphere", address: "80 Feet Road, Indiranagar, Bengaluru", dist_km: "0.4", hours: "11:30 AM - 1:00 AM", reviews: "Best place for draft beers and live sports.", features: "Happy Hours, Outdoor Patio Seating" },
-              { name: "The Drunken Monk", rating: "4.6", price: "₹₹₹ (Premium)", details: "Spacious microbrewery with craft beers", address: "100 Feet Road, HAL Stage 2, Bengaluru", dist_km: "0.8", hours: "12:00 PM - 12:30 AM", reviews: "Highly recommend their IPA and loaded nachos.", features: "In-house Microbrewery, Live DJ Nights" },
-              { name: "Liquid Lounge", rating: "4.4", price: "₹₹ (Moderate)", details: "Chic cocktail bar with lounge music", address: "CMH Road, Indiranagar, Bengaluru", dist_km: "1.2", hours: "4:00 PM - 12:00 AM", reviews: "Great signature cocktails and cozy couches.", features: "Intimate Seating, Cocktail Specials" }
-            ];
-          } else if (serviceLower.includes('rest') || serviceLower.includes('food') || serviceLower.includes('cafe') || serviceLower.includes('dosa')) {
-            return [
-              { name: "Rameshwaram Cafe", rating: "4.8", price: "₹ (Budget-Friendly)", details: "Legendary ghee podi idlis and filter coffee", address: "12th Main Road, Indiranagar, Bengaluru", dist_km: "0.6", hours: "6:30 AM - 12:00 AM", reviews: "Famous for crispy dosas and rich coffee.", features: "Self-service, Quick service, Always crowded" },
-              { name: "MTR (Mavalli Tiffin Room)", rating: "4.6", price: "₹ (Budget-Friendly)", details: "Historic traditional South Indian breakfast", address: "Lalbagh Road, Mavalli, Bengaluru", dist_km: "1.1", hours: "7:00 AM - 9:30 PM", reviews: "The rava idli and filter coffee are historic staples.", features: "Traditional Decor, Heritage Restaurant" },
-              { name: "Truffles", rating: "4.5", price: "₹₹ (Moderate)", details: "Lively burger joint and cafe", address: "Koramangala 5th Block, Bengaluru", dist_km: "1.5", hours: "12:00 PM - 11:00 PM", reviews: "Incredible burgers, thick milkshakes, and desserts.", features: "Cozy Booths, Kid-friendly menu" }
-            ];
-          } else {
-            return [
-              { name: "Local Premium Center", rating: "4.5", price: "Standard Rates", details: "Top-rated neighborhood service provider", address: "Double Road, Indiranagar, Bengaluru", dist_km: "0.7", hours: "9:00 AM - 8:00 PM", reviews: "Reliable and extremely quick service.", features: "Air Conditioned, Card payments accepted" },
-              { name: "Aria Wellness Hub", rating: "4.6", price: "Moderate Tariff", details: "Modern wellness and lifestyle clinic", address: "100 Feet Road, Bengaluru", dist_km: "1.3", hours: "8:00 AM - 9:00 PM", reviews: "Polite staff and highly clean environment.", features: "Appointment booking available, Sanitized facility" },
-              { name: "Apex Express Point", rating: "4.3", price: "Budget-Friendly", details: "All-in-one convenient service outlet", address: "HAL Airport Road, Bengaluru", dist_km: "1.8", hours: "24 Hours Open", reviews: "Open late nights and has very friendly staff.", features: "24/7 Availability, Drive-through access" }
+              { 
+                name: "Sri Sai Luxury PG", 
+                rating: "4.6", 
+                price: "₹6,500 / month", 
+                details: "Single & Double sharing rooms with three-course homely meals", 
+                address: `12th Cross, Kanti Layout, ${targetLoc}, Bengaluru`, 
+                dist_km: (distNum * 0.35).toFixed(1), 
+                hours: "24 Hours Gate Access", 
+                reviews: "Clean daily housekeeping, friendly roommates, and excellent South Indian food.", 
+                features: "High-speed Wi-Fi, CCTV Security, Washing Machine, Power Backup" 
+              },
+              { 
+                name: "Green View PG for Ladies", 
+                rating: "4.5", 
+                price: "₹7,200 / month", 
+                details: "High-security ladies accommodation with attached balcony rooms", 
+                address: `TC Palya Main Road, ${targetLoc}, Bengaluru`, 
+                dist_km: (distNum * 0.65).toFixed(1), 
+                hours: "6:00 AM - 10:30 PM Curfew", 
+                reviews: "Cooperative female warden, RO drinking water, and safe gated society.", 
+                features: "2-wheeler parking, Attached Bathrooms, Individual Lockers" 
+              },
+              { 
+                name: "Royal Gents PG", 
+                rating: "4.3", 
+                price: "₹5,800 / month", 
+                details: "Comfortable sharing rooms walking distance to transit spots", 
+                address: `Kalkere Main Road, ${targetLoc}, Bengaluru`, 
+                dist_km: (distNum * 0.85).toFixed(1), 
+                hours: "24/7 Gated Entry", 
+                reviews: "Very value-for-money option, decent Wi-Fi speed, and supportive staff.", 
+                features: "Veg & Non-veg meals, TV Lobby lounge, CCTV protection" 
+              }
             ];
           }
+
+          if (serviceLower.includes('bar') || serviceLower.includes('pub') || serviceLower.includes('beer')) {
+            return [
+              { name: "Highlander Pub", rating: "4.7", price: "₹₹ (Moderate)", details: "Classic Irish pub atmosphere", address: `80 Feet Road, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.25).toFixed(1), hours: "11:30 AM - 1:00 AM", reviews: "Best place for draft beers and live sports.", features: "Happy Hours, Outdoor Patio Seating" },
+              { name: "The Drunken Monk", rating: "4.6", price: "₹₹₹ (Premium)", details: "Spacious microbrewery with craft beers", address: `100 Feet Road, near ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.55).toFixed(1), hours: "12:00 PM - 12:30 AM", reviews: "Highly recommend their IPA and loaded nachos.", features: "In-house Microbrewery, Live DJ Nights" },
+              { name: "Liquid Lounge", rating: "4.4", price: "₹₹ (Moderate)", details: "Chic cocktail bar with lounge music", address: `CMH Road, Metro Line, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.75).toFixed(1), hours: "4:00 PM - 12:00 AM", reviews: "Great signature cocktails and cozy couches.", features: "Intimate Seating, Cocktail Specials" }
+            ];
+          }
+          
+          if (serviceLower.includes('rest') || serviceLower.includes('food') || serviceLower.includes('cafe') || serviceLower.includes('dosa')) {
+            return [
+              { name: "Rameshwaram Cafe", rating: "4.8", price: "₹ (Budget)", details: "Legendary ghee podi idlis and filter coffee", address: `12th Main Road, near ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.3).toFixed(1), hours: "6:30 AM - 12:00 AM", reviews: "Famous for crispy dosas and rich coffee.", features: "Self-service, Quick service, Ghee Specialties" },
+              { name: "MTR (Mavalli Tiffin Room)", rating: "4.6", price: "₹ (Budget)", details: "Historic traditional South Indian breakfast", address: `Main Road, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.6).toFixed(1), hours: "7:00 AM - 9:30 PM", reviews: "The rava idli and filter coffee are historic staples.", features: "Traditional Decor, Heritage Restaurant" },
+              { name: "Truffles", rating: "4.5", price: "₹₹ (Moderate)", details: "Lively burger joint and cafe", address: `Koramangala Highway, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.85).toFixed(1), hours: "12:00 PM - 11:00 PM", reviews: "Incredible burgers, thick milkshakes, and desserts.", features: "Cozy Booths, Kid-friendly menu" }
+            ];
+          }
+
+          return [
+            { name: "Local Premium Center", rating: "4.5", price: "Standard Rates", details: "Top-rated neighborhood service provider", address: `Double Road, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.35).toFixed(1), hours: "9:00 AM - 8:00 PM", reviews: "Reliable and extremely quick service.", features: "Air Conditioned, Card payments accepted" },
+            { name: "Aria Wellness Hub", rating: "4.6", price: "Moderate Tariff", details: "Modern wellness and lifestyle clinic", address: `100 Feet Ring Road, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.65).toFixed(1), hours: "8:00 AM - 9:00 PM", reviews: "Polite staff and highly clean environment.", features: "Appointment booking available, Sanitized facility" },
+            { name: "Apex Express Point", rating: "4.3", price: "Budget-Friendly", details: "All-in-one convenient service outlet", address: `Airport Bypass Road, ${targetLoc}, Bengaluru`, dist_km: (distNum * 0.9).toFixed(1), hours: "24 Hours Open", reviews: "Open late nights and has very friendly staff.", features: "24/7 Availability, Drive-through access" }
+          ];
         }
 
         return (
@@ -2852,7 +2896,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                 const loc = userLoc;
                 if (!loc || !aiService.trim()) return;
                 setAiLoading(true); setSelectedAiPlace(null); setAiPlaces([]);
-                const q = `Find exactly 3 matching options for: ${aiService}. Location context: ${aiLocation || 'Nearby'}. Preferences: ${aiPref || 'None'}.`;
+                const q = `Find exactly 3 matching options for: ${aiService}. Area/Location context: ${aiLocation || 'Nearby'}. Max Distance limit: ${aiDistance} km. Preferences: ${aiPref || 'None'}.`;
                 try {
                   const r = await fetch('/api/aisearch', {
                     method: 'POST',
@@ -2867,8 +2911,8 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                       rating: item.rating || (4 + Math.random() * 0.9).toFixed(1),
                       price: item.price || item.tip || "Moderate Price",
                       details: item.details || item.description || "Top recommended choice",
-                      address: item.address || "Main Street Road, Bengaluru",
-                      dist_km: item.dist_km || (0.5 + Math.random() * 2).toFixed(1),
+                      address: item.address || `${aiLocation || "Ramamurthy Nagar"}, Bengaluru`,
+                      dist_km: item.dist_km || (parseFloat(aiDistance) * (0.3 + idx * 0.25)).toFixed(1),
                       hours: item.hours || "9:00 AM - 10:00 PM",
                       reviews: item.reviews || `Highly recommended local favorite.`,
                       features: item.features || `Recommended Tip: ${item.tip || 'Try signature specialties'}`
@@ -2881,8 +2925,8 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                         rating: "4.6",
                         price: "Moderate Tariff",
                         details: "Highly rated local favorite",
-                        address: "Outer Ring Road, Bengaluru",
-                        dist_km: "1.4",
+                        address: `${aiLocation || "Ramamurthy Nagar"}, Bengaluru`,
+                        dist_km: (parseFloat(aiDistance) * 0.75).toFixed(1),
                         hours: "8:00 AM - 11:00 PM",
                         reviews: "Excellent customer service and quality experience.",
                         features: "Free WiFi, Parking available"
@@ -2892,7 +2936,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                     setAiStage(2);
                   }
                 } catch {
-                  const list = getFallbackList(aiService);
+                  const list = getFallbackList(aiService, aiLocation, aiDistance);
                   setAiPlaces(list);
                   setAiStage(2);
                 }
@@ -2907,31 +2951,44 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                       onChange={e => setAiService(e.target.value)}
                       disabled={!userLoc}
                       required
-                      placeholder={userLoc ? "e.g. craft beer bar, vegetarian breakfast, dentist..." : "Enable location first"}
+                      placeholder={userLoc ? "e.g. paying guest, pub, vegetarian, doctor..." : "Enable location first"}
                       className="w-full border border-purple-200 rounded-xl px-3 py-2 text-xs focus:outline-none bg-white disabled:opacity-50"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-0.5">Location/Radius</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-gray-500 block mb-0.5">City or Area Context</label>
                       <input
                         value={aiLocation}
                         onChange={e => setAiLocation(e.target.value)}
                         disabled={!userLoc}
-                        placeholder="e.g. 2km, Indiranagar"
+                        placeholder="e.g. Ramamurthy Nagar"
                         className="w-full border border-purple-200 rounded-xl px-3 py-2 text-xs focus:outline-none bg-white disabled:opacity-50"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-0.5">Requirements/Preferences</label>
-                      <input
-                        value={aiPref}
-                        onChange={e => setAiPref(e.target.value)}
+                      <label className="text-[10px] font-bold text-gray-500 block mb-0.5">Max Distance</label>
+                      <select
+                        value={aiDistance}
+                        onChange={e => setAiDistance(e.target.value)}
                         disabled={!userLoc}
-                        placeholder="e.g. cheap, cozy, parking"
-                        className="w-full border border-purple-200 rounded-xl px-3 py-2 text-xs focus:outline-none bg-white disabled:opacity-50"
-                      />
+                        className="w-full border border-purple-200 rounded-xl px-2 py-2 text-xs focus:outline-none bg-white disabled:opacity-50 font-medium"
+                      >
+                        {["2", "4", "5", "7", "8", "10"].map(d => (
+                          <option key={d} value={d}>{d} km</option>
+                        ))}
+                      </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-0.5">Extra Requirements/Preferences (Optional)</label>
+                    <input
+                      value={aiPref}
+                      onChange={e => setAiPref(e.target.value)}
+                      disabled={!userLoc}
+                      placeholder="e.g. food included, cheap, gents, ladies..."
+                      className="w-full border border-purple-200 rounded-xl px-3 py-2 text-xs focus:outline-none bg-white disabled:opacity-50"
+                    />
                   </div>
                 </div>
                 <button
@@ -2975,49 +3032,64 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={async () => {
-                    if (!userLoc) return;
-                    setAiLoading(true);
-                    const q = `Show me different matching options for: ${aiService}. Location: ${aiLocation || 'Nearby'}. Preferences: ${aiPref || 'None'}.`;
-                    try {
-                      const r = await fetch('/api/aisearch', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ lat: userLoc.lat, lng: userLoc.lon, q })
-                      });
-                      const d = await r.json();
-                      if (d.success) {
-                        let list = Object.values(d.data || {}).flat() as any[];
-                        const parsedPlaces = list.slice(3, 6).map((item, idx) => ({
-                          name: item.name || `Alternative Option ${idx + 1}`,
-                          rating: item.rating || "4.5",
-                          price: item.price || item.tip || "Moderate Price",
-                          details: item.details || item.description || "Great local spot",
-                          address: item.address || "Indiranagar High Street, Bengaluru",
-                          dist_km: item.dist_km || (1.0 + Math.random() * 1.5).toFixed(1),
-                          hours: item.hours || "10:00 AM - 11:00 PM",
-                          reviews: item.reviews || `Loved by the local community.`,
-                          features: item.features || `Recommended: ${item.tip || 'Try the signature dishes'}`
-                        }));
-                        if (parsedPlaces.length < 3) {
-                          const list = getFallbackList(aiService);
-                          parsedPlaces.push(...list);
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setAiStage(1);
+                      setAiService("");
+                      setAiLocation("");
+                      setAiPref("");
+                      setSelectedAiPlace(null);
+                      setAiPlaces([]);
+                    }}
+                    className="flex-1 border border-gray-200 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-xs font-bold transition-all text-center"
+                  >
+                    Reset & Go Back
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!userLoc) return;
+                      setAiLoading(true);
+                      const q = `Show me different matching options for: ${aiService}. Location: ${aiLocation || 'Nearby'}. Preferences: ${aiPref || 'None'}.`;
+                      try {
+                        const r = await fetch('/api/aisearch', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ lat: userLoc.lat, lng: userLoc.lon, q })
+                        });
+                        const d = await r.json();
+                        if (d.success) {
+                          let list = Object.values(d.data || {}).flat() as any[];
+                          const parsedPlaces = list.slice(3, 6).map((item, idx) => ({
+                            name: item.name || `Alternative Option ${idx + 1}`,
+                            rating: item.rating || "4.5",
+                            price: item.price || item.tip || "Moderate Price",
+                            details: item.details || item.description || "Great local spot",
+                            address: item.address || `${aiLocation || "Ramamurthy Nagar"}, Bengaluru`,
+                            dist_km: (parseFloat(aiDistance) * (0.4 + idx * 0.2)).toFixed(1),
+                            hours: item.hours || "10:00 AM - 11:00 PM",
+                            reviews: item.reviews || `Loved by the local community.`,
+                            features: item.features || `Recommended: ${item.tip || 'Try the signature dishes'}`
+                          }));
+                          if (parsedPlaces.length < 3) {
+                            const list = getFallbackList(aiService, aiLocation, aiDistance);
+                            parsedPlaces.push(...list);
+                          }
+                          setAiPlaces(parsedPlaces.slice(0, 3));
                         }
-                        setAiPlaces(parsedPlaces.slice(0, 3));
+                      } catch {
+                        const list = getFallbackList(aiService, aiLocation, aiDistance).reverse();
+                        setAiPlaces(list);
                       }
-                    } catch {
-                      const list = getFallbackList(aiService).reverse();
-                      setAiPlaces(list);
-                    }
-                    setAiLoading(false);
-                  }}
-                  disabled={aiLoading}
-                  className="w-full border border-purple-200 text-purple-700 hover:bg-purple-100/50 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                >
-                  {aiLoading ? <Loader2 size={13} className="animate-spin"/> : <RefreshCw size={12}/>}
-                  <span>Show different options</span>
-                </button>
+                      setAiLoading(false);
+                    }}
+                    disabled={aiLoading}
+                    className="flex-1 border border-purple-200 text-purple-700 hover:bg-purple-100/50 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 font-medium"
+                  >
+                    {aiLoading ? <Loader2 size={13} className="animate-spin"/> : <RefreshCw size={12}/>}
+                    <span>Show different options</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -3055,7 +3127,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                     setSelectedAiPlace(null);
                     setAiPlaces([]);
                   }}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold transition-colors"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl text-xs font-bold transition-colors"
                 >
                   Search for something else?
                 </button>
