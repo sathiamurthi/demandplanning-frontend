@@ -303,32 +303,40 @@ export default function SaleDynamicPage() {
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
   const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
 
-  // ── Coupon Apply Effect ──
-  useEffect(() => {
-    const code = couponCode.trim().toUpperCase();
-    if (!code || lines.length === 0) {
-      setCouponDiscount(0);
-      setCouponMsg("");
-      return;
+  // ── Coupon validation via API ──
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
+  const validateCoupon = useCallback(async (code: string) => {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed || lines.length === 0) {
+      setCouponDiscount(0); setCouponMsg(""); return;
     }
     const sub = lines.reduce((s, l) => s + l.unitPrice * l.qty * (1 - l.discountPct / 100), 0);
-    if (code === "SAVE10") {
-      setCouponDiscount(Math.round(sub * 0.1 * 100) / 100);
-      setCouponMsg("Coupon 'SAVE10' applied (10% off)");
-    } else if (code === "WELCOME50") {
-      setCouponDiscount(Math.min(50, sub));
-      setCouponMsg("Coupon 'WELCOME50' applied (Flat ₹50 off)");
-    } else if (code === "FRESH20") {
-      setCouponDiscount(Math.round(sub * 0.2 * 100) / 100);
-      setCouponMsg("Coupon 'FRESH20' applied (20% off)");
-    } else if (code === "MED50") {
-      setCouponDiscount(Math.min(50, sub));
-      setCouponMsg("Coupon 'MED50' applied (Flat ₹50 off)");
-    } else {
-      setCouponDiscount(0);
-      setCouponMsg("Invalid coupon code");
-    }
-  }, [lines, couponCode]);
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") || "" : "";
+    if (!tenantId) { setCouponMsg("Cannot validate — tenant not found"); return; }
+    setValidatingCoupon(true);
+    try {
+      const r = await fetch(`/v1/tenants/${tenantId}/coupons/validate`, {
+        method: "POST", headers: authHeaders(),
+        body: JSON.stringify({ code: trimmed, orderAmount: sub, storeId }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setCouponDiscount(d.data.discountAmount);
+        setCouponMsg(d.data.message);
+      } else {
+        setCouponDiscount(0);
+        setCouponMsg(d.error || "Invalid coupon code");
+      }
+    } catch {
+      setCouponDiscount(0); setCouponMsg("Could not validate coupon");
+    } finally { setValidatingCoupon(false); }
+  }, [lines, storeId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => validateCoupon(couponCode), 600);
+    return () => clearTimeout(t);
+  }, [couponCode, lines]);
 
   const lineTotal = (l: LineItem) => l.unitPrice * l.qty * (1 - l.discountPct / 100);
   const subtotal = lines.reduce((s, l) => s + lineTotal(l), 0);
