@@ -3376,7 +3376,15 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
     const p = new URLSearchParams({ limit:"30", mode,
       ...(types.length===1&&{type:types[0]}),
       ...(city&&{city}), ...(searchQ&&{search:searchQ}), ...(avail&&{available:"true"}) });
-    fetch(`/v1/public/listings?${p}`).then(r=>r.json())
+    fetch(`/v1/public/listings?${p}`)
+      .then(async r => {
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error("Unable to parse backend response. The database or server might be sleeping.");
+        }
+      })
       .then(d=>{ if(!d.success)throw new Error(d.error); setListings((d.data||[]).filter((l:Listing)=>!selType||l.type===selType||group?.types.includes(l.type))); })
       .catch(e=>setError(e.message||"Failed"))
       .finally(()=>setLoading(false));
@@ -3406,7 +3414,13 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
       const services=obServices.filter(s=>s.name).map(s=>({name:s.name,rate:s.rate}));
       const r=await fetch("/v1/public/listings",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({...ob,services,...(obLat!==null&&{lat:obLat,lng:obLng})})});
-      const d=await r.json();
+      const txt = await r.text();
+      let d;
+      try {
+        d = JSON.parse(txt);
+      } catch {
+        throw new Error("Failed to register. Server is waking up, please retry in 5 seconds.");
+      }
       if(!d.success)throw new Error(d.error);
       setObDone(true);
     }catch(e:any){setObErr(e.message||"Failed to save");}
@@ -3424,7 +3438,7 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-gray-100 rounded-xl p-1">
-        {[...SERVICE_GROUPS.map(g=>({id:g.id,label:g.label,icon:g.icon})),{id:"onboard",label:"Onboard",icon:Plus}].map(t=>{const Icon=t.icon;return(
+        {[...SERVICE_GROUPS.map(g=>({id:g.id,label:g.label,icon:g.icon})),{id:"onboard",label:"Register as Seeker/Provider",icon:Plus}].map(t=>{const Icon=t.icon;return(
           <button key={t.id} onClick={()=>{setTab(t.id as any);setListings([]);setSelType("");}}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${tab===t.id?"bg-white shadow-sm text-orange-500":"text-gray-500 hover:text-gray-700"}`}>
             <Icon size={11}/>{t.label}
@@ -3556,84 +3570,179 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
 
       {/* Onboard Tab */}
       {tab==="onboard" && (
-        <div className="max-w-lg space-y-4">
+        <div className="max-w-xl space-y-4">
           {obDone?(
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center shadow-sm">
               <CheckCircle2 size={40} className="mx-auto text-green-500 mb-3"/>
-              <h2 className="font-black text-gray-900 text-lg">Listed!</h2>
-              <p className="text-gray-600 text-sm mt-1">You're live. People near you can find and call you.</p>
-              <button onClick={resetOnboard} className="mt-4 bg-orange-500 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-orange-600">Add Another</button>
+              <h2 className="font-black text-gray-900 text-lg">Listing Successful!</h2>
+              <p className="text-gray-600 text-sm mt-1">Your record is active on the local network map. Neighbors can now discover and contact you.</p>
+              <button onClick={resetOnboard} className="mt-4 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm">Add Another Listing</button>
             </div>
           ):(
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
-              <h2 className="font-black text-gray-900">Quick Register / Post Need</h2>
-
-              {/* Provider / Seeker */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-6 shadow-sm">
               <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">I am a…</label>
-                <div className="flex gap-2">
-                  <button onClick={()=>setOb(p=>({...p,mode:"provider"}))} className={`flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all ${ob.mode==="provider"?"bg-orange-500 text-white border-orange-500":"border-gray-200 text-gray-600"}`}>Provider (I offer service)</button>
-                  <button onClick={()=>setOb(p=>({...p,mode:"seeker"}))} className={`flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all ${ob.mode==="seeker"?"bg-blue-500 text-white border-blue-500":"border-gray-200 text-gray-600"}`}>Seeker (I need service)</button>
+                <h2 className="font-extrabold text-gray-900 text-base">Register Seeker / Provider</h2>
+                <p className="text-xs text-gray-500 mt-0.5">List your service profile or post an active service need to the neighborhood network.</p>
+              </div>
+
+              {/* Step 1: Mode Toggle Cards */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Registration Vibe</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={()=>setOb(p=>({...p,mode:"provider"}))}
+                    className={`p-4 rounded-2xl border-2 text-center transition-all ${
+                      ob.mode==="provider"
+                        ? "border-emerald-500 bg-emerald-50/50 text-emerald-800"
+                        : "border-gray-100 hover:border-gray-200 bg-white text-gray-600"
+                    }`}
+                  >
+                    <span className="text-xl block mb-1">💼</span>
+                    <span className="text-xs font-extrabold block">Service Provider</span>
+                    <span className="text-[9px] opacity-80 block mt-0.5">I want to offer my service</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={()=>setOb(p=>({...p,mode:"seeker"}))}
+                    className={`p-4 rounded-2xl border-2 text-center transition-all ${
+                      ob.mode==="seeker"
+                        ? "border-blue-500 bg-blue-50/50 text-blue-800"
+                        : "border-gray-100 hover:border-gray-200 bg-white text-gray-600"
+                    }`}
+                  >
+                    <span className="text-xl block mb-1">🔍</span>
+                    <span className="text-xs font-extrabold block">Service Seeker</span>
+                    <span className="text-[9px] opacity-80 block mt-0.5">I want to hire or post a need</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Type */}
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Category</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {LISTING_TYPES.map(t=>{const Icon=t.icon;return(
-                    <button key={t.id} onClick={()=>setOb(p=>({...p,type:t.id}))}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all ${ob.type===t.id?"bg-orange-500 text-white border-orange-500":"border-gray-200 text-gray-600 hover:border-orange-300"}`}>
-                      <Icon size={10}/>{t.label}
-                    </button>
-                  );})}
+              {/* Step 2: Information Grid */}
+              <div className="space-y-4 pt-3 border-t border-gray-100">
+                <h3 className="text-xs font-extrabold text-gray-800">Basic Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Service Category</label>
+                    <select
+                      value={ob.type}
+                      onChange={e=>setOb(p=>({...p,type:e.target.value}))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs bg-white focus:outline-none focus:border-orange-400 font-medium"
+                    >
+                      {LISTING_TYPES.map(t=>(
+                        <option key={t.id} value={t.id}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Full Name / Business Title *</label>
+                    <input
+                      value={ob.name}
+                      onChange={e=>setOb(p=>({...p,name:e.target.value}))}
+                      placeholder="e.g. Ramesh Kumar, Fast Courier"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Contact Phone Number *</label>
+                    <input
+                      type="tel"
+                      value={ob.phone}
+                      onChange={e=>setOb(p=>({...p,phone:e.target.value}))}
+                      placeholder="e.g. +91 9876543210"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Charge Rate / Estimated Budget</label>
+                    <input
+                      value={ob.rate_info}
+                      onChange={e=>setOb(p=>({...p,rate_info:e.target.value}))}
+                      placeholder="e.g. ₹500/visit, ₹15,000/month"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Discount Offerings (Optional)</label>
+                    <input
+                      value={ob.discount}
+                      onChange={e=>setOb(p=>({...p,discount:e.target.value}))}
+                      placeholder="e.g. 10% off first-time requests"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Service description / Detailed Requirement</label>
+                    <textarea
+                      value={ob.description}
+                      onChange={e=>setOb(p=>({...p,description:e.target.value}))}
+                      rows={2}
+                      placeholder="Briefly explain your services or details of what support you need..."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2"><label className="text-xs text-gray-500 block mb-1">Name *</label><input value={ob.name} onChange={e=>setOb(p=>({...p,name:e.target.value}))} placeholder="Your name or business name" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/></div>
-                <div><label className="text-xs text-gray-500 block mb-1">Phone *</label><input type="tel" value={ob.phone} onChange={e=>setOb(p=>({...p,phone:e.target.value}))} placeholder="+91 XXXXXXXXXX" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/></div>
-                <div><label className="text-xs text-gray-500 block mb-1">Rate / Budget</label><input value={ob.rate_info} onChange={e=>setOb(p=>({...p,rate_info:e.target.value}))} placeholder="₹500/visit or budget" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/></div>
-                <div className="sm:col-span-2"><label className="text-xs text-gray-500 block mb-1">Description</label><input value={ob.description} onChange={e=>setOb(p=>({...p,description:e.target.value}))} placeholder="What you offer or need…" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/></div>
-              </div>
-
-              {/* Services (provider only) */}
-              {ob.mode==="provider"&&(
-                <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Services & Rates</label>
+              {/* Step 3: Specific Services (For providers only) */}
+              {ob.mode==="provider" && (
+                <div className="space-y-2.5 pt-3 border-t border-gray-100">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">Detailed Services & Pricing</label>
                   {obServices.map((s,i)=>(
-                    <div key={i} className="flex gap-2 mb-2">
-                      <input value={s.name} onChange={e=>setObServices(p=>p.map((x,j)=>j===i?{...x,name:e.target.value}:x))} placeholder="Service name" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/>
-                      <input value={s.rate} onChange={e=>setObServices(p=>p.map((x,j)=>j===i?{...x,rate:e.target.value}:x))} placeholder="₹ Rate" className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/>
-                      {obServices.length>1&&<button onClick={()=>setObServices(p=>p.filter((_,j)=>j!==i))} className="text-gray-300 hover:text-red-400"><X size={14}/></button>}
+                    <div key={i} className="flex gap-2 items-center">
+                      <input value={s.name} onChange={e=>setObServices(p=>p.map((x,j)=>j===i?{...x,name:e.target.value}:x))} placeholder="Service offering name" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"/>
+                      <input value={s.rate} onChange={e=>setObServices(p=>p.map((x,j)=>j===i?{...x,rate:e.target.value}:x))} placeholder="₹ Cost" className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"/>
+                      {obServices.length>1 && (
+                        <button onClick={()=>setObServices(p=>p.filter((_,j)=>j!==i))} className="text-gray-300 hover:text-red-400 p-1">
+                          <X size={14}/>
+                        </button>
+                      )}
                     </div>
                   ))}
-                  <button onClick={()=>setObServices(p=>[...p,{name:"",rate:""}])} className="text-xs text-orange-500 flex items-center gap-1"><Plus size={11}/>Add</button>
+                  <button onClick={()=>setObServices(p=>[...p,{name:"",rate:""}])} className="text-xs text-orange-500 font-bold flex items-center gap-1"><Plus size={11}/>Add Service Item</button>
                 </div>
               )}
 
-              {/* Location capture */}
-              <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <Navigation2 size={16} className={obLat?"text-green-500":"text-gray-300"}/>
-                <div className="flex-1">
-                  {obLat ? <p className="text-xs text-gray-700 font-semibold">📍 Location captured ({obLat.toFixed(4)}, {obLng?.toFixed(4)})</p>
-                         : <p className="text-xs text-gray-500">Capture your location so people can find you nearby</p>}
+              {/* Step 4: Coordinates Location Capture */}
+              <div className="space-y-2 pt-3 border-t border-gray-100">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Service Location</label>
+                <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3.5">
+                  <Navigation2 size={16} className={obLat?"text-green-500":"text-gray-300"}/>
+                  <div className="flex-1">
+                    {obLat ? (
+                      <p className="text-xs text-gray-700 font-semibold">📍 Coordinates verified ({obLat.toFixed(4)}, {obLng?.toFixed(4)})</p>
+                    ) : (
+                      <p className="text-[11px] text-gray-500">Capture your current GPS location to allow neighbors to discover you.</p>
+                    )}
+                  </div>
+                  <button type="button" onClick={captureObLocation} disabled={locCapturing} className="text-xs font-bold text-orange-500 hover:underline">
+                    {locCapturing?"Locating…":"Verify GPS"}
+                  </button>
                 </div>
-                <button onClick={captureObLocation} disabled={locCapturing}
-                  className="text-xs font-semibold text-orange-500 hover:underline">{locCapturing?"…":"Capture"}</button>
               </div>
 
-              {ob.mode==="provider"&&(
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input type="checkbox" checked={ob.available_now} onChange={e=>setOb(p=>({...p,available_now:e.target.checked}))} className="accent-orange-500 w-4 h-4"/>
-                  <span className="text-sm text-gray-800 font-semibold">Available right now</span>
+              {/* Step 5: Availability Checkbox */}
+              {ob.mode==="provider" && (
+                <label className="flex items-center gap-2.5 cursor-pointer py-1">
+                  <input type="checkbox" checked={ob.available_now} onChange={e=>setOb(p=>({...p,available_now:e.target.checked}))} className="accent-emerald-600 w-4 h-4 rounded"/>
+                  <span className="text-xs text-gray-800 font-semibold">Active & Available right now</span>
                 </label>
               )}
 
-              {obErr&&<p className="text-red-500 text-sm">{obErr}</p>}
-              <button onClick={submitOnboard} disabled={obSaving} className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-bold">
-                {obSaving?"Saving…":ob.mode==="provider"?"Register & Go Live":"Post My Requirement"}
+              {obErr && (
+                <div className="bg-red-50 text-red-600 text-xs rounded-xl p-3 border border-red-100">
+                  {obErr}
+                </div>
+              )}
+
+              <button
+                onClick={submitOnboard}
+                disabled={obSaving}
+                className={`w-full text-white py-3 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                  ob.mode === "provider" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                {obSaving ? <span className="flex items-center justify-center gap-1.5"><Loader2 size={12} className="animate-spin"/>Registering Profile...</span> : ob.mode === "provider" ? "Register as Provider & Go Live" : "Post Seeker Requirement"}
               </button>
             </div>
           )}
