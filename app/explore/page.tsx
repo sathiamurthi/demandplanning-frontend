@@ -205,6 +205,7 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"ideas",      label:"Ideas",              icon:Lightbulb,     group:"COMMUNITY" },
   { id:"contacts",   label:"Safe Directory",     icon:Shield },
   { id:"install",    label:"Install App",        icon:Download,      group:"APP" },
+  { id:"login" as Section, label:"Enterprise Dashboard", icon:LockIcon },
 ];
 
 // ── Contribute Modal ───────────────────────────────────────────
@@ -479,7 +480,14 @@ export default function DemandGeniusApp() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+                    onClick={() => {
+                      if (item.id === "login" as any) {
+                        window.location.href = "/login";
+                      } else {
+                        setSection(item.id);
+                        setSidebarOpen(false);
+                      }
+                    }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
                       isActive
                         ? "bg-orange-50 text-orange-600 font-semibold"
@@ -7722,8 +7730,13 @@ function WhatsAppVerificationModal({ isOpen, onClose, guestId }: { isOpen: boole
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [devCode, setDevCode] = useState("");
+  const [notification, setNotification] = useState<{ title: string; message: string; type: "success" | "info" | "warning" } | null>(null);
 
   if (!isOpen) return null;
+
+  const showNotification = (title: string, message: string, type: "success" | "info" | "warning" = "info") => {
+    setNotification({ title, message, type });
+  };
 
   const sendCode = async () => {
     if (!phone.trim()) { setError("Phone number is required"); return; }
@@ -7738,8 +7751,14 @@ function WhatsAppVerificationModal({ isOpen, onClose, guestId }: { isOpen: boole
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to send code");
       setStep("code");
-      if (json.devCode) {
-        setDevCode(json.devCode);
+      
+      const codeVal = json.devCode || json.data?.devCode;
+      if (codeVal) {
+        setDevCode(codeVal);
+        setCode(codeVal); // Pre-fill!
+        showNotification("Dev Simulation Mode", "Verification code automatically intercepted and pre-filled.", "info");
+      } else {
+        showNotification("OTP Sent", "Verification code sent to your WhatsApp number.", "success");
       }
     } catch (err: any) {
       setError(err.message);
@@ -7761,6 +7780,7 @@ function WhatsAppVerificationModal({ isOpen, onClose, guestId }: { isOpen: boole
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Verification failed");
       setStep("success");
+      showNotification("WhatsApp Connected", "WhatsApp notification services active.", "success");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -7770,102 +7790,153 @@ function WhatsAppVerificationModal({ isOpen, onClose, guestId }: { isOpen: boole
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in duration-200">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-            <Phone className="text-emerald-500" size={14}/> WhatsApp Alerts
-          </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={16}/>
-          </button>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 text-red-600 text-[11px] rounded-lg p-2.5 mb-4 font-medium">
-            {error}
-          </div>
-        )}
-
-        {step === "phone" && (
-          <div className="space-y-4">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Subscribe to real-time discount offers, new stock alerts, and campaign updates directly in your WhatsApp chat.
-            </p>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">WhatsApp Phone Number</label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g. +91 99435 44808"
-                className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
-              />
+      <div className="relative max-w-sm w-full">
+        {/* Floating Notification Banner */}
+        {notification && (
+          <div className={`absolute -top-16 left-0 right-0 z-50 rounded-xl p-3 border shadow-lg flex items-start gap-2.5 animate-in slide-in-from-top-4 duration-300 ${
+            notification.type === "success" 
+              ? "bg-emerald-50 border-emerald-100 text-emerald-800" 
+              : notification.type === "warning"
+                ? "bg-amber-50 border-amber-100 text-amber-800"
+                : "bg-blue-50 border-blue-100 text-blue-800"
+          }`}>
+            <Bell size={16} className="mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-[10px] uppercase tracking-wider">{notification.title}</div>
+              <div className="text-xs mt-0.5 opacity-90 leading-tight">{notification.message}</div>
             </div>
-            <button
-              onClick={sendCode}
-              disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-            >
-              {loading ? <Loader2 size={12} className="animate-spin"/> : "Send Verification Code"}
+            <button onClick={() => setNotification(null)} className="text-gray-400 hover:text-gray-600 shrink-0">
+              <X size={14} />
             </button>
           </div>
         )}
 
-        {step === "code" && (
-          <div className="space-y-4">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              We sent a 6-digit OTP code to your number. Enter it below to verify.
-            </p>
-            {devCode && (
-              <div className="bg-amber-50 text-amber-700 text-xs rounded-lg p-2.5 border border-amber-200">
-                <strong>[DEV MODE]</strong> Simulation OTP: <code className="font-bold font-mono">{devCode}</code>
-              </div>
-            )}
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Verification OTP</label>
-              <input
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="123456"
-                className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm tracking-widest text-center font-bold focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStep("phone")}
-                className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2.5 rounded-lg transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={verifyCode}
-                disabled={loading}
-                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {loading ? <Loader2 size={12} className="animate-spin"/> : "Verify Code"}
-              </button>
-            </div>
+        <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <Phone className="text-emerald-500" size={14}/> WhatsApp Alerts
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X size={16}/>
+            </button>
           </div>
-        )}
 
-        {step === "success" && (
-          <div className="text-center space-y-4 py-4">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">✓</div>
-            <div>
-              <h4 className="font-bold text-gray-800 text-sm">Successfully Subscribed!</h4>
-              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                You are now registered for real-time store offer alerts.
+          {error && (
+            <div className="bg-red-50 text-red-600 text-[11px] rounded-lg p-2.5 mb-4 font-medium">
+              {error}
+            </div>
+          )}
+
+          {step === "phone" && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Subscribe to real-time discount offers, new stock alerts, and campaign updates directly in your WhatsApp chat.
               </p>
+              <div className="bg-blue-50 text-blue-700 text-[10px] rounded-lg p-2.5 border border-blue-100 leading-normal">
+                <strong>💡 Sandbox Mode Notice:</strong> If your number is not pre-approved in the Meta Sandbox, a simulated OTP will be displayed for instant copy-pasting.
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">WhatsApp Phone Number</label>
+                <input
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. +91 99435 44808"
+                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <button
+                onClick={sendCode}
+                disabled={loading}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={12} className="animate-spin"/> : "Send Verification Code"}
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="w-full bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 rounded-lg transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        )}
+          )}
+
+          {step === "code" && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 leading-relaxed">
+                We sent a 6-digit OTP code to your number. Enter it below to verify.
+              </p>
+              {devCode && (
+                <div className="bg-amber-50 text-amber-700 text-xs rounded-lg p-2.5 border border-amber-200">
+                  <strong>[DEV MODE]</strong> Simulation OTP: <code className="font-bold font-mono">{devCode}</code>
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Verification OTP</label>
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="123456"
+                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm tracking-widest text-center font-bold focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setStep("phone")}
+                  className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2.5 rounded-lg transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={verifyCode}
+                  disabled={loading}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {loading ? <Loader2 size={12} className="animate-spin"/> : "Verify Code"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === "success" && (
+            <div className="text-center space-y-4 py-2">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">✓</div>
+              <div>
+                <h4 className="font-bold text-gray-800 text-sm">Successfully Subscribed!</h4>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  You are now registered for real-time store offer alerts.
+                </p>
+              </div>
+
+              {/* Simulated Notification Sandbox triggers */}
+              <div className="border-t border-gray-100 pt-4 mt-2 text-left">
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mb-2">Simulate System Alerts</span>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => showNotification("FreshMart Promo Alert", "📢 Promo Code 'FRESH10' is active! 10% off on all Grocery items.", "success")}
+                    className="w-full text-left text-[11px] bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-800 px-3 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    📢 Trigger Promo Broadcast Alert
+                  </button>
+                  <button
+                    onClick={() => showNotification("AutoZone Low Stock", "⚠️ Brake Pads (BP-1002) is below reorder level (5 units left).", "warning")}
+                    className="w-full text-left text-[11px] bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-800 px-3 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    ⚠️ Trigger Low Stock Alert
+                  </button>
+                  <button
+                    onClick={() => showNotification("DemandGenius System", "⚙️ Automated daily database replication completed successfully.", "info")}
+                    className="w-full text-left text-[11px] bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-800 px-3 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    ⚙️ Trigger System Status Alert
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="w-full bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 rounded-lg transition-colors mt-4"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
