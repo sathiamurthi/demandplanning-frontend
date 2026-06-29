@@ -3929,13 +3929,14 @@ function InstallPanel() {
 // ── Personal Assistant ─────────────────────────────────────────
 type PAStatus = "pending"|"approved"|"rejected"|"held"|"executing"|"done";
 interface PAField  { key:string; label:string; type:"text"|"number"|"select"|"textarea"|"date"; required?:boolean; options?:string[]; placeholder?:string; prefix?:string; }
-interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"|"select_provider"|"select_dishes"|"review_cart"|"track_delivery"|"select_hotel_provider"|"select_hotels"|"review_hotel_cart"|"track_hotel_booking"|"select_trip_provider"|"select_trips"|"review_trip_cart"|"track_trip_booking"; status:PAStatus; icon:string; fields?:PAField[]; }
+interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"|"select_provider"|"select_dishes"|"review_cart"|"track_delivery"|"select_hotel_provider"|"select_hotels"|"review_hotel_cart"|"track_hotel_booking"|"select_trip_provider"|"select_trips"|"review_trip_cart"|"track_trip_booking"|"event_intake"|"event_category_explore"|"event_summary"; status:PAStatus; icon:string; fields?:PAField[]; }
 interface PAMsg    { id:string; role:"user"|"assistant"; text:string; ts:number; wfTasks?:PATask[]; }
 
 function paUid(): string { return Math.random().toString(36).slice(2,9); }
 
 function detectPAIntent(text:string): { intent:string; params:Record<string,string> } {
   const t = text.toLowerCase();
+  if (/event|organi|wedding|marriage|birthday|party|function|celebrat/.test(t)) return { intent:"event_organizer", params:{} };
   if (/food|order|eat|dinner|lunch|breakfast|pizza|biryani|burger|swiggy|zomato|dosa/.test(t)) return { intent:"food_order", params:{} };
   if (/hotel|room|stay|resort|lodging|booking/.test(t)) return { intent:"hotel_booking", params:{} };
   if (/ticket|bus|train|flight|irctc|redbus|boarding/.test(t)) return { intent:"trip_booking", params:{} };
@@ -3952,6 +3953,18 @@ function detectPAIntent(text:string): { intent:string; params:Record<string,stri
 function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:string): PATask[] {
   const mk = (s:string) => `${wfId}_${s}`;
   const flows: Record<string,PATask[]> = {
+    event_organizer: [
+      { id:mk("t1"), label:"Stage 1: Event Intake & DB Init", desc:"Specify function details to initialize workspace:", type:"event_intake", status:"pending", icon:"📅",
+        fields:[
+          { key:"eventType", label:"Event Type", type:"select", options:["Marriage", "Birthday Party", "Corporate Function", "Other"], required:true },
+          { key:"targetDate", label:"Target Date", type:"date", required:true },
+          { key:"location", label:"Location/Area Preference", type:"text", placeholder:"e.g. Ramamurthy Nagar", required:true },
+          { key:"guests", label:"Guest Count", type:"number", placeholder:"e.g. 500", required:true },
+          { key:"budget", label:"Total Budget (₹)", type:"number", placeholder:"e.g. 500000", required:true }
+        ]},
+      { id:mk("t2"), label:"Stage 2 & 3: Directory Selection & Dispatch", desc:"Check preferred vendors, dispatch live confirmations, and track state:", type:"event_category_explore", status:"pending", icon:"🏪" },
+      { id:mk("t3"), label:"Stage 4: Aggregated Expenses & Closure", desc:"Review aggregated expense sheets and final DB locks:", type:"event_summary", status:"pending", icon:"🔒" }
+    ],
     product_search: [
       { id:mk("t1"), label:"Product Query", desc:"What item would you like to search for?", type:"input", status:"pending", icon:"🔍",
         fields:[
@@ -4155,8 +4168,62 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
       setMsgs(prev=>[...prev,{ id:paUid(), role:"assistant", ts:Date.now(), text:`Please fill in: ${missing.map(f=>f.label).join(", ")}` }]);
       return;
     }
-    if (task.type==="input"||task.type==="payment") setTaskValues(prev=>({...prev,[task.id]:vals}));
+    if (task.type==="input"||task.type==="payment"||task.type==="event_intake") setTaskValues(prev=>({...prev,[task.id]:vals}));
     setTaskState(prev=>({...prev,[task.id]:"executing"}));
+
+    if (task.type === "event_intake") {
+      await new Promise(r => setTimeout(r, 600));
+      setTaskValues(prev => ({ ...prev, [task.id]: vals }));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Stage 1 Details Registered & Checked against Database! Matching pre-preferred vendors have been aligned to the top of selection grids. Proceeding to Stage 2 & 3: Directory Selection & Live Dispatch."
+      }]);
+      return;
+    }
+
+    if (task.type === "event_category_explore") {
+      const V_CATS = ["cat1", "cat2", "cat3", "cat4", "cat5"];
+      const missing: string[] = [];
+      const catLabels: Record<string, string> = {
+        cat1: "Marriage/Party Halls", cat2: "Catering Providers",
+        cat3: "Decoration & Flowers", cat4: "Entertainment & Crew",
+        cat5: "Logistics & Shopping"
+      };
+      V_CATS.forEach(c => {
+        if (vals[`status_${c}`] !== "Two-Way Confirmed") {
+          missing.push(catLabels[c]);
+        }
+      });
+
+      if (missing.length) {
+        setMsgs(prev => [...prev, {
+          id: paUid(), role: "assistant", ts: Date.now(),
+          text: `Cannot close step yet. Please make sure all categories have selections with status "Two-Way Confirmed". Outstanding categories: ${missing.join(", ")}`
+        }]);
+        setTaskState(prev => ({ ...prev, [task.id]: "pending" }));
+        return;
+      }
+
+      await new Promise(r => setTimeout(r, 800));
+      setTaskValues(prev => ({ ...prev, [task.id]: vals }));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "All vendor selections confirmed and live JSON saved state finalized! Transitioning to Stage 4: Closure & Final Master log."
+      }]);
+      return;
+    }
+
+    if (task.type === "event_summary") {
+      await new Promise(r => setTimeout(r, 600));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Event planning checklist officially finalized. Final DB log set to 'Closed & Locked' status. Perfect!"
+      }]);
+      return;
+    }
 
     if (task.type === "upi_payment") {
       await new Promise(r => setTimeout(r, 1200));
@@ -5046,6 +5113,309 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
           </div>
         )}
 
+        {/* Custom event_category_explore block */}
+        {active && task.type === "event_category_explore" && (() => {
+          const VENDOR_CATEGORIES = [
+            { id: "cat1", label: "Marriage/Party Halls", hint: "Capacity, Price, Availability" },
+            { id: "cat2", label: "Catering Providers", hint: "Menu styles, Per-plate rate, Specialties" },
+            { id: "cat3", label: "Decoration & Flowers", hint: "Theme options, Wholesale flower rates" },
+            { id: "cat4", label: "Entertainment & Crew", hint: "Singers, Anchors/Show Runners, Sound/Light" },
+            { id: "cat5", label: "Logistics & Shopping", hint: "Wholesale gift shops, Clothing markets" }
+          ];
+
+          const getCategoryOptions = (catId: string, location: string, eventType: string) => {
+            const loc = location || "Ramamurthy Nagar";
+            if (catId === "cat1") {
+              return [
+                { id: "hall_1", name: `Grand Royal Palace (${loc})`, desc: "Capacity: 500-1000 guests, AC, Valet Parking", price: 250000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                { id: "hall_2", name: "Elite Celebration Lawn", desc: "Capacity: 200-400 guests, Open Air Garden", price: 120000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                { id: "hall_3", name: "Golden Heritage Suites", desc: "Capacity: 400-800 guests, Luxury Banquet", price: 210000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+              ];
+            }
+            if (catId === "cat2") {
+              return [
+                { id: "cat_1", name: `Anupam Catering Services (${loc})`, desc: "North & South Indian Buffet, Traditional Veg/Non-Veg", price: 450, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "per plate" },
+                { id: "cat_2", name: "Spicy Feast Kitchens", desc: "Pure Veg traditional leaf meals, Live Dosa counter", price: 350, tag: "Standard Rate", isPartner: false, rateType: "per plate" },
+                { id: "cat_3", name: "Global Fusion Caterers", desc: "Continental, Italian, Dessert live stations", price: 750, tag: "Standard Rate", isPartner: false, rateType: "per plate" }
+              ];
+            }
+            if (catId === "cat3") {
+              return [
+                { id: "dec_1", name: `Dream Decorators & Flowers (${loc})`, desc: "Royal Gold Theme, fresh orchid flower arches", price: 85000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                { id: "dec_2", name: "Classic Orchid Floral Decor", desc: "Minimalist Pastel theme, Eco-friendly design", price: 50000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                { id: "dec_3", name: "Elegant Events Mandap Decor", desc: "Traditional marigold & brass bells theme", price: 75000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+              ];
+            }
+            if (catId === "cat4") {
+              return [
+                { id: "ent_1", name: `Vibrant Beats Sound & Light (${loc})`, desc: "Live Fusion Band, Celebrity MC, Line array sound", price: 60000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+                { id: "ent_2", name: "Sargam Live Orchestra", desc: "Classical singers, traditional instruments, anchor", price: 45000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+                { id: "ent_3", name: "DJ Spark Sound & Light", desc: "EDM/Bollywood DJ, LED floor, high-wattage lights", price: 50000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+              ];
+            }
+            return [
+              { id: "log_1", name: `Rams Clothing & Gift Hub (${loc})`, desc: "Wholesale return gifts, Kanchipuram silk sarees", price: 40000, tag: "[⭐ DB Saved Partner]", isPartner: true, rateType: "fixed" },
+              { id: "log_2", name: "Creative Gift Kraft", desc: "Customized wooden return gift boxes, chocolate hampers", price: 25000, tag: "Standard Rate", isPartner: false, rateType: "fixed" },
+              { id: "log_3", name: "Trendz Silk & Textiles", desc: "Designer clothing pack for bride, groom & close family", price: 80000, tag: "Standard Rate", isPartner: false, rateType: "fixed" }
+            ];
+          };
+
+          const intakeTask = allTasks.find(t => t.id.endsWith("_t1"));
+          const intakeVals = intakeTask ? (taskValues[intakeTask.id] || {}) : {};
+          const loc = intakeVals.location || "Ramamurthy Nagar";
+          const etype = intakeVals.eventType || "Marriage";
+          const guestsCount = parseInt(intakeVals.guests || "100");
+
+          const currentCat = vals.currentCategory || "cat1";
+          const options = getCategoryOptions(currentCat, loc, etype);
+
+          const handleSelectVendor = (vendor: any) => {
+            const vname = vendor.name;
+            let price = vendor.price;
+            if (vendor.rateType === "per plate") {
+              price = vendor.price * guestsCount;
+            }
+            
+            setFieldVal(task.id, `selectedVendor_${currentCat}`, vendor.id);
+            setFieldVal(task.id, `vendorName_${currentCat}`, vname);
+            setFieldVal(task.id, `vendorPrice_${currentCat}`, price.toString());
+            setFieldVal(task.id, `status_${currentCat}`, "Request Raised");
+
+            const liveState = {
+              eventType: etype,
+              location: loc,
+              targetDate: intakeVals.targetDate,
+              categories: {} as Record<string, any>
+            };
+            VENDOR_CATEGORIES.forEach(c => {
+              const selId = c.id === currentCat ? vendor.id : (vals[`selectedVendor_${c.id}`] || null);
+              const selName = c.id === currentCat ? vname : (vals[`vendorName_${c.id}`] || null);
+              const selPrice = c.id === currentCat ? price.toString() : (vals[`vendorPrice_${c.id}`] || null);
+              const selStatus = c.id === currentCat ? "Request Raised" : (vals[`status_${c.id}`] || "Not Selected");
+              if (selId) {
+                liveState.categories[c.id] = { vendorId: selId, name: selName, price: parseFloat(selPrice), status: selStatus };
+              }
+            });
+
+            localStorage.setItem(`event_state_${task.id}`, JSON.stringify(liveState));
+
+            setTimeout(() => {
+              let newStatus = "Two-Way Confirmed";
+              if (vendor.id.endsWith("_3") && Math.random() < 0.5) {
+                newStatus = "Rejected/Unavailable";
+              }
+              setFieldVal(task.id, `status_${currentCat}`, newStatus);
+              
+              const updatedState = { ...liveState };
+              if (updatedState.categories[currentCat]) {
+                updatedState.categories[currentCat].status = newStatus;
+              }
+              localStorage.setItem(`event_state_${task.id}`, JSON.stringify(updatedState));
+            }, 1500);
+          };
+
+          return (
+            <div className="space-y-4 mb-3 bg-white p-3 rounded-xl border border-gray-150 text-xs shadow-sm">
+              <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg">
+                {VENDOR_CATEGORIES.map(c => {
+                  const selStatus = vals[`status_${c.id}`] || "Not Selected";
+                  const statusDot = selStatus === "Two-Way Confirmed" ? "🟢" : selStatus === "Request Raised" ? "⏳" : selStatus === "Rejected/Unavailable" ? "❌" : "⚪";
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setFieldVal(task.id, "currentCategory", c.id)}
+                      className={`px-2 py-1.5 rounded-md text-[9px] font-bold transition-all whitespace-nowrap ${
+                        currentCat === c.id ? "bg-orange-500 text-white" : "bg-white text-gray-600 hover:bg-gray-155 border border-gray-155"
+                      }`}
+                    >
+                      {statusDot} {c.label.split("/")[0].split(" ")[0]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide">Category: {VENDOR_CATEGORIES.find(c=>c.id===currentCat)?.label}</span>
+                <div className="space-y-1.5">
+                  {options.map(opt => {
+                    const isSelected = vals[`selectedVendor_${currentCat}`] === opt.id;
+                    const cStatus = vals[`status_${currentCat}`] || "Not Selected";
+                    const isPerPlate = opt.rateType === "per plate";
+                    const displayPrice = isPerPlate ? `₹${opt.price}/plate (Total: ₹${(opt.price * guestsCount).toLocaleString()})` : `₹${opt.price.toLocaleString()}`;
+
+                    return (
+                      <div key={opt.id} className={`p-3 rounded-xl border transition-all ${
+                        isSelected ? "border-orange-400 bg-orange-50/40" : "border-gray-150 hover:border-orange-200 bg-white"
+                      }`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-extrabold text-gray-900 text-xs">{opt.name}</span>
+                              {opt.isPartner && <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded-full">{opt.tag}</span>}
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-1 leading-normal">{opt.desc}</p>
+                            <p className="text-xs text-orange-600 font-bold mt-1.5">{displayPrice}</p>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleSelectVendor(opt)}
+                            disabled={cStatus === "Request Raised"}
+                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-bold shadow-sm transition-all shrink-0 ${
+                              isSelected
+                                ? "bg-orange-500 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                            }`}
+                          >
+                            {isSelected ? "Selected" : "Select Vendor"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+                  <h4 className="text-[10px] font-black text-gray-700 uppercase tracking-wider">📊 Event Tracker Dashboard</h4>
+                  <span className="text-[9px] text-gray-400 font-semibold bg-white px-2 py-0.5 rounded border border-gray-100">Live JSON Saved</span>
+                </div>
+                <div className="space-y-1.5">
+                  {VENDOR_CATEGORIES.map(c => {
+                    const selName = vals[`vendorName_${c.id}`] || "Not Selected";
+                    const selPrice = vals[`vendorPrice_${c.id}`];
+                    const selStatus = vals[`status_${c.id}`] || "Not Selected";
+                    
+                    let statusLabel = "Awaiting selection";
+                    let statusColor = "text-gray-400";
+                    let statusBg = "bg-gray-100/50";
+                    
+                    if (selStatus === "Request Raised") {
+                      statusLabel = "⏳ Request Raised (Awaiting response | Saved to DB)";
+                      statusColor = "text-amber-700";
+                      statusBg = "bg-amber-50 border border-amber-100";
+                    } else if (selStatus === "Two-Way Confirmed") {
+                      statusLabel = `🟢 Two-Way Confirmed (Rate: ₹${parseInt(selPrice).toLocaleString()} | Saved to DB)`;
+                      statusColor = "text-emerald-800 font-bold";
+                      statusBg = "bg-emerald-50 border border-emerald-100";
+                    } else if (selStatus === "Rejected/Unavailable") {
+                      statusLabel = "❌ Rejected/Unavailable (Needs re-selection)";
+                      statusColor = "text-red-700 font-bold";
+                      statusBg = "bg-red-50 border border-red-100";
+                    }
+
+                    return (
+                      <div key={c.id} className={`p-2.5 rounded-lg text-[10px] flex flex-col gap-1 ${statusBg}`}>
+                        <div className="flex justify-between items-center font-bold text-gray-800">
+                          <span>{c.label}</span>
+                          <span className="font-extrabold text-gray-900">{selName}</span>
+                        </div>
+                        <div className={`text-[9px] ${statusColor}`}>{statusLabel}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Custom event_summary block */}
+        {active && task.type === "event_summary" && (() => {
+          const VENDOR_CATEGORIES = [
+            { id: "cat1", label: "Marriage/Party Halls" },
+            { id: "cat2", label: "Catering Providers" },
+            { id: "cat3", label: "Decoration & Flowers" },
+            { id: "cat4", label: "Entertainment & Crew" },
+            { id: "cat5", label: "Logistics & Shopping" }
+          ];
+
+          const intakeTask = allTasks.find(t => t.id.endsWith("_t1"));
+          const intakeVals = intakeTask ? (taskValues[intakeTask.id] || {}) : {};
+          const exploreTask = allTasks.find(t => t.id.endsWith("_t2"));
+          const exploreVals = exploreTask ? (taskValues[exploreTask.id] || {}) : {};
+          const targetBudget = parseFloat(intakeVals.budget || "500000");
+
+          let totalCost = 0;
+          const rows: any[] = [];
+          VENDOR_CATEGORIES.forEach(c => {
+            const vname = exploreVals[`vendorName_${c.id}`] || "Unknown Partner";
+            const price = parseFloat(exploreVals[`vendorPrice_${c.id}`] || "0");
+            totalCost += price;
+            rows.push({ category: c.label, vendor: vname, cost: price });
+          });
+
+          const budgetDiff = targetBudget - totalCost;
+          const withinBudget = budgetDiff >= 0;
+
+          const finalJsonLog = {
+            status: "Closed & Locked",
+            eventType: intakeVals.eventType || "Marriage",
+            targetDate: intakeVals.targetDate || "",
+            location: intakeVals.location || "",
+            guests: parseInt(intakeVals.guests || "100"),
+            totalBudget: targetBudget,
+            totalAggregatedExpenses: totalCost,
+            variance: budgetDiff,
+            timestamp: new Date().toISOString(),
+            vendors: rows
+          };
+
+          return (
+            <div className="space-y-4 mb-3 bg-white p-3.5 rounded-xl border border-gray-150 text-xs shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="text-xs font-black text-gray-900 flex items-center gap-1">🔒 Final Master Event Sheet</span>
+                <span className="bg-red-50 text-red-700 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full border border-red-100">Closed & Locked</span>
+              </div>
+
+              <table className="w-full text-left border-collapse text-[10px]">
+                <thead>
+                  <tr className="border-b border-gray-250 text-gray-400 font-bold uppercase">
+                    <th className="pb-1.5">Category</th>
+                    <th className="pb-1.5">Selected Vendor</th>
+                    <th className="pb-1.5 text-right">Expense</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700 font-medium">
+                  {rows.map((row, idx) => (
+                    <tr key={idx} className="border-b border-gray-50">
+                      <td className="py-2 text-gray-500">{row.category}</td>
+                      <td className="py-2 text-gray-900 font-bold">{row.vendor}</td>
+                      <td className="py-2 text-right text-gray-900">₹{row.cost.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-gray-200 font-bold text-gray-900">
+                    <td className="pt-2.5 text-xs">Total Expenses</td>
+                    <td className="pt-2.5"></td>
+                    <td className="pt-2.5 text-right text-xs text-orange-600">₹{totalCost.toLocaleString()}</td>
+                  </tr>
+                  <tr className="text-[10px] text-gray-500">
+                    <td className="py-1">Target Budget</td>
+                    <td></td>
+                    <td className="py-1 text-right">₹{targetBudget.toLocaleString()}</td>
+                  </tr>
+                  <tr className="text-[10px] font-bold">
+                    <td className="py-1 text-gray-500">Budget Variance</td>
+                    <td></td>
+                    <td className={`py-1 text-right ${withinBudget ? "text-green-600" : "text-red-600"}`}>
+                      {withinBudget ? `Under Budget by ₹${budgetDiff.toLocaleString()}` : `Exceeded by ₹${Math.abs(budgetDiff).toLocaleString()}`}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Live Database JSON Log</label>
+                <pre className="bg-gray-950 text-emerald-400 p-2.5 rounded-lg overflow-x-auto text-[9px] font-mono leading-relaxed max-h-36">
+                  {JSON.stringify(finalJsonLog, null, 2)}
+                </pre>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Custom browse_logs block */}
         {active && task.type === "browse_logs" && (
           <div className="mb-3 bg-gray-900 rounded-lg p-3 font-mono text-[10px] text-green-400 space-y-1 max-h-48 overflow-y-auto">
@@ -5063,7 +5433,7 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
         )}
 
         {/* Input fields */}
-        {active && (task.type==="input"||task.type==="payment") && task.fields && (
+        {active && (task.type==="input"||task.type==="payment"||task.type==="event_intake") && task.fields && (
           <div className="space-y-2 mb-3">
             {task.fields.map(f => {
               const v = vals[f.key]||"";
@@ -5152,6 +5522,7 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
     const wfId = paUid();
     const wfTasks = buildPAWorkflow(intent, params, wfId);
     const REPLIES: Record<string,string> = {
+      event_organizer: "On it! I will act as your dedicated Event Organizer Agent. Let's start with Stage 1 event details below.",
       product_search: "Searching local and online stores for matches. Check results below.",
       food_order:   "Great! Let help you place a food order. Fill in the details below.",
       book_ride:    "On it! Enter your trip details and I will find you a ride.",
