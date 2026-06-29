@@ -30,6 +30,8 @@ interface StoreItem {
   selling_price: string | null; primary_unit_id: string | null;
   unit_symbol: string | null; current_stock: string; gst_rate: string;
   expiry_date: string | null;
+  discount_type?: string | null;
+  discount_value?: string | null;
 }
 interface LineItem {
   itemId: string; name: string; unitPrice: number; qty: number;
@@ -235,6 +237,11 @@ export default function SaleDynamicPage() {
   const [todaySales, setTodaySales] = useState<Sale[]>([]);
   const [loadingSales, setLoadingSales] = useState(false);
 
+  // ── Coupon state ──
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponMsg, setCouponMsg] = useState("");
+
   // ── Report state ──
   const [reportRange, setReportRange] = useState<"today" | "week" | "month" | "custom">("today");
   const [customFrom, setCustomFrom] = useState(daysAgo(7));
@@ -245,7 +252,11 @@ export default function SaleDynamicPage() {
 
   useEffect(() => {
     if (!storeId) return;
-    fetch(`/v1/stores/${storeId}/items`, { headers: authHeaders() })
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") || "" : "";
+    const url = tenantId 
+      ? `/v1/tenants/${tenantId}/stores/${storeId}/items` 
+      : `/v1/stores/${storeId}/items`;
+    fetch(url, { headers: authHeaders() })
       .then(r => r.json()).then(d => { if (d.success || Array.isArray(d.data)) setItems(d.data || []); }).catch(() => {});
     loadTodaySales();
   }, [storeId]);
@@ -263,13 +274,24 @@ export default function SaleDynamicPage() {
 
   const addLine = (item: StoreItem) => {
     const existing = lines.findIndex(l => l.itemId === item.id);
+    const discountVal = parseFloat(item.discount_value || "0");
+    let discountPct = 0;
+    if (item.discount_type === "percentage" && discountVal > 0) {
+      discountPct = discountVal;
+    } else if (item.discount_type === "fixed" && discountVal > 0) {
+      const price = parseFloat(item.selling_price || "0");
+      if (price > 0) {
+        discountPct = Math.round((discountVal / price) * 100 * 100) / 100;
+      }
+    }
+
     if (existing >= 0) {
       setLines(prev => prev.map((l, i) => i === existing ? { ...l, qty: l.qty + 1 } : l));
     } else {
       setLines(prev => [...prev, {
         itemId: item.id, name: item.name,
         unitPrice: parseFloat(item.selling_price || "0"),
-        qty: 1, discountPct: 0,
+        qty: 1, discountPct,
         unitId: item.primary_unit_id || "",
         unitSymbol: item.unit_symbol || "pcs",
         stock: parseFloat(item.current_stock),
@@ -281,8 +303,36 @@ export default function SaleDynamicPage() {
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
   const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
 
+  // ── Coupon Apply Effect ──
+  useEffect(() => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code || lines.length === 0) {
+      setCouponDiscount(0);
+      setCouponMsg("");
+      return;
+    }
+    const sub = lines.reduce((s, l) => s + l.unitPrice * l.qty * (1 - l.discountPct / 100), 0);
+    if (code === "SAVE10") {
+      setCouponDiscount(Math.round(sub * 0.1 * 100) / 100);
+      setCouponMsg("Coupon 'SAVE10' applied (10% off)");
+    } else if (code === "WELCOME50") {
+      setCouponDiscount(Math.min(50, sub));
+      setCouponMsg("Coupon 'WELCOME50' applied (Flat ₹50 off)");
+    } else if (code === "FRESH20") {
+      setCouponDiscount(Math.round(sub * 0.2 * 100) / 100);
+      setCouponMsg("Coupon 'FRESH20' applied (20% off)");
+    } else if (code === "MED50") {
+      setCouponDiscount(Math.min(50, sub));
+      setCouponMsg("Coupon 'MED50' applied (Flat ₹50 off)");
+    } else {
+      setCouponDiscount(0);
+      setCouponMsg("Invalid coupon code");
+    }
+  }, [lines, couponCode]);
+
   const lineTotal = (l: LineItem) => l.unitPrice * l.qty * (1 - l.discountPct / 100);
-  const grandTotal = lines.reduce((s, l) => s + lineTotal(l), 0);
+  const subtotal = lines.reduce((s, l) => s + lineTotal(l), 0);
+  const grandTotal = Math.max(0, subtotal - couponDiscount);
 
   const saveSale = async () => {
     if (!lines.length) { setSaveMsg({ ok: false, text: "Add at least one item" }); return; }
@@ -296,6 +346,7 @@ export default function SaleDynamicPage() {
           customerName: customerName || undefined,
           customerPhone: customerPhone || undefined,
           notes: notes || undefined,
+          discountAmount: couponDiscount || undefined,
           items: lines.map(l => ({
             itemId: l.itemId, qtySold: l.qty,
             unitId: l.unitId || undefined,
@@ -316,6 +367,7 @@ export default function SaleDynamicPage() {
       });
 
       setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
+      setCouponCode(""); setCouponDiscount(0); setCouponMsg("");
       setSaveMsg({ ok: true, text: `Sale ${d.data?.saleNumber || ""} saved!` });
       loadTodaySales();
     } catch (e: any) {
@@ -476,12 +528,38 @@ export default function SaleDynamicPage() {
                       <span className="font-semibold text-gray-900 shrink-0">{fmtINR(lineTotal(l))}</span>
                     </div>
                   ))}
-                  <div className="border-t border-gray-100 pt-2 flex justify-between font-black text-base">
-                    <span>Total</span>
-                    <span className="text-orange-500">{fmtINR(grandTotal)}</span>
-                  </div>
-                </div>
-              )}
+                   {/* Coupon code input */}
+                   <div className="border-t border-gray-100 pt-3 mt-3">
+                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Coupon Code</label>
+                     <div className="flex gap-2">
+                       <input
+                         type="text"
+                         value={couponCode}
+                         onChange={e => setCouponCode(e.target.value)}
+                         placeholder="e.g. SAVE10, WELCOME50"
+                         className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs uppercase focus:outline-none focus:ring-1 focus:ring-orange-400"
+                       />
+                     </div>
+                     {couponMsg && (
+                       <p className={`text-[10px] mt-1 font-semibold ${couponDiscount > 0 ? "text-green-600" : "text-red-500"}`}>
+                         {couponMsg}
+                       </p>
+                     )}
+                   </div>
+
+                   {couponDiscount > 0 && (
+                     <div className="flex justify-between text-xs text-green-600 font-semibold mt-2">
+                       <span>Coupon Deduction</span>
+                       <span>-{fmtINR(couponDiscount)}</span>
+                     </div>
+                   )}
+
+                   <div className="border-t border-gray-100 pt-2 mt-2 flex justify-between font-black text-base">
+                     <span>Total</span>
+                     <span className="text-orange-500">{fmtINR(grandTotal)}</span>
+                   </div>
+                 </div>
+               )}
 
               {saveMsg && (
                 <div className={`rounded-xl px-3 py-2 text-xs font-semibold mb-3 flex items-center gap-1.5 ${saveMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
