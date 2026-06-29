@@ -3467,7 +3467,7 @@ function InstallPanel() {
 // ── Personal Assistant ─────────────────────────────────────────
 type PAStatus = "pending"|"approved"|"rejected"|"held"|"executing"|"done";
 interface PAField  { key:string; label:string; type:"text"|"number"|"select"|"textarea"|"date"; required?:boolean; options?:string[]; placeholder?:string; prefix?:string; }
-interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"; status:PAStatus; icon:string; fields?:PAField[]; }
+interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"|"select_provider"|"select_dishes"|"review_cart"|"track_delivery"; status:PAStatus; icon:string; fields?:PAField[]; }
 interface PAMsg    { id:string; role:"user"|"assistant"; text:string; ts:number; wfTasks?:PATask[]; }
 
 function paUid(): string { return Math.random().toString(36).slice(2,9); }
@@ -3505,10 +3505,17 @@ function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:strin
       { id:mk("t5"), label:"Order Complete", desc:"Your order has been placed successfully!", type:"info", status:"pending", icon:"🎉" }
     ],
     food_order: [
-      { id:mk("t1"), label:"Restaurant Selection", desc:"I found 3 popular places nearby serving Masala Dosa. Please select the option you want:", type:"select_restaurant", status:"pending", icon:"🍕" },
-      { id:mk("t2"), label:"Cart Review", desc:"Review your order breakdown. Type Approve to pay, or Reject to cancel.", type:"confirm_cart", status:"pending", icon:"🧾" },
-      { id:mk("t3"), label:"Payment", desc:"Enter your UPI ID to authorize GPay/PhonePe payment:", type:"upi_payment", status:"pending", icon:"💳" },
-      { id:mk("t4"), label:"Order Confirmed", desc:"Payment Successful! 🎉 Your food will arrive in approximately 25 minutes.", type:"info", status:"pending", icon:"🎉" },
+      { id:mk("t1"), label:"Stage 1: Personalization", desc:"Tell me about your situation (Flavor preference, Occasion, Mood) so I can curate options:", type:"input", status:"pending", icon:"🧠",
+        fields:[
+          { key:"flavor", label:"Taste Preference (e.g. Spicy, Sweet)", type:"text", placeholder:"e.g., Spicy, Comfort food", required:true },
+          { key:"occasion", label:"Occasion/Situation (e.g. Solo dinner)", type:"text", placeholder:"e.g., Solo dinner, Late-night work", required:true },
+          { key:"mood", label:"Current Mood (e.g. Tired, Celebrating)", type:"text", placeholder:"e.g., Tired, Healthy, Celebrating", required:true }
+        ]},
+      { id:mk("t2"), label:"Stage 2: Provider Selection", desc:"Select the best delivery app matching your vibe:", type:"select_provider", status:"pending", icon:"🍔" },
+      { id:mk("t3"), label:"Stage 3: Curated Dishes", desc:"Select matching dishes found by SearchAgent to add to your virtual cart:", type:"select_dishes", status:"pending", icon:"🔍" },
+      { id:mk("t4"), label:"Stage 3: Cart Review", desc:"Verify items and total cost. Type Approve to pay, or Reject to cancel:", type:"review_cart", status:"pending", icon:"🧾" },
+      { id:mk("t5"), label:"Stage 4: UPI Transaction", desc:"Authenticate the transaction via your phone's UPI app (GPay/PhonePe):", type:"upi_payment", status:"pending", icon:"💳" },
+      { id:mk("t6"), label:"Stage 4: Track Delivery", desc:"Courier updates and live delivery ETA:", type:"track_delivery", status:"pending", icon:"🛵" }
     ],
     book_ride: [
       { id:mk("t1"), label:"Trip Details", desc:"Where are you going?", type:"input", status:"pending", icon:"🚗",
@@ -3661,7 +3668,17 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
       setTaskState(prev => ({ ...prev, [task.id]: "done" }));
       setMsgs(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
-        text: "Payment Successful! 🎉 Your order has been placed with Rameshwaram Cafe. Your food will arrive at 123, Rose Garden Lane in approximately 25 minutes. I will alert you when the driver is nearby!"
+        text: "Payment Successful! 🎉 Your order has been placed. I will now switch to tracking mode to give you live updates."
+      }]);
+      return;
+    }
+
+    if (task.type === "track_delivery") {
+      await new Promise(r => setTimeout(r, 1000));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Order delivered! 🥞 Enjoy your hot meal! Let me know if you need anything else."
       }]);
       return;
     }
@@ -3958,6 +3975,151 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
               ))}
             </div>
             <div className="text-[9px] text-gray-400 text-center">🔐 Secure checkout powered by Rameshwaram Cafe UPI network</div>
+          </div>
+        )}
+
+        {/* Custom select_provider block */}
+        {active && task.type === "select_provider" && (
+          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Provider Checklist</span>
+            <div className="space-y-1.5">
+              {[
+                { id: "1", name: "Swiggy", tag: "Best for variety" },
+                { id: "2", name: "EatClub", tag: "Best for bulk party orders" },
+                { id: "3", name: "Zomato Legends", tag: "Best for regional cravings" }
+              ].map(opt => (
+                <label key={opt.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                  <input
+                    type="radio"
+                    name={`prov_${task.id}`}
+                    checked={vals.selectedProvider === opt.id}
+                    onChange={() => {
+                      setFieldVal(task.id, "selectedProvider", opt.id);
+                      setFieldVal(task.id, "providerName", opt.name);
+                    }}
+                    className="mt-0.5 text-orange-500 focus:ring-orange-500"
+                  />
+                  <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                    <span className="font-bold text-gray-800">{opt.name}</span>
+                    <span className="text-gray-400 font-semibold italic text-[10px]">{opt.tag}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom select_dishes block */}
+        {active && task.type === "select_dishes" && (
+          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Select Curated Dishes</span>
+            <div className="space-y-1.5">
+              {[
+                { id: "d1", name: "Spicy Masala Dosa", price: 140, type: "South Indian" },
+                { id: "d2", name: "Comfort Paneer Roll", price: 160, type: "Rolls" },
+                { id: "d3", name: "Rebel Butter Chicken", price: 280, type: "Curry" },
+                { id: "d4", name: "Sweet Gulab Jamun (2 pcs)", price: 80, type: "Dessert" }
+              ].map(dish => {
+                const selected = (vals.selectedDishes || "").split(",").includes(dish.id);
+                return (
+                  <label key={dish.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => {
+                        let list = (vals.selectedDishes || "").split(",").filter(Boolean);
+                        if (selected) {
+                          list = list.filter(x => x !== dish.id);
+                        } else {
+                          list.push(dish.id);
+                        }
+                        setFieldVal(task.id, "selectedDishes", list.join(","));
+                      }}
+                      className="rounded text-orange-500 focus:ring-orange-500"
+                    />
+                    <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                      <span className="font-bold text-gray-800">{dish.name} <span className="text-[9px] text-gray-400 font-normal capitalize">({dish.type})</span></span>
+                      <span className="text-green-600 font-bold">₹{dish.price}</span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Custom review_cart block */}
+        {active && task.type === "review_cart" && (() => {
+          const selectDishesTask = allTasks.find(t => t.type === "select_dishes");
+          const selectedList = selectDishesTask ? (taskValues[selectDishesTask.id]?.selectedDishes || "").split(",").filter(Boolean) : [];
+          
+          const dishMap: Record<string, { name: string; price: number }> = {
+            d1: { name: "Spicy Masala Dosa", price: 140 },
+            d2: { name: "Comfort Paneer Roll", price: 160 },
+            d3: { name: "Rebel Butter Chicken", price: 280 },
+            d4: { name: "Sweet Gulab Jamun (2 pcs)", price: 80 }
+          };
+          
+          let items = selectedList.map(id => dishMap[id]).filter(Boolean);
+          if (items.length === 0) {
+            items = [{ name: "Masala Dosa (Default)", price: 280 }];
+          }
+          
+          const foodCost = items.reduce((s, x) => s + x.price, 0);
+          const deliveryFee = 40;
+          const taxes = Math.round(foodCost * 0.09);
+          const totalBill = foodCost + deliveryFee + taxes;
+          
+          return (
+            <div className="space-y-2 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Order Breakdown</span>
+              <table className="w-full text-left border-collapse mt-1">
+                <thead>
+                  <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-bold uppercase">
+                    <th className="pb-1">Item</th>
+                    <th className="pb-1 text-right">Price</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700">
+                  {items.map((it, idx) => (
+                    <tr key={idx} className="border-b border-gray-50">
+                      <td className="py-1.5 font-medium">{it.name}</td>
+                      <td className="py-1.5 text-right font-semibold">₹{it.price}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-400">Delivery Fee</td>
+                    <td className="py-1.5 text-right text-gray-500">₹{deliveryFee}</td>
+                  </tr>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-400">Taxes & Charges (GST)</td>
+                    <td className="py-1.5 text-right text-gray-500">₹{taxes}</td>
+                  </tr>
+                  <tr className="font-bold text-gray-900">
+                    <td className="pt-2">Total Bill</td>
+                    <td className="pt-2 text-right text-green-600">₹{totalBill}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="text-[10px] text-gray-400 mt-2 italic">Est. Delivery Time: 25 Mins</div>
+            </div>
+          );
+        })()}
+
+        {/* Custom track_delivery block */}
+        {active && task.type === "track_delivery" && (
+          <div className="space-y-3 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Live Delivery Tracker</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"/>
+                <span className="font-bold text-gray-800">Status: Food is being prepared</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                <div className="bg-orange-500 h-1.5 rounded-full animate-pulse" style={{width: "45%"}}/>
+              </div>
+              <p className="text-[10px] text-gray-400">Rider (Ramesh) is assigned. Estimated arrival in 22 minutes.</p>
+            </div>
           </div>
         )}
 
