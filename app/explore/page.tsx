@@ -3465,14 +3465,14 @@ function InstallPanel() {
 // ── Personal Assistant ─────────────────────────────────────────
 type PAStatus = "pending"|"approved"|"rejected"|"held"|"executing"|"done";
 interface PAField  { key:string; label:string; type:"text"|"number"|"select"|"textarea"|"date"; required?:boolean; options?:string[]; placeholder?:string; prefix?:string; }
-interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"; status:PAStatus; icon:string; fields?:PAField[]; }
+interface PATask   { id:string; label:string; desc:string; type:"input"|"confirm"|"payment"|"info"|"select_product"|"browse_logs"|"select_restaurant"|"confirm_cart"|"upi_payment"; status:PAStatus; icon:string; fields?:PAField[]; }
 interface PAMsg    { id:string; role:"user"|"assistant"; text:string; ts:number; wfTasks?:PATask[]; }
 
 function paUid(): string { return Math.random().toString(36).slice(2,9); }
 
 function detectPAIntent(text:string): { intent:string; params:Record<string,string> } {
   const t = text.toLowerCase();
-  if (/food|order|eat|dinner|lunch|breakfast|pizza|biryani|burger|swiggy|zomato/.test(t)) return { intent:"food_order", params:{} };
+  if (/food|order|eat|dinner|lunch|breakfast|pizza|biryani|burger|swiggy|zomato|dosa/.test(t)) return { intent:"food_order", params:{} };
   if (/ride|cab|taxi|auto|uber|ola|driver|drop|pickup/.test(t)) return { intent:"book_ride", params:{} };
   if (/expense|spent|paid|bought|spend|cost/.test(t)) return { intent:"add_expense", params:{} };
   if (/remind|reminder|alarm|alert/.test(t)) return { intent:"set_reminder", params:{} };
@@ -3503,21 +3503,10 @@ function buildPAWorkflow(intent:string, params:Record<string,string>, wfId:strin
       { id:mk("t5"), label:"Order Complete", desc:"Your order has been placed successfully!", type:"info", status:"pending", icon:"🎉" }
     ],
     food_order: [
-      { id:mk("t1"), label:"Enter Food Details", desc:"What would you like to order?", type:"input", status:"pending", icon:"🍕",
-        fields:[
-          { key:"items", label:"Items to order", type:"textarea", placeholder:"e.g. 2x Margherita Pizza, 1x Coke", required:true },
-          { key:"restaurant", label:"From (restaurant)", type:"text", placeholder:"Restaurant name or 'any nearby'", required:true },
-          { key:"address", label:"Delivery address", type:"textarea", placeholder:"Your full delivery address", required:true },
-        ]},
-      { id:mk("t2"), label:"Confirm Order", desc:"Review your order before placing it", type:"confirm", status:"pending", icon:"✅" },
-      { id:mk("t3"), label:"Payment Details", desc:"Enter card details to complete the order", type:"payment", status:"pending", icon:"💳",
-        fields:[
-          { key:"card", label:"Card Number", type:"text", placeholder:"1234 5678 9012 3456", required:true },
-          { key:"expiry", label:"Expiry (MM/YY)", type:"text", placeholder:"MM/YY", required:true },
-          { key:"cvv", label:"CVV", type:"text", placeholder:"123", required:true },
-          { key:"name", label:"Name on Card", type:"text", placeholder:"Your name", required:true },
-        ]},
-      { id:mk("t4"), label:"Order Placed!", desc:"Your food order has been placed. Estimated delivery: 30-45 min", type:"info", status:"pending", icon:"🎉" },
+      { id:mk("t1"), label:"Restaurant Selection", desc:"I found 3 popular places nearby serving Masala Dosa. Please select the option you want:", type:"select_restaurant", status:"pending", icon:"🍕" },
+      { id:mk("t2"), label:"Cart Review", desc:"Review your order breakdown. Type Approve to pay, or Reject to cancel.", type:"confirm_cart", status:"pending", icon:"🧾" },
+      { id:mk("t3"), label:"Payment", desc:"Enter your UPI ID to authorize GPay/PhonePe payment:", type:"upi_payment", status:"pending", icon:"💳" },
+      { id:mk("t4"), label:"Order Confirmed", desc:"Payment Successful! 🎉 Your food will arrive in approximately 25 minutes.", type:"info", status:"pending", icon:"🎉" },
     ],
     book_ride: [
       { id:mk("t1"), label:"Trip Details", desc:"Where are you going?", type:"input", status:"pending", icon:"🚗",
@@ -3664,6 +3653,16 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
     }
     if (task.type==="input"||task.type==="payment") setTaskValues(prev=>({...prev,[task.id]:vals}));
     setTaskState(prev=>({...prev,[task.id]:"executing"}));
+
+    if (task.type === "upi_payment") {
+      await new Promise(r => setTimeout(r, 1200));
+      setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      setMsgs(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: "Payment Successful! 🎉 Your order has been placed with Rameshwaram Cafe. Your food will arrive at 123, Rose Garden Lane in approximately 25 minutes. I will alert you when the driver is nearby!"
+      }]);
+      return;
+    }
 
     if (task.type === "browse_logs") {
       const selectTask = allTasks.find(t => t.type === "select_product");
@@ -3864,6 +3863,102 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
           </div>
         )}
 
+        {/* Custom select_restaurant block */}
+        {active && task.type === "select_restaurant" && (
+          <div className="space-y-2 mb-3 bg-white p-2.5 rounded-lg border border-gray-100">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Choose Restaurant</span>
+            <div className="space-y-1.5">
+              {[
+                { id: "a", name: "MTR (Uptown)", rate: "⭐ 4.6", price: "₹120 / Dosa" },
+                { id: "b", name: "Rameshwaram Cafe", rate: "⭐ 4.7", price: "₹140 / Dosa" },
+                { id: "c", name: "Sangeetha Restaurant", rate: "⭐ 4.2", price: "₹90 / Dosa" }
+              ].map(opt => (
+                <label key={opt.id} className="flex items-center gap-2 p-2.5 rounded-md hover:bg-gray-50 cursor-pointer border border-gray-100 transition-all flex">
+                  <input
+                    type="radio"
+                    name={`rest_${task.id}`}
+                    checked={vals.selectedRestaurant === opt.id}
+                    onChange={() => {
+                      setFieldVal(task.id, "selectedRestaurant", opt.id);
+                      setFieldVal(task.id, "restaurantName", opt.name);
+                    }}
+                    className="mt-0.5 text-orange-500 focus:ring-orange-500"
+                  />
+                  <div className="text-xs flex-1 flex justify-between items-center ml-2">
+                    <span className="font-bold text-gray-800">{opt.name} <span className="text-amber-500 ml-1 text-[10px] font-bold">{opt.rate}</span></span>
+                    <span className="text-green-600 font-bold">{opt.price}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom confirm_cart block */}
+        {active && task.type === "confirm_cart" && (
+          <div className="space-y-2 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Order Breakdown</span>
+            <table className="w-full text-left border-collapse mt-1">
+              <thead>
+                <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-bold uppercase">
+                  <th className="pb-1">Item</th>
+                  <th className="pb-1 text-center">Qty</th>
+                  <th className="pb-1 text-right">Price</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700">
+                <tr className="border-b border-gray-50">
+                  <td className="py-1.5 font-medium">Masala Dosa</td>
+                  <td className="py-1.5 text-center">2</td>
+                  <td className="py-1.5 text-right font-semibold">₹280</td>
+                </tr>
+                <tr className="border-b border-gray-50">
+                  <td className="py-1.5 text-gray-400">Delivery Fee</td>
+                  <td className="py-1.5 text-center">-</td>
+                  <td className="py-1.5 text-right text-gray-500">₹40</td>
+                </tr>
+                <tr className="border-b border-gray-50">
+                  <td className="py-1.5 text-gray-400">Taxes & Charges</td>
+                  <td className="py-1.5 text-center">-</td>
+                  <td className="py-1.5 text-right text-gray-500">₹25</td>
+                </tr>
+                <tr className="font-bold text-gray-900">
+                  <td className="pt-2">Total Bill</td>
+                  <td className="pt-2 text-center">-</td>
+                  <td className="pt-2 text-right text-green-600">₹345</td>
+                </tr>
+              </tbody>
+            </table>
+            <div className="text-[10px] text-gray-400 mt-2 italic">Est. Delivery Time: 25 Mins</div>
+          </div>
+        )}
+
+        {/* Custom upi_payment block */}
+        {active && task.type === "upi_payment" && (
+          <div className="space-y-2.5 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">UPI PIN Entry</span>
+            <p className="text-[11px] text-gray-500 leading-normal">Enter your 4 or 6-digit secure UPI PIN to authorize the payment of ₹345 via GPay/PhonePe:</p>
+            <div className="flex gap-2 justify-center py-2">
+              {[1, 2, 3, 4].map(idx => (
+                <input
+                  key={idx}
+                  type="password"
+                  maxLength={1}
+                  placeholder="•"
+                  value={vals.upiPin?.[idx - 1] || ""}
+                  onChange={e => {
+                    const pin = (vals.upiPin || "").split("");
+                    pin[idx - 1] = e.target.value;
+                    setFieldVal(task.id, "upiPin", pin.join(""));
+                  }}
+                  className="w-10 h-10 border border-gray-200 rounded-lg text-center text-lg font-black bg-gray-50 focus:bg-white focus:outline-none focus:border-orange-400"
+                />
+              ))}
+            </div>
+            <div className="text-[9px] text-gray-400 text-center">🔐 Secure checkout powered by Rameshwaram Cafe UPI network</div>
+          </div>
+        )}
+
         {/* Custom browse_logs block */}
         {active && task.type === "browse_logs" && (
           <div className="mb-3 bg-gray-900 rounded-lg p-3 font-mono text-[10px] text-green-400 space-y-1 max-h-48 overflow-y-auto">
@@ -3920,18 +4015,27 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
 
         {active && st==="pending" && task.type!=="info" && (
           <div className="flex gap-1.5 mt-1">
-            <button onClick={()=>handleApprove(task,allTasks)}
-              className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-lg transition-colors">
-              <CheckCircle2 size={11}/> Approve
-            </button>
-            <button onClick={()=>handleHold(task)}
-              className="flex items-center gap-1 border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 text-xs font-bold py-2 px-3 rounded-lg transition-colors">
-              <Bell size={11}/> Hold
-            </button>
-            <button onClick={()=>handleReject(task)}
-              className="flex items-center gap-1 border border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold py-2 px-3 rounded-lg transition-colors">
-              <X size={11}/> Reject
-            </button>
+            {task.type === "upi_payment" ? (
+              <button onClick={()=>handleApprove(task,allTasks)}
+                className="w-full flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors shadow-sm">
+                💳 Proceed to Secure Payment
+              </button>
+            ) : (
+              <>
+                <button onClick={()=>handleApprove(task,allTasks)}
+                  className="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-lg transition-colors">
+                  <CheckCircle2 size={11}/> Approve
+                </button>
+                <button onClick={()=>handleHold(task)}
+                  className="flex items-center gap-1 border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 text-xs font-bold py-2 px-3 rounded-lg transition-colors">
+                  <Bell size={11}/> Hold
+                </button>
+                <button onClick={()=>handleReject(task)}
+                  className="flex items-center gap-1 border border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold py-2 px-3 rounded-lg transition-colors">
+                  <X size={11}/> Reject
+                </button>
+              </>
+            )}
           </div>
         )}
         {active && st==="pending" && task.type==="info" && (
