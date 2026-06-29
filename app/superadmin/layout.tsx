@@ -13,6 +13,7 @@ const NAV = [
   { href: "/superadmin/tenants",          label: "Tenants",          icon: Building2 },
   { href: "/superadmin/users",            label: "Users",            icon: Users },
   { href: "/superadmin/permissions",      label: "Permissions",      icon: Shield },
+  { href: "/superadmin/coordinator-leads",label: "Coordinator Leads",icon: Shield },
   { href: "/superadmin/notifications",    label: "Notifications",    icon: Bell },
   { href: "/superadmin/messages",         label: "Messages",         icon: MessageSquare },
   { href: "/superadmin/subscriptions",    label: "Subscriptions",    icon: CreditCard },
