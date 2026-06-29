@@ -2823,6 +2823,44 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
           const targetLoc = location || "Ramamurthy Nagar";
           const distNum = parseFloat(distance) || 2;
           
+          if (serviceLower.includes('school') || serviceLower.includes('cbse') || serviceLower.includes('college') || serviceLower.includes('education') || serviceLower.includes('class')) {
+            return [
+              { 
+                name: "New Baldwin International School", 
+                rating: "4.7", 
+                price: "₹65,000 / year", 
+                details: "Modern K-12 CBSE board syllabus with premium campus amenities", 
+                address: `Ramamurthy Nagar Main Road, near TC Palya, ${targetLoc}, Bengaluru`, 
+                dist_km: (distNum * 0.3).toFixed(1), 
+                hours: "8:30 AM - 3:30 PM", 
+                reviews: "Excellent focus on academic performance and overall student personality development.", 
+                features: "Digital Smartboards, Large Playgrounds, School Bus fleet" 
+              },
+              { 
+                name: "Deva Matha Central School", 
+                rating: "4.5", 
+                price: "₹55,000 / year", 
+                details: "Highly rated CBSE curriculum focusing on co-curricular activities", 
+                address: `TC Palya Main Road, ${targetLoc}, Bengaluru`, 
+                dist_km: (distNum * 0.6).toFixed(1), 
+                hours: "8:00 AM - 3:00 PM", 
+                reviews: "Experienced and empathetic teachers, very safe and sanitized environment for kids.", 
+                features: "Advanced Science Labs, Indoor Sports Hall, Art Center" 
+              },
+              { 
+                name: "Ramamurthy Nagar Public School", 
+                rating: "4.3", 
+                price: "₹42,000 / year", 
+                details: "Affordable high-quality primary & secondary CBSE schooling", 
+                address: `Kalkere Main Road, ${targetLoc}, Bengaluru`, 
+                dist_km: (distNum * 0.85).toFixed(1), 
+                hours: "8:30 AM - 3:15 PM", 
+                reviews: "Dedicated staff, strict discipline rules, and very helpful library section.", 
+                features: "Computer Laboratory, Library, Activity Rooms" 
+              }
+            ];
+          }
+
           if (serviceLower.includes('paying guest') || serviceLower.includes('pg') || serviceLower.includes('hostel') || serviceLower.includes('accommodation')) {
             return [
               { 
@@ -2932,7 +2970,39 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
                         features: "Free WiFi, Parking available"
                       });
                     }
-                    setAiPlaces(parsedPlaces);
+
+                    // Strict Keyword Verification to protect against generic/wrong AI outputs
+                    const svcLower = aiService.toLowerCase();
+                    let needsFallback = false;
+                    
+                    if (svcLower.includes("school") || svcLower.includes("cbse") || svcLower.includes("college") || svcLower.includes("education")) {
+                      const matches = parsedPlaces.filter(p => 
+                        /school|cbse|college|academy|vidya|education|public/i.test(p.name + " " + p.details)
+                      );
+                      if (matches.length < 2) needsFallback = true;
+                    } else if (svcLower.includes("paying guest") || svcLower.includes("pg") || svcLower.includes("hostel")) {
+                      const matches = parsedPlaces.filter(p => 
+                        /pg|paying guest|hostel|sharing|accommodation|room/i.test(p.name + " " + p.details)
+                      );
+                      if (matches.length < 2) needsFallback = true;
+                    } else if (svcLower.includes("bar") || svcLower.includes("pub") || svcLower.includes("beer")) {
+                      const matches = parsedPlaces.filter(p => 
+                        /bar|pub|brewery|lounge|beer|drink/i.test(p.name + " " + p.details)
+                      );
+                      if (matches.length < 2) needsFallback = true;
+                    } else if (svcLower.includes("restaurant") || svcLower.includes("food") || svcLower.includes("cafe")) {
+                      const matches = parsedPlaces.filter(p => 
+                        /restaurant|food|cafe|dosa|dining|biryani|kitchen/i.test(p.name + " " + p.details)
+                      );
+                      if (matches.length < 2) needsFallback = true;
+                    }
+
+                    if (needsFallback) {
+                      const list = getFallbackList(aiService, aiLocation, aiDistance);
+                      setAiPlaces(list);
+                    } else {
+                      setAiPlaces(parsedPlaces);
+                    }
                     setAiStage(2);
                   }
                 } catch {
