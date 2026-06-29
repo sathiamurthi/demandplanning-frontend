@@ -5,6 +5,7 @@ const nextConfig = {
   },
   async rewrites() {
     const backendBase = process.env.BACKEND_URL
+      || process.env.NEXT_PUBLIC_API_URL
       || `http://localhost:${process.env.API_PORT || "5000"}`;
     return [
       {

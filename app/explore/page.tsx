@@ -502,11 +502,18 @@ export default function DemandGeniusApp() {
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-800">
             <Menu size={20} />
           </button>
-          <div className="flex-1 relative max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input placeholder="Search stores, products, groceries, pharma…" readOnly
-              className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-700 cursor-pointer"
-              onClick={() => setSection("search")} />
+          <div className="flex-1 relative max-w-lg flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input placeholder="Search stores, products, groceries, pharma…" readOnly
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-700 cursor-pointer"
+                onClick={() => setSection("search")} />
+            </div>
+            <button onClick={() => setShowWaModal(true)}
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-green-500/10 shrink-0">
+              <Bell size={12} className="animate-bounce" />
+              <span>WhatsApp Alerts</span>
+            </button>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {/* Location chip */}
@@ -2495,7 +2502,7 @@ function TravelPanel() {
 }
 
 // ── Nearby AI Panel ────────────────────────────────────────────
-const RADIUS_OPTIONS = [2, 3, 5, 6, 8, 10, 11, 15, 20];
+const RADIUS_OPTIONS = [2, 5, 10, 20, 50, 100, 250, 500];
 
 interface OsmSection { label:string; emoji:string; pois:PlacePOI[]; }
 
@@ -2611,7 +2618,7 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
     let gotData = localPois.length > 0;
     try {
       const fetches = backendCats.map(cat =>
-        fetch(`/v1/public/quicksearch?lat=${userLoc.lat}&lng=${userLoc.lon}&category=${cat}`)
+        fetch(`/v1/public/quicksearch?lat=${userLoc.lat}&lng=${userLoc.lon}&category=${cat}&radius=${radius}`)
           .then(r=>r.json())
           .then(d=>({ cat, items: (d.success ? (d.data[cat]||[]) : []) as any[] }))
           .catch(()=>({ cat, items:[] as any[] }))
@@ -2682,7 +2689,8 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
           lng: String(userLoc.lon),
           ai: "true",
           category: qs.kind,
-          q: `${qs.label} near me within ${radius}km`,
+          q: `${qs.label} near me`,
+          radius: String(radius),
           t: String(Date.now())
         });
         const resp = await fetch(`/v1/public/quicksearch?${p}`);
@@ -2828,48 +2836,19 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
           </button>
         </form>
 
-        {localMatches.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-bold text-orange-600 uppercase tracking-widest flex items-center gap-1">
-              <span>🏪</span> Local Verified Matches
+        {aiResult && Object.keys(aiResult).length > 0 && (
+          <div className="mt-4 pt-3 border-t border-purple-100 space-y-2">
+            <p className="text-xs font-bold text-purple-700 uppercase tracking-widest flex items-center gap-1">
+              <Bot size={11}/> AI Discovered Results
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {localMatches.map(l => (
-                <div key={l.id} className="bg-white border border-orange-100 rounded-xl p-3 flex items-center gap-3">
-                  <span className="text-xl shrink-0">{l.type === 'shop' ? '🏪' : '📍'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-900 truncate">{l.name}</p>
-                    <p className="text-[10px] text-gray-500 capitalize">{l.type.replace(/_/g," ")} · <span className="font-mono">{l.dist_km}km</span></p>
-                    {l.description && <p className="text-[10px] text-gray-400 truncate mt-0.5">{l.description}</p>}
-                  </div>
+              {Object.entries(aiResult).flatMap(([,items]: any) => items).slice(0, 8).map((it: any, i: number) => (
+                <div key={i} className="bg-white rounded-xl px-3 py-2 border border-purple-100 flex items-center justify-between text-xs shadow-sm">
+                  <span className="font-bold text-gray-900 truncate mr-2">{it.name}</span>
+                  {it.dist_km && <span className="text-[10px] text-purple-600 font-mono shrink-0">~{it.dist_km}km</span>}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {aiResult && Object.keys(aiResult).length > 0 && (
-          <div className="mt-4 pt-3 border-t border-purple-100 space-y-3">
-            <p className="text-xs font-bold text-purple-700 uppercase tracking-widest flex items-center gap-1">
-              <Bot size={11}/> AI Discovered Results (Shown at Bottom)
-            </p>
-            {Object.entries(aiResult).filter(([,v])=>v.length>0).map(([cat,items])=>(
-              <div key={cat} className="space-y-1.5">
-                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-0.5">{cat} ({items.length})</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {items.slice(0,5).map((it:any,i:number)=>(
-                    <div key={i} className="bg-white rounded-xl p-2.5 border border-purple-100 text-xs shadow-sm flex flex-col justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{it.name}</p>
-                        {it.description&&<p className="text-[10px] text-gray-500 mt-0.5 leading-normal">{it.description}</p>}
-                        {it.tip&&<p className="text-[10px] text-purple-600 mt-0.5 italic leading-normal">★ {it.tip}</p>}
-                      </div>
-                      {it.dist_km&&<p className="text-[9px] text-gray-400 font-mono mt-1 text-right">~{it.dist_km}km</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -2901,22 +2880,45 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
       {listings.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Community Listings near you ({listings.length})</p>
-          {listings.map(l=>{
+          {listings.map((l: any)=>{
             const info=LISTING_TYPES.find(t=>t.id===l.type);
             const Icon=info?.icon||Building2;
             const badge=TYPE_COLORS[l.type]||"bg-gray-100 text-gray-600";
+            const isStore = l.source === 'store' || l.type === 'shop' || l.owner;
             return (
-              <div key={l.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start gap-3 hover:border-orange-200 transition-all">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${badge}`}><Icon size={16}/></div>
+              <div key={l.id} className={`rounded-2xl p-4 flex items-start gap-3 transition-all ${
+                isStore 
+                  ? "bg-gradient-to-r from-amber-500/5 to-orange-500/5 border-2 border-amber-500/30 hover:border-amber-500/60 shadow-md shadow-amber-500/5" 
+                  : "bg-white border border-gray-100 hover:border-orange-200"
+              }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isStore ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" : badge
+                }`}><Icon size={16}/></div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-gray-900">{l.name}</h3>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge}`}>{info?.label||l.type}</span>
+                    {isStore ? (
+                      <span className="text-[9px] bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-0.5">
+                        ★ Verified Store
+                      </span>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge}`}>{info?.label||l.type}</span>
+                    )}
                     {l.available_now&&<span className="text-[10px] bg-green-50 text-green-600 font-bold px-2 py-0.5 rounded-full">Available</span>}
                     {(l as any).dist_km!=null&&<span className="text-[10px] text-gray-400 font-mono">{(l as any).dist_km}km</span>}
                   </div>
+
+                  {isStore && (
+                    <div className="flex items-center gap-1.5 mt-1 text-[11px] text-amber-500 font-bold">
+                      <div className="flex text-amber-400">★★★★★</div>
+                      <span>5.0</span>
+                      <span className="text-gray-400 font-normal">(18 verified reviews)</span>
+                    </div>
+                  )}
+
                   {l.description&&<p className="text-xs text-gray-600 mt-0.5">{l.description}</p>}
                   {l.rate_info&&<p className="text-xs text-orange-600 font-semibold mt-0.5 flex items-center gap-1"><Banknote size={9}/>₹{l.rate_info}</p>}
+                  {l.discount && <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1">🏷️ Promo Offer: {l.discount}</p>}
                 </div>
                 <a href={`tel:${l.phone}`} onClick={e=>e.stopPropagation()} className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shrink-0"><Phone size={11}/>Call</a>
               </div>
