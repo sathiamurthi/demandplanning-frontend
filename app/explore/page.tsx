@@ -10,7 +10,7 @@ import {
   Store, Package, MapPin, Eye, Grid3X3, List as ListIcon,
   ShoppingCart, Pill, Utensils, Car, Leaf, Building2, Navigation,
   Plane, Compass, BarChart2, Calendar, Users, Hotel, Banknote,
-  ChevronRight, ChevronDown, Bike, Truck, Star,
+  ChevronRight, ChevronDown, Bike, Truck, Star, Sliders,
   Wrench, Hammer, Zap as ZapIcon, Landmark, GraduationCap, Code2, Send, Inbox,
   History, Navigation2, FileText, Globe, Sparkles, Home, Activity,
   Scissors, ShoppingBag, Palette, Bot, Loader2, Copy, Download, Smartphone, Share2, Wifi, WifiOff, RefreshCw,
@@ -19,7 +19,7 @@ import {
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -32,6 +32,23 @@ interface Listing   { id:string; type:string; mode?:string; name:string; phone:s
 interface PlacePOI  { id:string; name:string; kind:string; lat:number; lon:number; dist:number; description?:string; tip?:string; }
 interface UserLocation { lat:number; lon:number; city:string; state:string; country:string; accuracy:number; }
 interface SearchHistory { id:string; query:string; type:string; city:string; results:number; ts:string; }
+
+function logLeadInApp(seeker: string, vendor: string, cat: string, action: string, status: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = JSON.parse(localStorage.getItem("demandgenius_leads") || "[]");
+    const item = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toISOString(),
+      seekerName: seeker,
+      vendorName: vendor,
+      category: cat,
+      action,
+      status
+    };
+    localStorage.setItem("demandgenius_leads", JSON.stringify([item, ...existing].slice(0, 50)));
+  } catch {}
+}
 
 const NOTE_COLORS = ["#FEF9C3","#DCFCE7","#DBEAFE","#FCE7F3","#F3E8FF","#FFEDD5"];
 const EXPENSE_CATS = ["Groceries","Transport","Food","Health","Education","Shopping","Utilities","Entertainment","Other"];
@@ -177,6 +194,7 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"seekers",    label:"Seekers",            icon:Inbox,         isSubItem:true },
   { id:"travel",     label:"Travel Hub",         icon:Compass },
   { id:"trips",      label:"Trip Planner",       icon:Plane },
+  { id:"travel_companion", label:"Travel Companion", icon:Bot, isSubItem:true },
   { id:"expenses",   label:"Daily Expenses",     icon:Receipt,       group:"PERSONAL" },
   { id:"reminders",  label:"Reminders",          icon:Bell },
   { id:"notes",      label:"Quick Notes",        icon:StickyNote },
@@ -557,6 +575,7 @@ export default function DemandGeniusApp() {
           )}
           {section === "travel"     && <TravelPanel />}
           {section === "trips"      && <TripPlanPanel gk={gk} />}
+          {section === "travel_companion" && <TravelCompanionPanel gk={gk} />}
           {section === "expenses"   && <ExpensesPanel  gk={gk} />}
           {section === "contacts"   && <ContactsPanel  gk={gk} />}
           {section === "ideas"      && <IdeasPanel     gk={gk} />}
@@ -3752,6 +3771,994 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
   );
 }
 
+// ── Travel Companion Agent ──────────────────────────────────────
+const TRAVEL_CATEGORIES = [
+  {
+    id: "accommodation",
+    name: "Accommodation",
+    icon: "🏨",
+    subcategories: ["Hotels", "Budget Hotels", "Luxury Hotels", "Resorts", "Homestays", "Hostels", "Lodges", "Camping", "Safe Parking", "Truck Parking", "Pet Friendly", "Family Friendly"],
+    timingOptions: ["Anytime", "Evening Only", "ETA After 9 PM", "Destination More Than 100 km Away"]
+  },
+  {
+    id: "food",
+    name: "Food & Drinks",
+    icon: "🍽",
+    subcategories: ["Restaurants", "Coffee Shops", "Tea Shops", "Breakfast", "Lunch", "Dinner", "Bakery", "Ice Cream", "Street Food", "Vegetarian", "Vegan", "Fine Dining"],
+    timingOptions: ["Anytime", "Meal Time Only", "Highly Rated Only"]
+  },
+  {
+    id: "fuel",
+    name: "Fuel & Charging",
+    icon: "⛽",
+    subcategories: ["Petrol Pumps", "Diesel", "CNG", "EV Charging", "Fast Chargers", "Fuel Price Alerts", "Low Fuel Alerts"],
+    timingOptions: ["Every Fuel Station", "Only When Needed", "Last Fuel Station Before Remote Area", "Cheapest Nearby"]
+  },
+  {
+    id: "safety",
+    name: "Road Safety",
+    icon: "🚧",
+    subcategories: ["Speed Breakers", "Sharp Curves", "Accident Zones", "School Zones", "Railway Crossings", "Wildlife Crossings", "Flooded Roads", "Landslides", "Construction", "Bad Roads"],
+    timingOptions: ["Critical Only", "Medium Severity & Above", "All Warnings"]
+  },
+  {
+    id: "weather",
+    name: "Weather Alerts",
+    icon: "🌦",
+    subcategories: ["Rain", "Heavy Rain", "Fog", "Thunderstorm", "Heatwave", "Strong Wind", "Snow", "Low Visibility", "Air Quality"],
+    timingOptions: ["Immediate Alert", "Hourly Updates", "Daily Summary"]
+  },
+  {
+    id: "traffic",
+    name: "Traffic Updates",
+    icon: "🚦",
+    subcategories: ["Heavy Jam", "Accident Delay", "Road Closure", "Diversion ahead", "Speed Trap", "Toll Booth Queue"],
+    timingOptions: ["Immediate", "Delay > 10 mins", "Delay > 30 mins"]
+  },
+  {
+    id: "emergency",
+    name: "Emergency Services",
+    icon: "🚑",
+    subcategories: ["Hospital", "Police", "Pharmacy", "Ambulance", "Vehicle Repair", "Tyre Repair", "Towing", "Fire Station"],
+    timingOptions: ["Show Nearest within 2 km", "Show Nearest within 5 km", "Show Nearest within 10 km"]
+  },
+  {
+    id: "attractions",
+    name: "Tourist Attractions",
+    icon: "🏞",
+    subcategories: ["Historical Places", "Temples", "Museums", "Waterfalls", "Lakes", "Beaches", "Wildlife", "Adventure Activities", "Photography Spots", "Viewpoints"],
+    timingOptions: ["Along Route", "Near Destination", "Weekend Only"]
+  },
+  {
+    id: "shopping",
+    name: "Shopping Alerts",
+    icon: "🛍",
+    subcategories: ["Souvenir Shops", "Local Markets", "Handicrafts", "Duty Free", "Mall", "Supermarket"],
+    timingOptions: ["Anytime", "Highly Rated Only"]
+  },
+  {
+    id: "wellness",
+    name: "Driver Wellness",
+    icon: "🚗",
+    subcategories: ["Break Reminder", "Fatigue Detection", "Coffee Suggestion", "Hydration Reminder", "Stretch Reminder"],
+    timingOptions: ["Every 2 Hours", "Every 3 Hours", "AI Recommendation"]
+  },
+  {
+    id: "night",
+    name: "Night Travel",
+    icon: "🌙",
+    subcategories: ["Suggest Hotels", "Safe Parking", "Night Restaurants", "Rest Areas", "Fuel Stations", "Emergency Services"],
+    timingOptions: ["ETA after 9 PM", "ETA after 10 PM", "AI Decision"]
+  },
+  {
+    id: "budget",
+    name: "Budget & Expenses",
+    icon: "💰",
+    subcategories: ["Budget Warnings", "Overspend Alerts", "Toll Fare Estimates", "Currency Exchange Points", "ATM Locator"],
+    timingOptions: ["Instant Alert", "Summary at Night"]
+  }
+];
+
+function TravelCompanionPanel({ gk }: { gk: (s:string)=>string }) {
+  const [subTab, setSubTab] = useState<"dashboard" | "alerts" | "smart" | "settings" | "history" | "leads">("dashboard");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Preference Values State
+  const [prefValues, setPrefValues] = useState<Record<string, { enabled: boolean; subs: string[]; radius: string; budget: number; timing: string }>>({});
+  // AI Smart Mode Configuration State
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiRecTypes, setAiRecTypes] = useState<string[]>(["Coffee Break", "Fuel Stop", "Lunch Stop", "Hotel Recommendation", "Scenic Spot"]);
+  const [aiMode, setAiMode] = useState<"Smart" | "Minimal" | "Aggressive">("Smart");
+
+  // Notification Config State
+  const [freq, setFreq] = useState("Real-time");
+  const [channels, setChannels] = useState<string[]>(["WhatsApp", "Push Notification"]);
+  const [quietStart, setQuietStart] = useState("22:00");
+  const [quietEnd, setQuietEnd] = useState("06:00");
+  const [nRadius, setNRadius] = useState("Along Route");
+  const [nPriority, setNPriority] = useState("Important");
+
+  // Live simulation chats
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<any[]>([
+    { id: "init_1", role: "assistant", text: "Welcome to your Travel Companion Agent! 🚗 Synced trip route: Bangalore ➔ Goa. I will track your route telemetry and alert you based on your preferences. What can I help you find?", ts: Date.now() }
+  ]);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadSearch, setLeadSearch] = useState("");
+
+  const [toast, setToast] = useState("");
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+
+  // Load Preferences & Leads from LocalStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Load category preferences
+    const loadedPrefs: any = {};
+    TRAVEL_CATEGORIES.forEach(cat => {
+      try {
+        const stored = localStorage.getItem(`dplan_travel_pref_${cat.id}`);
+        if (stored) {
+          loadedPrefs[cat.id] = JSON.parse(stored);
+        } else {
+          loadedPrefs[cat.id] = { enabled: true, subs: cat.subcategories.slice(0, 4), radius: "Along Route", budget: 3000, timing: cat.timingOptions?.[0] || "Anytime" };
+        }
+      } catch {}
+    });
+    setPrefValues(loadedPrefs);
+
+    // Load admin leads list
+    const storedLeads = localStorage.getItem("demandgenius_leads");
+    if (storedLeads) {
+      setLeads(JSON.parse(storedLeads));
+    } else {
+      const initialLeads = [
+        { id: "L1", timestamp: new Date(Date.now() - 300000).toISOString(), seekerName: "Ramesh Sharma", vendorName: "Grand Royal Palace", category: "Marriage/Party Halls", action: "Requested rate verification", status: "Request Raised" },
+        { id: "L2", timestamp: new Date(Date.now() - 600000).toISOString(), seekerName: "Guest 489", vendorName: "Anupam Catering Services", category: "Catering Providers", action: "Confirmed buffet menu", status: "Two-Way Confirmed" },
+        { id: "L3", timestamp: new Date(Date.now() - 1200000).toISOString(), seekerName: "Siddharth", vendorName: "Swiggy Gateway", category: "Food Order", action: "UPI Payment authorized", status: "Paid" },
+        { id: "L4", timestamp: new Date(Date.now() - 1800000).toISOString(), seekerName: "Aarav", vendorName: "Booking.com", category: "Hotel Stay Reservation", action: "Voucher check-in generated", status: "Two-Way Confirmed" },
+        { id: "L5", timestamp: new Date(Date.now() - 3600000).toISOString(), seekerName: "Guest 102", vendorName: "Rameshwaram Cafe", category: "Food Order", action: "Approve cart dispatch", status: "Paid" }
+      ];
+      localStorage.setItem("demandgenius_leads", JSON.stringify(initialLeads));
+      setLeads(initialLeads);
+    }
+  }, [subTab]);
+
+  const saveCategoryPrefs = (catId: string, payload: any) => {
+    setPrefValues(prev => ({ ...prev, [catId]: payload }));
+    localStorage.setItem(`dplan_travel_pref_${catId}`, JSON.stringify(payload));
+    showToast("Preferences Auto-Saved!");
+  };
+
+  const handleAskAI = (text: string) => {
+    if (!text.trim() || aiThinking) return;
+    const userMsg = { id: paUid(), role: "user", text, ts: Date.now() };
+    setChatHistory(prev => [...prev, userMsg]);
+    setChatInput("");
+    setAiThinking(true);
+
+    setTimeout(() => {
+      let replyText = "Analyzing telemetry... Check alerts below.";
+      let previewCard: any = null;
+      const q = text.toLowerCase();
+
+      if (q.includes("hotel") || q.includes("stay") || q.includes("overnight")) {
+        replyText = "ETA is 11:20 PM. I recommend lodging nearby soon. I've compiled 5 hotels within 8 km matching your budget filter.";
+        previewCard = {
+          title: "🏨 Night Stay Recommendation",
+          body: "Grand Orchid Highway Resort is 7.5 km ahead (⭐ 4.6). Clean rooms, safe secure parking, pet friendly.",
+          type: "hotel",
+          vendorName: "Grand Orchid Resort"
+        };
+      } else if (q.includes("lunch") || q.includes("food") || q.includes("eat") || q.includes("restaurant")) {
+        replyText = "A popular regional vegetarian eatery is 3 km ahead along the route. High client ratings.";
+        previewCard = {
+          title: "🍽 Coffee & Food Alert",
+          body: "Highway Treat Restaurant is 3 km ahead (⭐ 4.5). Serves hot lunch and filter coffee. ETA: 5 mins.",
+          type: "food",
+          vendorName: "Highway Treat Restaurant"
+        };
+      } else if (q.includes("rain") || q.includes("weather") || q.includes("fog")) {
+        replyText = "Strong winds and thunder shower cells are reported in the next 15 km. Road surface might be wet.";
+        previewCard = {
+          title: "🌦 Weather warning ahead",
+          body: "Ghats road section: Moderate Rain & Fog reported 20 km ahead. Recommended speed 45 km/h.",
+          type: "weather",
+          vendorName: "Sky Weather Telemetry"
+        };
+      } else if (q.includes("fuel") || q.includes("petrol") || q.includes("pump")) {
+        replyText = " low fuel alert: low-cost Shell station is 6 km ahead. Next refuel pump after this is 42 km away.";
+        previewCard = {
+          title: "⛽ Fuel Station Alert",
+          body: "Shell Station 6 km ahead. Diesel & Petrol available. low fuel recommended to refill.",
+          type: "fuel",
+          vendorName: "Shell Highway Outlet"
+        };
+      } else {
+        replyText = "All safety buffers (speed curves, railway crossings) and weather alerts are clear for the next 50 km Bangalore ➔ Goa.";
+      }
+
+      setChatHistory(prev => [...prev, { id: paUid(), role: "assistant", text: replyText, ts: Date.now(), preview: previewCard }]);
+      setAiThinking(false);
+
+      if (previewCard) {
+        logLeadInApp("Traveler Guest", previewCard.vendorName, `Travel Alert: ${previewCard.type}`, "AI Companion alert clicked/rendered", "Inquiry Sent");
+      }
+    }, 1200);
+  };
+
+  const handleActionClick = (actionName: string) => {
+    showToast(`${actionName} Initiated!`);
+    logLeadInApp("Traveler Guest", "System", "Companion Action", `Clicked ${actionName}`, "Active");
+  };
+
+  const triggerMockLead = () => {
+    const seekers = ["Rohan Patel", "Dr. Shalini", "Amit Hegde", "Priya Das", "Vikram K"];
+    const vendors = ["Apollo Pharmacy RM Nagar", "Grand Royal Palace", "Hotel Taj Gateway", "Express Couriers", "Swiggy Kitchens"];
+    const cats = ["Medicine Delivery", "Marriage/Party Halls", "Stay Reservation", "Courier Delivery", "Food Delivery"];
+    const actions = ["UPI PIN authorized", "Requested rate quote", "Voucher check-in generated", "Dispatched driver pick-up", "Approved cart dispatch"];
+    const statuses = ["Paid", "Request Raised", "Two-Way Confirmed", "Paid", "Two-Way Confirmed"];
+
+    const r = Math.floor(Math.random() * seekers.length);
+    logLeadInApp(seekers[r], vendors[r], cats[r], actions[r], statuses[r]);
+    
+    // Reload local list
+    const updated = localStorage.getItem("demandgenius_leads");
+    if (updated) setLeads(JSON.parse(updated));
+    showToast("Simulated lead captured!");
+  };
+
+  const filteredCategories = TRAVEL_CATEGORIES.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.subcategories.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 border border-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg animate-bounce flex items-center gap-1.5">
+          <CheckCircle2 size={13}/>
+          <span>{toast}</span>
+        </div>
+      )}
+
+      {/* Screen Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+          <Compass size={20} className="text-white animate-spin-slow"/>
+        </div>
+        <div>
+          <h1 className="text-xl font-black text-gray-900 leading-tight">Travel Companion Agent</h1>
+          <p className="text-gray-500 text-xs">Orchestrate smart travel companion settings, alerts & lead trace</p>
+        </div>
+      </div>
+
+      {/* Sub Tabs Navigation */}
+      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl">
+        {[
+          { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { id: "alerts", label: "Alert Preferences", icon: Sliders },
+          { id: "smart", label: "AI Smart Mode", icon: Bot },
+          { id: "settings", label: "Settings", icon: Bell },
+          { id: "history", label: "Alert Logs", icon: History },
+          { id: "leads", label: "Super Leads Tracker", icon: Shield }
+        ].map(t => {
+          const Icon = t.icon;
+          const isActive = subTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => { setSubTab(t.id as any); setActiveCategory(null); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                isActive ? "bg-white shadow-sm text-orange-500" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <Icon size={12}/>
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 1: TRIP DASHBOARD */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "dashboard" && (
+        <div className="space-y-4">
+          {/* Trip Card */}
+          <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-4 border border-indigo-950">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider block">Active Trip Route</span>
+                <h3 className="text-lg font-black mt-0.5">Bangalore ➔ Goa</h3>
+              </div>
+              <span className="bg-emerald-500 text-white text-[9px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping"/> AI ACTIVE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-indigo-200 block">Remaining</span>
+                <span className="text-sm font-extrabold block mt-0.5">420 km</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-indigo-200 block">ETA</span>
+                <span className="text-sm font-extrabold block mt-0.5">7:45 PM</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-indigo-200 block">Driving Time</span>
+                <span className="text-sm font-extrabold block mt-0.5">6h 15m left</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-xl p-3">
+                <span className="text-[9px] text-indigo-200 block">Fuel Status</span>
+                <span className="text-sm font-extrabold block mt-0.5 text-yellow-400">58% (310km)</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center text-[10px] text-indigo-200 pt-1 border-t border-white/10">
+              <span className="flex items-center gap-1">🌡 Weather: <strong>28°C · Rainy ahead</strong></span>
+              <span className="flex items-center gap-1">🚗 Companion: <strong>Vigilant</strong></span>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white border border-gray-150 rounded-2xl p-4 space-y-2">
+            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block mb-1">Quick Telemetry Controls</span>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <button onClick={() => handleActionClick("Trip Start")} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 text-[10px] font-bold shadow-sm">Start Trip</button>
+              <button onClick={() => handleActionClick("AI Companion Pause")} className="border border-yellow-400 text-yellow-700 hover:bg-yellow-50 rounded-xl py-2.5 text-[10px] font-bold">Pause AI</button>
+              <button onClick={() => handleActionClick("Trip Stop")} className="bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-[10px] font-bold">Stop Trip</button>
+              <button onClick={() => handleActionClick("Location Shared")} className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-2.5 text-[10px] font-bold border border-gray-200">Share Location</button>
+              <button onClick={() => handleActionClick("SOS Dispatched")} className="bg-red-700 hover:bg-red-800 text-white rounded-xl py-2.5 text-[10px] font-extrabold col-span-2 sm:col-span-1 shadow-sm flex items-center justify-center gap-1">
+                <AlertTriangle size={11}/> SOS Emergency
+              </button>
+            </div>
+          </div>
+
+          {/* Live Ask AI Panel */}
+          <div className="bg-orange-50/50 border border-orange-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Bot size={16} className="text-orange-500"/>
+              <h4 className="text-xs font-black text-gray-900">Ask AI Companion Chat</h4>
+            </div>
+
+            {/* Chat Box */}
+            <div className="bg-white border border-orange-100 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2">
+              {chatHistory.map(msg => (
+                <div key={msg.id} className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                  <div className={`p-2.5 rounded-xl text-[11px] leading-relaxed max-w-[85%] ${
+                    msg.role === "user" ? "bg-orange-500 text-white rounded-tr-none" : "bg-gray-100 text-gray-800 rounded-tl-none"
+                  }`}>
+                    {msg.text}
+                  </div>
+                  {msg.preview && (
+                    <div className="mt-1 w-72 bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 text-xs space-y-1.5 shadow-sm">
+                      <div className="flex justify-between items-center text-[10px] text-emerald-800 font-bold border-b border-emerald-100 pb-1">
+                        <span>💬 WhatsApp Preview alert</span>
+                        <span>Now</span>
+                      </div>
+                      <p className="font-extrabold text-gray-900">{msg.preview.title}</p>
+                      <p className="text-[10px] text-gray-600 leading-normal">{msg.preview.body}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          showToast(`Navigating to ${msg.preview.vendorName}...`);
+                          logLeadInApp("Traveler Guest", msg.preview.vendorName, `Travel Alert: ${msg.preview.type}`, "Selected Navigate button in WhatsApp preview", "Navigating");
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold py-1.5 rounded-lg text-center"
+                      >
+                        Navigate
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {aiThinking && (
+                <div className="flex gap-1 items-center py-1">
+                  <Loader2 size={11} className="animate-spin text-orange-500"/>
+                  <span className="text-[10px] text-gray-400">AI is thinking...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Predefined Questions */}
+            <div className="flex flex-wrap gap-1.5">
+              {["Suggest lunch", "Is there rain ahead?", "Where should I stop?", "Find nearby hotel"].map(q => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => handleAskAI(q)}
+                  className="bg-white border border-orange-100 hover:bg-orange-50 text-[10px] font-medium text-gray-600 rounded-lg px-2.5 py-1"
+                >
+                  "{q}"
+                </button>
+              ))}
+            </div>
+
+            {/* Input Bar */}
+            <div className="flex gap-2">
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAskAI(chatInput)}
+                placeholder="Ask travel details (e.g. Find petrol station ahead)..."
+                className="flex-1 border border-orange-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => handleAskAI(chatInput)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+
+          {/* Upcoming Recommendations */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Upcoming Recommendations (Along Route)</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { name: "Cafe Coffee Day - Highway Rest", category: "Coffee Stop", dist: "3 km", rate: "⭐ 4.5", status: "Open" },
+                { name: "Shell Fuel Station & EV charging", category: "Fuel Station", dist: "6 km", rate: "⭐ 4.8", status: "Open" },
+                { name: "Highway Biryani Junction", category: "Restaurant", dist: "12 km", rate: "⭐ 4.2", status: "Open" },
+                { name: "Grand Western Orchid Hotel", category: "Hotel", dist: "32 km", rate: "⭐ 4.6", status: "Open" },
+                { name: "NH-4 Rest Stops & Washroom", category: "Rest Area", dist: "21 km", rate: "⭐ 3.9", status: "Open" },
+                { name: "Historic Belur Temple Entrance", category: "Attraction", dist: "48 km", rate: "⭐ 4.7", status: "Open" }
+              ].map((rec, idx) => (
+                <div key={idx} className="bg-white border border-gray-150 rounded-xl p-3.5 flex justify-between items-center shadow-sm">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[9px] bg-orange-100 text-orange-800 font-extrabold px-1.5 py-0.5 rounded-full">{rec.category}</span>
+                    <h5 className="font-bold text-gray-900 text-xs mt-1 truncate">{rec.name}</h5>
+                    <div className="flex gap-2 text-[10px] text-gray-500 mt-1">
+                      <span>📍 {rec.dist}</span>
+                      <span>•</span>
+                      <span className="text-yellow-600 font-bold">{rec.rate}</span>
+                      <span>•</span>
+                      <span className="text-green-600 font-medium">{rec.status}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      showToast(`Routing to ${rec.name}...`);
+                      logLeadInApp("Traveler Guest", rec.name, `Travel Companion: ${rec.category}`, "Selected Navigate button in dashboard", "Navigating");
+                    }}
+                    className="ml-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold px-3 py-2 rounded-lg shrink-0"
+                  >
+                    Navigate
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 2: ALERT PREFERENCES */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "alerts" && (
+        <div className="space-y-4">
+          {activeCategory ? (() => {
+            const cat = TRAVEL_CATEGORIES.find(c => c.id === activeCategory)!;
+            const values = prefValues[cat.id] || { enabled: true, subs: [], radius: "Along Route", budget: 3000, timing: cat.timingOptions?.[0] || "Anytime" };
+
+            const handleToggleSub = (sub: string) => {
+              const nextSubs = values.subs.includes(sub)
+                ? values.subs.filter(x => x !== sub)
+                : [...values.subs, sub];
+              saveCategoryPrefs(cat.id, { ...values, subs: nextSubs });
+            };
+
+            const toggleAll = (select: boolean) => {
+              saveCategoryPrefs(cat.id, { ...values, subs: select ? cat.subcategories : [] });
+            };
+
+            return (
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-5 shadow-sm">
+                {/* Back Link */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory(null)}
+                  className="text-xs font-bold text-orange-500 flex items-center gap-1"
+                >
+                  ← Back to Preferences
+                </button>
+
+                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{cat.icon}</span>
+                    <h3 className="text-sm font-black text-gray-900">{cat.name} Preferences</h3>
+                  </div>
+                  {/* Category Master Enable Toggle */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={values.enabled}
+                      onChange={e => saveCategoryPrefs(cat.id, { ...values, enabled: e.target.checked })}
+                      className="accent-orange-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs font-bold text-gray-800">Enable Category</span>
+                  </label>
+                </div>
+
+                {values.enabled ? (
+                  <div className="space-y-4">
+                    {/* Subcategories */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Subcategories</label>
+                        <div className="flex gap-2 text-[9px] font-bold text-orange-500">
+                          <button type="button" onClick={() => toggleAll(true)}>Select All</button>
+                          <span>•</span>
+                          <button type="button" onClick={() => toggleAll(false)}>Clear All</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {cat.subcategories.map(sub => {
+                          const isChecked = values.subs.includes(sub);
+                          return (
+                            <label key={sub} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-[10px] font-semibold transition-all ${
+                              isChecked ? "border-orange-300 bg-orange-50/20 text-orange-900" : "border-gray-150 hover:bg-gray-50 text-gray-700"
+                            }`}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleSub(sub)}
+                                className="accent-orange-500 w-3.5 h-3.5 rounded"
+                              />
+                              <span className="truncate">{sub}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Search Radius */}
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Search Radius</label>
+                      <div className="flex gap-1.5">
+                        {["Along Route", "5 km", "10 km", "20 km"].map(rad => (
+                          <button
+                            key={rad}
+                            type="button"
+                            onClick={() => saveCategoryPrefs(cat.id, { ...values, radius: rad })}
+                            className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold border transition-all ${
+                              values.radius === rad ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                            }`}
+                          >
+                            {rad}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Budget Slider */}
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        <span>Max Budget Limit</span>
+                        <span className="text-orange-600 font-extrabold text-xs">₹{values.budget.toLocaleString()}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="500"
+                        max="10000"
+                        step="500"
+                        value={values.budget}
+                        onChange={e => saveCategoryPrefs(cat.id, { ...values, budget: parseInt(e.target.value) })}
+                        className="w-full accent-orange-500"
+                      />
+                    </div>
+
+                    {/* Notification Timing */}
+                    {cat.timingOptions && (
+                      <div className="space-y-2 pt-2 border-t border-gray-100">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Notification Timing</label>
+                        <select
+                          value={values.timing}
+                          onChange={e => saveCategoryPrefs(cat.id, { ...values, timing: e.target.value })}
+                          className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white focus:outline-none focus:border-orange-400"
+                        >
+                          {cat.timingOptions.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-center py-6 text-gray-400 text-xs italic">Alerts for this category are disabled.</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory(null)}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold py-2.5 rounded-xl shadow-sm"
+                >
+                  Save & Go Back
+                </button>
+              </div>
+            );
+          })() : (
+            <div className="space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search alert categories or subcategories..."
+                  className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                />
+              </div>
+
+              {/* Preferences list */}
+              <div className="space-y-2">
+                {filteredCategories.map(cat => {
+                  const values = prefValues[cat.id] || { enabled: true, subs: [] };
+                  const activeCount = values.enabled ? values.subs.length : 0;
+                  return (
+                    <div
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      className="bg-white border border-gray-150 rounded-xl p-3.5 flex items-center justify-between hover:border-orange-300 transition-all cursor-pointer shadow-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{cat.icon}</span>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-xs leading-tight">{cat.name}</h4>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{cat.subcategories.slice(0, 3).join(", ")}…</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {values.enabled ? (
+                          <span className="text-[9px] bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full">
+                            {activeCount} Alert{activeCount !== 1 ? "s" : ""} Active
+                          </span>
+                        ) : (
+                          <span className="text-[9px] bg-gray-100 text-gray-400 font-medium px-2 py-0.5 rounded-full">
+                            Off
+                          </span>
+                        )}
+                        <ChevronRight size={14} className="text-gray-300"/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 3: AI SMART MODE */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "smart" && (
+        <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-5 shadow-sm">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <Bot size={20} className="text-orange-500 animate-pulse"/>
+              <div>
+                <h3 className="text-xs font-black text-gray-900">AI Smart Recommendations</h3>
+                <p className="text-[10px] text-gray-500">Autonomous adaptive alerts based on travel behavior</p>
+              </div>
+            </div>
+            {/* Master Toggle */}
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={e => { setAiEnabled(e.target.checked); showToast(e.target.checked ? "AI Smart Mode Enabled!" : "AI Smart Mode Disabled"); }}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
+            </label>
+          </div>
+
+          {aiEnabled ? (
+            <div className="space-y-4 text-xs">
+              {/* Adaptive Modes */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">AI Operation Mode</label>
+                <div className="flex gap-2">
+                  {["Smart", "Minimal", "Aggressive"].map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setAiMode(mode as any); showToast(`Mode switched to: ${mode}`); }}
+                      className={`flex-1 py-2.5 rounded-xl border text-[10px] font-extrabold transition-all ${
+                        aiMode === mode ? "bg-orange-500 text-white border-orange-500 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recommendation Types */}
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">AI Alert Dispatch Categories</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {["Coffee Break", "Lunch Stop", "Fuel Stop", "Hotel Recommendation", "Scenic Spot", "Washroom", "Rest Area", "Safe Parking", "Tourist Attraction", "Emergency Service"].map(type => {
+                    const isChecked = aiRecTypes.includes(type);
+                    return (
+                      <label key={type} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-[10px] font-semibold transition-all ${
+                        isChecked ? "border-orange-300 bg-orange-50/20 text-orange-950" : "border-gray-150 hover:bg-gray-50 text-gray-600"
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const next = isChecked ? aiRecTypes.filter(x => x !== type) : [...aiRecTypes, type];
+                            setAiRecTypes(next);
+                          }}
+                          className="accent-orange-500 w-3.5 h-3.5 rounded"
+                        />
+                        <span>{type}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-center py-6 text-gray-400 text-xs italic">AI Smart recommendations are disabled. Telemetry triggers are set to manual.</p>
+          )}
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 4: NOTIFICATION SETTINGS */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "settings" && (
+        <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-sm text-xs">
+          <h3 className="text-xs font-black text-gray-900 border-b border-gray-100 pb-2">Notification Configuration</h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Frequency */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Dispatch Frequency</label>
+              <select
+                value={freq}
+                onChange={e => { setFreq(e.target.value); showToast(`Frequency set to: ${e.target.value}`); }}
+                className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white"
+              >
+                {["Real-time", "Every 30 Minutes", "Every 1 Hour", "Every 2 Hours", "Daily Summary"].map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Alert Radius */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Alert Radius</label>
+              <select
+                value={nRadius}
+                onChange={e => { setNRadius(e.target.value); showToast(`Radius set to: ${e.target.value}`); }}
+                className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white"
+              >
+                {["Along Route", "2 km", "5 km", "10 km", "20 km"].map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Channels */}
+            <div className="sm:col-span-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Alert Dispatch Channels</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {["WhatsApp", "Push Notification", "SMS", "Email"].map(ch => {
+                  const isSel = channels.includes(ch);
+                  return (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => {
+                        const next = isSel ? channels.filter(x => x !== ch) : [...channels, ch];
+                        setChannels(next);
+                        showToast(`Channels updated.`);
+                      }}
+                      className={`py-2 rounded-lg text-[9px] font-bold border text-center transition-all ${
+                        isSel ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200"
+                      }`}
+                    >
+                      {ch}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quiet Hours */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Quiet Hours Start</label>
+              <input
+                type="time"
+                value={quietStart}
+                onChange={e => setQuietStart(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Quiet Hours End</label>
+              <input
+                type="time"
+                value={quietEnd}
+                onChange={e => setQuietEnd(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white"
+              />
+            </div>
+
+            {/* Alert Priority */}
+            <div className="sm:col-span-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Alert Priority Threshold</label>
+              <select
+                value={nPriority}
+                onChange={e => { setNPriority(e.target.value); showToast(`Priority set to: ${e.target.value}`); }}
+                className="w-full border border-gray-200 rounded-xl px-2.5 py-2 text-[10px] font-semibold bg-white"
+              >
+                {["Critical Only", "Important", "Informational", "All Alerts"].map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 5: ALERT LOGS & WHATSAPP PREVIEWS */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "history" && (
+        <div className="space-y-4">
+          <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wide block">Simulated WhatsApp Alerts Preview</span>
+          
+          <div className="space-y-3">
+            {[
+              {
+                icon: "☕",
+                title: "Coffee Break Alert",
+                body: "A highly rated coffee shop (Cafe Coffee Day) is 3 km ahead along the NH4 route.",
+                meta: "Rating ⭐ 4.5 · Est. stop duration: 15 mins",
+                type: "Coffee Stop",
+                vendorName: "Cafe Coffee Day Rest"
+              },
+              {
+                icon: "⛽",
+                title: "Refuel Warning Alert",
+                body: "Low Fuel Buffer Warning: Shell Petrol & EV station ahead in 6 km. Next station is 42 km away.",
+                meta: "Cheapest fuel zone · Refill recommended now",
+                type: "Fuel Pump",
+                vendorName: "Shell Outlet"
+              },
+              {
+                icon: "🏨",
+                title: "Night Accommodation Alert",
+                body: "Ghats Entry Alert: ETA is 11:20 PM. 5 hotels verified within 8 km.",
+                meta: "Recommended: Grand Orchid Resort · Safe parking",
+                type: "Hotel Stay",
+                vendorName: "Grand Orchid Resort"
+              }
+            ].map((alert, idx) => (
+              <div key={idx} className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs space-y-2 shadow-sm max-w-md mx-auto">
+                <div className="flex justify-between items-center text-[9px] text-emerald-800 font-bold border-b border-emerald-200 pb-1.5">
+                  <span className="flex items-center gap-1">💬 WhatsApp Broadcast Preview</span>
+                  <span>Active Live</span>
+                </div>
+                <div className="flex gap-2.5 items-start">
+                  <span className="text-xl shrink-0 mt-0.5">{alert.icon}</span>
+                  <div>
+                    <h5 className="font-extrabold text-gray-900">{alert.title}</h5>
+                    <p className="text-[10px] text-gray-600 mt-0.5 leading-relaxed">{alert.body}</p>
+                    <p className="text-[9px] text-gray-400 italic mt-1">{alert.meta}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast(`Navigating to ${alert.vendorName}...`);
+                    logLeadInApp("Traveler Guest", alert.vendorName, `Travel Alert: ${alert.type}`, "Selected Navigate button in WhatsApp list", "Navigating");
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold py-2 rounded-lg text-center shadow-sm"
+                >
+                  Confirm & Navigate
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* SCREEN 6: SUPER ADMIN LEAD TRACKER */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {subTab === "leads" && (
+        <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-sm text-xs">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+            <div>
+              <h3 className="text-xs font-black text-gray-900 flex items-center gap-1.5"><Shield className="text-orange-500" size={14}/> Super Admin Lead Tracker</h3>
+              <p className="text-[10px] text-gray-500 mt-0.5">Real-time trace of traveler inquiries, checkout approaches, and vendor requests</p>
+            </div>
+            <button
+              onClick={triggerMockLead}
+              className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
+            >
+              Simulate Lead Interaction
+            </button>
+          </div>
+
+          {/* Search Filter */}
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input
+              value={leadSearch}
+              onChange={e => setLeadSearch(e.target.value)}
+              placeholder="Search leads by seeker, vendor, or category..."
+              className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-[10px] focus:outline-none"
+            />
+          </div>
+
+          {/* Leads Table */}
+          <div className="overflow-x-auto border border-gray-100 rounded-xl">
+            <table className="w-full text-left border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 font-bold uppercase">
+                  <th className="p-2.5">Time</th>
+                  <th className="p-2.5">Seeker (Guest)</th>
+                  <th className="p-2.5">Vendor / Platform</th>
+                  <th className="p-2.5">Category</th>
+                  <th className="p-2.5">Action Details</th>
+                  <th className="p-2.5 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700 font-medium divide-y divide-gray-50">
+                {leads
+                  .filter(l =>
+                    l.seekerName.toLowerCase().includes(leadSearch.toLowerCase()) ||
+                    l.vendorName.toLowerCase().includes(leadSearch.toLowerCase()) ||
+                    l.category.toLowerCase().includes(leadSearch.toLowerCase())
+                  )
+                  .map(l => {
+                    let badge = "bg-gray-100 text-gray-600";
+                    if (l.status === "Paid" || l.status === "Two-Way Confirmed") {
+                      badge = "bg-green-50 text-green-700 border border-green-150";
+                    } else if (l.status === "Request Raised" || l.status === "Inquiry Sent") {
+                      badge = "bg-amber-50 text-amber-700 border border-amber-150";
+                    } else if (l.status === "Rejected/Unavailable") {
+                      badge = "bg-red-50 text-red-700 border border-red-150";
+                    }
+
+                    return (
+                      <tr key={l.id} className="hover:bg-gray-50/50">
+                        <td className="p-2.5 whitespace-nowrap text-gray-400">{new Date(l.timestamp).toLocaleTimeString()}</td>
+                        <td className="p-2.5 font-bold text-gray-900">{l.seekerName}</td>
+                        <td className="p-2.5 text-gray-900">{l.vendorName}</td>
+                        <td className="p-2.5 text-gray-500">{l.category}</td>
+                        <td className="p-2.5 text-gray-500 max-w-xs truncate">{l.action}</td>
+                        <td className="p-2.5 text-right whitespace-nowrap">
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${badge}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Install Panel ──────────────────────────────────────────────
 const APP_KEY = "NEXOS-2024";
 
@@ -4228,6 +5235,10 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
     if (task.type === "upi_payment") {
       await new Promise(r => setTimeout(r, 1200));
       setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      const provTask = allTasks.find(t => t.type === "select_provider" || t.id.includes("select_provider"));
+      const provVals = provTask ? { ...(taskValues[provTask.id] || {}), ...(fv[provTask.id] || {}) } : {};
+      const providerName = provVals.providerName || "Swiggy";
+      logLeadInApp(guest.id, providerName, "Food Order Checkout", "Authorized payment of order", "Paid");
       setMsgs(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
         text: "Payment Successful! 🎉 Your order has been placed. I will now switch to tracking mode to give you live updates."
@@ -4248,6 +5259,10 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
     if (task.type === "track_hotel_booking") {
       await new Promise(r => setTimeout(r, 1000));
       setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      const provTask = allTasks.find(t => t.type === "select_hotel_provider");
+      const provVals = provTask ? { ...(taskValues[provTask.id] || {}), ...(fv[provTask.id] || {}) } : {};
+      const providerName = provVals.hotelProviderName || "Booking.com";
+      logLeadInApp(guest.id, providerName, "Hotel Stay Reservation", "Voucher check-in completed", "Two-Way Confirmed");
       setMsgs(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
         text: "Hotel room booked successfully! 🎉 Voucher details and check-in confirmation have been sent to your email. Have a great stay!"
@@ -4258,6 +5273,10 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
     if (task.type === "track_trip_booking") {
       await new Promise(r => setTimeout(r, 1000));
       setTaskState(prev => ({ ...prev, [task.id]: "done" }));
+      const provTask = allTasks.find(t => t.type === "select_trip_provider");
+      const provVals = provTask ? { ...(taskValues[provTask.id] || {}), ...(fv[provTask.id] || {}) } : {};
+      const providerName = provVals.tripProviderName || "redBus";
+      logLeadInApp(guest.id, providerName, "Transit Ticket Booking", "PNR and E-ticket issued", "Two-Way Confirmed");
       setMsgs(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
         text: "Tickets booked successfully! 🎫 Boarding pass, E-ticket PDF, and PNR details have been shared to your WhatsApp alerts. Safe travels!"
@@ -5180,6 +6199,7 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
             setFieldVal(task.id, `vendorName_${currentCat}`, vname);
             setFieldVal(task.id, `vendorPrice_${currentCat}`, price.toString());
             setFieldVal(task.id, `status_${currentCat}`, "Request Raised");
+            logLeadInApp(guest.id, vname, `Event Category: ${currentCat}`, "Sent inquiry to vendor", "Request Raised");
 
             const liveState = {
               eventType: etype,
@@ -5205,6 +6225,7 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
                 newStatus = "Rejected/Unavailable";
               }
               setFieldVal(task.id, `status_${currentCat}`, newStatus);
+              logLeadInApp(guest.id, vname, `Event Category: ${currentCat}`, newStatus === "Two-Way Confirmed" ? "Two-way vendor contract signed" : "Vendor rejected / date booked", newStatus);
               
               const updatedState = { ...liveState };
               if (updatedState.categories[currentCat]) {
