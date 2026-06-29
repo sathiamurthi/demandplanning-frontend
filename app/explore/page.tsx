@@ -2817,12 +2817,14 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
           if (!userLoc||!aiQuery.trim()) return;
           setAiLoading(true); setAiResult(null); setLocalMatches([]);
           try {
-            const p = new URLSearchParams({ lat:String(userLoc.lat), lng:String(userLoc.lon), ai:"true", q:aiQuery.trim(), radius:String(radius) });
-            const r = await fetch(`/v1/public/quicksearch?${p}`);
+            const r = await fetch('/api/aisearch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat: userLoc.lat, lng: userLoc.lon, q: aiQuery.trim() })
+            });
             const d = await r.json();
             if (d.success) {
-              setLocalMatches(d.data?.local || []);
-              setAiResult(d.data?.ai || {});
+              setAiResult(d.data || {});
             }
           } catch { setError("AI search failed. Try again."); }
           setAiLoading(false);
