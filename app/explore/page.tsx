@@ -14,6 +14,7 @@ import {
   Wrench, Hammer, Zap as ZapIcon, Landmark, GraduationCap, Code2, Send, Inbox,
   History, Navigation2, FileText, Globe, Sparkles, Home, Activity,
   Scissors, ShoppingBag, Palette, Bot, Loader2, Copy, Download, Smartphone, Share2, Wifi, WifiOff, RefreshCw,
+  Lock as LockIcon, ExternalLink,
 } from "lucide-react";
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
@@ -3964,6 +3965,9 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [agentLogs, setAgentLogs] = useState<string[]>([]);
   const [dishFilter, setDishFilter] = useState("");
+  const [activePaymentGateway, setActivePaymentGateway] = useState<any | null>(null);
+  const [pinValue, setPinValue] = useState("");
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => { chatRef.current?.scrollTo({top:chatRef.current.scrollHeight,behavior:"smooth"}); }, [msgs]);
 
@@ -4356,27 +4360,106 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
 
         {/* Custom upi_payment block */}
         {active && task.type === "upi_payment" && (
-          <div className="space-y-2.5 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">UPI PIN Entry</span>
-            <p className="text-[11px] text-gray-500 leading-normal">Enter your 4 or 6-digit secure UPI PIN to authorize the payment of ₹345 via GPay/PhonePe:</p>
-            <div className="flex gap-2 justify-center py-2">
-              {[1, 2, 3, 4].map(idx => (
-                <input
-                  key={idx}
-                  type="password"
-                  maxLength={1}
-                  placeholder="•"
-                  value={vals.upiPin?.[idx - 1] || ""}
-                  onChange={e => {
-                    const pin = (vals.upiPin || "").split("");
-                    pin[idx - 1] = e.target.value;
-                    setFieldVal(task.id, "upiPin", pin.join(""));
-                  }}
-                  className="w-10 h-10 border border-gray-200 rounded-lg text-center text-lg font-black bg-gray-50 focus:bg-white focus:outline-none focus:border-orange-400"
-                />
-              ))}
-            </div>
-            <div className="text-[9px] text-gray-400 text-center">🔐 Secure checkout powered by Rameshwaram Cafe UPI network</div>
+          <div className="space-y-3 mb-3 bg-white p-3 rounded-lg border border-gray-100 text-xs">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Secure UPI Payment Gateway</span>
+            <p className="text-[11px] text-gray-500 leading-normal">To finalize order procurement, authorize the payment inside the secure partner vendor gateway:</p>
+            <button
+              onClick={() => {
+                let providerName = "Swiggy";
+                let totalBill = 345;
+                let itemsList = ["Masala Dosa"];
+                
+                const selectDishesTask = allTasks.find(t => t.type === "select_dishes");
+                const selectVals = selectDishesTask ? { ...(taskValues[selectDishesTask.id] || {}), ...(fv[selectDishesTask.id] || {}) } : {};
+                const selectedList = selectVals.selectedDishes ? selectVals.selectedDishes.split(",").filter(Boolean) : [];
+                
+                const isFood = allTasks.some(t => t.type === "review_cart");
+                const isHotel = allTasks.some(t => t.type === "review_hotel_cart");
+                const isTrip = allTasks.some(t => t.type === "review_trip_cart");
+                
+                let mode = "food";
+                let url = "https://www.swiggy.com/checkout/pay-gateway";
+                
+                if (isHotel) {
+                  mode = "hotel";
+                  const provTask = allTasks.find(t => t.type === "select_hotel_provider");
+                  const provVals = provTask ? { ...(taskValues[provTask.id] || {}), ...(fv[provTask.id] || {}) } : {};
+                  providerName = provVals.hotelProviderName || "Booking.com";
+                  url = `https://www.${providerName.toLowerCase().replace(/\s+/g, '')}.com/checkout/pay`;
+                  
+                  const hotelTask = allTasks.find(t => t.type === "select_hotels");
+                  const hotelVals = hotelTask ? { ...(taskValues[hotelTask.id] || {}), ...(fv[hotelTask.id] || {}) } : {};
+                  const basePrice = parseFloat(hotelVals.hotelPrice || "3500");
+                  totalBill = basePrice + Math.round(basePrice * 0.18) + 250;
+                  itemsList = [hotelVals.hotelName || "Red Residency Goa"];
+                } else if (isTrip) {
+                  mode = "trip";
+                  const provTask = allTasks.find(t => t.type === "select_trip_provider");
+                  const provVals = provTask ? { ...(taskValues[provTask.id] || {}), ...(fv[provTask.id] || {}) } : {};
+                  providerName = provVals.tripProviderName || "redBus";
+                  url = `https://www.${providerName.toLowerCase().replace(/\s+/g, '')}.in/booking/checkout`;
+                  
+                  const routeTask = allTasks.find(t => t.type === "select_trips");
+                  const routeVals = routeTask ? { ...(taskValues[routeTask.id] || {}), ...(fv[routeTask.id] || {}) } : {};
+                  const baseFare = parseFloat(routeVals.routePrice || "1200");
+                  totalBill = baseFare + Math.round(baseFare * 0.05) + 60;
+                  itemsList = [routeVals.routeName || "Shatabdi Express AC Chair Car"];
+                } else {
+                  const provTask = allTasks.find(t => t.type === "select_provider");
+                  const provVals = provTask ? { ...(taskValues[provTask.id] || {}), ...(fv[provTask.id] || {}) } : {};
+                  providerName = provVals.providerName || "Swiggy";
+                  url = `https://www.${providerName.toLowerCase().replace(/\s+/g, '')}.com/checkout/pay`;
+                  
+                  const dishMap: Record<string, { name: string; price: number }> = {
+                    c1: { name: "Classic Salted Lays Chips", price: 30 },
+                    c2: { name: "Spicy Masala Banana Chips", price: 60 },
+                    c3: { name: "Cheesy Nacho Chips with Salsa", price: 120 },
+                    c4: { name: "Peri Peri French Fries", price: 90 },
+                    s1: { name: "Spicy Masala Dosa", price: 140 },
+                    s2: { name: "Ghee Podi Idli (4 pcs)", price: 110 },
+                    s3: { name: "Crispy Medu Vada (2 pcs)", price: 80 },
+                    s4: { name: "Rava Idli with Sambar", price: 90 },
+                    m1: { name: "Rebel Butter Chicken with Naan", price: 280 },
+                    m2: { name: "Paneer Butter Masala with Roti", price: 240 },
+                    m3: { name: "Spicy Chicken Biryani", price: 290 },
+                    m4: { name: "Comfort Dal Khichdi", price: 160 },
+                    f1: { name: "Double Cheese Margherita Pizza", price: 190 },
+                    f2: { name: "Spicy Paneer Tikka Roll", price: 160 },
+                    f3: { name: "Crispy Veg Burger with Fries", price: 130 },
+                    f4: { name: "Classic Chicken Burger", price: 160 },
+                    d1: { name: "Sweet Gulab Jamun (2 pcs)", price: 80 },
+                    d2: { name: "Rich Chocolate Lava Cake", price: 110 }
+                  };
+                  let subtotal = 0;
+                  const mappedItems: string[] = [];
+                  selectedList.forEach(id => {
+                    if (dishMap[id]) {
+                      subtotal += dishMap[id].price;
+                      mappedItems.push(dishMap[id].name);
+                    }
+                  });
+                  if (mappedItems.length === 0) {
+                    subtotal = 280;
+                    mappedItems.push("Masala Dosa (Default)");
+                  }
+                  totalBill = subtotal + 40 + 25;
+                  itemsList = mappedItems;
+                }
+                
+                setActivePaymentGateway({
+                  taskId: task.id,
+                  providerName,
+                  totalBill,
+                  itemsList,
+                  url,
+                  mode
+                });
+              }}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+            >
+              <ExternalLink size={13}/>
+              <span>Launch Secure Vendor Payment Portal</span>
+            </button>
           </div>
         )}
 
@@ -5053,6 +5136,151 @@ function PersonalAssistantPanel({ guest, setSection, onOpenWhatsApp }: { guest:G
           <Send size={14}/>
         </button>
       </div>
+      
+      {activePaymentGateway && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-100 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-gray-300 flex flex-col max-h-[85vh]">
+            {/* Simulated Browser Header */}
+            <div className="bg-gray-200 border-b border-gray-300 px-3 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setActivePaymentGateway(null)}
+                  className="w-3.5 h-3.5 rounded-full bg-red-400 hover:bg-red-500 transition-colors"
+                  title="Close Portal"
+                />
+                <div className="w-3.5 h-3.5 rounded-full bg-yellow-400" />
+                <div className="w-3.5 h-3.5 rounded-full bg-green-400" />
+              </div>
+              <div className="flex-1 max-w-xs mx-4 bg-white/70 border border-gray-300 rounded-md py-0.5 px-2 text-[10px] text-gray-500 font-mono truncate text-center select-all flex items-center justify-center gap-1">
+                <LockIcon size={8} className="text-emerald-600 shrink-0"/> {activePaymentGateway.url}
+              </div>
+              <div className="w-8 shrink-0"/>
+            </div>
+
+            {/* Portal Body */}
+            <div className="p-5 flex-1 overflow-y-auto space-y-4 bg-white">
+              {/* Vendor Branding */}
+              <div className="flex flex-col items-center text-center pb-2 border-b border-gray-100">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md mb-2 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200">
+                  {activePaymentGateway.mode === "food" ? "🍔" : activePaymentGateway.mode === "hotel" ? "🏨" : "🎫"}
+                </div>
+                <h3 className="font-extrabold text-gray-900 text-sm">{activePaymentGateway.providerName} Pay</h3>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Secure Payment Gateway</p>
+              </div>
+
+              {/* Bill Details */}
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-2">
+                <div className="flex justify-between items-center text-xs border-b border-gray-200 pb-1.5">
+                  <span className="font-bold text-gray-500">Order Summary</span>
+                  <span className="text-[10px] text-gray-400">Ref: #{Math.floor(100000 + Math.random() * 900000)}</span>
+                </div>
+                <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
+                  {activePaymentGateway.itemsList.map((item: string, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center text-[11px] text-gray-700">
+                      <span className="font-semibold truncate max-w-[80%]">{item}</span>
+                      <span className="font-bold shrink-0">1x</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200 text-sm font-extrabold">
+                  <span className="text-gray-900">Amount to Pay</span>
+                  <span className="text-emerald-600">₹{activePaymentGateway.totalBill}</span>
+                </div>
+              </div>
+
+              {/* UPI PIN / Payment Simulation Screen */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Secure UPI Authentication</label>
+                <div className="border border-purple-100 bg-purple-50/50 rounded-xl p-3.5 space-y-2.5 text-center">
+                  <p className="text-[11px] text-purple-800 font-semibold">Enter your 4-digit UPI PIN to authorize payment:</p>
+                  
+                  {/* Password/PIN Input Dots */}
+                  <div className="flex justify-center gap-4 py-2">
+                    {[1, 2, 3, 4].map(idx => (
+                      <div
+                        key={idx}
+                        className={`w-3.5 h-3.5 rounded-full border-2 border-purple-300 transition-all ${
+                          pinValue.length >= idx ? "bg-purple-600 scale-110 shadow-sm" : "bg-white"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* 3x4 Numeric Keypad */}
+                  <div className="grid grid-cols-3 gap-2.5 max-w-[200px] mx-auto pt-1">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => {
+                          if (pinValue.length < 4) setPinValue(prev => prev + num);
+                        }}
+                        className="w-10 h-10 rounded-full bg-white hover:bg-purple-100 border border-purple-100 text-purple-700 font-extrabold text-sm transition-all flex items-center justify-center active:scale-95 shadow-sm"
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setPinValue("")}
+                      className="text-[10px] font-bold text-purple-500 hover:text-purple-700 flex items-center justify-center"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pinValue.length < 4) setPinValue(prev => prev + "0");
+                      }}
+                      className="w-10 h-10 rounded-full bg-white hover:bg-purple-100 border border-purple-100 text-purple-700 font-extrabold text-sm transition-all flex items-center justify-center active:scale-95 shadow-sm"
+                    >
+                      0
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pinValue.length < 4 || paying}
+                      onClick={async () => {
+                        setPaying(true);
+                        await new Promise(r => setTimeout(r, 1500));
+                        setPaying(false);
+                        
+                        const taskId = activePaymentGateway.taskId;
+                        setTaskState(prev => ({ ...prev, [taskId]: "done" }));
+                        
+                        let messageText = "Payment Successful! 🎉 Your order has been placed. I will now switch to tracking mode to give you live updates.";
+                        if (activePaymentGateway.mode === "hotel") {
+                          messageText = "Hotel room booked successfully! 🎉 Voucher details and check-in confirmation have been sent to your email. Have a great stay!";
+                        } else if (activePaymentGateway.mode === "trip") {
+                          messageText = "Tickets booked successfully! 🎫 Boarding pass, E-ticket PDF, and PNR details have been shared to your WhatsApp alerts. Safe travels!";
+                        }
+                        
+                        setMsgs(prev => [...prev, {
+                          id: paUid(),
+                          role: "assistant",
+                          ts: Date.now(),
+                          text: messageText
+                        }]);
+                        
+                        setActivePaymentGateway(null);
+                        setPinValue("");
+                      }}
+                      className="w-10 h-10 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center shadow-md active:scale-95"
+                    >
+                      {paying ? <Loader2 size={12} className="animate-spin"/> : "OK"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Safety Footer */}
+            <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 flex justify-between items-center text-[10px] text-gray-400">
+              <span className="flex items-center gap-1"><LockIcon size={8} className="text-gray-400"/> AES 256-bit Encrypted</span>
+              <span>PCI-DSS Compliant</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
