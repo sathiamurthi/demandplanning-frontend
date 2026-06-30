@@ -12,6 +12,11 @@ const nextConfig = {
         source: "/v1/:path*",
         destination: `${backendBase}/v1/:path*`,
       },
+      {
+        // Admin panel useCrud calls /api/tenants/... — forward to backend /v1/tenants/...
+        source: "/api/:path*",
+        destination: `${backendBase}/v1/:path*`,
+      },
     ];
   },
 };
