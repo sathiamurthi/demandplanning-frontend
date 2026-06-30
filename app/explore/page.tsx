@@ -14,12 +14,12 @@ import {
   Wrench, Hammer, Zap as ZapIcon, Landmark, GraduationCap, Code2, Send, Inbox,
   History, Navigation2, FileText, Globe, Sparkles, Home, Activity,
   Scissors, ShoppingBag, Palette, Bot, Loader2, Copy, Download, Smartphone, Share2, Wifi, WifiOff, RefreshCw,
-  Lock as LockIcon, ExternalLink,
+  Lock as LockIcon, ExternalLink, MessageCircle, ClipboardList, CheckSquare, Clock, XCircle, RotateCcw, Filter,
 } from "lucide-react";
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -185,9 +185,10 @@ function GuestGate({ onDone }: { onDone: (g: GuestIdentity) => void }) {
 
 // ── Sidebar Nav ────────────────────────────────────────────────
 const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: boolean }[] = [
-  { id:"assistant",  label:"Personal Assistant", icon:Bot,           group:"AI" },
-  { id:"travel_companion", label:"Travel Companion", icon:Compass, isSubItem:true },
-  { id:"event_companion",  label:"Event Companion",  icon:Sparkles, isSubItem:true },
+  { id:"assistant",       label:"Personal Assistant",  icon:Bot,           group:"AI" },
+  { id:"travel_companion",label:"Travel Companion",    icon:Compass,       isSubItem:true },
+  { id:"event_companion", label:"Event Companion",     icon:Sparkles,      isSubItem:true },
+  { id:"inquiry_agent",   label:"Inquiry Agent",       icon:MessageCircle, isSubItem:true },
   { id:"dashboard",  label:"Dashboard",          icon:LayoutDashboard },
   { id:"nearby",     label:"Nearby AI",          icon:Navigation2,   group:"DISCOVER" },
   { id:"search",     label:"Store Search",       icon:Store },
@@ -575,26 +576,27 @@ export default function DemandGeniusApp() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {section === "assistant"  && <PersonalAssistantPanel guest={guest} setSection={setSection} onOpenWhatsApp={() => setShowWaModal(true)} />}
-          {section === "dashboard"  && <DashboardPanel guest={guest} gk={gk} setSection={setSection} />}
-          {section === "search"     && <StoreSearchPanel />}
-          {section === "nearby"     && <NearbyPanel userLoc={userLoc} captureLocation={captureLocation} locLoading={locLoading} gk={gk} />}
+          {section === "assistant"      && <PersonalAssistantPanel guest={guest} setSection={setSection} onOpenWhatsApp={() => setShowWaModal(true)} />}
+          {section === "dashboard"      && <DashboardPanel guest={guest} gk={gk} setSection={setSection} />}
+          {section === "search"         && <StoreSearchPanel />}
+          {section === "nearby"         && <NearbyPanel userLoc={userLoc} captureLocation={captureLocation} locLoading={locLoading} gk={gk} />}
           {(section === "services" || section === "providers" || section === "seekers") && (
             <ServicesPanel userLoc={userLoc} defaultMode={section==="providers"?"provider":section==="seekers"?"seeker":undefined}/>
           )}
-          {section === "travel"     && <TravelPanel />}
-          {section === "trips"      && <TripPlanPanel gk={gk} />}
-          {section === "travel_companion" && <TravelCompanionPanel gk={gk} />}
-          {section === "event_companion" && <EventCompanionPanel gk={gk} />}
-          {section === "expenses"   && <ExpensesPanel  gk={gk} />}
-          {section === "contacts"   && <ContactsPanel  gk={gk} />}
-          {section === "ideas"      && <IdeasPanel     gk={gk} />}
-          {section === "notes"      && <NotesPanel     gk={gk} />}
-          {section === "water"      && <WaterMoodPanel gk={gk} />}
-          {section === "jobs"       && <JobsPanel      gk={gk} />}
-          {section === "skills"     && <SkillsPanel    gk={gk} />}
-          {section === "reminders"  && <RemindersPanel gk={gk} />}
-          {section === "install"    && <InstallPanel />}
+          {section === "travel"         && <TravelPanel />}
+          {section === "trips"          && <TripPlanPanel gk={gk} />}
+          {section === "travel_companion"   && <TravelCompanionPanel gk={gk} />}
+          {section === "event_companion"    && <EventCompanionPanel gk={gk} />}
+          {section === "inquiry_agent"      && <InquiryAgentPanel guest={guest} gk={gk} />}
+          {section === "expenses"       && <ExpensesPanel  gk={gk} />}
+          {section === "contacts"       && <ContactsPanel  gk={gk} />}
+          {section === "ideas"          && <IdeasPanel     gk={gk} />}
+          {section === "notes"          && <NotesPanel     gk={gk} />}
+          {section === "water"          && <WaterMoodPanel gk={gk} />}
+          {section === "jobs"           && <JobsPanel      gk={gk} />}
+          {section === "skills"         && <SkillsPanel    gk={gk} />}
+          {section === "reminders"      && <RemindersPanel gk={gk} />}
+          {section === "install"        && <InstallPanel />}
         </main>
       </div>
 
@@ -5653,6 +5655,972 @@ function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Inquiry Agent ──────────────────────────────────────────────
+
+interface InquiryRecord {
+  id: string;
+  inqId: string;
+  hotelType: string;
+  city: string;
+  checkIn: string;
+  checkOut: string;
+  guests: string;
+  roomType: string;
+  budget: string;
+  requirements: string;
+  status: string;
+  submittedAt: string;
+  quote?: string;
+  hotelNote?: string;
+  activities: { action: string; ts: string; by: string; note?: string }[];
+}
+
+const INQUIRY_HOTEL_TYPES = [
+  { id: "hotel",     label: "Hotel",         icon: "🏨" },
+  { id: "resort",    label: "Resort",         icon: "🌴" },
+  { id: "pg",        label: "PG / Homestay",  icon: "🏠" },
+  { id: "banquet",   label: "Banquet Hall",   icon: "🎪" },
+  { id: "hostel",    label: "Hostel",         icon: "🛏" },
+  { id: "villa",     label: "Villa / Cottage", icon: "🏡" },
+];
+
+const INQUIRY_CATEGORIES = [
+  { id: "hotel_stay",   name: "Hotel & Resort Stay",     icon: "🏨",
+    subcategories: ["Deluxe Room", "Suite", "Pool View", "Sea Facing", "Breakfast Included", "Late Checkout"],
+    timingOptions: ["Any Time", "24h ahead", "48h ahead", "1 week ahead"] },
+  { id: "pg_home",      name: "PG & Homestay",           icon: "🏠",
+    subcategories: ["AC Room", "Non-AC Room", "Single Occupancy", "Double Sharing", "Meals Included", "Wi-Fi"],
+    timingOptions: ["Immediate", "1 week ahead", "1 month ahead"] },
+  { id: "banquet",      name: "Banquet & Event Halls",   icon: "🎪",
+    subcategories: ["AC Hall", "Outdoor", "Terrace", "Poolside", "Catering", "Decoration"],
+    timingOptions: ["1 month ahead", "3 months ahead", "6 months ahead"] },
+  { id: "car_transfer", name: "Car Rental & Transfers",  icon: "🚗",
+    subcategories: ["Airport Pickup", "Outstation", "City Tour", "Wedding Car", "Innova", "Tempo Traveller"],
+    timingOptions: ["Same day", "1 day ahead", "3 days ahead"] },
+  { id: "restaurant",   name: "Restaurant Booking",      icon: "🍽",
+    subcategories: ["Table for 2", "Private Dining", "Birthday Setup", "Group Booking", "Rooftop", "Buffet"],
+    timingOptions: ["Same day", "Next day", "Weekend"] },
+  { id: "spa",          name: "Spa & Wellness",          icon: "💆",
+    subcategories: ["Full Body Massage", "Couple Spa", "Ayurveda", "Facial", "Steam Bath", "Yoga"],
+    timingOptions: ["Same day", "Next day", "Flexible"] },
+  { id: "adventure",    name: "Adventure & Activities",  icon: "🏄",
+    subcategories: ["Trekking", "River Rafting", "Parasailing", "Safari", "Cycling", "Camping"],
+    timingOptions: ["Book in advance", "Weekend", "Seasonal"] },
+  { id: "travel_pkg",   name: "Travel Packages",         icon: "✈",
+    subcategories: ["Honeymoon", "Family", "Group Tour", "Pilgrimage", "Corporate", "Adventure"],
+    timingOptions: ["1 month ahead", "2 months ahead", "3 months ahead"] },
+];
+
+const INQUIRY_STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
+  "New":            { color: "text-sky-700",    bg: "bg-sky-50 border-sky-200",    dot: "bg-sky-500" },
+  "Viewed":         { color: "text-blue-700",   bg: "bg-blue-50 border-blue-200",  dot: "bg-blue-500" },
+  "Info Requested": { color: "text-amber-700",  bg: "bg-amber-50 border-amber-200",dot: "bg-amber-500" },
+  "Quote Sent":     { color: "text-purple-700", bg: "bg-purple-50 border-purple-200",dot: "bg-purple-500" },
+  "Accepted":       { color: "text-green-700",  bg: "bg-green-50 border-green-200",dot: "bg-green-500" },
+  "Rejected":       { color: "text-red-700",    bg: "bg-red-50 border-red-200",    dot: "bg-red-500" },
+  "Closed":         { color: "text-gray-600",   bg: "bg-gray-50 border-gray-200",  dot: "bg-gray-400" },
+};
+
+function genInqId() {
+  const d = new Date();
+  const dd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  return `INQ-${dd}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+}
+
+function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:string)=>string }) {
+  const [subTab, setSubTab] = useState<"dashboard"|"submit"|"inquiries"|"hotel"|"history"|"leads">("dashboard");
+
+  // Form state
+  const emptyForm = { hotelType:"hotel", city:"", checkIn:"", checkOut:"", guests:"2", roomType:"Standard", budget:"", requirements:"" };
+  const [form, setForm] = useState({ ...emptyForm });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Inquiries
+  const [inquiries, setInquiries] = useState<InquiryRecord[]>([]);
+  const [selectedInq, setSelectedInq] = useState<InquiryRecord | null>(null);
+  const [hotelFilter, setHotelFilter] = useState<"all"|"New"|"Info Requested"|"Quote Sent">("all");
+
+  // Quote modal
+  const [quoteInput, setQuoteInput] = useState("");
+  const [quoteTarget, setQuoteTarget] = useState<InquiryRecord | null>(null);
+  const [infoNote, setInfoNote] = useState("");
+  const [infoTarget, setInfoTarget] = useState<InquiryRecord | null>(null);
+
+  // Alert preferences
+  const [prefValues, setPrefValues] = useState<Record<string, { enabled: boolean; subs: string[]; radius: string; budget: number; timing: string }>>({});
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiMode, setAiMode] = useState<"Smart"|"Minimal"|"Aggressive">("Smart");
+  const [aiRecTypes, setAiRecTypes] = useState<string[]>(["Hotel Availability", "Price Drop Alert", "New Quote", "Status Update"]);
+
+  // Notification settings
+  const [notifChannels, setNotifChannels] = useState<string[]>(["WhatsApp", "In-App"]);
+  const [notifFreq, setNotifFreq] = useState("Real-time");
+
+  // Chat
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState<any[]>([
+    { id: "iq_init", role: "assistant", text: "Welcome to your Inquiry Agent! 🏨 I manage hotel, resort, PG and venue inquiries end-to-end. Submit an inquiry and I'll assign an ID, notify the property, and keep you updated on every response. How can I help?", ts: Date.now() }
+  ]);
+  const [aiThinking, setAiThinking] = useState(false);
+
+  // Leads
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadSearch, setLeadSearch] = useState("");
+
+  // Toast
+  const [toast, setToast] = useState("");
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+
+  // ── Load from localStorage ──
+  const loadInquiries = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("dplan_inquiries");
+      if (raw) setInquiries(JSON.parse(raw));
+    } catch {}
+  };
+
+  const saveInquiries = (list: InquiryRecord[]) => {
+    localStorage.setItem("dplan_inquiries", JSON.stringify(list));
+    setInquiries(list);
+  };
+
+  const updateInquiry = (updated: InquiryRecord) => {
+    const list = inquiries.map(i => i.id === updated.id ? updated : i);
+    saveInquiries(list);
+    if (selectedInq?.id === updated.id) setSelectedInq(updated);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    loadInquiries();
+    const loadedPrefs: any = {};
+    INQUIRY_CATEGORIES.forEach(cat => {
+      try {
+        const stored = localStorage.getItem(`dplan_inq_pref_${cat.id}`);
+        loadedPrefs[cat.id] = stored ? JSON.parse(stored) : { enabled: true, subs: cat.subcategories.slice(0, 3), radius: "City", budget: 5000, timing: cat.timingOptions[0] };
+      } catch {}
+    });
+    setPrefValues(loadedPrefs);
+    const storedLeads = localStorage.getItem("demandgenius_leads");
+    if (storedLeads) setLeads(JSON.parse(storedLeads));
+  }, [subTab]);
+
+  // ── Submit Inquiry ──
+  const submitInquiry = () => {
+    if (!form.city.trim()) { showToast("Please enter city / location"); return; }
+    if (!form.checkIn)     { showToast("Please select check-in date"); return; }
+    if (!form.checkOut)    { showToast("Please select check-out date"); return; }
+    setSubmitting(true);
+    setTimeout(() => {
+      const inqId = genInqId();
+      const now = new Date().toISOString();
+      const hotelLabel = INQUIRY_HOTEL_TYPES.find(h => h.id === form.hotelType)?.label || form.hotelType;
+      const newInq: InquiryRecord = {
+        id: paUid(), inqId,
+        hotelType: form.hotelType, city: form.city,
+        checkIn: form.checkIn, checkOut: form.checkOut,
+        guests: form.guests, roomType: form.roomType,
+        budget: form.budget, requirements: form.requirements,
+        status: "New", submittedAt: now,
+        activities: [
+          { action: "Inquiry Submitted by Customer", ts: now, by: "Customer" },
+          { action: `Inquiry ID ${inqId} Assigned`, ts: now, by: "System" },
+          { action: `${hotelLabel} in ${form.city} Notified`, ts: now, by: "System" },
+          { action: "Confirmation Sent to Customer", ts: now, by: "System" },
+        ],
+      };
+      const updated = [newInq, ...inquiries];
+      saveInquiries(updated);
+      setForm({ ...emptyForm });
+      setSubmitting(false);
+      setSelectedInq(newInq);
+      setSubTab("inquiries");
+      showToast(`${inqId} submitted!`);
+      logLeadInApp(guest?.name || "Guest", `${hotelLabel}, ${form.city}`, "Hotel Inquiry", `Inquiry submitted: ${inqId}`, "New");
+      // AI confirmation chat
+      setChatHistory(prev => [...prev, {
+        id: paUid(), role: "assistant", ts: Date.now(),
+        text: `Inquiry ${inqId} is live! The ${hotelLabel} in ${form.city} has been notified. Confirmation sent to your profile. I will alert you the moment they respond.`,
+        preview: { title: `📋 ${inqId} — New`, body: `${hotelLabel} · ${form.city} · ${form.guests} guests · ${form.checkIn} → ${form.checkOut}`, type: "inquiry", vendorName: hotelLabel }
+      }]);
+    }, 1200);
+  };
+
+  // ── Hotel Response Actions ──
+  const hotelRespond = (inq: InquiryRecord, action: "Accept"|"Quote"|"Info"|"Reject", extra?: string) => {
+    const now = new Date().toISOString();
+    const statusMap: Record<string, string> = { Accept:"Accepted", Quote:"Quote Sent", Info:"Info Requested", Reject:"Rejected" };
+    const msgMap: Record<string, string> = {
+      Accept: "Hotel has accepted your inquiry! Please contact them to confirm booking.",
+      Quote:  `Hotel sent a quote: ₹${extra || "—"} for your stay. Review and confirm.`,
+      Info:   `Hotel requested more information: "${extra || "Please provide more details."}"`,
+      Reject: "Hotel is unable to accommodate this inquiry at the moment.",
+    };
+    const updated: InquiryRecord = {
+      ...inq,
+      status: statusMap[action],
+      quote: action === "Quote" ? extra : inq.quote,
+      hotelNote: action === "Info" || action === "Reject" ? extra : inq.hotelNote,
+      activities: [
+        ...inq.activities,
+        { action: `Hotel: ${action === "Info" ? "Requested More Information" : statusMap[action]}`, ts: now, by: "Hotel", note: extra },
+        { action: "Customer Notified by Inquiry Agent", ts: now, by: "System" },
+      ],
+    };
+    updateInquiry(updated);
+    setQuoteTarget(null); setInfoTarget(null);
+    setQuoteInput(""); setInfoNote("");
+    showToast(msgMap[action]);
+    logLeadInApp(guest?.name || "Guest", `${INQUIRY_HOTEL_TYPES.find(h=>h.id===inq.hotelType)?.label||inq.hotelType}, ${inq.city}`, "Hotel Inquiry", `Hotel ${statusMap[action]}: ${inq.inqId}`, statusMap[action]);
+    setChatHistory(prev => [...prev, { id: paUid(), role: "assistant", ts: Date.now(), text: msgMap[action] }]);
+  };
+
+  // ── AI Chat ──
+  const handleAskAI = (text: string) => {
+    if (!text.trim() || aiThinking) return;
+    setChatHistory(prev => [...prev, { id: paUid(), role: "user", text, ts: Date.now() }]);
+    setChatInput(""); setAiThinking(true);
+    setTimeout(() => {
+      const q = text.toLowerCase();
+      let reply = "Scanning inquiry dashboard...";
+      let preview: any = null;
+      const active = inquiries.filter(i => !["Closed","Rejected"].includes(i.status));
+
+      if (q.includes("status") || q.includes("update") || q.includes("my inquiry")) {
+        reply = active.length
+          ? `You have ${active.length} active inquir${active.length>1?"ies":"y"}. Latest: ${active[0]?.inqId} is ${active[0]?.status}. I will push an alert the moment there is a hotel response.`
+          : "No active inquiries right now. Submit a new one and I will track it end-to-end for you.";
+      } else if (q.includes("hotel") || q.includes("resort") || q.includes("room")) {
+        reply = "Looking for the best available hotels! Based on your inquiry history, I recommend submitting with flexible check-in dates for faster acceptance.";
+        preview = { title: "🏨 Hotel Availability Tip", body: "Flexible dates improve acceptance rate by 38%. Weekday check-ins get 20% better rates.", type: "hotel", vendorName: "Smart Rate Engine" };
+      } else if (q.includes("quote") || q.includes("price") || q.includes("cost")) {
+        const quoted = inquiries.filter(i => i.status === "Quote Sent");
+        reply = quoted.length ? `${quoted.length} quote(s) pending review. Latest: ${quoted[0]?.inqId} — ₹${quoted[0]?.quote || "pending"}. Check My Inquiries to confirm.` : "No open quotes yet. Once the hotel sends one, I will alert you immediately.";
+        preview = { title: "💰 Quote Status", body: quoted.length ? `${quoted[0]?.inqId}: ₹${quoted[0]?.quote}` : "Awaiting hotel quotes.", type: "quote", vendorName: "Pricing Engine" };
+      } else if (q.includes("cancel") || q.includes("reject") || q.includes("close")) {
+        reply = "To close an inquiry, open it from My Inquiries and mark it closed. I'll archive the activity log and notify the hotel.";
+      } else if (q.includes("goa") || q.includes("kerala") || q.includes("ooty") || q.includes("manali") || q.includes("kashmir")) {
+        const dest = q.includes("goa")?"Goa":q.includes("kerala")?"Kerala":q.includes("ooty")?"Ooty":q.includes("manali")?"Manali":"Kashmir";
+        reply = `${dest} is highly recommended! Best time to book is 6-8 weeks in advance. I can submit an inquiry for ${dest} right now — just tell me your dates.`;
+        preview = { title: `✈ ${dest} Inquiry Tip`, body: `Top properties in ${dest} fill up fast. Submit an inquiry now to lock availability.`, type: "travel", vendorName: `${dest} Tourism` };
+      } else if (q.includes("pg") || q.includes("paying guest") || q.includes("hostel")) {
+        reply = "PG and Hostel inquiries are my specialty! I can help you find monthly accommodation. Just submit with your move-in date and preferred locality.";
+      } else {
+        reply = `I track all your property inquiries end-to-end: ${inquiries.length} total, ${active.length} active. Ask me about status, quotes, or tips for faster responses.`;
+      }
+      setChatHistory(prev => [...prev, { id: paUid(), role: "assistant", text: reply, ts: Date.now(), preview }]);
+      setAiThinking(false);
+      if (preview) logLeadInApp(guest?.name||"Guest", preview.vendorName, "AI Inquiry Chat", reply.slice(0,60), "Active");
+    }, 1100);
+  };
+
+  const filteredCategories = INQUIRY_CATEGORIES.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.subcategories.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const hotelViewInquiries = inquiries.filter(i =>
+    hotelFilter === "all" ? !["Accepted","Rejected","Closed"].includes(i.status) : i.status === hotelFilter
+  );
+
+  const stats = {
+    total: inquiries.length,
+    active: inquiries.filter(i => !["Accepted","Rejected","Closed"].includes(i.status)).length,
+    quotes: inquiries.filter(i => i.status === "Quote Sent").length,
+    accepted: inquiries.filter(i => i.status === "Accepted").length,
+  };
+
+  // ── Render ──
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-sky-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5">
+          <CheckCircle2 size={13}/><span>{toast}</span>
+        </div>
+      )}
+
+      {/* Quote Modal */}
+      {quoteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+            <h3 className="font-black text-gray-900 text-sm">Send Quote — {quoteTarget.inqId}</h3>
+            <p className="text-xs text-gray-500">{INQUIRY_HOTEL_TYPES.find(h=>h.id===quoteTarget.hotelType)?.label} · {quoteTarget.city} · {quoteTarget.guests} guests</p>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Quote Amount (₹)</label>
+              <input value={quoteInput} onChange={e => setQuoteInput(e.target.value)} type="number"
+                placeholder="e.g. 4500 per night"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => hotelRespond(quoteTarget, "Quote", quoteInput)}
+                disabled={!quoteInput}
+                className="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-bold text-xs py-2.5 rounded-xl transition-colors">
+                Send Quote
+              </button>
+              <button onClick={() => { setQuoteTarget(null); setQuoteInput(""); }}
+                className="px-4 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 font-semibold">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* More Info Modal */}
+      {infoTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+            <h3 className="font-black text-gray-900 text-sm">Request More Info — {infoTarget.inqId}</h3>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Message to Customer</label>
+              <textarea value={infoNote} onChange={e => setInfoNote(e.target.value)} rows={3}
+                placeholder="e.g. Please confirm number of extra beds needed and meal preference"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"/>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => hotelRespond(infoTarget, "Info", infoNote)}
+                disabled={!infoNote.trim()}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold text-xs py-2.5 rounded-xl transition-colors">
+                Send Request
+              </button>
+              <button onClick={() => { setInfoTarget(null); setInfoNote(""); }}
+                className="px-4 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 font-semibold">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+          <Inbox size={20} className="text-white"/>
+        </div>
+        <div>
+          <h1 className="text-xl font-black text-gray-900 leading-tight">Inquiry Agent</h1>
+          <p className="text-gray-500 text-xs">Hotel · Resort · PG · Venue — submit, track and manage inquiries</p>
+        </div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl">
+        {[
+          { id: "dashboard",  label: "Dashboard",        icon: LayoutDashboard },
+          { id: "submit",     label: "Submit Inquiry",   icon: Send },
+          { id: "inquiries",  label: "My Inquiries",     icon: ClipboardList },
+          { id: "hotel",      label: "Hotel Dashboard",  icon: Hotel },
+          { id: "history",    label: "Activity Log",     icon: History },
+          { id: "leads",      label: "Leads Tracker",    icon: Shield },
+        ].map(t => {
+          const Icon = t.icon;
+          const isActive = subTab === t.id;
+          return (
+            <button key={t.id} onClick={() => { setSubTab(t.id as any); setActiveCategory(null); setSelectedInq(null); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                isActive ? "bg-white shadow-sm text-sky-600" : "text-gray-500 hover:text-gray-700"
+              }`}>
+              <Icon size={12}/><span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── DASHBOARD ── */}
+      {subTab === "dashboard" && (
+        <div className="space-y-4">
+          {/* Hero card */}
+          <div className="bg-gradient-to-br from-sky-900 via-blue-950 to-slate-900 text-white rounded-2xl p-5 shadow-sm border border-blue-950 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider block">Inquiry Agent · Active</span>
+                <h3 className="text-lg font-black mt-0.5">Managing {inquiries.length} Inquir{inquiries.length === 1 ? "y" : "ies"}</h3>
+                <p className="text-sky-200 text-[10px] mt-0.5">{stats.active} active · {stats.quotes} quote{stats.quotes!==1?"s":""} pending · {stats.accepted} accepted</p>
+              </div>
+              <div className="bg-sky-500/20 border border-sky-400/30 rounded-xl p-2.5">
+                <Inbox size={22} className="text-sky-300"/>
+              </div>
+            </div>
+            {/* Stats row */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: "Total",    value: stats.total,    color: "text-white" },
+                { label: "Active",   value: stats.active,   color: "text-sky-300" },
+                { label: "Quotes",   value: stats.quotes,   color: "text-purple-300" },
+                { label: "Accepted", value: stats.accepted, color: "text-green-400" },
+              ].map(s => (
+                <div key={s.label} className="text-center bg-white/5 rounded-xl p-2 border border-white/10">
+                  <p className={`text-lg font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-[9px] text-white/50 font-semibold uppercase tracking-wide">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            {/* Quick actions */}
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { label: "New Inquiry", action: () => setSubTab("submit"), col: "bg-sky-500 hover:bg-sky-400" },
+                { label: "View Responses", action: () => setSubTab("hotel"), col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+                { label: "My Inquiries", action: () => setSubTab("inquiries"), col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+              ].map(a => (
+                <button key={a.label} onClick={a.action}
+                  className={`${a.col} text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors`}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent inquiries */}
+          {inquiries.length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-black text-gray-900">Recent Inquiries</h3>
+                <button onClick={() => setSubTab("inquiries")} className="text-[10px] text-sky-600 font-bold hover:underline">View all →</button>
+              </div>
+              <div className="space-y-2">
+                {inquiries.slice(0, 4).map(inq => {
+                  const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
+                  const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                  return (
+                    <button key={inq.id} onClick={() => { setSelectedInq(inq); setSubTab("inquiries"); }}
+                      className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-sky-200 hover:bg-sky-50/30 transition-all text-left">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-base">{ht?.icon || "🏨"}</span>
+                        <div>
+                          <p className="text-xs font-bold text-gray-900">{inq.inqId}</p>
+                          <p className="text-[10px] text-gray-400">{ht?.label} · {inq.city} · {inq.guests} guests</p>
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* AI Chat */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Bot size={14} className="text-sky-500"/>
+              <span className="text-xs font-black text-gray-900">AI Inquiry Assistant</span>
+              {aiThinking && <Loader2 size={11} className="animate-spin text-sky-400 ml-auto"/>}
+            </div>
+            <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+              {chatHistory.map(m => (
+                <div key={m.id} className={`flex ${m.role==="user"?"justify-end":"justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[11px] ${m.role==="user" ? "bg-sky-500 text-white rounded-br-sm" : "bg-gray-100 text-gray-800 rounded-bl-sm"}`}>
+                    <p>{m.text}</p>
+                    {m.preview && (
+                      <div className="mt-1.5 bg-white/20 rounded-lg p-2 border border-white/30">
+                        <p className="font-bold text-[10px]">{m.preview.title}</p>
+                        <p className="text-[10px] opacity-80 mt-0.5">{m.preview.body}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {aiThinking && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-3 py-2 text-[11px] text-gray-500 flex items-center gap-1">
+                    <Loader2 size={10} className="animate-spin"/><span>Inquiry Agent thinking…</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input value={chatInput} onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key==="Enter" && handleAskAI(chatInput)}
+                placeholder="Ask about inquiry status, hotel tips, quotes…"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+              <button onClick={() => handleAskAI(chatInput)} disabled={!chatInput.trim() || aiThinking}
+                className="bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white px-3 py-2 rounded-xl transition-colors">
+                <Send size={13}/>
+              </button>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {["Check my status", "Any quotes?", "Hotels in Goa", "PG options"].map(q => (
+                <button key={q} onClick={() => handleAskAI(q)}
+                  className="text-[9px] bg-sky-50 border border-sky-100 text-sky-700 font-semibold px-2 py-1 rounded-full hover:bg-sky-100 transition-colors">
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SUBMIT INQUIRY ── */}
+      {subTab === "submit" && (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Send size={15} className="text-sky-500"/>
+              <h2 className="text-sm font-black text-gray-900">New Inquiry</h2>
+              <span className="ml-auto text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">ID assigned on submit</span>
+            </div>
+
+            {/* Property type */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Property Type</label>
+              <div className="grid grid-cols-3 gap-2">
+                {INQUIRY_HOTEL_TYPES.map(ht => (
+                  <button key={ht.id} onClick={() => setForm(f => ({ ...f, hotelType: ht.id }))}
+                    className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-[10px] font-bold transition-all ${
+                      form.hotelType === ht.id
+                        ? "bg-sky-50 border-sky-400 text-sky-700 shadow-sm"
+                        : "border-gray-200 text-gray-500 hover:border-sky-200"
+                    }`}>
+                    <span className="text-xl">{ht.icon}</span>
+                    <span>{ht.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* City + Dates */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">City / Location *</label>
+                <input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  placeholder="e.g. Goa, Ooty, Bangalore"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Room Type</label>
+                <select value={form.roomType} onChange={e => setForm(f => ({ ...f, roomType: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
+                  {["Standard","Deluxe","Suite","Double Sharing","Single","Triple"].map(r => (
+                    <option key={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Check-in Date *</label>
+                <input type="date" value={form.checkIn} min={new Date().toISOString().slice(0,10)}
+                  onChange={e => setForm(f => ({ ...f, checkIn: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Check-out Date *</label>
+                <input type="date" value={form.checkOut} min={form.checkIn || new Date().toISOString().slice(0,10)}
+                  onChange={e => setForm(f => ({ ...f, checkOut: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Number of Guests</label>
+                <select value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
+                  {["1","2","3","4","5","6","7","8","10","15","20+"].map(n => (
+                    <option key={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Budget (₹ per night)</label>
+                <input value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
+                  placeholder="e.g. 2000–5000 or Any"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Special Requirements</label>
+              <textarea value={form.requirements} onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} rows={3}
+                placeholder="e.g. AC room, sea view, vegetarian meals, early check-in, wheelchair access…"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 resize-none"/>
+            </div>
+
+            {/* Workflow preview */}
+            <div className="bg-sky-50 border border-sky-100 rounded-xl p-3.5 space-y-2">
+              <p className="text-[10px] font-black text-sky-800 uppercase tracking-wide">What happens next</p>
+              <div className="space-y-1.5">
+                {[
+                  { icon: "✅", text: "Inquiry ID assigned instantly" },
+                  { icon: "🔔", text: "Hotel / property notified immediately" },
+                  { icon: "📩", text: "Confirmation sent to your profile" },
+                  { icon: "🤖", text: "Agent tracks response — Accept / Quote / Info / Reject" },
+                ].map((s, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] text-sky-700">
+                    <span>{s.icon}</span><span>{s.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={submitInquiry} disabled={submitting || !form.city.trim() || !form.checkIn || !form.checkOut}
+              className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-black py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+              {submitting ? <><Loader2 size={15} className="animate-spin"/> Submitting…</> : <><Send size={15}/> Submit Inquiry</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MY INQUIRIES ── */}
+      {subTab === "inquiries" && (
+        <div className="space-y-4">
+          {inquiries.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-12 text-center">
+              <Inbox size={36} className="mx-auto mb-3 text-gray-200"/>
+              <p className="text-gray-400 font-semibold text-sm">No inquiries yet</p>
+              <p className="text-gray-300 text-xs mt-1">Submit your first hotel inquiry to see it tracked here</p>
+              <button onClick={() => setSubTab("submit")}
+                className="mt-4 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-colors">
+                Submit Inquiry
+              </button>
+            </div>
+          ) : selectedInq ? (
+            /* Detail view */
+            <div className="space-y-3">
+              <button onClick={() => setSelectedInq(null)}
+                className="flex items-center gap-1 text-xs text-sky-600 font-bold hover:underline">
+                ← Back to list
+              </button>
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{INQUIRY_HOTEL_TYPES.find(h=>h.id===selectedInq.hotelType)?.icon || "🏨"}</span>
+                      <div>
+                        <p className="font-black text-gray-900 text-sm">{selectedInq.inqId}</p>
+                        <p className="text-[10px] text-gray-400">{INQUIRY_HOTEL_TYPES.find(h=>h.id===selectedInq.hotelType)?.label} · {selectedInq.city}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full border ${(INQUIRY_STATUS_CONFIG[selectedInq.status]||INQUIRY_STATUS_CONFIG["New"]).bg} ${(INQUIRY_STATUS_CONFIG[selectedInq.status]||INQUIRY_STATUS_CONFIG["New"]).color}`}>
+                    {selectedInq.status}
+                  </span>
+                </div>
+
+                {/* Details grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { label: "Check-in",   value: selectedInq.checkIn },
+                    { label: "Check-out",  value: selectedInq.checkOut },
+                    { label: "Guests",     value: selectedInq.guests },
+                    { label: "Room Type",  value: selectedInq.roomType },
+                    { label: "Budget",     value: selectedInq.budget || "Any" },
+                    { label: "Submitted",  value: new Date(selectedInq.submittedAt).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) },
+                  ].map(d => (
+                    <div key={d.label} className="bg-gray-50 rounded-xl p-2.5">
+                      <p className="text-[9px] text-gray-400 font-semibold uppercase tracking-wide">{d.label}</p>
+                      <p className="font-bold text-gray-800 mt-0.5">{d.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedInq.requirements && (
+                  <div className="bg-sky-50 border border-sky-100 rounded-xl p-3 text-xs text-sky-800">
+                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Special Requirements</p>
+                    <p>{selectedInq.requirements}</p>
+                  </div>
+                )}
+
+                {selectedInq.quote && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800">
+                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Hotel Quote</p>
+                    <p className="text-lg font-black">₹{selectedInq.quote} <span className="text-xs font-normal">per night</span></p>
+                  </div>
+                )}
+
+                {selectedInq.hotelNote && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Hotel Message</p>
+                    <p>{selectedInq.hotelNote}</p>
+                  </div>
+                )}
+
+                {/* Activity timeline */}
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-wide mb-2">Activity Timeline</p>
+                  <div className="space-y-2 relative">
+                    <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-100"/>
+                    {selectedInq.activities.map((act, i) => (
+                      <div key={i} className="flex items-start gap-3 pl-6 relative">
+                        <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${
+                          act.by === "Customer" ? "bg-sky-500" : act.by === "Hotel" ? "bg-green-500" : "bg-gray-400"
+                        }`}>
+                          <div className="w-1.5 h-1.5 rounded-full bg-white"/>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[11px] font-semibold text-gray-800">{act.action}</p>
+                          {act.note && <p className="text-[10px] text-gray-500 mt-0.5">"{act.note}"</p>}
+                          <p className="text-[9px] text-gray-400 mt-0.5">{new Date(act.ts).toLocaleString("en-IN", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })} · {act.by}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Close inquiry */}
+                {!["Closed","Rejected"].includes(selectedInq.status) && (
+                  <button onClick={() => {
+                    const now = new Date().toISOString();
+                    updateInquiry({ ...selectedInq, status: "Closed", activities: [...selectedInq.activities, { action: "Inquiry Closed by Customer", ts: now, by: "Customer" }] });
+                    showToast("Inquiry closed");
+                    setSelectedInq(null);
+                  }} className="w-full border border-gray-200 text-gray-500 text-xs font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                    <XCircle size={13}/> Close Inquiry
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* List view */
+            <div className="space-y-2">
+              {inquiries.map(inq => {
+                const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
+                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                const nights = inq.checkIn && inq.checkOut
+                  ? Math.ceil((new Date(inq.checkOut).getTime() - new Date(inq.checkIn).getTime()) / 86400000)
+                  : null;
+                return (
+                  <button key={inq.id} onClick={() => setSelectedInq(inq)}
+                    className="w-full bg-white border border-gray-100 hover:border-sky-200 hover:shadow-sm rounded-2xl p-4 text-left transition-all">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">{ht?.icon || "🏨"}</span>
+                        <div>
+                          <p className="text-xs font-black text-gray-900">{inq.inqId}</p>
+                          <p className="text-[10px] text-gray-500">{ht?.label} · {inq.city} · {inq.guests} guests</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {inq.checkIn} → {inq.checkOut}{nights ? ` · ${nights} night${nights!==1?"s":""}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
+                        {inq.quote && <span className="text-[10px] text-green-600 font-bold">₹{inq.quote}/night</span>}
+                        <span className="text-[9px] text-gray-300">{inq.activities.length} events</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── HOTEL DASHBOARD ── */}
+      {subTab === "hotel" && (
+        <div className="space-y-4">
+          {/* Hotel manager header */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-4 border border-slate-700">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
+                <Hotel size={18} className="text-white"/>
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Hotel Management View</p>
+                <h3 className="font-black text-sm mt-0.5">Incoming Inquiries</h3>
+              </div>
+              <div className="ml-auto text-right">
+                <p className="text-xl font-black text-sky-400">{hotelViewInquiries.length}</p>
+                <p className="text-[9px] text-slate-400">Pending</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl">
+            {(["all","New","Info Requested","Quote Sent"] as const).map(f => (
+              <button key={f} onClick={() => setHotelFilter(f)}
+                className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${hotelFilter===f ? "bg-white shadow-sm text-slate-800" : "text-gray-500 hover:text-gray-700"}`}>
+                {f === "all" ? "All Open" : f}
+              </button>
+            ))}
+          </div>
+
+          {hotelViewInquiries.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
+              <CheckSquare size={30} className="mx-auto mb-2 text-green-300"/>
+              <p className="text-gray-400 font-semibold text-sm">All clear!</p>
+              <p className="text-gray-300 text-xs mt-1">No pending inquiries to action</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {hotelViewInquiries.map(inq => {
+                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
+                const nights = inq.checkIn && inq.checkOut
+                  ? Math.ceil((new Date(inq.checkOut).getTime() - new Date(inq.checkIn).getTime()) / 86400000)
+                  : null;
+                return (
+                  <div key={inq.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                    {/* Inquiry header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">{ht?.icon || "🏨"}</span>
+                        <div>
+                          <p className="font-black text-sm text-gray-900">{inq.inqId}</p>
+                          <p className="text-[10px] text-gray-400">{ht?.label} · {inq.city}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
+                    </div>
+
+                    {/* Inquiry details */}
+                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                      {[
+                        { icon: "📅", label: "Check-in",  val: inq.checkIn },
+                        { icon: "📅", label: "Check-out", val: inq.checkOut },
+                        { icon: "👥", label: "Guests",    val: `${inq.guests} person${+inq.guests!==1?"s":""}` },
+                        { icon: "🛏", label: "Room",      val: inq.roomType },
+                        { icon: "💰", label: "Budget",    val: inq.budget ? `₹${inq.budget}` : "Any" },
+                        { icon: "🌙", label: "Nights",    val: nights ? `${nights} night${nights!==1?"s":""}` : "—" },
+                      ].map(d => (
+                        <div key={d.label} className="bg-gray-50 rounded-lg p-2">
+                          <p className="text-gray-400">{d.label}</p>
+                          <p className="font-bold text-gray-800 mt-0.5">{d.val}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {inq.requirements && (
+                      <div className="text-[10px] text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                        <span className="font-bold">Requirements: </span>{inq.requirements}
+                      </div>
+                    )}
+
+                    {/* Hotel action buttons */}
+                    <div className="border-t border-gray-50 pt-3">
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mb-2">Hotel Actions</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => hotelRespond(inq, "Accept")}
+                          className="flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
+                          <CheckCircle2 size={13}/> Accept
+                        </button>
+                        <button onClick={() => { setQuoteTarget(inq); setQuoteInput(""); }}
+                          className="flex items-center justify-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
+                          <Banknote size={13}/> Send Quote
+                        </button>
+                        <button onClick={() => { setInfoTarget(inq); setInfoNote(""); }}
+                          className="flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
+                          <MessageCircle size={13}/> Request Info
+                        </button>
+                        <button onClick={() => hotelRespond(inq, "Reject", "Unable to accommodate")}
+                          className="flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
+                          <XCircle size={13}/> Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ACTIVITY LOG ── */}
+      {subTab === "history" && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <History size={15} className="text-sky-500"/>
+            <h3 className="text-sm font-black text-gray-900">Full Activity Log</h3>
+          </div>
+          {inquiries.length === 0 ? (
+            <div className="text-center py-10 text-gray-300">
+              <History size={28} className="mx-auto mb-2 opacity-40"/>
+              <p className="text-sm">No activity yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {inquiries.map(inq => {
+                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
+                return (
+                  <div key={inq.id}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm">{ht?.icon}</span>
+                      <span className="text-xs font-black text-gray-800">{inq.inqId}</span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${sc.bg} ${sc.color}`}>{inq.status}</span>
+                      <span className="text-[10px] text-gray-400 ml-auto">{ht?.label} · {inq.city}</span>
+                    </div>
+                    <div className="space-y-1.5 pl-3 border-l-2 border-sky-100 ml-2">
+                      {inq.activities.map((act, i) => (
+                        <div key={i} className="relative">
+                          <div className={`absolute -left-[13px] top-1.5 w-2 h-2 rounded-full border border-white ${
+                            act.by === "Customer" ? "bg-sky-400" : act.by === "Hotel" ? "bg-green-400" : "bg-gray-300"
+                          }`}/>
+                          <p className="text-[11px] font-semibold text-gray-700">{act.action}</p>
+                          {act.note && <p className="text-[10px] text-gray-400 italic">"{act.note}"</p>}
+                          <p className="text-[9px] text-gray-300">{new Date(act.ts).toLocaleString("en-IN", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })} · {act.by}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── LEADS TRACKER ── */}
+      {subTab === "leads" && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield size={14} className="text-sky-500"/>
+              <h3 className="text-xs font-black text-gray-900">Super Leads Tracker</h3>
+            </div>
+            <span className="text-[10px] bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded-full border border-sky-100">{leads.length} records</span>
+          </div>
+          <div className="relative">
+            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input value={leadSearch} onChange={e => setLeadSearch(e.target.value)}
+              placeholder="Search leads…"
+              className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-xs focus:outline-none"/>
+          </div>
+          {leads.length === 0 ? (
+            <div className="text-center py-8 text-gray-300 text-xs">No leads yet. Submit inquiries to generate leads.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    {["Time","Seeker","Vendor","Category","Action","Status"].map(h => (
+                      <th key={h} className="py-2 px-2 text-left text-gray-400 font-bold uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.filter(l =>
+                    !leadSearch || [l.seekerName,l.vendorName,l.category,l.status].some(v => v?.toLowerCase().includes(leadSearch.toLowerCase()))
+                  ).slice(0,30).map((l: any) => (
+                    <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-2 px-2 text-gray-400 whitespace-nowrap">{new Date(l.timestamp).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</td>
+                      <td className="py-2 px-2 font-semibold text-gray-800">{l.seekerName}</td>
+                      <td className="py-2 px-2 text-gray-600 max-w-[120px] truncate">{l.vendorName}</td>
+                      <td className="py-2 px-2 text-gray-500">{l.category}</td>
+                      <td className="py-2 px-2 text-gray-500 max-w-[120px] truncate">{l.action}</td>
+                      <td className="py-2 px-2">
+                        <span className={`px-1.5 py-0.5 rounded-full font-bold text-[9px] ${
+                          l.status === "Two-Way Confirmed" || l.status === "Accepted" ? "bg-green-100 text-green-700" :
+                          l.status === "New" ? "bg-sky-100 text-sky-700" :
+                          l.status === "Quote Sent" ? "bg-purple-100 text-purple-700" :
+                          "bg-gray-100 text-gray-500"
+                        }`}>{l.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
