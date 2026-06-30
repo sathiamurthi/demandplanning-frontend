@@ -5663,6 +5663,23 @@ function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
 
 // ── Inquiry Agent ──────────────────────────────────────────────
 
+interface HotelOutreach {
+  id: string;
+  token: string;
+  inquiryId: string;
+  hotelName: string;
+  hotelEmail?: string;
+  hotelPhone?: string;
+  city?: string;
+  status: "Sent" | "Viewed" | "Responded";
+  hotelAction?: "Accept" | "Quote" | "Hold" | "Reject" | "Future";
+  hotelQuote?: string;
+  hotelMessage?: string;
+  hotelContactName?: string;
+  respondedAt?: string;
+  createdAt: string;
+}
+
 interface InquiryRecord {
   id: string;
   inqId: string;
@@ -5734,7 +5751,7 @@ function genInqId() {
 }
 
 function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:string)=>string }) {
-  const [subTab, setSubTab] = useState<"dashboard"|"submit"|"inquiries"|"hotel"|"history"|"leads">("dashboard");
+  const [subTab, setSubTab] = useState<"dashboard"|"submit"|"inquiries"|"outreach"|"hotel"|"history"|"leads">("dashboard");
 
   // Form state
   const emptyForm = { hotelType:"hotel", city:"", checkIn:"", checkOut:"", guests:"2", roomType:"Standard", budget:"", requirements:"" };
@@ -5744,30 +5761,18 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   // Inquiries
   const [inquiries, setInquiries] = useState<InquiryRecord[]>([]);
   const [selectedInq, setSelectedInq] = useState<InquiryRecord | null>(null);
-  const [hotelFilter, setHotelFilter] = useState<"all"|"New"|"Info Requested"|"Quote Sent">("all");
 
-  // Quote modal
-  const [quoteInput, setQuoteInput] = useState("");
-  const [quoteTarget, setQuoteTarget] = useState<InquiryRecord | null>(null);
-  const [infoNote, setInfoNote] = useState("");
-  const [infoTarget, setInfoTarget] = useState<InquiryRecord | null>(null);
-
-  // Alert preferences
-  const [prefValues, setPrefValues] = useState<Record<string, { enabled: boolean; subs: string[]; radius: string; budget: number; timing: string }>>({});
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [aiEnabled, setAiEnabled] = useState(true);
-  const [aiMode, setAiMode] = useState<"Smart"|"Minimal"|"Aggressive">("Smart");
-  const [aiRecTypes, setAiRecTypes] = useState<string[]>(["Hotel Availability", "Price Drop Alert", "New Quote", "Status Update"]);
-
-  // Notification settings
-  const [notifChannels, setNotifChannels] = useState<string[]>(["WhatsApp", "In-App"]);
-  const [notifFreq, setNotifFreq] = useState("Real-time");
+  // Outreach (real hotel contacts)
+  const [outreachList, setOutreachList] = useState<HotelOutreach[]>([]);
+  const [outreachInqId, setOutreachInqId] = useState("");
+  const [addHotelForm, setAddHotelForm] = useState({ name: "", email: "", phone: "" });
+  const [sendingOutreach, setSendingOutreach] = useState(false);
+  const [refreshingOutreach, setRefreshingOutreach] = useState(false);
 
   // Chat
   const [chatInput, setChatInput] = useState("");
   const [chatHistory, setChatHistory] = useState<any[]>([
-    { id: "iq_init", role: "assistant", text: "Welcome to your Inquiry Agent! 🏨 I manage hotel, resort, PG and venue inquiries end-to-end. Submit an inquiry and I'll assign an ID, notify the property, and keep you updated on every response. How can I help?", ts: Date.now() }
+    { id: "iq_init", role: "assistant", text: "Welcome to your Inquiry Agent! 🏨 Submit an inquiry, then use the Outreach tab to email or WhatsApp real hotels — they respond via a secure link I generate. I track every response for you. How can I help?", ts: Date.now() }
   ]);
   const [aiThinking, setAiThinking] = useState(false);
 
@@ -5779,40 +5784,152 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const [toast, setToast] = useState("");
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
-  // ── Load from localStorage ──
+  // ── Inquiry storage ──
   const loadInquiries = () => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem("dplan_inquiries");
-      if (raw) setInquiries(JSON.parse(raw));
-    } catch {}
+    try { const r = localStorage.getItem("dplan_inquiries"); if (r) setInquiries(JSON.parse(r)); } catch {}
   };
-
   const saveInquiries = (list: InquiryRecord[]) => {
-    localStorage.setItem("dplan_inquiries", JSON.stringify(list));
-    setInquiries(list);
+    localStorage.setItem("dplan_inquiries", JSON.stringify(list)); setInquiries(list);
   };
-
   const updateInquiry = (updated: InquiryRecord) => {
     const list = inquiries.map(i => i.id === updated.id ? updated : i);
     saveInquiries(list);
     if (selectedInq?.id === updated.id) setSelectedInq(updated);
   };
 
+  // ── Outreach storage + API ──
+  const loadOutreaches = () => {
+    try { const r = localStorage.getItem("dplan_hotel_outreaches"); if (r) setOutreachList(JSON.parse(r)); } catch {}
+  };
+
+  const createOutreach = async (inq: InquiryRecord, hotelName: string, email: string, phone: string): Promise<HotelOutreach | null> => {
+    setSendingOutreach(true);
+    try {
+      const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType)?.label || inq.hotelType;
+      const resp = await fetch("/v1/public/hotel-response/outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inquiry_id: inq.inqId, hotel_name: hotelName,
+          hotel_email: email || null, hotel_phone: phone || null, city: inq.city,
+          inquiry_snapshot: {
+            inqId: inq.inqId, hotelType: ht, city: inq.city,
+            checkIn: inq.checkIn, checkOut: inq.checkOut, guests: inq.guests,
+            roomType: inq.roomType, budget: inq.budget, requirements: inq.requirements,
+          },
+        }),
+      });
+      const data = await resp.json();
+      if (!data.success) { showToast("Failed to create outreach"); return null; }
+      const outreach: HotelOutreach = {
+        id: data.data.id, token: data.data.token,
+        inquiryId: inq.inqId, hotelName, city: inq.city,
+        hotelEmail: email || undefined, hotelPhone: phone || undefined,
+        status: "Sent", createdAt: data.data.created_at,
+      };
+      setOutreachList(prev => {
+        const updated = [outreach, ...prev.filter(o => o.id !== outreach.id)];
+        localStorage.setItem("dplan_hotel_outreaches", JSON.stringify(updated));
+        return updated;
+      });
+      return outreach;
+    } catch { showToast("Network error — check connection"); return null; }
+    finally { setSendingOutreach(false); }
+  };
+
+  const refreshOutreachStatuses = async () => {
+    setOutreachList(prev => {
+      if (!prev.length) return prev;
+      setRefreshingOutreach(true);
+      const tokens = prev.map(o => o.token).join(",");
+      fetch(`/v1/public/hotel-response/outreach/status?tokens=${tokens}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.success || !Array.isArray(data.data)) { setRefreshingOutreach(false); return; }
+          const freshMap: Record<string, any> = {};
+          data.data.forEach((r: any) => { freshMap[r.token] = r; });
+          setOutreachList(cur => {
+            const updated = cur.map(o => {
+              const f = freshMap[o.token];
+              if (!f) return o;
+              const wasResponded = o.status === "Responded";
+              const nowResponded = f.status === "Responded";
+              if (!wasResponded && nowResponded) {
+                setChatHistory(ch => [...ch, {
+                  id: paUid(), role: "assistant", ts: Date.now(),
+                  text: `Hotel update! ${o.hotelName} responded to ${o.inquiryId}: ${f.hotel_action}${f.hotel_quote ? ` — ₹${f.hotel_quote}/night` : ""}. ${f.hotel_message || ""}`,
+                }]);
+                setToast(`${o.hotelName} responded!`);
+              }
+              return { ...o, status: f.status, hotelAction: f.hotel_action, hotelQuote: f.hotel_quote, hotelMessage: f.hotel_message, hotelContactName: f.hotel_contact_name, respondedAt: f.responded_at };
+            });
+            localStorage.setItem("dplan_hotel_outreaches", JSON.stringify(updated));
+            return updated;
+          });
+          setRefreshingOutreach(false);
+        })
+        .catch(() => setRefreshingOutreach(false));
+      return prev;
+    });
+  };
+
+  const buildEmailBody = (inq: InquiryRecord, token: string) => {
+    const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType)?.label || inq.hotelType;
+    const url = `https://demandgenius.vercel.app/hotel-respond?token=${token}`;
+    return encodeURIComponent(`Dear Hotel Team,\n\nA guest is looking for accommodation through DemandGenius Inquiry Agent.\n\n--- INQUIRY DETAILS ---\nInquiry ID : ${inq.inqId}\nProperty   : ${ht} in ${inq.city}\nCheck-in   : ${inq.checkIn}\nCheck-out  : ${inq.checkOut}\nGuests     : ${inq.guests} person(s)\nRoom Type  : ${inq.roomType}\nBudget     : ${inq.budget ? `Rs.${inq.budget}/night` : "Flexible"}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}\n\n--- RESPOND TO THIS INQUIRY ---\n${url}\n\nClick the link above to Accept, Send Quote, Hold, or Decline.\nYour response is sent to the guest immediately.\n\nBest regards,\nDemandGenius Inquiry Agent`);
+  };
+
+  const buildWAMsg = (inq: InquiryRecord, token: string) => {
+    const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType)?.label || inq.hotelType;
+    const url = `https://demandgenius.vercel.app/hotel-respond?token=${token}`;
+    return encodeURIComponent(`*Hotel Inquiry - ${inq.inqId}*\n\nGuest looking for ${ht} in *${inq.city}*\nDates: ${inq.checkIn} to ${inq.checkOut}\nGuests: ${inq.guests} | Room: ${inq.roomType}${inq.budget ? `\nBudget: Rs.${inq.budget}/night` : ""}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
+  };
+
+  const sendViaEmail = async (inq: InquiryRecord) => {
+    const { name, email } = addHotelForm;
+    if (!name.trim() || !email.trim()) { showToast("Enter hotel name and email first"); return; }
+    const outreach = await createOutreach(inq, name, email, "");
+    if (!outreach) return;
+    const subject = encodeURIComponent(`Hotel Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`);
+    window.open(`mailto:${email}?subject=${subject}&body=${buildEmailBody(inq, outreach.token)}`);
+    setAddHotelForm({ name: "", email: "", phone: "" });
+    showToast(`Email ready for ${name}!`);
+    logLeadInApp(guest?.name || "Guest", name, "Hotel Outreach", `Email: ${inq.inqId}`, "Sent");
+  };
+
+  const sendViaWA = async (inq: InquiryRecord) => {
+    const { name, phone } = addHotelForm;
+    if (!name.trim() || !phone.trim()) { showToast("Enter hotel name and WhatsApp number first"); return; }
+    const outreach = await createOutreach(inq, name, "", phone);
+    if (!outreach) return;
+    window.open(`https://wa.me/${phone.replace(/\D/g, "")}?text=${buildWAMsg(inq, outreach.token)}`);
+    setAddHotelForm({ name: "", email: "", phone: "" });
+    showToast(`WhatsApp ready for ${name}!`);
+    logLeadInApp(guest?.name || "Guest", name, "Hotel Outreach", `WhatsApp: ${inq.inqId}`, "Sent");
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     loadInquiries();
-    const loadedPrefs: any = {};
-    INQUIRY_CATEGORIES.forEach(cat => {
-      try {
-        const stored = localStorage.getItem(`dplan_inq_pref_${cat.id}`);
-        loadedPrefs[cat.id] = stored ? JSON.parse(stored) : { enabled: true, subs: cat.subcategories.slice(0, 3), radius: "City", budget: 5000, timing: cat.timingOptions[0] };
-      } catch {}
-    });
-    setPrefValues(loadedPrefs);
+    loadOutreaches();
     const storedLeads = localStorage.getItem("demandgenius_leads");
-    if (storedLeads) setLeads(JSON.parse(storedLeads));
+    if (storedLeads) try { setLeads(JSON.parse(storedLeads)); } catch {}
   }, [subTab]);
+
+  useEffect(() => {
+    if (subTab === "outreach" && !outreachInqId) {
+      const active = inquiries.find(i => !["Closed","Rejected"].includes(i.status));
+      if (active) setOutreachInqId(active.inqId);
+    }
+  }, [subTab, inquiries, outreachInqId]);
+
+  useEffect(() => {
+    if (subTab === "outreach" || subTab === "hotel") {
+      refreshOutreachStatuses();
+      const t = setInterval(refreshOutreachStatuses, 30000);
+      return () => clearInterval(t);
+    }
+  }, [subTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Submit Inquiry ──
   const submitInquiry = () => {
@@ -5832,56 +5949,23 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         budget: form.budget, requirements: form.requirements,
         status: "New", submittedAt: now,
         activities: [
-          { action: "Inquiry Submitted by Customer", ts: now, by: "Customer" },
-          { action: `Inquiry ID ${inqId} Assigned`, ts: now, by: "System" },
-          { action: `${hotelLabel} in ${form.city} Notified`, ts: now, by: "System" },
-          { action: "Confirmation Sent to Customer", ts: now, by: "System" },
+          { action: "Inquiry Submitted", ts: now, by: "Customer" },
+          { action: `ID ${inqId} Assigned`, ts: now, by: "System" },
         ],
       };
       const updated = [newInq, ...inquiries];
       saveInquiries(updated);
       setForm({ ...emptyForm });
       setSubmitting(false);
-      setSelectedInq(newInq);
-      setSubTab("inquiries");
-      showToast(`${inqId} submitted!`);
-      logLeadInApp(guest?.name || "Guest", `${hotelLabel}, ${form.city}`, "Hotel Inquiry", `Inquiry submitted: ${inqId}`, "New");
-      // AI confirmation chat
+      setOutreachInqId(inqId);
+      setSubTab("outreach");
+      showToast(`${inqId} created! Now contact hotels.`);
+      logLeadInApp(guest?.name || "Guest", `${hotelLabel}, ${form.city}`, "Hotel Inquiry", `Inquiry: ${inqId}`, "New");
       setChatHistory(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
-        text: `Inquiry ${inqId} is live! The ${hotelLabel} in ${form.city} has been notified. Confirmation sent to your profile. I will alert you the moment they respond.`,
-        preview: { title: `📋 ${inqId} — New`, body: `${hotelLabel} · ${form.city} · ${form.guests} guests · ${form.checkIn} → ${form.checkOut}`, type: "inquiry", vendorName: hotelLabel }
+        text: `${inqId} created for ${hotelLabel} in ${form.city}! Go to the Outreach tab — find a hotel online, add their email or WhatsApp, and I'll generate a secure response link for them automatically.`,
       }]);
-    }, 1200);
-  };
-
-  // ── Hotel Response Actions ──
-  const hotelRespond = (inq: InquiryRecord, action: "Accept"|"Quote"|"Info"|"Reject", extra?: string) => {
-    const now = new Date().toISOString();
-    const statusMap: Record<string, string> = { Accept:"Accepted", Quote:"Quote Sent", Info:"Info Requested", Reject:"Rejected" };
-    const msgMap: Record<string, string> = {
-      Accept: "Hotel has accepted your inquiry! Please contact them to confirm booking.",
-      Quote:  `Hotel sent a quote: ₹${extra || "—"} for your stay. Review and confirm.`,
-      Info:   `Hotel requested more information: "${extra || "Please provide more details."}"`,
-      Reject: "Hotel is unable to accommodate this inquiry at the moment.",
-    };
-    const updated: InquiryRecord = {
-      ...inq,
-      status: statusMap[action],
-      quote: action === "Quote" ? extra : inq.quote,
-      hotelNote: action === "Info" || action === "Reject" ? extra : inq.hotelNote,
-      activities: [
-        ...inq.activities,
-        { action: `Hotel: ${action === "Info" ? "Requested More Information" : statusMap[action]}`, ts: now, by: "Hotel", note: extra },
-        { action: "Customer Notified by Inquiry Agent", ts: now, by: "System" },
-      ],
-    };
-    updateInquiry(updated);
-    setQuoteTarget(null); setInfoTarget(null);
-    setQuoteInput(""); setInfoNote("");
-    showToast(msgMap[action]);
-    logLeadInApp(guest?.name || "Guest", `${INQUIRY_HOTEL_TYPES.find(h=>h.id===inq.hotelType)?.label||inq.hotelType}, ${inq.city}`, "Hotel Inquiry", `Hotel ${statusMap[action]}: ${inq.inqId}`, statusMap[action]);
-    setChatHistory(prev => [...prev, { id: paUid(), role: "assistant", ts: Date.now(), text: msgMap[action] }]);
+    }, 800);
   };
 
   // ── AI Chat ──
@@ -5891,53 +5975,68 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     setChatInput(""); setAiThinking(true);
     setTimeout(() => {
       const q = text.toLowerCase();
-      let reply = "Scanning inquiry dashboard...";
+      let reply = "";
       let preview: any = null;
       const active = inquiries.filter(i => !["Closed","Rejected"].includes(i.status));
+      const responded = outreachList.filter(o => o.status === "Responded");
 
-      if (q.includes("status") || q.includes("update") || q.includes("my inquiry")) {
+      if (q.includes("response") || q.includes("replied") || q.includes("hotel reply")) {
+        reply = responded.length
+          ? `${responded.length} hotel${responded.length > 1 ? "s" : ""} responded! Latest: ${responded[0]?.hotelName} — ${responded[0]?.hotelAction}${responded[0]?.hotelQuote ? `, ₹${responded[0]?.hotelQuote}/night` : ""}. Check Hotel Responses tab.`
+          : "No hotel responses yet. Use Outreach tab to contact hotels — they get a secure link to respond.";
+      } else if (q.includes("outreach") || q.includes("email") || q.includes("send")) {
+        reply = outreachList.length
+          ? `${outreachList.length} hotel${outreachList.length > 1 ? "s" : ""} contacted. ${responded.length} responded. I refresh status every 30 seconds automatically.`
+          : "Go to Outreach tab: find a hotel on Google/JustDial, add their email or WhatsApp, and I'll send a secure inquiry with their response link.";
+      } else if (q.includes("status") || q.includes("my inquiry")) {
         reply = active.length
-          ? `You have ${active.length} active inquir${active.length>1?"ies":"y"}. Latest: ${active[0]?.inqId} is ${active[0]?.status}. I will push an alert the moment there is a hotel response.`
-          : "No active inquiries right now. Submit a new one and I will track it end-to-end for you.";
-      } else if (q.includes("hotel") || q.includes("resort") || q.includes("room")) {
-        reply = "Looking for the best available hotels! Based on your inquiry history, I recommend submitting with flexible check-in dates for faster acceptance.";
-        preview = { title: "🏨 Hotel Availability Tip", body: "Flexible dates improve acceptance rate by 38%. Weekday check-ins get 20% better rates.", type: "hotel", vendorName: "Smart Rate Engine" };
+          ? `${active.length} active inquir${active.length > 1 ? "ies" : "y"}. ${responded.length} hotel response${responded.length !== 1 ? "s" : ""} received. Check Hotel Responses for details.`
+          : "No active inquiries. Create one from New Inquiry tab.";
       } else if (q.includes("quote") || q.includes("price") || q.includes("cost")) {
-        const quoted = inquiries.filter(i => i.status === "Quote Sent");
-        reply = quoted.length ? `${quoted.length} quote(s) pending review. Latest: ${quoted[0]?.inqId} — ₹${quoted[0]?.quote || "pending"}. Check My Inquiries to confirm.` : "No open quotes yet. Once the hotel sends one, I will alert you immediately.";
-        preview = { title: "💰 Quote Status", body: quoted.length ? `${quoted[0]?.inqId}: ₹${quoted[0]?.quote}` : "Awaiting hotel quotes.", type: "quote", vendorName: "Pricing Engine" };
-      } else if (q.includes("cancel") || q.includes("reject") || q.includes("close")) {
-        reply = "To close an inquiry, open it from My Inquiries and mark it closed. I'll archive the activity log and notify the hotel.";
+        const quotes = outreachList.filter(o => o.hotelAction === "Quote");
+        reply = quotes.length
+          ? `${quotes.length} quote${quotes.length > 1 ? "s" : ""} received. Best: ${quotes[0]?.hotelName} at ₹${quotes[0]?.hotelQuote}/night. See Hotel Responses tab.`
+          : "No quotes yet. Use Outreach to contact more hotels for competing quotes.";
+        preview = { title: "💰 Quote Status", body: quotes.length ? `${quotes[0]?.hotelName}: ₹${quotes[0]?.hotelQuote}/night` : "Awaiting quotes", type: "quote", vendorName: "Pricing Engine" };
       } else if (q.includes("goa") || q.includes("kerala") || q.includes("ooty") || q.includes("manali") || q.includes("kashmir")) {
         const dest = q.includes("goa")?"Goa":q.includes("kerala")?"Kerala":q.includes("ooty")?"Ooty":q.includes("manali")?"Manali":"Kashmir";
-        reply = `${dest} is highly recommended! Best time to book is 6-8 weeks in advance. I can submit an inquiry for ${dest} right now — just tell me your dates.`;
-        preview = { title: `✈ ${dest} Inquiry Tip`, body: `Top properties in ${dest} fill up fast. Submit an inquiry now to lock availability.`, type: "travel", vendorName: `${dest} Tourism` };
-      } else if (q.includes("pg") || q.includes("paying guest") || q.includes("hostel")) {
-        reply = "PG and Hostel inquiries are my specialty! I can help you find monthly accommodation. Just submit with your move-in date and preferred locality.";
+        reply = `${dest} is popular! Create an inquiry in New Inquiry tab, then use Outreach to contact ${dest} hotels. I'll generate a pre-filled email and WhatsApp message with a secure response link for each hotel.`;
+        preview = { title: `✈ ${dest} Hotels`, body: "Create Inquiry → Outreach → send 1-click email/WA to hotels.", type: "travel", vendorName: `${dest} Tourism` };
+      } else if (q.includes("how") || q.includes("work")) {
+        reply = "Flow: 1. New Inquiry (fill details) → 2. Outreach (find hotels via Google/JustDial, add email/WA, send 1-click) → 3. Hotel opens secure link and responds → 4. Hotel Responses tab shows all replies live.";
       } else {
-        reply = `I track all your property inquiries end-to-end: ${inquiries.length} total, ${active.length} active. Ask me about status, quotes, or tips for faster responses.`;
+        reply = `Managing ${inquiries.length} inquir${inquiries.length !== 1 ? "ies" : "y"}, ${outreachList.length} hotel contacts, ${responded.length} response${responded.length !== 1 ? "s" : ""}. Ask me about responses, quotes, or how to reach more hotels.`;
       }
       setChatHistory(prev => [...prev, { id: paUid(), role: "assistant", text: reply, ts: Date.now(), preview }]);
       setAiThinking(false);
-      if (preview) logLeadInApp(guest?.name||"Guest", preview.vendorName, "AI Inquiry Chat", reply.slice(0,60), "Active");
-    }, 1100);
+      if (preview) logLeadInApp(guest?.name || "Guest", preview.vendorName, "AI Inquiry Chat", reply.slice(0, 60), "Active");
+    }, 900);
   };
-
-  const filteredCategories = INQUIRY_CATEGORIES.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.subcategories.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  const hotelViewInquiries = inquiries.filter(i =>
-    hotelFilter === "all" ? !["Accepted","Rejected","Closed"].includes(i.status) : i.status === hotelFilter
-  );
 
   const stats = {
-    total: inquiries.length,
-    active: inquiries.filter(i => !["Accepted","Rejected","Closed"].includes(i.status)).length,
-    quotes: inquiries.filter(i => i.status === "Quote Sent").length,
-    accepted: inquiries.filter(i => i.status === "Accepted").length,
+    total:      inquiries.length,
+    active:     inquiries.filter(i => !["Closed","Rejected"].includes(i.status)).length,
+    outreaches: outreachList.length,
+    responses:  outreachList.filter(o => o.status === "Responded").length,
+    quotes:     outreachList.filter(o => o.hotelAction === "Quote").length,
+    accepted:   outreachList.filter(o => o.hotelAction === "Accept").length,
   };
+
+  const OUTREACH_STATUS_STYLE: Record<string, string> = {
+    Sent:      "bg-sky-50 border-sky-200",
+    Viewed:    "bg-amber-50 border-amber-200",
+    Responded: "bg-green-50 border-green-200",
+  };
+  const HOTEL_ACTION_STYLE: Record<string, { bg: string; icon: string }> = {
+    Accept: { bg: "bg-green-500",  icon: "✅" },
+    Quote:  { bg: "bg-sky-500",    icon: "💰" },
+    Hold:   { bg: "bg-amber-500",  icon: "⏸" },
+    Future: { bg: "bg-purple-500", icon: "📅" },
+    Reject: { bg: "bg-red-500",    icon: "❌" },
+  };
+
+  const activeInq = inquiries.find(i => i.inqId === outreachInqId) || inquiries[0] || null;
+  const inqOutreaches = outreachList.filter(o => o.inquiryId === (activeInq?.inqId || ""));
 
   // ── Render ──
   return (
@@ -5949,59 +6048,6 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         </div>
       )}
 
-      {/* Quote Modal */}
-      {quoteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
-            <h3 className="font-black text-gray-900 text-sm">Send Quote — {quoteTarget.inqId}</h3>
-            <p className="text-xs text-gray-500">{INQUIRY_HOTEL_TYPES.find(h=>h.id===quoteTarget.hotelType)?.label} · {quoteTarget.city} · {quoteTarget.guests} guests</p>
-            <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Quote Amount (₹)</label>
-              <input value={quoteInput} onChange={e => setQuoteInput(e.target.value)} type="number"
-                placeholder="e.g. 4500 per night"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => hotelRespond(quoteTarget, "Quote", quoteInput)}
-                disabled={!quoteInput}
-                className="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-bold text-xs py-2.5 rounded-xl transition-colors">
-                Send Quote
-              </button>
-              <button onClick={() => { setQuoteTarget(null); setQuoteInput(""); }}
-                className="px-4 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 font-semibold">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* More Info Modal */}
-      {infoTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
-            <h3 className="font-black text-gray-900 text-sm">Request More Info — {infoTarget.inqId}</h3>
-            <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Message to Customer</label>
-              <textarea value={infoNote} onChange={e => setInfoNote(e.target.value)} rows={3}
-                placeholder="e.g. Please confirm number of extra beds needed and meal preference"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"/>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => hotelRespond(infoTarget, "Info", infoNote)}
-                disabled={!infoNote.trim()}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold text-xs py-2.5 rounded-xl transition-colors">
-                Send Request
-              </button>
-              <button onClick={() => { setInfoTarget(null); setInfoNote(""); }}
-                className="px-4 py-2.5 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 font-semibold">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
@@ -6009,28 +6055,34 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         </div>
         <div>
           <h1 className="text-xl font-black text-gray-900 leading-tight">Inquiry Agent</h1>
-          <p className="text-gray-500 text-xs">Hotel · Resort · PG · Venue — submit, track and manage inquiries</p>
+          <p className="text-gray-500 text-xs">Submit → email/WA hotels → they respond via secure link → track live</p>
         </div>
       </div>
 
       {/* Sub-tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl">
         {[
-          { id: "dashboard",  label: "Dashboard",        icon: LayoutDashboard },
-          { id: "submit",     label: "Submit Inquiry",   icon: Send },
-          { id: "inquiries",  label: "My Inquiries",     icon: ClipboardList },
-          { id: "hotel",      label: "Hotel Dashboard",  icon: Hotel },
-          { id: "history",    label: "Activity Log",     icon: History },
-          { id: "leads",      label: "Leads Tracker",    icon: Shield },
+          { id: "dashboard", label: "Dashboard",       icon: LayoutDashboard, badge: 0 },
+          { id: "submit",    label: "New Inquiry",     icon: Send,            badge: 0 },
+          { id: "inquiries", label: "My Inquiries",    icon: ClipboardList,   badge: 0 },
+          { id: "outreach",  label: "Outreach",        icon: MessageCircle,   badge: stats.outreaches },
+          { id: "hotel",     label: "Hotel Responses", icon: Hotel,           badge: stats.responses },
+          { id: "history",   label: "Activity Log",    icon: History,         badge: 0 },
+          { id: "leads",     label: "Leads",           icon: Shield,          badge: 0 },
         ].map(t => {
           const Icon = t.icon;
           const isActive = subTab === t.id;
           return (
-            <button key={t.id} onClick={() => { setSubTab(t.id as any); setActiveCategory(null); setSelectedInq(null); }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+            <button key={t.id} onClick={() => { setSubTab(t.id as any); setSelectedInq(null); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all relative ${
                 isActive ? "bg-white shadow-sm text-sky-600" : "text-gray-500 hover:text-gray-700"
               }`}>
               <Icon size={12}/><span>{t.label}</span>
+              {t.badge > 0 && (
+                <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 text-[8px] font-black flex items-center justify-center rounded-full text-white ${
+                  t.id === "hotel" ? "bg-green-500" : "bg-sky-500"
+                }`}>{t.badge}</span>
+              )}
             </button>
           );
         })}
@@ -6068,9 +6120,9 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
             {/* Quick actions */}
             <div className="flex gap-2 flex-wrap">
               {[
-                { label: "New Inquiry", action: () => setSubTab("submit"), col: "bg-sky-500 hover:bg-sky-400" },
-                { label: "View Responses", action: () => setSubTab("hotel"), col: "bg-white/10 hover:bg-white/20 border border-white/20" },
-                { label: "My Inquiries", action: () => setSubTab("inquiries"), col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+                { label: "New Inquiry",    action: () => setSubTab("submit"),    col: "bg-sky-500 hover:bg-sky-400" },
+                { label: "Contact Hotels", action: () => setSubTab("outreach"),  col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+                { label: "Hotel Responses", action: () => setSubTab("hotel"),   col: "bg-white/10 hover:bg-white/20 border border-white/20" },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
                   className={`${a.col} text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors`}>
@@ -6080,17 +6132,19 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
             </div>
           </div>
 
-          {/* Recent inquiries */}
+          {/* Recent inquiries + outreach summary */}
           {inquiries.length > 0 && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-black text-gray-900">Recent Inquiries</h3>
-                <button onClick={() => setSubTab("inquiries")} className="text-[10px] text-sky-600 font-bold hover:underline">View all →</button>
+                <button onClick={() => setSubTab("inquiries")} className="text-[10px] text-sky-600 font-bold hover:underline">View all</button>
               </div>
               <div className="space-y-2">
-                {inquiries.slice(0, 4).map(inq => {
+                {inquiries.slice(0, 3).map(inq => {
                   const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
                   const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                  const resp = outreachList.filter(o => o.inquiryId === inq.inqId && o.status === "Responded").length;
+                  const sent = outreachList.filter(o => o.inquiryId === inq.inqId).length;
                   return (
                     <button key={inq.id} onClick={() => { setSelectedInq(inq); setSubTab("inquiries"); }}
                       className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-sky-200 hover:bg-sky-50/30 transition-all text-left">
@@ -6099,6 +6153,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                         <div>
                           <p className="text-xs font-bold text-gray-900">{inq.inqId}</p>
                           <p className="text-[10px] text-gray-400">{ht?.label} · {inq.city} · {inq.guests} guests</p>
+                          {sent > 0 && <p className="text-[9px] text-sky-500 font-semibold">{sent} hotel{sent>1?"s":""} contacted{resp>0?` · ${resp} replied`:""}</p>}
                         </div>
                       </div>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
@@ -6385,6 +6440,8 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                 const nights = inq.checkIn && inq.checkOut
                   ? Math.ceil((new Date(inq.checkOut).getTime() - new Date(inq.checkIn).getTime()) / 86400000)
                   : null;
+                const inqSent = outreachList.filter(o => o.inquiryId === inq.inqId).length;
+                const inqResp = outreachList.filter(o => o.inquiryId === inq.inqId && o.status === "Responded").length;
                 return (
                   <button key={inq.id} onClick={() => setSelectedInq(inq)}
                     className="w-full bg-white border border-gray-100 hover:border-sky-200 hover:shadow-sm rounded-2xl p-4 text-left transition-all">
@@ -6397,6 +6454,11 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                           <p className="text-[10px] text-gray-400 mt-0.5">
                             {inq.checkIn} → {inq.checkOut}{nights ? ` · ${nights} night${nights!==1?"s":""}` : ""}
                           </p>
+                          {inqSent > 0 && (
+                            <p className="text-[9px] text-sky-500 font-semibold mt-0.5">
+                              {inqSent} hotel{inqSent>1?"s":""} contacted{inqResp>0?` · ${inqResp} replied`:""}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -6413,109 +6475,269 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         </div>
       )}
 
-      {/* ── HOTEL DASHBOARD ── */}
+      {/* ── OUTREACH ── */}
+      {subTab === "outreach" && (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-gray-900 flex items-center gap-2">
+                <MessageCircle size={14} className="text-sky-500"/> Contact Hotels
+              </h3>
+              <button onClick={refreshOutreachStatuses} disabled={refreshingOutreach}
+                className="flex items-center gap-1 text-[10px] text-sky-600 font-bold hover:underline disabled:opacity-40">
+                <RotateCcw size={10} className={refreshingOutreach ? "animate-spin" : ""}/>
+                Refresh
+              </button>
+            </div>
+            {inquiries.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400 text-sm">No inquiries yet</p>
+                <button onClick={() => setSubTab("submit")} className="mt-3 bg-sky-500 text-white text-xs font-bold px-4 py-2 rounded-xl">
+                  Create Inquiry First
+                </button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Sending For Inquiry</label>
+                  <select value={outreachInqId} onChange={e => setOutreachInqId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
+                    {inquiries.filter(i => !["Closed"].includes(i.status)).map(i => {
+                      const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === i.hotelType);
+                      return <option key={i.inqId} value={i.inqId}>{i.inqId} — {ht?.label} in {i.city} · {i.checkIn} → {i.checkOut}</option>;
+                    })}
+                  </select>
+                </div>
+                {activeInq && (
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Find Hotels in {activeInq.city}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { label: "Google Maps", url: `https://www.google.com/maps/search/hotels+in+${encodeURIComponent(activeInq.city)}`, icon: "🗺" },
+                        { label: "JustDial",    url: `https://www.justdial.com/search?q=hotels&where=${encodeURIComponent(activeInq.city)}`, icon: "📞" },
+                        { label: "MakeMyTrip",  url: `https://www.makemytrip.com/hotels/hotel-listing/?searchText=${encodeURIComponent(activeInq.city)}&checkin=${activeInq.checkIn}&checkout=${activeInq.checkOut}`, icon: "✈" },
+                        { label: "TripAdvisor", url: `https://www.tripadvisor.in/Search?q=${encodeURIComponent("hotels "+activeInq.city)}`, icon: "🦉" },
+                      ].map(link => (
+                        <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] font-bold bg-white border border-gray-200 text-gray-600 hover:border-sky-300 hover:text-sky-700 px-2.5 py-1.5 rounded-lg transition-colors">
+                          <span>{link.icon}</span><span>{link.label}</span><ExternalLink size={9} className="opacity-40"/>
+                        </a>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-gray-400">Find a hotel above → get their email/WhatsApp → paste below → send 1-click inquiry.</p>
+                  </div>
+                )}
+                {activeInq && (
+                  <div className="border border-sky-100 bg-sky-50/50 rounded-xl p-3 space-y-2.5">
+                    <p className="text-[10px] font-black text-sky-800 uppercase tracking-wide">Add Hotel & Send</p>
+                    <input value={addHotelForm.name} onChange={e => setAddHotelForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="Hotel / Property Name *"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"/>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={addHotelForm.email} onChange={e => setAddHotelForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="Email (for email outreach)" type="email"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"/>
+                      <input value={addHotelForm.phone} onChange={e => setAddHotelForm(f => ({ ...f, phone: e.target.value }))}
+                        placeholder="WhatsApp No. (with country code)" type="tel"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"/>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => sendViaEmail(activeInq)} disabled={sendingOutreach || !addHotelForm.name.trim() || !addHotelForm.email.trim()}
+                        className="flex items-center justify-center gap-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-bold text-[11px] py-2.5 rounded-xl transition-colors">
+                        {sendingOutreach ? <Loader2 size={12} className="animate-spin"/> : <Globe size={12}/>} Send Email
+                      </button>
+                      <button onClick={() => sendViaWA(activeInq)} disabled={sendingOutreach || !addHotelForm.name.trim() || !addHotelForm.phone.trim()}
+                        className="flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-40 text-white font-bold text-[11px] py-2.5 rounded-xl transition-colors">
+                        {sendingOutreach ? <Loader2 size={12} className="animate-spin"/> : <Smartphone size={12}/>} WhatsApp
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-gray-400 text-center">Your email client or WhatsApp opens pre-filled. The hotel gets a unique secure link to respond — no login needed on their side.</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Outreaches for selected inquiry */}
+          {inqOutreaches.length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-gray-900">Outreaches — {activeInq?.inqId}</h3>
+                <span className="text-[10px] bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded-full border border-sky-100">{inqOutreaches.length} hotels</span>
+              </div>
+              <div className="space-y-2">
+                {inqOutreaches.map(o => {
+                  const as = HOTEL_ACTION_STYLE[o.hotelAction || ""];
+                  return (
+                    <div key={o.id} className={`p-3 rounded-xl border ${OUTREACH_STATUS_STYLE[o.status] || "bg-white border-gray-100"} space-y-2`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-gray-900">{as?.icon || "🏨"} {o.hotelName}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">
+                            {o.hotelEmail && <span className="mr-2">✉ {o.hotelEmail}</span>}
+                            {o.hotelPhone && <span>📱 {o.hotelPhone}</span>}
+                          </p>
+                        </div>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          o.status === "Responded" ? "bg-green-100 text-green-700" :
+                          o.status === "Viewed"    ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"
+                        }`}>
+                          {o.status === "Sent" ? "📤 Sent" : o.status === "Viewed" ? "👁 Viewed" : "✅ Responded"}
+                        </span>
+                      </div>
+                      {o.status === "Responded" && (
+                        <div className="bg-white/70 rounded-lg p-2.5 space-y-1 border border-white">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{as?.icon}</span>
+                            <span className="text-xs font-black text-gray-900">{o.hotelAction}</span>
+                            {o.hotelQuote && <span className="text-xs font-black text-green-700 ml-auto">₹{o.hotelQuote}/night</span>}
+                          </div>
+                          {o.hotelMessage && <p className="text-[10px] text-gray-600 italic">"{o.hotelMessage}"</p>}
+                          {o.hotelContactName && <p className="text-[9px] text-gray-400">Contact: {o.hotelContactName}</p>}
+                        </div>
+                      )}
+                      {o.status !== "Responded" && activeInq && (
+                        <div className="flex gap-1.5">
+                          {o.hotelEmail && (
+                            <button onClick={() => {
+                              const subject = encodeURIComponent(`Hotel Inquiry ${activeInq.inqId} - ${activeInq.city} - DemandGenius`);
+                              window.open(`mailto:${o.hotelEmail}?subject=${subject}&body=${buildEmailBody(activeInq, o.token)}`);
+                            }} className="text-[10px] bg-sky-50 border border-sky-200 text-sky-700 font-bold px-2.5 py-1 rounded-lg hover:bg-sky-100 flex items-center gap-1">
+                              <Globe size={9}/> Re-send Email
+                            </button>
+                          )}
+                          {o.hotelPhone && (
+                            <button onClick={() => window.open(`https://wa.me/${(o.hotelPhone||"").replace(/\D/g,"")}?text=${buildWAMsg(activeInq, o.token)}`)}
+                              className="text-[10px] bg-green-50 border border-green-200 text-green-700 font-bold px-2.5 py-1 rounded-lg hover:bg-green-100 flex items-center gap-1">
+                              <Smartphone size={9}/> Re-send WA
+                            </button>
+                          )}
+                          <button onClick={() => { navigator.clipboard?.writeText(`https://demandgenius.vercel.app/hotel-respond?token=${o.token}`); showToast("Link copied!"); }}
+                            className="ml-auto text-[10px] text-gray-400 font-bold px-2.5 py-1 rounded-lg hover:bg-gray-50 flex items-center gap-1 border border-gray-100">
+                            <Copy size={9}/> Copy Link
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* All outreaches (other inquiries) */}
+          {outreachList.filter(o => o.inquiryId !== (activeInq?.inqId || "")).length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
+              <h3 className="text-xs font-black text-gray-900">Other Outreaches</h3>
+              {outreachList.filter(o => o.inquiryId !== (activeInq?.inqId || "")).map(o => {
+                const as = HOTEL_ACTION_STYLE[o.hotelAction || ""];
+                return (
+                  <div key={o.id} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-100 bg-gray-50/50">
+                    <span className="text-sm">{as?.icon || "🏨"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-900 truncate">{o.hotelName}</p>
+                      <p className="text-[10px] text-gray-400">{o.inquiryId} · {o.city}</p>
+                    </div>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                      o.status === "Responded" ? "bg-green-100 text-green-700" :
+                      o.status === "Viewed"    ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"
+                    }`}>{o.status}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── HOTEL RESPONSES ── */}
       {subTab === "hotel" && (
         <div className="space-y-4">
-          {/* Hotel manager header */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-4 border border-slate-700">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
                 <Hotel size={18} className="text-white"/>
               </div>
               <div>
-                <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Hotel Management View</p>
-                <h3 className="font-black text-sm mt-0.5">Incoming Inquiries</h3>
+                <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Real Hotel Responses</p>
+                <h3 className="font-black text-sm mt-0.5">{stats.responses} Response{stats.responses !== 1 ? "s" : ""} · {stats.outreaches} Hotels Contacted</h3>
               </div>
-              <div className="ml-auto text-right">
-                <p className="text-xl font-black text-sky-400">{hotelViewInquiries.length}</p>
-                <p className="text-[9px] text-slate-400">Pending</p>
-              </div>
+              <button onClick={refreshOutreachStatuses} disabled={refreshingOutreach}
+                className="ml-auto flex items-center gap-1 text-[10px] text-slate-300 hover:text-white font-bold disabled:opacity-40">
+                <RotateCcw size={11} className={refreshingOutreach ? "animate-spin" : ""}/>
+                Refresh
+              </button>
             </div>
           </div>
 
-          {/* Filter tabs */}
-          <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl">
-            {(["all","New","Info Requested","Quote Sent"] as const).map(f => (
-              <button key={f} onClick={() => setHotelFilter(f)}
-                className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${hotelFilter===f ? "bg-white shadow-sm text-slate-800" : "text-gray-500 hover:text-gray-700"}`}>
-                {f === "all" ? "All Open" : f}
+          {outreachList.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-12 text-center">
+              <Hotel size={36} className="mx-auto mb-3 text-gray-200"/>
+              <p className="text-gray-400 font-semibold text-sm">No hotel contacts yet</p>
+              <p className="text-gray-300 text-xs mt-1">Use the Outreach tab to contact hotels and get real responses</p>
+              <button onClick={() => setSubTab("outreach")} className="mt-4 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-colors">
+                Go to Outreach
               </button>
-            ))}
-          </div>
-
-          {hotelViewInquiries.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
-              <CheckSquare size={30} className="mx-auto mb-2 text-green-300"/>
-              <p className="text-gray-400 font-semibold text-sm">All clear!</p>
-              <p className="text-gray-300 text-xs mt-1">No pending inquiries to action</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {hotelViewInquiries.map(inq => {
-                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
-                const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
-                const nights = inq.checkIn && inq.checkOut
-                  ? Math.ceil((new Date(inq.checkOut).getTime() - new Date(inq.checkIn).getTime()) / 86400000)
-                  : null;
+              {[...outreachList].sort((a, b) => (b.status === "Responded" ? 1 : 0) - (a.status === "Responded" ? 1 : 0)).map(o => {
+                const as = HOTEL_ACTION_STYLE[o.hotelAction || ""];
+                const inqForThis = inquiries.find(i => i.inqId === o.inquiryId);
+                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === (inqForThis?.hotelType || "hotel"));
                 return (
-                  <div key={inq.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
-                    {/* Inquiry header */}
-                    <div className="flex items-start justify-between">
+                  <div key={o.id} className={`bg-white border rounded-2xl p-4 shadow-sm space-y-3 ${o.status === "Responded" ? "border-green-200" : "border-gray-100"}`}>
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xl">{ht?.icon || "🏨"}</span>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 ${as ? as.bg : "bg-gray-200"}`}>
+                          {as?.icon || "🏨"}
+                        </div>
                         <div>
-                          <p className="font-black text-sm text-gray-900">{inq.inqId}</p>
-                          <p className="text-[10px] text-gray-400">{ht?.label} · {inq.city}</p>
+                          <p className="font-black text-sm text-gray-900">{o.hotelName}</p>
+                          <p className="text-[10px] text-gray-400">{o.inquiryId} · {inqForThis?.city || o.city}{ht ? ` · ${ht.icon} ${ht.label}` : ""}</p>
                         </div>
                       </div>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                        o.status === "Responded" ? "bg-green-50 border-green-200 text-green-700" :
+                        o.status === "Viewed"    ? "bg-amber-50 border-amber-200 text-amber-700" :
+                        "bg-sky-50 border-sky-200 text-sky-700"
+                      }`}>
+                        {o.status === "Sent" ? "📤 Awaiting" : o.status === "Viewed" ? "👁 Hotel Viewed" : "✅ Responded"}
+                      </span>
                     </div>
 
-                    {/* Inquiry details */}
-                    <div className="grid grid-cols-3 gap-2 text-[10px]">
-                      {[
-                        { icon: "📅", label: "Check-in",  val: inq.checkIn },
-                        { icon: "📅", label: "Check-out", val: inq.checkOut },
-                        { icon: "👥", label: "Guests",    val: `${inq.guests} person${+inq.guests!==1?"s":""}` },
-                        { icon: "🛏", label: "Room",      val: inq.roomType },
-                        { icon: "💰", label: "Budget",    val: inq.budget ? `₹${inq.budget}` : "Any" },
-                        { icon: "🌙", label: "Nights",    val: nights ? `${nights} night${nights!==1?"s":""}` : "—" },
-                      ].map(d => (
-                        <div key={d.label} className="bg-gray-50 rounded-lg p-2">
-                          <p className="text-gray-400">{d.label}</p>
-                          <p className="font-bold text-gray-800 mt-0.5">{d.val}</p>
+                    {o.status === "Responded" && (
+                      <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{as?.icon}</span>
+                          <span className="text-sm font-black text-gray-900">{o.hotelAction}</span>
+                          {o.hotelQuote && (
+                            <div className="ml-auto text-right">
+                              <p className="text-lg font-black text-green-700">₹{o.hotelQuote}</p>
+                              <p className="text-[9px] text-gray-400">per night</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-
-                    {inq.requirements && (
-                      <div className="text-[10px] text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                        <span className="font-bold">Requirements: </span>{inq.requirements}
+                        {o.hotelMessage && (
+                          <div className="bg-white rounded-lg px-3 py-2 text-xs text-gray-600 italic border border-gray-100">
+                            "{o.hotelMessage}"
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-[10px] text-gray-400">
+                          {o.hotelContactName && <span>Contact: <span className="font-semibold text-gray-600">{o.hotelContactName}</span></span>}
+                          {o.respondedAt && <span>{new Date(o.respondedAt).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span>}
+                        </div>
                       </div>
                     )}
 
-                    {/* Hotel action buttons */}
-                    <div className="border-t border-gray-50 pt-3">
-                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mb-2">Hotel Actions</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => hotelRespond(inq, "Accept")}
-                          className="flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
-                          <CheckCircle2 size={13}/> Accept
-                        </button>
-                        <button onClick={() => { setQuoteTarget(inq); setQuoteInput(""); }}
-                          className="flex items-center justify-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
-                          <Banknote size={13}/> Send Quote
-                        </button>
-                        <button onClick={() => { setInfoTarget(inq); setInfoNote(""); }}
-                          className="flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
-                          <MessageCircle size={13}/> Request Info
-                        </button>
-                        <button onClick={() => hotelRespond(inq, "Reject", "Unable to accommodate")}
-                          className="flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-bold text-[11px] py-2.5 rounded-xl transition-colors">
-                          <XCircle size={13}/> Reject
-                        </button>
+                    {inqForThis && (
+                      <div className="flex gap-3 text-[10px] text-gray-400 flex-wrap">
+                        <span>📅 {inqForThis.checkIn} → {inqForThis.checkOut}</span>
+                        <span>👥 {inqForThis.guests} guests</span>
+                        <span>🛏 {inqForThis.roomType}</span>
+                        {inqForThis.budget && <span>💰 ₹{inqForThis.budget}/n</span>}
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
