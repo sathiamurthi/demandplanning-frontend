@@ -5683,14 +5683,16 @@ interface HotelOutreach {
 interface InquiryRecord {
   id: string;
   inqId: string;
-  hotelType: string;
+  serviceType: string;   // canonical field (was hotelType)
+  hotelType?: string;    // legacy alias from localStorage
   city: string;
-  checkIn: string;
-  checkOut: string;
+  checkIn: string;       // date1 (label varies by service type)
+  checkOut: string;      // date2 (label varies by service type)
   guests: string;
   roomType: string;
   budget: string;
   requirements: string;
+  coordinator?: string;  // assigned person / coordinator name
   status: string;
   submittedAt: string;
   quote?: string;
@@ -5698,41 +5700,49 @@ interface InquiryRecord {
   activities: { action: string; ts: string; by: string; note?: string }[];
 }
 
-const INQUIRY_HOTEL_TYPES = [
-  { id: "hotel",     label: "Hotel",         icon: "🏨" },
-  { id: "resort",    label: "Resort",         icon: "🌴" },
-  { id: "pg",        label: "PG / Homestay",  icon: "🏠" },
-  { id: "banquet",   label: "Banquet Hall",   icon: "🎪" },
-  { id: "hostel",    label: "Hostel",         icon: "🛏" },
-  { id: "villa",     label: "Villa / Cottage", icon: "🏡" },
+interface ServiceTypeDef {
+  id: string; label: string; icon: string; cat: string;
+  d1: string; d2: string; gLabel: string; bUnit: string;
+  showRoom: boolean; keyword: string;
+}
+const SERVICE_TYPES: ServiceTypeDef[] = [
+  // Accommodation
+  { id:"hotel",       label:"Hotel",                  icon:"🏨", cat:"accommodation", d1:"Check-in",    d2:"Check-out",   gLabel:"Guests",     bUnit:"/night",  showRoom:true,  keyword:"hotels"               },
+  { id:"resort",      label:"Resort",                 icon:"🌴", cat:"accommodation", d1:"Check-in",    d2:"Check-out",   gLabel:"Guests",     bUnit:"/night",  showRoom:true,  keyword:"resorts"              },
+  { id:"villa",       label:"Villa / Cottage",        icon:"🏡", cat:"accommodation", d1:"Check-in",    d2:"Check-out",   gLabel:"Guests",     bUnit:"/night",  showRoom:false, keyword:"villa cottage rental" },
+  { id:"pg",          label:"PG / Homestay",          icon:"🏠", cat:"accommodation", d1:"Move-in",     d2:"Move-out",    gLabel:"People",     bUnit:"/month",  showRoom:false, keyword:"PG homestay"          },
+  { id:"hostel",      label:"Hostel",                 icon:"🛏", cat:"accommodation", d1:"Check-in",    d2:"Check-out",   gLabel:"Beds",       bUnit:"/night",  showRoom:false, keyword:"hostel backpacker"    },
+  // Food
+  { id:"restaurant",  label:"Restaurant",             icon:"🍽", cat:"food",          d1:"Date",        d2:"Time",        gLabel:"Covers",     bUnit:"/person", showRoom:false, keyword:"restaurant dining"    },
+  { id:"catering",    label:"Catering",               icon:"🍱", cat:"food",          d1:"Event Date",  d2:"Event Time",  gLabel:"People",     bUnit:"total",   showRoom:false, keyword:"catering service"     },
+  { id:"tiffin",      label:"Tiffin / Cloud Kitchen", icon:"🥘", cat:"food",          d1:"Start Date",  d2:"",            gLabel:"People",     bUnit:"/day",    showRoom:false, keyword:"tiffin cloud kitchen" },
+  // Events
+  { id:"banquet",     label:"Banquet / Event Hall",   icon:"🎪", cat:"events",        d1:"Event Date",  d2:"Event End",   gLabel:"Guests",     bUnit:"total",   showRoom:false, keyword:"banquet hall event"   },
+  { id:"wedding",     label:"Wedding Venue",          icon:"💒", cat:"events",        d1:"Event Date",  d2:"Event End",   gLabel:"Guests",     bUnit:"total",   showRoom:false, keyword:"wedding venue"        },
+  // Transport
+  { id:"car_rental",  label:"Car Rental",             icon:"🚗", cat:"transport",     d1:"Pickup Date", d2:"Return Date", gLabel:"Passengers", bUnit:"/day",    showRoom:false, keyword:"car rental self drive"},
+  { id:"taxi",        label:"Taxi / Cab",             icon:"🚕", cat:"transport",     d1:"Date",        d2:"Time",        gLabel:"Passengers", bUnit:"total",   showRoom:false, keyword:"taxi cab hire"        },
+  { id:"bus",         label:"Bus / Coach",            icon:"🚌", cat:"transport",     d1:"Journey Date",d2:"Return Date", gLabel:"Passengers", bUnit:"total",   showRoom:false, keyword:"bus hire tempo"       },
+  // Media
+  { id:"photography", label:"Photography",            icon:"📸", cat:"media",         d1:"Event Date",  d2:"Event Time",  gLabel:"Hours",      bUnit:"total",   showRoom:false, keyword:"photographer"         },
+  { id:"videography", label:"Videography",            icon:"🎥", cat:"media",         d1:"Event Date",  d2:"Event Time",  gLabel:"Hours",      bUnit:"total",   showRoom:false, keyword:"videographer"         },
+  // Entertainment
+  { id:"dj",          label:"DJ / Music Band",        icon:"🎵", cat:"entertainment", d1:"Event Date",  d2:"Event Time",  gLabel:"Hours",      bUnit:"total",   showRoom:false, keyword:"DJ band music event"  },
+  // Decoration
+  { id:"florist",     label:"Florist / Decorator",    icon:"💐", cat:"decoration",    d1:"Event Date",  d2:"Event Time",  gLabel:"Tables",     bUnit:"total",   showRoom:false, keyword:"florist decorator"    },
+  // Wellness
+  { id:"spa",         label:"Spa / Salon",            icon:"💆", cat:"wellness",      d1:"Date",        d2:"Time",        gLabel:"People",     bUnit:"/person", showRoom:false, keyword:"spa salon"            },
+  // Activities
+  { id:"adventure",   label:"Adventure / Activities", icon:"🏄", cat:"activities",    d1:"Date",        d2:"",            gLabel:"People",     bUnit:"/person", showRoom:false, keyword:"adventure activities" },
+  // Other
+  { id:"other",       label:"Other Service",          icon:"📋", cat:"other",         d1:"Date",        d2:"Time",        gLabel:"People",     bUnit:"total",   showRoom:false, keyword:"services"             },
 ];
 
-const INQUIRY_CATEGORIES = [
-  { id: "hotel_stay",   name: "Hotel & Resort Stay",     icon: "🏨",
-    subcategories: ["Deluxe Room", "Suite", "Pool View", "Sea Facing", "Breakfast Included", "Late Checkout"],
-    timingOptions: ["Any Time", "24h ahead", "48h ahead", "1 week ahead"] },
-  { id: "pg_home",      name: "PG & Homestay",           icon: "🏠",
-    subcategories: ["AC Room", "Non-AC Room", "Single Occupancy", "Double Sharing", "Meals Included", "Wi-Fi"],
-    timingOptions: ["Immediate", "1 week ahead", "1 month ahead"] },
-  { id: "banquet",      name: "Banquet & Event Halls",   icon: "🎪",
-    subcategories: ["AC Hall", "Outdoor", "Terrace", "Poolside", "Catering", "Decoration"],
-    timingOptions: ["1 month ahead", "3 months ahead", "6 months ahead"] },
-  { id: "car_transfer", name: "Car Rental & Transfers",  icon: "🚗",
-    subcategories: ["Airport Pickup", "Outstation", "City Tour", "Wedding Car", "Innova", "Tempo Traveller"],
-    timingOptions: ["Same day", "1 day ahead", "3 days ahead"] },
-  { id: "restaurant",   name: "Restaurant Booking",      icon: "🍽",
-    subcategories: ["Table for 2", "Private Dining", "Birthday Setup", "Group Booking", "Rooftop", "Buffet"],
-    timingOptions: ["Same day", "Next day", "Weekend"] },
-  { id: "spa",          name: "Spa & Wellness",          icon: "💆",
-    subcategories: ["Full Body Massage", "Couple Spa", "Ayurveda", "Facial", "Steam Bath", "Yoga"],
-    timingOptions: ["Same day", "Next day", "Flexible"] },
-  { id: "adventure",    name: "Adventure & Activities",  icon: "🏄",
-    subcategories: ["Trekking", "River Rafting", "Parasailing", "Safari", "Cycling", "Camping"],
-    timingOptions: ["Book in advance", "Weekend", "Seasonal"] },
-  { id: "travel_pkg",   name: "Travel Packages",         icon: "✈",
-    subcategories: ["Honeymoon", "Family", "Group Tour", "Pilgrimage", "Corporate", "Adventure"],
-    timingOptions: ["1 month ahead", "2 months ahead", "3 months ahead"] },
-];
+// backward compat alias
+const INQUIRY_HOTEL_TYPES = SERVICE_TYPES;
+
+const SVC = (typeId: string) => SERVICE_TYPES.find(s => s.id === typeId) || SERVICE_TYPES[0];
+const inqSvc = (inq: InquiryRecord) => SVC(inq.serviceType || inq.hotelType || "hotel");
 
 const INQUIRY_STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
   "New":            { color: "text-sky-700",    bg: "bg-sky-50 border-sky-200",    dot: "bg-sky-500" },
@@ -5751,10 +5761,10 @@ function genInqId() {
 }
 
 function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:string)=>string }) {
-  const [subTab, setSubTab] = useState<"dashboard"|"submit"|"inquiries"|"outreach"|"hotel"|"history"|"leads">("dashboard");
+  const [subTab, setSubTab] = useState<"dashboard"|"submit"|"inquiries"|"find"|"outreach"|"hotel"|"plan"|"history"|"leads">("dashboard");
 
-  // Form state
-  const emptyForm = { hotelType:"hotel", city:"", checkIn:"", checkOut:"", guests:"2", roomType:"Standard", budget:"", requirements:"" };
+  // Form state (generic fields; labels driven by serviceType)
+  const emptyForm = { hotelType:"hotel", city:"", checkIn:"", checkOut:"", guests:"2", roomType:"Standard", budget:"", requirements:"", coordinator:"" };
   const [form, setForm] = useState({ ...emptyForm });
   const [submitting, setSubmitting] = useState(false);
 
@@ -5762,17 +5772,31 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const [inquiries, setInquiries] = useState<InquiryRecord[]>([]);
   const [selectedInq, setSelectedInq] = useState<InquiryRecord | null>(null);
 
-  // Outreach (real hotel contacts)
+  // Outreach (real vendor contacts)
   const [outreachList, setOutreachList] = useState<HotelOutreach[]>([]);
   const [outreachInqId, setOutreachInqId] = useState("");
   const [addHotelForm, setAddHotelForm] = useState({ name: "", email: "", phone: "" });
   const [sendingOutreach, setSendingOutreach] = useState(false);
   const [refreshingOutreach, setRefreshingOutreach] = useState(false);
 
+  // StoreSearchAgent
+  const [storeQuery, setStoreQuery] = useState("");
+  const [storeCity, setStoreCity] = useState("");
+  const [storeResults, setStoreResults] = useState<StoreCard[]>([]);
+  const [storeSearching, setStoreSearching] = useState(false);
+  const [findTab, setFindTab] = useState<"store"|"web">("store");
+
+  // PublicSearchAgent — quick-add vendor cards
+  const [quickVendors, setQuickVendors] = useState<{id:string;name:string;phone:string;email:string;address:string;website:string}[]>([]);
+  const [quickForm, setQuickForm] = useState({ name:"", phone:"", email:"", address:"", website:"" });
+
+  // FinalizerAgent
+  const [planInqId, setPlanInqId] = useState("");
+
   // Chat
   const [chatInput, setChatInput] = useState("");
   const [chatHistory, setChatHistory] = useState<any[]>([
-    { id: "iq_init", role: "assistant", text: "Welcome to your Inquiry Agent! 🏨 Submit an inquiry, then use the Outreach tab to email or WhatsApp real hotels — they respond via a secure link I generate. I track every response for you. How can I help?", ts: Date.now() }
+    { id: "iq_init", role: "assistant", text: "Welcome to your Service Inquiry Agent! Submit a request for any service — hotels, catering, car rentals, photography and more. Use Find Vendors to discover local businesses, then Outreach to contact them. I track every response. How can I help?", ts: Date.now() }
   ]);
   const [aiThinking, setAiThinking] = useState(false);
 
@@ -5786,7 +5810,14 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
 
   // ── Inquiry storage ──
   const loadInquiries = () => {
-    try { const r = localStorage.getItem("dplan_inquiries"); if (r) setInquiries(JSON.parse(r)); } catch {}
+    try {
+      const r = localStorage.getItem("dplan_inquiries");
+      if (r) {
+        const parsed = JSON.parse(r);
+        // Normalize legacy hotelType → serviceType
+        setInquiries(parsed.map((i: any) => ({ ...i, serviceType: i.serviceType || i.hotelType || "hotel" })));
+      }
+    } catch {}
   };
   const saveInquiries = (list: InquiryRecord[]) => {
     localStorage.setItem("dplan_inquiries", JSON.stringify(list)); setInquiries(list);
@@ -5797,6 +5828,21 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     if (selectedInq?.id === updated.id) setSelectedInq(updated);
   };
 
+  // ── StoreSearchAgent ──
+  const searchStores = async () => {
+    if (!storeQuery.trim() && !storeCity.trim()) return;
+    setStoreSearching(true);
+    try {
+      const p = new URLSearchParams({ limit: "12", sort: "name_asc",
+        ...(storeQuery.trim() && { search: storeQuery.trim() }),
+        ...(storeCity.trim()  && { city: storeCity.trim() }),
+      });
+      const d = await fetch(`/v1/public/stores?${p}`).then(r => r.json());
+      setStoreResults(d.success ? (d.data || []) : []);
+    } catch { setStoreResults([]); }
+    finally { setStoreSearching(false); }
+  };
+
   // ── Outreach storage + API ──
   const loadOutreaches = () => {
     try { const r = localStorage.getItem("dplan_hotel_outreaches"); if (r) setOutreachList(JSON.parse(r)); } catch {}
@@ -5805,7 +5851,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const createOutreach = async (inq: InquiryRecord, hotelName: string, email: string, phone: string): Promise<HotelOutreach | null> => {
     setSendingOutreach(true);
     try {
-      const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType)?.label || inq.hotelType;
+      const svc = inqSvc(inq);
       const resp = await fetch("/v1/public/hotel-response/outreach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -5813,9 +5859,11 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
           inquiry_id: inq.inqId, hotel_name: hotelName,
           hotel_email: email || null, hotel_phone: phone || null, city: inq.city,
           inquiry_snapshot: {
-            inqId: inq.inqId, hotelType: ht, city: inq.city,
+            inqId: inq.inqId, serviceType: svc.label, city: inq.city,
             checkIn: inq.checkIn, checkOut: inq.checkOut, guests: inq.guests,
-            roomType: inq.roomType, budget: inq.budget, requirements: inq.requirements,
+            guestLabel: svc.gLabel,
+            roomType: inq.roomType, budget: inq.budget, budgetUnit: svc.bUnit,
+            requirements: inq.requirements,
           },
         }),
       });
@@ -5874,15 +5922,15 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   };
 
   const buildEmailBody = (inq: InquiryRecord, token: string) => {
-    const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType)?.label || inq.hotelType;
+    const svc = inqSvc(inq);
     const url = `https://demandgenius.vercel.app/hotel-respond?token=${token}`;
-    return encodeURIComponent(`Dear Hotel Team,\n\nA guest is looking for accommodation through DemandGenius Inquiry Agent.\n\n--- INQUIRY DETAILS ---\nInquiry ID : ${inq.inqId}\nProperty   : ${ht} in ${inq.city}\nCheck-in   : ${inq.checkIn}\nCheck-out  : ${inq.checkOut}\nGuests     : ${inq.guests} person(s)\nRoom Type  : ${inq.roomType}\nBudget     : ${inq.budget ? `Rs.${inq.budget}/night` : "Flexible"}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}\n\n--- RESPOND TO THIS INQUIRY ---\n${url}\n\nClick the link above to Accept, Send Quote, Hold, or Decline.\nYour response is sent to the guest immediately.\n\nBest regards,\nDemandGenius Inquiry Agent`);
+    return encodeURIComponent(`Dear ${svc.label} Team,\n\nA customer is looking for ${svc.label.toLowerCase()} service through DemandGenius.\n\n--- SERVICE REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n${svc.d1}  : ${inq.checkIn}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ""}\n${svc.gLabel} : ${inq.guests}${svc.showRoom && inq.roomType ? `\nRoom Type  : ${inq.roomType}` : ""}\nBudget     : ${inq.budget ? `Rs.${inq.budget}${svc.bUnit}` : "Flexible"}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}${inq.coordinator ? `\nCoordinator: ${inq.coordinator}` : ""}\n\n--- RESPOND TO THIS REQUEST ---\n${url}\n\nClick the link above to Accept, Send Quote, Hold, or Decline.\nYour response reaches the customer immediately.\n\nBest regards,\nDemandGenius Service Agent`);
   };
 
   const buildWAMsg = (inq: InquiryRecord, token: string) => {
-    const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType)?.label || inq.hotelType;
+    const svc = inqSvc(inq);
     const url = `https://demandgenius.vercel.app/hotel-respond?token=${token}`;
-    return encodeURIComponent(`*Hotel Inquiry - ${inq.inqId}*\n\nGuest looking for ${ht} in *${inq.city}*\nDates: ${inq.checkIn} to ${inq.checkOut}\nGuests: ${inq.guests} | Room: ${inq.roomType}${inq.budget ? `\nBudget: Rs.${inq.budget}/night` : ""}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
+    return encodeURIComponent(`*Service Inquiry - ${inq.inqId}*\n\nCustomer looking for *${svc.label}* in *${inq.city}*\n${svc.d1}: ${inq.checkIn}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ""}\n${svc.gLabel}: ${inq.guests}${inq.budget ? `\nBudget: Rs.${inq.budget}${svc.bUnit}` : ""}${inq.requirements ? `\nNote: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
   };
 
   const sendViaEmail = async (inq: InquiryRecord) => {
@@ -5917,11 +5965,19 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   }, [subTab]);
 
   useEffect(() => {
-    if (subTab === "outreach" && !outreachInqId) {
+    if ((subTab === "outreach" || subTab === "plan") && !outreachInqId) {
       const active = inquiries.find(i => !["Closed","Rejected"].includes(i.status));
       if (active) setOutreachInqId(active.inqId);
     }
-  }, [subTab, inquiries, outreachInqId]);
+    if (subTab === "plan" && !planInqId) {
+      const active = inquiries.find(i => !["Closed","Rejected"].includes(i.status));
+      if (active) setPlanInqId(active.inqId);
+    }
+    if (subTab === "find" && !storeCity) {
+      const active = inquiries.find(i => !["Closed","Rejected"].includes(i.status));
+      if (active) setStoreCity(active.city);
+    }
+  }, [subTab, inquiries, outreachInqId, planInqId, storeCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (subTab === "outreach" || subTab === "hotel") {
@@ -5934,23 +5990,27 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   // ── Submit Inquiry ──
   const submitInquiry = () => {
     if (!form.city.trim()) { showToast("Please enter city / location"); return; }
-    if (!form.checkIn)     { showToast("Please select check-in date"); return; }
-    if (!form.checkOut)    { showToast("Please select check-out date"); return; }
+    if (!form.checkIn)     { showToast("Please select a date"); return; }
+    const svc = SVC(form.hotelType);
+    if (svc.d2 && !form.checkOut) { showToast(`Please select ${svc.d2}`); return; }
     setSubmitting(true);
     setTimeout(() => {
       const inqId = genInqId();
       const now = new Date().toISOString();
-      const hotelLabel = INQUIRY_HOTEL_TYPES.find(h => h.id === form.hotelType)?.label || form.hotelType;
       const newInq: InquiryRecord = {
         id: paUid(), inqId,
-        hotelType: form.hotelType, city: form.city,
+        serviceType: form.hotelType, hotelType: form.hotelType, city: form.city,
         checkIn: form.checkIn, checkOut: form.checkOut,
         guests: form.guests, roomType: form.roomType,
         budget: form.budget, requirements: form.requirements,
+        coordinator: form.coordinator || undefined,
         status: "New", submittedAt: now,
         activities: [
-          { action: "Inquiry Submitted", ts: now, by: "Customer" },
-          { action: `ID ${inqId} Assigned`, ts: now, by: "System" },
+          { action: "Inquiry Submitted by Customer", ts: now, by: "Customer" },
+          { action: `Inquiry ID ${inqId} Assigned`, ts: now, by: "System" },
+          { action: `${svc.label} in ${form.city} Notified`, ts: now, by: "System" },
+          { action: "Confirmation Sent to Customer", ts: now, by: "System" },
+          ...(form.coordinator ? [{ action: `Assigned to ${form.coordinator}`, ts: now, by: "System" }] : []),
         ],
       };
       const updated = [newInq, ...inquiries];
@@ -5958,12 +6018,14 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
       setForm({ ...emptyForm });
       setSubmitting(false);
       setOutreachInqId(inqId);
-      setSubTab("outreach");
-      showToast(`${inqId} created! Now contact hotels.`);
-      logLeadInApp(guest?.name || "Guest", `${hotelLabel}, ${form.city}`, "Hotel Inquiry", `Inquiry: ${inqId}`, "New");
+      setStoreCity(form.city);
+      setStoreQuery(svc.keyword);
+      setSubTab("find");
+      showToast(`${inqId} created! Find vendors now.`);
+      logLeadInApp(guest?.name || "Guest", `${svc.label}, ${form.city}`, "Service Inquiry", `Inquiry: ${inqId}`, "New");
       setChatHistory(prev => [...prev, {
         id: paUid(), role: "assistant", ts: Date.now(),
-        text: `${inqId} created for ${hotelLabel} in ${form.city}! Go to the Outreach tab — find a hotel online, add their email or WhatsApp, and I'll generate a secure response link for them automatically.`,
+        text: `${inqId} created for ${svc.label} in ${form.city}! Use Find Vendors to discover local ${svc.label.toLowerCase()} businesses on the platform or web, then go to Outreach to contact them with a secure response link.`,
       }]);
     }, 800);
   };
@@ -6054,21 +6116,23 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
           <Inbox size={20} className="text-white"/>
         </div>
         <div>
-          <h1 className="text-xl font-black text-gray-900 leading-tight">Inquiry Agent</h1>
-          <p className="text-gray-500 text-xs">Submit → email/WA hotels → they respond via secure link → track live</p>
+          <h1 className="text-xl font-black text-gray-900 leading-tight">Service Inquiry Agent</h1>
+          <p className="text-gray-500 text-xs">Hotels · Catering · Car Rental · Photography · Events · and more</p>
         </div>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl">
+      {/* Sub-tabs — scrollable row */}
+      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl scrollbar-none">
         {[
-          { id: "dashboard", label: "Dashboard",       icon: LayoutDashboard, badge: 0 },
-          { id: "submit",    label: "New Inquiry",     icon: Send,            badge: 0 },
-          { id: "inquiries", label: "My Inquiries",    icon: ClipboardList,   badge: 0 },
-          { id: "outreach",  label: "Outreach",        icon: MessageCircle,   badge: stats.outreaches },
-          { id: "hotel",     label: "Hotel Responses", icon: Hotel,           badge: stats.responses },
-          { id: "history",   label: "Activity Log",    icon: History,         badge: 0 },
-          { id: "leads",     label: "Leads",           icon: Shield,          badge: 0 },
+          { id: "dashboard", label: "Dashboard",        icon: LayoutDashboard, badge: 0 },
+          { id: "submit",    label: "New Request",       icon: Send,            badge: 0 },
+          { id: "inquiries", label: "My Requests",       icon: ClipboardList,   badge: 0 },
+          { id: "find",      label: "Find Vendors",      icon: Search,          badge: 0 },
+          { id: "outreach",  label: "Outreach",          icon: MessageCircle,   badge: stats.outreaches },
+          { id: "hotel",     label: "Responses",         icon: Hotel,           badge: stats.responses },
+          { id: "plan",      label: "Action Plan",       icon: CheckSquare,     badge: stats.active },
+          { id: "history",   label: "Activity Log",      icon: History,         badge: 0 },
+          { id: "leads",     label: "Leads",             icon: Shield,          badge: 0 },
         ].map(t => {
           const Icon = t.icon;
           const isActive = subTab === t.id;
@@ -6080,7 +6144,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
               <Icon size={12}/><span>{t.label}</span>
               {t.badge > 0 && (
                 <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 text-[8px] font-black flex items-center justify-center rounded-full text-white ${
-                  t.id === "hotel" ? "bg-green-500" : "bg-sky-500"
+                  t.id === "hotel" ? "bg-green-500" : t.id === "plan" ? "bg-amber-500" : "bg-sky-500"
                 }`}>{t.badge}</span>
               )}
             </button>
@@ -6120,9 +6184,10 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
             {/* Quick actions */}
             <div className="flex gap-2 flex-wrap">
               {[
-                { label: "New Inquiry",    action: () => setSubTab("submit"),    col: "bg-sky-500 hover:bg-sky-400" },
-                { label: "Contact Hotels", action: () => setSubTab("outreach"),  col: "bg-white/10 hover:bg-white/20 border border-white/20" },
-                { label: "Hotel Responses", action: () => setSubTab("hotel"),   col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+                { label: "New Request",    action: () => setSubTab("submit"),    col: "bg-sky-500 hover:bg-sky-400" },
+                { label: "Find Vendors",   action: () => setSubTab("find"),      col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+                { label: "Outreach",       action: () => setSubTab("outreach"),  col: "bg-white/10 hover:bg-white/20 border border-white/20" },
+                { label: "Action Plan",    action: () => setSubTab("plan"),      col: "bg-amber-500/80 hover:bg-amber-500 border border-amber-400/30" },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
                   className={`${a.col} text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors`}>
@@ -6142,18 +6207,18 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
               <div className="space-y-2">
                 {inquiries.slice(0, 3).map(inq => {
                   const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
-                  const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                  const svc = inqSvc(inq);
                   const resp = outreachList.filter(o => o.inquiryId === inq.inqId && o.status === "Responded").length;
                   const sent = outreachList.filter(o => o.inquiryId === inq.inqId).length;
                   return (
                     <button key={inq.id} onClick={() => { setSelectedInq(inq); setSubTab("inquiries"); }}
                       className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-sky-200 hover:bg-sky-50/30 transition-all text-left">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-base">{ht?.icon || "🏨"}</span>
+                        <span className="text-base">{svc.icon}</span>
                         <div>
                           <p className="text-xs font-bold text-gray-900">{inq.inqId}</p>
-                          <p className="text-[10px] text-gray-400">{ht?.label} · {inq.city} · {inq.guests} guests</p>
-                          {sent > 0 && <p className="text-[9px] text-sky-500 font-semibold">{sent} hotel{sent>1?"s":""} contacted{resp>0?` · ${resp} replied`:""}</p>}
+                          <p className="text-[10px] text-gray-400">{svc.label} · {inq.city}{inq.coordinator ? ` · 👤 ${inq.coordinator}` : ""}</p>
+                          {sent > 0 && <p className="text-[9px] text-sky-500 font-semibold">{sent} vendor{sent>1?"s":""} contacted{resp>0?` · ${resp} replied`:""}</p>}
                         </div>
                       </div>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
@@ -6215,96 +6280,120 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         </div>
       )}
 
-      {/* ── SUBMIT INQUIRY ── */}
-      {subTab === "submit" && (
+      {/* ── SUBMIT REQUEST ── */}
+      {subTab === "submit" && (() => {
+        const svc = SVC(form.hotelType);
+        const cats = ["accommodation","food","events","transport","media","entertainment","decoration","wellness","activities","other"];
+        return (
         <div className="space-y-4">
           <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
             <div className="flex items-center gap-2">
               <Send size={15} className="text-sky-500"/>
-              <h2 className="text-sm font-black text-gray-900">New Inquiry</h2>
-              <span className="ml-auto text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">ID assigned on submit</span>
+              <h2 className="text-sm font-black text-gray-900">New Service Request</h2>
+              <span className="ml-auto text-[10px] text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">ID on submit</span>
             </div>
 
-            {/* Property type */}
+            {/* Service Type — scrollable category groups */}
             <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Property Type</label>
-              <div className="grid grid-cols-3 gap-2">
-                {INQUIRY_HOTEL_TYPES.map(ht => (
-                  <button key={ht.id} onClick={() => setForm(f => ({ ...f, hotelType: ht.id }))}
-                    className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-[10px] font-bold transition-all ${
-                      form.hotelType === ht.id
-                        ? "bg-sky-50 border-sky-400 text-sky-700 shadow-sm"
-                        : "border-gray-200 text-gray-500 hover:border-sky-200"
-                    }`}>
-                    <span className="text-xl">{ht.icon}</span>
-                    <span>{ht.label}</span>
-                  </button>
-                ))}
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Service Type</label>
+              <div className="space-y-2">
+                {cats.map(cat => {
+                  const catTypes = SERVICE_TYPES.filter(s => s.cat === cat);
+                  if (!catTypes.length) return null;
+                  return (
+                    <div key={cat}>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mb-1.5 capitalize">{cat}</p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {catTypes.map(s => (
+                          <button key={s.id} onClick={() => setForm(f => ({ ...f, hotelType: s.id }))}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
+                              form.hotelType === s.id
+                                ? "bg-sky-50 border-sky-400 text-sky-700 shadow-sm"
+                                : "border-gray-200 text-gray-500 hover:border-sky-200"
+                            }`}>
+                            <span>{s.icon}</span><span>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* City + Dates */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
+            {/* City + Coordinator */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 sm:col-span-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">City / Location *</label>
                 <input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
                   placeholder="e.g. Goa, Ooty, Bangalore"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Room Type</label>
-                <select value={form.roomType} onChange={e => setForm(f => ({ ...f, roomType: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
-                  {["Standard","Deluxe","Suite","Double Sharing","Single","Triple"].map(r => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Coordinator / Assign To</label>
+                <input value={form.coordinator} onChange={e => setForm(f => ({ ...f, coordinator: e.target.value }))}
+                  placeholder="Name or team (optional)"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
               </div>
+            </div>
+
+            {/* Dates — dynamic labels */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Check-in Date *</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">{svc.d1} *</label>
                 <input type="date" value={form.checkIn} min={new Date().toISOString().slice(0,10)}
                   onChange={e => setForm(f => ({ ...f, checkIn: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
               </div>
+              {svc.d2 ? (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">{svc.d2}</label>
+                  <input type="date" value={form.checkOut} min={form.checkIn || new Date().toISOString().slice(0,10)}
+                    onChange={e => setForm(f => ({ ...f, checkOut: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+                </div>
+              ) : <div/>}
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Check-out Date *</label>
-                <input type="date" value={form.checkOut} min={form.checkIn || new Date().toISOString().slice(0,10)}
-                  onChange={e => setForm(f => ({ ...f, checkOut: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Number of Guests</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">{svc.gLabel}</label>
                 <select value={form.guests} onChange={e => setForm(f => ({ ...f, guests: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
-                  {["1","2","3","4","5","6","7","8","10","15","20+"].map(n => (
-                    <option key={n}>{n}</option>
-                  ))}
+                  {["1","2","3","4","5","6","7","8","10","15","20","25","50","100+"].map(n => <option key={n}>{n}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Budget (₹ per night)</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Budget (₹ {svc.bUnit})</label>
                 <input value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
-                  placeholder="e.g. 2000–5000 or Any"
+                  placeholder="e.g. 2000–5000 or Flexible"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
               </div>
+              {svc.showRoom && (
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Room Type</label>
+                  <select value={form.roomType} onChange={e => setForm(f => ({ ...f, roomType: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
+                    {["Standard","Deluxe","Suite","Double Sharing","Single","Triple","Dormitory"].map(r => <option key={r}>{r}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Special Requirements</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Requirements / Notes</label>
               <textarea value={form.requirements} onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} rows={3}
-                placeholder="e.g. AC room, sea view, vegetarian meals, early check-in, wheelchair access…"
+                placeholder={`e.g. specific requirements for ${svc.label.toLowerCase()}…`}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 resize-none"/>
             </div>
 
-            {/* Workflow preview */}
+            {/* Workflow */}
             <div className="bg-sky-50 border border-sky-100 rounded-xl p-3.5 space-y-2">
-              <p className="text-[10px] font-black text-sky-800 uppercase tracking-wide">What happens next</p>
+              <p className="text-[10px] font-black text-sky-800 uppercase tracking-wide">Workflow after submit</p>
               <div className="space-y-1.5">
                 {[
-                  { icon: "✅", text: "Inquiry ID assigned instantly" },
-                  { icon: "🔔", text: "Hotel / property notified immediately" },
-                  { icon: "📩", text: "Confirmation sent to your profile" },
-                  { icon: "🤖", text: "Agent tracks response — Accept / Quote / Info / Reject" },
+                  { icon: "✅", text: `Request ID assigned — ${svc.label} in ${form.city || "your city"}` },
+                  { icon: "🔍", text: "Find Vendors tab → search local & online businesses" },
+                  { icon: "📤", text: "Outreach tab → send email / WhatsApp with secure response link" },
+                  { icon: "🤖", text: "Agent tracks Accept / Quote / Hold / Reject in real time" },
+                  { icon: "📋", text: "Action Plan tab → AI recommends next steps" },
                 ].map((s, i) => (
                   <div key={i} className="flex items-center gap-2 text-[10px] text-sky-700">
                     <span>{s.icon}</span><span>{s.text}</span>
@@ -6313,13 +6402,14 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
               </div>
             </div>
 
-            <button onClick={submitInquiry} disabled={submitting || !form.city.trim() || !form.checkIn || !form.checkOut}
+            <button onClick={submitInquiry} disabled={submitting || !form.city.trim() || !form.checkIn}
               className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white font-black py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              {submitting ? <><Loader2 size={15} className="animate-spin"/> Submitting…</> : <><Send size={15}/> Submit Inquiry</>}
+              {submitting ? <><Loader2 size={15} className="animate-spin"/> Submitting…</> : <><Send size={15}/> Submit Request — {svc.icon} {svc.label}</>}
             </button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── MY INQUIRIES ── */}
       {subTab === "inquiries" && (
@@ -6343,58 +6433,95 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
               </button>
               <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
                 {/* Header */}
+                {(() => { const svc = inqSvc(selectedInq); return (
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{INQUIRY_HOTEL_TYPES.find(h=>h.id===selectedInq.hotelType)?.icon || "🏨"}</span>
+                      <span className="text-lg">{svc.icon}</span>
                       <div>
                         <p className="font-black text-gray-900 text-sm">{selectedInq.inqId}</p>
-                        <p className="text-[10px] text-gray-400">{INQUIRY_HOTEL_TYPES.find(h=>h.id===selectedInq.hotelType)?.label} · {selectedInq.city}</p>
+                        <p className="text-[10px] text-gray-400">{svc.label} · {selectedInq.city}</p>
+                        {selectedInq.coordinator && <p className="text-[10px] text-purple-600 font-semibold mt-0.5">👤 {selectedInq.coordinator}</p>}
                       </div>
                     </div>
                   </div>
-                  <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full border ${(INQUIRY_STATUS_CONFIG[selectedInq.status]||INQUIRY_STATUS_CONFIG["New"]).bg} ${(INQUIRY_STATUS_CONFIG[selectedInq.status]||INQUIRY_STATUS_CONFIG["New"]).color}`}>
-                    {selectedInq.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full border ${(INQUIRY_STATUS_CONFIG[selectedInq.status]||INQUIRY_STATUS_CONFIG["New"]).bg} ${(INQUIRY_STATUS_CONFIG[selectedInq.status]||INQUIRY_STATUS_CONFIG["New"]).color}`}>
+                      {selectedInq.status}
+                    </span>
+                    <button onClick={() => { setOutreachInqId(selectedInq.inqId); setSubTab("outreach"); }}
+                      className="text-[9px] text-sky-600 font-bold hover:underline flex items-center gap-1">
+                      <MessageCircle size={9}/> Contact Vendors
+                    </button>
+                  </div>
                 </div>
+                ); })()}
 
                 {/* Details grid */}
+                {(() => { const svc = inqSvc(selectedInq); return (
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {[
-                    { label: "Check-in",   value: selectedInq.checkIn },
-                    { label: "Check-out",  value: selectedInq.checkOut },
-                    { label: "Guests",     value: selectedInq.guests },
-                    { label: "Room Type",  value: selectedInq.roomType },
-                    { label: "Budget",     value: selectedInq.budget || "Any" },
-                    { label: "Submitted",  value: new Date(selectedInq.submittedAt).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) },
-                  ].map(d => (
+                    { label: svc.d1,     value: selectedInq.checkIn },
+                    ...(svc.d2 ? [{ label: svc.d2, value: selectedInq.checkOut }] : []),
+                    { label: svc.gLabel, value: selectedInq.guests },
+                    ...(svc.showRoom ? [{ label: "Room Type", value: selectedInq.roomType }] : []),
+                    { label: `Budget`,   value: selectedInq.budget ? `₹${selectedInq.budget} ${svc.bUnit}` : "Flexible" },
+                    { label: "Submitted",value: new Date(selectedInq.submittedAt).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) },
+                  ].filter(d => d.value).map(d => (
                     <div key={d.label} className="bg-gray-50 rounded-xl p-2.5">
                       <p className="text-[9px] text-gray-400 font-semibold uppercase tracking-wide">{d.label}</p>
                       <p className="font-bold text-gray-800 mt-0.5">{d.value}</p>
                     </div>
                   ))}
                 </div>
+                ); })()}
 
                 {selectedInq.requirements && (
                   <div className="bg-sky-50 border border-sky-100 rounded-xl p-3 text-xs text-sky-800">
-                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Special Requirements</p>
+                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Requirements / Notes</p>
                     <p>{selectedInq.requirements}</p>
                   </div>
                 )}
 
                 {selectedInq.quote && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800">
-                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Hotel Quote</p>
-                    <p className="text-lg font-black">₹{selectedInq.quote} <span className="text-xs font-normal">per night</span></p>
+                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Best Quote Received</p>
+                    <p className="text-lg font-black">₹{selectedInq.quote} <span className="text-xs font-normal">{inqSvc(selectedInq).bUnit}</span></p>
                   </div>
                 )}
 
                 {selectedInq.hotelNote && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Hotel Message</p>
+                    <p className="font-bold text-[10px] uppercase tracking-wide mb-1">Vendor Message</p>
                     <p>{selectedInq.hotelNote}</p>
                   </div>
                 )}
+
+                {/* Outreach summary for this inquiry */}
+                {(() => {
+                  const io = outreachList.filter(o => o.inquiryId === selectedInq.inqId);
+                  if (!io.length) return null;
+                  return (
+                    <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-wide">{io.length} Vendors Contacted</p>
+                      <div className="space-y-1.5">
+                        {io.map(o => {
+                          const as = HOTEL_ACTION_STYLE[o.hotelAction || ""];
+                          return (
+                            <div key={o.id} className="flex items-center gap-2 text-[10px]">
+                              <span>{as?.icon || "🏢"}</span>
+                              <span className="font-semibold text-gray-700 flex-1">{o.hotelName}</span>
+                              <span className={`font-bold px-1.5 py-0.5 rounded-full text-[9px] ${
+                                o.status === "Responded" ? "bg-green-100 text-green-700" :
+                                o.status === "Viewed"   ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"
+                              }`}>{o.status}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Activity timeline */}
                 <div>
@@ -6404,7 +6531,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                     {selectedInq.activities.map((act, i) => (
                       <div key={i} className="flex items-start gap-3 pl-6 relative">
                         <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center shadow-sm ${
-                          act.by === "Customer" ? "bg-sky-500" : act.by === "Hotel" ? "bg-green-500" : "bg-gray-400"
+                          act.by === "Customer" ? "bg-sky-500" : act.by === "Vendor" || act.by === "Hotel" ? "bg-green-500" : "bg-gray-400"
                         }`}>
                           <div className="w-1.5 h-1.5 rounded-full bg-white"/>
                         </div>
@@ -6436,40 +6563,265 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
             <div className="space-y-2">
               {inquiries.map(inq => {
                 const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
-                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
-                const nights = inq.checkIn && inq.checkOut
+                const svc = inqSvc(inq);
+                const span = inq.checkIn && inq.checkOut
                   ? Math.ceil((new Date(inq.checkOut).getTime() - new Date(inq.checkIn).getTime()) / 86400000)
                   : null;
-                const inqSent = outreachList.filter(o => o.inquiryId === inq.inqId).length;
-                const inqResp = outreachList.filter(o => o.inquiryId === inq.inqId && o.status === "Responded").length;
+                const iSent = outreachList.filter(o => o.inquiryId === inq.inqId).length;
+                const iResp = outreachList.filter(o => o.inquiryId === inq.inqId && o.status === "Responded").length;
                 return (
                   <button key={inq.id} onClick={() => setSelectedInq(inq)}
                     className="w-full bg-white border border-gray-100 hover:border-sky-200 hover:shadow-sm rounded-2xl p-4 text-left transition-all">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-2xl">{ht?.icon || "🏨"}</span>
+                        <span className="text-2xl">{svc.icon}</span>
                         <div>
                           <p className="text-xs font-black text-gray-900">{inq.inqId}</p>
-                          <p className="text-[10px] text-gray-500">{ht?.label} · {inq.city} · {inq.guests} guests</p>
+                          <p className="text-[10px] text-gray-500">{svc.label} · {inq.city} · {inq.guests} {svc.gLabel}</p>
                           <p className="text-[10px] text-gray-400 mt-0.5">
-                            {inq.checkIn} → {inq.checkOut}{nights ? ` · ${nights} night${nights!==1?"s":""}` : ""}
+                            {inq.checkIn}{inq.checkOut ? ` → ${inq.checkOut}` : ""}
+                            {span ? ` · ${span} day${span!==1?"s":""}` : ""}
+                            {inq.coordinator ? ` · 👤 ${inq.coordinator}` : ""}
                           </p>
-                          {inqSent > 0 && (
+                          {iSent > 0 && (
                             <p className="text-[9px] text-sky-500 font-semibold mt-0.5">
-                              {inqSent} hotel{inqSent>1?"s":""} contacted{inqResp>0?` · ${inqResp} replied`:""}
+                              {iSent} vendor{iSent>1?"s":""} contacted{iResp>0?` · ${iResp} replied`:""}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
-                        {inq.quote && <span className="text-[10px] text-green-600 font-bold">₹{inq.quote}/night</span>}
+                        {inq.quote && <span className="text-[10px] text-green-600 font-bold">₹{inq.quote} {svc.bUnit}</span>}
                         <span className="text-[9px] text-gray-300">{inq.activities.length} events</span>
                       </div>
                     </div>
                   </button>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── FIND VENDORS ── */}
+      {subTab === "find" && (
+        <div className="space-y-4">
+          {/* Sub-nav: Store Search vs Web/Public Search */}
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+            {[
+              { id:"store", icon:"🏪", label:"StoreSearch Agent" },
+              { id:"web",   icon:"🌐", label:"PublicSearch Agent" },
+            ].map(t => (
+              <button key={t.id} onClick={() => setFindTab(t.id as any)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold transition-all ${findTab===t.id ? "bg-white shadow-sm text-sky-600" : "text-gray-500 hover:text-gray-700"}`}>
+                <span>{t.icon}</span><span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* StoreSearch Agent */}
+          {findTab === "store" && (
+            <div className="space-y-3">
+              <div className="bg-gradient-to-br from-sky-800 to-blue-900 text-white rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center"><Search size={15}/></div>
+                  <div>
+                    <p className="text-[10px] text-sky-200 font-bold uppercase tracking-wide">StoreSearch Agent</p>
+                    <p className="text-xs font-black">Find Registered Vendors on Platform</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input value={storeQuery} onChange={e => setStoreQuery(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && searchStores()}
+                    placeholder="e.g. hotel, catering, photographer…"
+                    className="flex-1 bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-white/30"/>
+                  <input value={storeCity} onChange={e => setStoreCity(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && searchStores()}
+                    placeholder="City"
+                    className="w-24 bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-white/30"/>
+                  <button onClick={searchStores} disabled={storeSearching}
+                    className="bg-sky-400 hover:bg-sky-300 disabled:opacity-50 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex items-center gap-1">
+                    {storeSearching ? <Loader2 size={11} className="animate-spin"/> : <Search size={11}/>}
+                    Search
+                  </button>
+                </div>
+              </div>
+
+              {storeSearching && (
+                <div className="text-center py-8 text-gray-400 text-sm flex flex-col items-center gap-2">
+                  <Loader2 size={20} className="animate-spin text-sky-400"/>Searching platform vendors…
+                </div>
+              )}
+
+              {!storeSearching && storeResults.length === 0 && storeQuery && (
+                <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
+                  <Search size={28} className="mx-auto mb-2 text-gray-200"/>
+                  <p className="text-gray-400 text-sm font-semibold">No vendors found</p>
+                  <p className="text-gray-300 text-xs mt-1">Try different keywords or switch to Web Search</p>
+                </div>
+              )}
+
+              {storeResults.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{storeResults.length} vendor{storeResults.length!==1?"s":""} found</p>
+                  {storeResults.map(s => (
+                    <div key={s.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-black text-gray-900">{s.store_name}</p>
+                          {s.company_name && s.company_name !== s.store_name && (
+                            <p className="text-[10px] text-gray-400">{s.company_name}</p>
+                          )}
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className="text-[10px] bg-sky-50 text-sky-700 border border-sky-100 font-bold px-2 py-0.5 rounded-full">{s.industry_name}</span>
+                            {s.city && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={9}/>{s.city}{s.state?`, ${s.state}`:""}</span>}
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex flex-col items-end gap-1.5">
+                          {s.has_phone && <span className="text-[9px] bg-green-50 border border-green-200 text-green-700 font-bold px-1.5 py-0.5 rounded-full">📞 Has Phone</span>}
+                          {s.phone_masked && <p className="text-[10px] text-gray-500 font-mono">{s.phone_masked}</p>}
+                        </div>
+                      </div>
+                      {s.address && <p className="text-[10px] text-gray-400 flex items-start gap-1"><MapPin size={9} className="mt-0.5 shrink-0"/>{s.address}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={() => {
+                          setAddHotelForm({ name: s.store_name, email: "", phone: s.phone_masked?.replace(/\*/g,"") || "" });
+                          setSubTab("outreach");
+                          showToast(`${s.store_name} added — complete phone/email to send`);
+                        }} className="flex-1 flex items-center justify-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 font-bold text-[10px] py-2 rounded-xl transition-colors">
+                          <MessageCircle size={11}/> Add to Outreach
+                        </button>
+                        <button onClick={() => {
+                          const q = encodeURIComponent(`${s.store_name} ${s.city || ""} contact`);
+                          window.open(`https://www.google.com/search?q=${q}`);
+                        }} className="flex items-center justify-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 font-bold text-[10px] px-3 py-2 rounded-xl transition-colors">
+                          <ExternalLink size={10}/> Google
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!storeQuery && storeResults.length === 0 && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 text-center text-gray-400">
+                  <Search size={28} className="mx-auto mb-2 opacity-30"/>
+                  <p className="text-sm font-semibold">Search platform vendors</p>
+                  <p className="text-xs mt-1">Find hotels, restaurants, caterers, photographers and other businesses registered on DemandGenius</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PublicSearch Agent */}
+          {findTab === "web" && (
+            <div className="space-y-3">
+              {/* Smart search links based on active inquiry */}
+              {activeInq && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Globe size={14} className="text-sky-500"/>
+                    <p className="text-xs font-black text-gray-900">Smart Search Links — {inqSvc(activeInq).label} in {activeInq.city}</p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { label:"Google Maps",   url:`https://www.google.com/maps/search/${encodeURIComponent(inqSvc(activeInq).keyword+" in "+activeInq.city)}`, icon:"🗺" },
+                      { label:"JustDial",      url:`https://www.justdial.com/search?q=${encodeURIComponent(inqSvc(activeInq).keyword)}&where=${encodeURIComponent(activeInq.city)}`, icon:"📞" },
+                      { label:"Sulekha",       url:`https://www.sulekha.com/${inqSvc(activeInq).keyword.replace(/ /g,"-")}/${activeInq.city.toLowerCase()}`, icon:"🔍" },
+                      { label:"IndiaMart",     url:`https://www.indiamart.com/search.mp?ss=${encodeURIComponent(inqSvc(activeInq).keyword+"+"+activeInq.city)}`, icon:"🏭" },
+                      ...(inqSvc(activeInq).cat === "accommodation" ? [
+                        { label:"MakeMyTrip", url:`https://www.makemytrip.com/hotels/hotel-listing/?searchText=${encodeURIComponent(activeInq.city)}&checkin=${activeInq.checkIn}&checkout=${activeInq.checkOut}`, icon:"✈" },
+                      ] : []),
+                      ...(inqSvc(activeInq).cat === "food" ? [
+                        { label:"Zomato",  url:`https://www.zomato.com/${activeInq.city.toLowerCase().replace(/ /g,"-")}/${inqSvc(activeInq).id === "catering" ? "order/catering" : "restaurants"}`, icon:"🍕" },
+                      ] : []),
+                      ...(inqSvc(activeInq).cat === "transport" ? [
+                        { label:"Ola Outstation", url:`https://book.olacabs.com/`, icon:"🚗" },
+                      ] : []),
+                    ].map(link => (
+                      <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[10px] font-bold bg-gray-50 border border-gray-200 text-gray-600 hover:border-sky-300 hover:text-sky-700 px-2.5 py-1.5 rounded-lg transition-colors">
+                        <span>{link.icon}</span><span>{link.label}</span><ExternalLink size={9} className="opacity-40"/>
+                      </a>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-gray-400">Find a vendor → copy their contact details → paste below → add to your outreach list</p>
+                </div>
+              )}
+
+              {/* Quick-add vendor form */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center gap-2">
+                  <Globe size={13} className="text-green-500"/>
+                  <p className="text-xs font-black text-gray-900">Quick Add Vendor</p>
+                  <span className="text-[9px] text-gray-400">paste details from Google / JustDial</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={quickForm.name} onChange={e => setQuickForm(f => ({...f, name: e.target.value}))}
+                    placeholder="Business Name *" className="col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+                  <input value={quickForm.phone} onChange={e => setQuickForm(f => ({...f, phone: e.target.value}))}
+                    placeholder="Phone / WhatsApp" type="tel" className="border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+                  <input value={quickForm.email} onChange={e => setQuickForm(f => ({...f, email: e.target.value}))}
+                    placeholder="Email" type="email" className="border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+                  <input value={quickForm.address} onChange={e => setQuickForm(f => ({...f, address: e.target.value}))}
+                    placeholder="Address / Area" className="border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+                  <input value={quickForm.website} onChange={e => setQuickForm(f => ({...f, website: e.target.value}))}
+                    placeholder="Website (optional)" type="url" className="border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    if (!quickForm.name.trim()) { showToast("Enter vendor name first"); return; }
+                    const v = { id: paUid(), ...quickForm };
+                    setQuickVendors(prev => [v, ...prev]);
+                    setQuickForm({ name:"", phone:"", email:"", address:"", website:"" });
+                    showToast(`${v.name} added to your list`);
+                  }} className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors">
+                    Add to My List
+                  </button>
+                  {quickForm.name.trim() && (quickForm.email.trim() || quickForm.phone.trim()) && (
+                    <button onClick={() => {
+                      if (!activeInq) { showToast("No active inquiry — submit one first"); return; }
+                      setAddHotelForm({ name: quickForm.name, email: quickForm.email, phone: quickForm.phone });
+                      setSubTab("outreach");
+                      showToast(`${quickForm.name} → going to Outreach tab`);
+                    }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold text-xs py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1">
+                      <MessageCircle size={11}/> Send Now
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Saved quick-add vendors */}
+              {quickVendors.length > 0 && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black text-gray-900">My Vendor List</p>
+                    <span className="text-[10px] bg-gray-50 text-gray-500 border border-gray-200 font-bold px-2 py-0.5 rounded-full">{quickVendors.length}</span>
+                  </div>
+                  {quickVendors.map(v => (
+                    <div key={v.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-gray-900 truncate">{v.name}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{[v.phone, v.email, v.address].filter(Boolean).join(" · ")}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {(v.email || v.phone) && (
+                          <button onClick={() => {
+                            setAddHotelForm({ name: v.name, email: v.email, phone: v.phone });
+                            setSubTab("outreach");
+                            showToast(`${v.name} → Outreach tab`);
+                          }} className="text-[9px] bg-sky-50 border border-sky-200 text-sky-700 font-bold px-2 py-1 rounded-lg hover:bg-sky-100 flex items-center gap-0.5">
+                            <MessageCircle size={9}/> Reach
+                          </button>
+                        )}
+                        <button onClick={() => setQuickVendors(prev => prev.filter(q => q.id !== v.id))}
+                          className="text-[9px] text-gray-400 px-1.5 py-1 rounded-lg hover:bg-gray-100">✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -6503,8 +6855,8 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                   <select value={outreachInqId} onChange={e => setOutreachInqId(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-sky-400">
                     {inquiries.filter(i => !["Closed"].includes(i.status)).map(i => {
-                      const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === i.hotelType);
-                      return <option key={i.inqId} value={i.inqId}>{i.inqId} — {ht?.label} in {i.city} · {i.checkIn} → {i.checkOut}</option>;
+                      const svc = inqSvc(i);
+                      return <option key={i.inqId} value={i.inqId}>{i.inqId} — {svc.icon} {svc.label} in {i.city} · {i.checkIn}{i.checkOut ? ` → ${i.checkOut}` : ""}</option>;
                     })}
                   </select>
                 </div>
@@ -6659,8 +7011,8 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                 <Hotel size={18} className="text-white"/>
               </div>
               <div>
-                <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Real Hotel Responses</p>
-                <h3 className="font-black text-sm mt-0.5">{stats.responses} Response{stats.responses !== 1 ? "s" : ""} · {stats.outreaches} Hotels Contacted</h3>
+                <p className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Live Vendor Responses</p>
+                <h3 className="font-black text-sm mt-0.5">{stats.responses} Response{stats.responses !== 1 ? "s" : ""} · {stats.outreaches} Vendors Contacted</h3>
               </div>
               <button onClick={refreshOutreachStatuses} disabled={refreshingOutreach}
                 className="ml-auto flex items-center gap-1 text-[10px] text-slate-300 hover:text-white font-bold disabled:opacity-40">
@@ -6684,7 +7036,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
               {[...outreachList].sort((a, b) => (b.status === "Responded" ? 1 : 0) - (a.status === "Responded" ? 1 : 0)).map(o => {
                 const as = HOTEL_ACTION_STYLE[o.hotelAction || ""];
                 const inqForThis = inquiries.find(i => i.inqId === o.inquiryId);
-                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === (inqForThis?.hotelType || "hotel"));
+                const ht = inqForThis ? inqSvc(inqForThis) : SERVICE_TYPES[0];
                 return (
                   <div key={o.id} className={`bg-white border rounded-2xl p-4 shadow-sm space-y-3 ${o.status === "Responded" ? "border-green-200" : "border-gray-100"}`}>
                     <div className="flex items-start justify-between gap-2">
@@ -6694,7 +7046,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                         </div>
                         <div>
                           <p className="font-black text-sm text-gray-900">{o.hotelName}</p>
-                          <p className="text-[10px] text-gray-400">{o.inquiryId} · {inqForThis?.city || o.city}{ht ? ` · ${ht.icon} ${ht.label}` : ""}</p>
+                          <p className="text-[10px] text-gray-400">{o.inquiryId} · {inqForThis?.city || o.city} · {ht.icon} {ht.label}</p>
                         </div>
                       </div>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
@@ -6702,7 +7054,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                         o.status === "Viewed"    ? "bg-amber-50 border-amber-200 text-amber-700" :
                         "bg-sky-50 border-sky-200 text-sky-700"
                       }`}>
-                        {o.status === "Sent" ? "📤 Awaiting" : o.status === "Viewed" ? "👁 Hotel Viewed" : "✅ Responded"}
+                        {o.status === "Sent" ? "📤 Awaiting" : o.status === "Viewed" ? "👁 Vendor Viewed" : "✅ Responded"}
                       </span>
                     </div>
 
@@ -6714,7 +7066,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                           {o.hotelQuote && (
                             <div className="ml-auto text-right">
                               <p className="text-lg font-black text-green-700">₹{o.hotelQuote}</p>
-                              <p className="text-[9px] text-gray-400">per night</p>
+                              <p className="text-[9px] text-gray-400">{ht.bUnit}</p>
                             </div>
                           )}
                         </div>
@@ -6746,6 +7098,156 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         </div>
       )}
 
+      {/* ── ACTION PLAN (FINALIZER AGENT) ── */}
+      {subTab === "plan" && (
+        <div className="space-y-4">
+          <div className="bg-gradient-to-br from-amber-800 to-orange-900 text-white rounded-2xl p-4 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center"><CheckSquare size={18}/></div>
+              <div>
+                <p className="text-[10px] text-amber-200 font-bold uppercase tracking-wide">Finalizer Agent</p>
+                <h3 className="font-black text-sm">Action Plan & Status Review</h3>
+              </div>
+            </div>
+            <p className="text-[10px] text-amber-100">AI-powered analysis of each inquiry — recommended next steps, escalations, and completion checklist.</p>
+          </div>
+
+          {inquiries.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-12 text-center">
+              <CheckSquare size={32} className="mx-auto mb-3 text-gray-200"/>
+              <p className="text-gray-400 font-semibold">No inquiries to review</p>
+              <button onClick={() => setSubTab("submit")} className="mt-4 bg-sky-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl">Create First Request</button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {inquiries.map(inq => {
+                const svc = inqSvc(inq);
+                const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
+                const io = outreachList.filter(o => o.inquiryId === inq.inqId);
+                const responded = io.filter(o => o.status === "Responded");
+                const viewed    = io.filter(o => o.status === "Viewed");
+                const accepted  = io.filter(o => o.hotelAction === "Accept");
+                const quotes    = io.filter(o => o.hotelAction === "Quote");
+                const rejected  = io.filter(o => o.hotelAction === "Reject");
+                const ageDays   = Math.floor((Date.now() - new Date(inq.submittedAt).getTime()) / 86400000);
+                const isClosed  = ["Closed","Rejected"].includes(inq.status);
+
+                // Smart recommendations
+                const actions: { priority: "high"|"medium"|"low"; icon: string; text: string; cta?: string; onCta?: ()=>void }[] = [];
+
+                if (!isClosed) {
+                  if (io.length === 0 && ageDays >= 0) {
+                    actions.push({ priority:"high", icon:"📤", text:`No vendors contacted yet for ${inq.inqId}. Start outreach now.`, cta:"Go to Outreach", onCta:() => { setOutreachInqId(inq.inqId); setSubTab("outreach"); } });
+                  }
+                  if (io.length > 0 && responded.length === 0 && ageDays >= 1) {
+                    actions.push({ priority:"high", icon:"⏰", text:`${io.length} vendor${io.length>1?"s":""} contacted, none responded in ${ageDays} day${ageDays!==1?"s":""}. Follow up or contact more vendors.`, cta:"Re-send", onCta:() => { setOutreachInqId(inq.inqId); setSubTab("outreach"); } });
+                  }
+                  if (viewed.length > 0 && responded.length === 0) {
+                    actions.push({ priority:"medium", icon:"👁", text:`${viewed.length} vendor${viewed.length>1?"s have":" has"} opened your inquiry but not responded yet. They may need a nudge.` });
+                  }
+                  if (rejected.length === io.length && io.length > 0) {
+                    actions.push({ priority:"high", icon:"❌", text:`All ${rejected.length} contacted vendors declined. Search for more vendors.`, cta:"Find More", onCta:() => { setStoreCity(inq.city); setSubTab("find"); } });
+                  }
+                  if (accepted.length > 0) {
+                    actions.push({ priority:"medium", icon:"✅", text:`${accepted.length} vendor accepted! Confirm booking and close this inquiry.`, cta:"Mark Accepted", onCta:() => updateInquiry({ ...inq, status:"Accepted", activities:[...inq.activities,{action:"Accepted by Coordinator",ts:new Date().toISOString(),by:"System"}] }) });
+                  }
+                  if (quotes.length > 0 && accepted.length === 0) {
+                    const best = quotes.reduce((a,b) => (!a.hotelQuote || (b.hotelQuote && +b.hotelQuote < +a.hotelQuote)) ? b : a, quotes[0]);
+                    actions.push({ priority:"medium", icon:"💰", text:`${quotes.length} quote${quotes.length>1?"s":""} received. Best: ${best.hotelName} at ₹${best.hotelQuote}. Review and accept.`, cta:"View Responses", onCta:() => setSubTab("hotel") });
+                  }
+                  if (ageDays >= 7 && io.length === 0) {
+                    actions.push({ priority:"low", icon:"🗄", text:`This inquiry is ${ageDays} days old with no activity. Close it or archive.`, cta:"Close", onCta:() => updateInquiry({ ...inq, status:"Closed", activities:[...inq.activities,{action:"Closed by Finalizer Agent (inactive)",ts:new Date().toISOString(),by:"System"}] }) });
+                  }
+                  if (actions.length === 0) {
+                    actions.push({ priority:"low", icon:"✔", text:"Inquiry is progressing normally. Continue monitoring responses." });
+                  }
+                }
+
+                return (
+                  <div key={inq.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isClosed ? "opacity-60" : ""}`}>
+                    {/* Inquiry header */}
+                    <div className="flex items-center gap-3 p-4 border-b border-gray-50">
+                      <span className="text-xl">{svc.icon}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs font-black text-gray-900">{inq.inqId}</p>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${sc.bg} ${sc.color}`}>{inq.status}</span>
+                          {inq.coordinator && <span className="text-[9px] text-purple-600 font-bold bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full">👤 {inq.coordinator}</span>}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{svc.label} · {inq.city} · Day {ageDays+1} · {io.length} vendors contacted · {responded.length} responded</p>
+                      </div>
+                      {!isClosed && (
+                        <button onClick={() => updateInquiry({ ...inq, status:"Closed", activities:[...inq.activities,{action:"Closed by Coordinator",ts:new Date().toISOString(),by:"System"}] })}
+                          className="text-[9px] text-gray-400 hover:text-red-500 font-bold px-2 py-1 rounded-lg hover:bg-red-50 border border-transparent hover:border-red-100 transition-colors">
+                          Close
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="px-4 pt-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        {[
+                          { label:"Submitted",  done: true },
+                          { label:"Vendors Found", done: io.length > 0 },
+                          { label:"Viewed",     done: viewed.length > 0 || responded.length > 0 },
+                          { label:"Responded",  done: responded.length > 0 },
+                          { label:"Finalized",  done: accepted.length > 0 || isClosed },
+                        ].map((step, idx, arr) => (
+                          <div key={step.label} className="flex items-center flex-1">
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shrink-0 ${
+                              step.done ? "bg-green-500 text-white" : "bg-gray-100 text-gray-400"
+                            }`}>{step.done ? "✓" : idx+1}</div>
+                            {idx < arr.length-1 && <div className={`flex-1 h-0.5 mx-0.5 ${step.done ? "bg-green-300" : "bg-gray-100"}`}/>}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between text-[8px] text-gray-300 mt-0.5 px-0.5">
+                        {["Submitted","Vendors","Viewed","Response","Final"].map(l => <span key={l} className="text-center" style={{flex:1}}>{l}</span>)}
+                      </div>
+                    </div>
+
+                    {/* Action items */}
+                    {!isClosed && actions.length > 0 && (
+                      <div className="p-4 space-y-2">
+                        {actions.map((a, i) => (
+                          <div key={i} className={`flex items-start gap-2.5 p-3 rounded-xl border ${
+                            a.priority === "high"   ? "bg-red-50 border-red-100" :
+                            a.priority === "medium" ? "bg-amber-50 border-amber-100" : "bg-gray-50 border-gray-100"
+                          }`}>
+                            <span className="text-base shrink-0">{a.icon}</span>
+                            <div className="flex-1">
+                              <p className={`text-[11px] font-semibold ${
+                                a.priority === "high" ? "text-red-700" : a.priority === "medium" ? "text-amber-700" : "text-gray-600"
+                              }`}>{a.text}</p>
+                            </div>
+                            {a.cta && a.onCta && (
+                              <button onClick={a.onCta}
+                                className={`shrink-0 text-[9px] font-black px-2.5 py-1 rounded-lg transition-colors ${
+                                  a.priority === "high"   ? "bg-red-500 text-white hover:bg-red-600" :
+                                  a.priority === "medium" ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                }`}>
+                                {a.cta}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {isClosed && (
+                      <div className="px-4 pb-4 pt-3 text-center">
+                        <p className="text-[10px] text-gray-400 italic">This inquiry is closed. No further action required.</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── ACTIVITY LOG ── */}
       {subTab === "history" && (
         <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
@@ -6761,21 +7263,22 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
           ) : (
             <div className="space-y-4">
               {inquiries.map(inq => {
-                const ht = INQUIRY_HOTEL_TYPES.find(h => h.id === inq.hotelType);
+                const svc = inqSvc(inq);
                 const sc = INQUIRY_STATUS_CONFIG[inq.status] || INQUIRY_STATUS_CONFIG["New"];
                 return (
                   <div key={inq.id}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm">{ht?.icon}</span>
+                      <span className="text-sm">{svc.icon}</span>
                       <span className="text-xs font-black text-gray-800">{inq.inqId}</span>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${sc.bg} ${sc.color}`}>{inq.status}</span>
-                      <span className="text-[10px] text-gray-400 ml-auto">{ht?.label} · {inq.city}</span>
+                      {inq.coordinator && <span className="text-[9px] text-purple-500 font-bold">👤{inq.coordinator}</span>}
+                      <span className="text-[10px] text-gray-400 ml-auto">{svc.label} · {inq.city}</span>
                     </div>
                     <div className="space-y-1.5 pl-3 border-l-2 border-sky-100 ml-2">
                       {inq.activities.map((act, i) => (
                         <div key={i} className="relative">
                           <div className={`absolute -left-[13px] top-1.5 w-2 h-2 rounded-full border border-white ${
-                            act.by === "Customer" ? "bg-sky-400" : act.by === "Hotel" ? "bg-green-400" : "bg-gray-300"
+                            act.by === "Customer" ? "bg-sky-400" : act.by === "Vendor" || act.by === "Hotel" ? "bg-green-400" : "bg-gray-300"
                           }`}/>
                           <p className="text-[11px] font-semibold text-gray-700">{act.action}</p>
                           {act.note && <p className="text-[10px] text-gray-400 italic">"{act.note}"</p>}
