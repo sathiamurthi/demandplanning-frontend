@@ -368,7 +368,7 @@ export default function SaleDynamicPage() {
 
       // Show bill modal
       setBill({
-        saleNumber: d.data?.saleNumber || d.data?.sale_number || "—",
+        saleNumber: d.data?.sale?.sale_number || d.data?.saleNumber || d.data?.sale_number || "—",
         saleDate, paymentMethod: payMethod,
         customerName, customerPhone,
         lines: [...lines], total: grandTotal, storeName,
@@ -376,7 +376,7 @@ export default function SaleDynamicPage() {
 
       setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
       setCouponCode(""); setCouponDiscount(0); setCouponMsg("");
-      setSaveMsg({ ok: true, text: `Sale ${d.data?.saleNumber || ""} saved!` });
+      setSaveMsg({ ok: true, text: `Sale ${d.data?.sale?.sale_number || d.data?.saleNumber || ""} saved!` });
       loadTodaySales();
     } catch (e: any) {
       setSaveMsg({ ok: false, text: e.message });

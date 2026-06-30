@@ -112,14 +112,13 @@ export default function CouponsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.code.trim()) { setMsg({ ok: false, text: "Code is required" }); return; }
     if (!form.discount_value || isNaN(parseFloat(form.discount_value))) {
       setMsg({ ok: false, text: "Discount value required" }); return;
     }
     setSaving(true); setMsg(null);
     try {
       const payload = {
-        code: form.code.trim().toUpperCase(),
+        ...(form.code.trim() ? { code: form.code.trim().toUpperCase() } : {}),
         description: form.description || undefined,
         discount_type: form.discount_type,
         discount_value: parseFloat(form.discount_value),
@@ -238,10 +237,23 @@ export default function CouponsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Code *</label>
-              <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                placeholder="e.g. DIWALI20, FLAT50"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                Code <span className="normal-case text-gray-400 font-normal">(leave blank to auto-generate)</span>
+              </label>
+              <div className="flex gap-2">
+                <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                  placeholder="Auto-generated if blank"
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                <button type="button"
+                  onClick={() => {
+                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+                    const code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+                    setForm(f => ({ ...f, code }));
+                  }}
+                  className="px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-xs font-bold hover:bg-orange-100 whitespace-nowrap transition-colors">
+                  Generate
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Description</label>
