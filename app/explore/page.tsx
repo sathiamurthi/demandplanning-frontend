@@ -19,7 +19,7 @@ import {
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -186,6 +186,7 @@ function GuestGate({ onDone }: { onDone: (g: GuestIdentity) => void }) {
 // ── Sidebar Nav ────────────────────────────────────────────────
 const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: boolean }[] = [
   { id:"assistant",       label:"Personal Assistant",  icon:Bot,           group:"AI" },
+  { id:"workflow",        label:"WorkflowAgent",       icon:ClipboardList, isSubItem:true },
   { id:"travel_companion",label:"Travel Companion",    icon:Compass,       isSubItem:true },
   { id:"event_companion", label:"Event Companion",     icon:Sparkles,      isSubItem:true },
   { id:"inquiry_agent",   label:"Inquiry Agent",       icon:MessageCircle, isSubItem:true },
@@ -296,6 +297,400 @@ function ThirtyDayGate({ guest, onClose }: { guest: GuestIdentity; onClose: () =
   );
 }
 
+// ── Notification Drawer ───────────────────────────────────────
+function NotificationDrawer({ notifications, unread, phone, onClose, onRead, onReadAll, onNavigate }: {
+  notifications: any[]; unread: number; phone: string;
+  onClose: () => void;
+  onRead: (id: string) => void;
+  onReadAll: () => void;
+  onNavigate: (section: Section) => void;
+}) {
+  const markRead = (n: any) => {
+    if (n.is_read) return;
+    fetch(`/v1/public/notifications/${n.id}/read`, { method: 'PATCH' }).catch(() => {});
+    onRead(n.id);
+  };
+
+  const markAllRead = () => {
+    fetch('/v1/public/notifications/read-all', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone.replace(/\D/g,'') }),
+    }).catch(() => {});
+    onReadAll();
+  };
+
+  const typeIcon: Record<string, string> = {
+    booking_created: '📋',
+    vendor_accepted: '✅',
+    vendor_rejected: '❌',
+    vendor_message: '💬',
+    default: '🔔',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute right-4 top-14 w-80 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Bell size={15} className="text-gray-700" />
+            <span className="font-bold text-sm text-gray-900">Notifications</span>
+            {unread > 0 && <span className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unread}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            {unread > 0 && <button onClick={markAllRead} className="text-xs text-orange-500 hover:underline font-semibold">Mark all read</button>}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+          </div>
+        </div>
+        <div className="max-h-[420px] overflow-y-auto divide-y divide-gray-50">
+          {notifications.length === 0 && (
+            <div className="py-10 text-center">
+              <Bell size={28} className="mx-auto text-gray-200 mb-2" />
+              <p className="text-xs text-gray-400">No notifications yet</p>
+              <p className="text-[11px] text-gray-300 mt-1">Book a service to get started</p>
+            </div>
+          )}
+          {notifications.map(n => (
+            <div key={n.id}
+              onClick={() => {
+                markRead(n);
+                if (n.ref_type === 'workflow_request' || n.ref_type === 'workflow_vendor_match') {
+                  onNavigate('workflow');
+                }
+              }}
+              className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-orange-50/50' : ''}`}>
+              <div className="flex items-start gap-2.5">
+                <span className="text-base mt-0.5 shrink-0">{typeIcon[n.type] || typeIcon.default}</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs leading-snug ${!n.is_read ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
+                  {n.body && <p className="text-[11px] text-gray-500 mt-0.5 leading-snug line-clamp-2">{n.body}</p>}
+                  <p className="text-[10px] text-gray-400 mt-1">{new Date(n.created_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
+                </div>
+                {!n.is_read && <div className="w-2 h-2 bg-orange-500 rounded-full shrink-0 mt-1.5" />}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 py-2.5 border-t border-gray-100">
+          <button onClick={() => onNavigate('workflow')}
+            className="w-full text-xs text-center text-orange-500 font-semibold hover:underline">
+            View all bookings & workflows →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── WorkflowAgentPanel ────────────────────────────────────────
+function WorkflowAgentPanel({ guest }: { guest: GuestIdentity }) {
+  const [view, setView] = useState<'book'|'history'>('book');
+  const [form, setForm] = useState({
+    vendor_type: '', city: '', date_start: '', date_end: '',
+    budget: '', seeker_name: guest.name || '', seeker_phone: guest.phone || '',
+    seeker_email: '', description: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+
+  const serviceTypes = [
+    'hotel','restaurant','plumber','electrician','carpenter','painter',
+    'caterer','event_hall','photographer','decorator','driver','tour_guide',
+    'ac_repair','cleaning','laundry','doctor','nurse','tutor',
+  ];
+
+  const loadHistory = () => {
+    const phone = form.seeker_phone.replace(/\D/g,'');
+    if (!phone) return;
+    setLoadingHistory(true);
+    fetch(`/v1/public/bookings?phone=${encodeURIComponent(phone)}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setBookings(d.data || []); })
+      .catch(() => {})
+      .finally(() => setLoadingHistory(false));
+  };
+
+  const loadBookingDetail = (id: string) => {
+    fetch(`/v1/public/bookings/${id}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setSelectedBooking(d.data); })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (view === 'history') loadHistory();
+  }, [view]);
+
+  const handleSubmit = async () => {
+    if (!form.vendor_type.trim() || !form.city.trim() || !form.seeker_phone.trim()) {
+      setError('Service type, city and your phone number are required.'); return;
+    }
+    setSubmitting(true); setError(''); setResult(null);
+    try {
+      const r = await fetch('/v1/public/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error || 'Failed');
+      setResult(d.data);
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const statusColor: Record<string,string> = {
+    pending: 'bg-yellow-100 text-yellow-700',
+    matching: 'bg-blue-100 text-blue-700',
+    confirmed: 'bg-green-100 text-green-700',
+    no_vendors: 'bg-gray-100 text-gray-500',
+    rejected: 'bg-red-100 text-red-600',
+    closed: 'bg-gray-100 text-gray-500',
+  };
+  const vendorStatusColor: Record<string,string> = {
+    pending: 'bg-gray-100 text-gray-500',
+    notified: 'bg-blue-100 text-blue-700',
+    accepted: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-600',
+    discussing: 'bg-purple-100 text-purple-700',
+  };
+
+  return (
+    <div className="max-w-xl mx-auto space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+            <ClipboardList size={18} className="text-orange-500" />
+          </div>
+          <div>
+            <h2 className="font-black text-gray-900 text-base">WorkflowAgent</h2>
+            <p className="text-xs text-gray-500">Book a service · Track responses · Get notified</p>
+          </div>
+        </div>
+
+        <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1">
+          {(['book','history'] as const).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${view===v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+              {v === 'book' ? '+ New Booking' : 'My Bookings'}
+            </button>
+          ))}
+        </div>
+
+        {view === 'book' && (
+          result ? (
+            <div className="text-center py-4 space-y-3">
+              <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto">
+                <CheckCircle2 size={28} className="text-green-500" />
+              </div>
+              <div>
+                <p className="font-black text-gray-900">Booking Request Sent!</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Found <strong>{result.vendorsFound}</strong> vendor(s) · Notified <strong>{result.notified}</strong> via WhatsApp
+                </p>
+                <p className="text-xs text-gray-400 mt-1 font-mono">ID: {result.requestId?.slice(0,8)}</p>
+              </div>
+              <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-700 text-left">
+                <strong>What happens next?</strong>
+                <ul className="mt-1.5 space-y-1 list-disc list-inside">
+                  <li>Vendors received a WhatsApp notification</li>
+                  <li>They reply YES / NO / COMMENT via WhatsApp</li>
+                  <li>You get a WhatsApp update + bell notification here</li>
+                  <li>Check "My Bookings" to track responses</li>
+                </ul>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setResult(null); setForm(f=>({...f,vendor_type:'',city:'',date_start:'',date_end:'',budget:'',description:''})); }}
+                  className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2 text-sm font-semibold hover:bg-gray-50">
+                  New Booking
+                </button>
+                <button onClick={() => { setView('history'); loadHistory(); }}
+                  className="flex-1 bg-orange-500 text-white rounded-xl py-2 text-sm font-semibold hover:bg-orange-600">
+                  Track Status →
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Service Type *</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {serviceTypes.slice(0,8).map(t => (
+                    <button key={t} onClick={() => setForm(f=>({...f,vendor_type:t}))}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${form.vendor_type===t ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-orange-50'}`}>
+                      {t.replace(/_/g,' ')}
+                    </button>
+                  ))}
+                </div>
+                <input value={form.vendor_type} onChange={e=>setForm(f=>({...f,vendor_type:e.target.value}))}
+                  placeholder="or type any service (e.g. hotel, plumber)"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">City *</label>
+                  <input value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}
+                    placeholder="e.g. Coonoor"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Budget (₹)</label>
+                  <input type="number" value={form.budget} onChange={e=>setForm(f=>({...f,budget:e.target.value}))}
+                    placeholder="e.g. 2000"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Check-in / Date</label>
+                  <input type="date" value={form.date_start} onChange={e=>setForm(f=>({...f,date_start:e.target.value}))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Check-out</label>
+                  <input type="date" value={form.date_end} onChange={e=>setForm(f=>({...f,date_end:e.target.value}))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Your Name</label>
+                <input value={form.seeker_name} onChange={e=>setForm(f=>({...f,seeker_name:e.target.value}))}
+                  placeholder="Your name"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">WhatsApp Number * <span className="text-gray-400 font-normal">(for updates)</span></label>
+                <input type="tel" value={form.seeker_phone} onChange={e=>setForm(f=>({...f,seeker_phone:e.target.value}))}
+                  placeholder="+91 9876543210"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Additional Requirements</label>
+                <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}
+                  placeholder="e.g. Non-AC room, vegetarian food, pick-up from station…"
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-300 resize-none" />
+              </div>
+
+              {error && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+
+              <button onClick={handleSubmit} disabled={submitting}
+                className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl py-2.5 text-sm font-bold transition-colors flex items-center justify-center gap-2">
+                {submitting ? <><Loader2 size={14} className="animate-spin" /> Sending to vendors…</> : <><Send size={14} /> Send Booking Request</>}
+              </button>
+              <p className="text-[11px] text-gray-400 text-center">Matching vendors will be notified via WhatsApp · You'll get updates here</p>
+            </div>
+          )
+        )}
+
+        {view === 'history' && (
+          selectedBooking ? (
+            <div className="space-y-3">
+              <button onClick={() => setSelectedBooking(null)} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+                ← Back to bookings
+              </button>
+              <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-gray-900 capitalize">{selectedBooking.vendor_type?.replace(/_/g,' ')} · {selectedBooking.city}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor[selectedBooking.status] || 'bg-gray-100 text-gray-500'}`}>
+                    {selectedBooking.status}
+                  </span>
+                </div>
+                {selectedBooking.date_start && <p className="text-xs text-gray-500">📅 {selectedBooking.date_start}{selectedBooking.date_end !== selectedBooking.date_start ? ` → ${selectedBooking.date_end}` : ''}</p>}
+                {selectedBooking.budget && <p className="text-xs text-gray-500">💰 Budget: ₹{Number(selectedBooking.budget).toLocaleString('en-IN')}</p>}
+                {selectedBooking.description && <p className="text-xs text-gray-500">{selectedBooking.description}</p>}
+              </div>
+
+              <p className="text-xs font-semibold text-gray-700">Vendor Responses ({selectedBooking.vendors?.length || 0})</p>
+              {(!selectedBooking.vendors || selectedBooking.vendors.length === 0) && (
+                <div className="text-center py-6 text-gray-400 text-xs">
+                  <Clock size={24} className="mx-auto mb-2 opacity-40" />
+                  Waiting for vendor responses…
+                </div>
+              )}
+              {(selectedBooking.vendors || []).map((v: any) => (
+                <div key={v.id} className="border border-gray-100 rounded-xl p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-800">{v.vendor_name || 'Vendor'}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vendorStatusColor[v.status] || 'bg-gray-100 text-gray-500'}`}>
+                      {v.status}
+                    </span>
+                  </div>
+                  {v.vendor_city && <p className="text-xs text-gray-400">{v.vendor_city}</p>}
+                  {v.notes && <p className="text-xs text-gray-600 mt-1 bg-gray-50 rounded-lg px-2 py-1.5">"{v.notes}"</p>}
+                  {v.quote_amount && <p className="text-xs font-semibold text-green-600">Quote: ₹{Number(v.quote_amount).toLocaleString('en-IN')}</p>}
+                  {v.wa_notified_at && <p className="text-[10px] text-gray-400">Notified: {new Date(v.wa_notified_at).toLocaleString('en-IN')}</p>}
+                </div>
+              ))}
+              <button onClick={() => loadBookingDetail(selectedBooking.id)} className="w-full text-xs text-orange-500 font-semibold hover:underline py-1">
+                Refresh
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {loadingHistory && <div className="text-center py-8 text-gray-400 text-xs"><Loader2 size={20} className="mx-auto animate-spin mb-2" />Loading…</div>}
+              {!loadingHistory && bookings.length === 0 && (
+                <div className="text-center py-8">
+                  <ClipboardList size={28} className="mx-auto text-gray-200 mb-2" />
+                  <p className="text-xs text-gray-400">No bookings yet</p>
+                  <button onClick={() => setView('book')} className="mt-2 text-orange-500 text-xs font-semibold hover:underline">Create your first booking →</button>
+                </div>
+              )}
+              {bookings.map(b => (
+                <div key={b.id} onClick={() => loadBookingDetail(b.id)}
+                  className="border border-gray-100 rounded-xl p-3 hover:border-orange-200 cursor-pointer transition-all hover:bg-orange-50/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-sm text-gray-800 capitalize">{b.vendor_type?.replace(/_/g,' ')} · {b.city}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor[b.status] || 'bg-gray-100 text-gray-500'}`}>
+                      {b.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                    {b.date_start && <span>📅 {b.date_start}</span>}
+                    {b.budget && <span>💰 ₹{Number(b.budget).toLocaleString('en-IN')}</span>}
+                    <span>{b.matched_count} vendor(s)</span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 mt-1">{new Date(b.created_at).toLocaleString('en-IN')}</p>
+                </div>
+              ))}
+              {!loadingHistory && form.seeker_phone && (
+                <button onClick={loadHistory} className="w-full text-xs text-orange-500 font-semibold hover:underline py-1 text-center">
+                  Refresh
+                </button>
+              )}
+            </div>
+          )
+        )}
+      </div>
+
+      {view === 'book' && !result && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700 space-y-1.5">
+          <p className="font-bold flex items-center gap-1.5"><Bot size={12} /> How WorkflowAgent works</p>
+          <p>1. Fill the form with your requirement</p>
+          <p>2. We find matching vendors in your city</p>
+          <p>3. They get a WhatsApp notification instantly</p>
+          <p>4. They reply YES / NO / send a quote via WhatsApp</p>
+          <p>5. You get notified here + on WhatsApp</p>
+          <p>6. Track all responses under "My Bookings"</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────
 export default function DemandGeniusApp() {
   const [guest, setGuest]             = useState<GuestIdentity | null>(null);
@@ -310,6 +705,9 @@ export default function DemandGeniusApp() {
   const [locLoading, setLocLoading] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showWaModal, setShowWaModal] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifList, setNotifList] = useState<any[]>([]);
+  const [notifUnread, setNotifUnread] = useState(0);
 
   useEffect(() => {
     const g = getGuest();
@@ -344,6 +742,26 @@ export default function DemandGeniusApp() {
       }, ()=>{}, { timeout:10000, enableHighAccuracy:false });
     }
   }, []);
+
+  // Notification polling — only if guest has a phone number
+  useEffect(() => {
+    const phone = guest?.phone;
+    if (!phone) return;
+    const fetchNotifs = () => {
+      fetch(`/v1/public/notifications?phone=${encodeURIComponent(phone.replace(/\D/g,''))}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            setNotifList(d.data.notifications || []);
+            setNotifUnread(d.data.unread || 0);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
+  }, [guest?.phone]);
 
   const captureLocation = () => {
     setLocLoading(true);
@@ -427,6 +845,23 @@ export default function DemandGeniusApp() {
     <div className="min-h-screen bg-gray-50 flex text-gray-900">
       {showContribute && <ContributeModal onClose={() => setShowContribute(false)} />}
       {show30DayGate && <ThirtyDayGate guest={guest} onClose={() => setShow30DayGate(false)} />}
+      {notifOpen && (
+        <NotificationDrawer
+          notifications={notifList}
+          unread={notifUnread}
+          phone={guest?.phone || ''}
+          onClose={() => setNotifOpen(false)}
+          onRead={(id: string) => {
+            setNotifList(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+            setNotifUnread(prev => Math.max(0, prev - 1));
+          }}
+          onReadAll={() => {
+            setNotifList(prev => prev.map(n => ({ ...n, is_read: true })));
+            setNotifUnread(0);
+          }}
+          onNavigate={(section: Section) => { setNotifOpen(false); setSection(section); }}
+        />
+      )}
       {/* Mobile overlay */}
       {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/20" onClick={() => setSidebarOpen(false)} />}
 
@@ -557,6 +992,16 @@ export default function DemandGeniusApp() {
                 <Users size={11} className="text-orange-400"/><span className="font-semibold">{platformStats.contributors}</span> contributors
               </div>
             )}
+            {guest?.phone && (
+              <button onClick={() => setNotifOpen(o => !o)} className="relative flex items-center justify-center w-8 h-8 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                <Bell size={15} className="text-gray-600" />
+                {notifUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {notifUnread > 9 ? '9+' : notifUnread}
+                  </span>
+                )}
+              </button>
+            )}
             <button onClick={() => setShowContribute(true)}
               className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
               <Heart size={12} /> Contribute
@@ -586,7 +1031,7 @@ export default function DemandGeniusApp() {
           {section === "travel"         && <TravelPanel />}
           {section === "trips"          && <TripPlanPanel gk={gk} />}
           {section === "travel_companion"   && <TravelCompanionPanel gk={gk} />}
-          {section === "event_companion"    && <EventCompanionPanel gk={gk} />}
+          {section === "event_companion"    && <EventCompanionPanel gk={gk} setSection={setSection} />}
           {section === "inquiry_agent"      && <InquiryAgentPanel guest={guest} gk={gk} />}
           {section === "expenses"       && <ExpensesPanel  gk={gk} />}
           {section === "contacts"       && <ContactsPanel  gk={gk} />}
@@ -596,6 +1041,7 @@ export default function DemandGeniusApp() {
           {section === "jobs"           && <JobsPanel      gk={gk} />}
           {section === "skills"         && <SkillsPanel    gk={gk} />}
           {section === "reminders"      && <RemindersPanel gk={gk} />}
+          {section === "workflow"       && <WorkflowAgentPanel guest={guest} />}
           {section === "install"        && <InstallPanel />}
         </main>
       </div>
@@ -637,6 +1083,14 @@ interface StoreCard {
   phone_masked:string|null; has_phone:boolean;
   city:string|null; state:string|null; address:string|null;
   maps_url:string|null; product_count:number;
+}
+interface VendorCard {
+  id:string; name:string; store_name?:string; company_name:string|null;
+  type_label?:string; industry_name?:string;
+  phone_masked:string|null; has_phone:boolean;
+  email?:string|null; website?:string|null; pincode?:string|null;
+  city:string|null; state:string|null; address:string|null;
+  source?:string; is_verified?:boolean; lat?:number|null; lng?:number|null;
 }
 interface ProductResult {
   id:string; name:string; sku:string|null; brand:string|null; batch_number:string|null;
@@ -3373,7 +3827,7 @@ const SERVICE_GROUPS = [
 ];
 
 function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; defaultMode?:"provider"|"seeker" }) {
-  const [tab,      setTab]     = useState<string>(defaultMode ? "onboard" : "home");
+  const [tab,      setTab]     = useState<string>("home");
   const [mode,     setMode]    = useState<"provider"|"seeker">(defaultMode||"provider");
   const [listings, setListings]= useState<Listing[]>([]);
   const [loading,  setLoading] = useState(false);
@@ -3386,8 +3840,8 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
   const [comparing,setComparing]=useState(false);
 
   // Onboard form
-  const [ob, setOb]           = useState({ type:"plumber", mode:defaultMode||"provider", name:"", phone:"", city:"", state:"", address:"", description:"", rate_info:"", discount:"", available_now:true });
-  useEffect(() => { if (defaultMode) { setMode(defaultMode); setTab("onboard"); setOb(p=>({...p,mode:defaultMode})); } }, [defaultMode]);
+  const [ob, setOb]           = useState({ type:"plumber", mode:defaultMode||"provider", name:"", phone:"", email:"", city:"", state:"", address:"", description:"", rate_info:"", discount:"", available_now:true });
+  useEffect(() => { if (defaultMode) { setMode(defaultMode); setOb(p=>({...p,mode:defaultMode})); } }, [defaultMode]);
   const [obServices, setObServices] = useState<{name:string;rate:string}[]>([{name:"",rate:""}]);
   const [locCapturing, setLocCapturing] = useState(false);
   const [obLat, setObLat]     = useState<number|null>(null);
@@ -3395,33 +3849,67 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
   const [obSaving, setObSaving]= useState(false);
   const [obDone,   setObDone]  = useState(false);
   const [obErr,    setObErr]   = useState("");
+  const [obCitySuggestions, setObCitySuggestions] = useState<{city:string;state:string}[]>([]);
 
   useEffect(() => { if (userLoc?.city) setCity(userLoc.city); }, [userLoc]);
 
+  useEffect(()=>{
+    fetch("/v1/public/cities").then(r=>r.json()).then(d=>{
+      if(d.success) setObCitySuggestions(d.data||[]);
+    }).catch(()=>{});
+  },[]);
+
   const group = SERVICE_GROUPS.find(g=>g.id===tab);
 
-  const loadListings = useCallback(()=>{
+  const loadListings = useCallback((cityOverride?: string)=>{
     if (tab==="onboard") return;
+    const activeCity = cityOverride !== undefined ? cityOverride : city;
+    // Don't dump all-city results — require at least a city or a keyword
+    if (!activeCity && !searchQ && !selType) { setListings([]); return; }
     setLoading(true); setError("");
     const types = selType ? [selType] : (group?.types||[]);
     const p = new URLSearchParams({ limit:"30", mode,
       ...(types.length===1&&{type:types[0]}),
-      ...(city&&{city}), ...(searchQ&&{search:searchQ}), ...(avail&&{available:"true"}) });
-    fetch(`/v1/public/listings?${p}`)
-      .then(async r => {
-        const text = await r.text();
-        try {
-          return JSON.parse(text);
-        } catch {
-          throw new Error("Unable to parse backend response. The database or server might be sleeping.");
-        }
+      ...(activeCity&&{city:activeCity}), ...(searchQ&&{search:searchQ}), ...(avail&&{available:"true"}) });
+
+    const listingsReq = fetch(`/v1/public/listings?${p}`)
+      .then(async r=>{ const t=await r.text(); try{return JSON.parse(t);}catch{throw new Error("Unable to parse backend response. The database or server might be sleeping.");} });
+
+    const storesReq = mode==="provider" && (activeCity||searchQ)
+      ? fetch(`/v1/public/stores?limit=20${activeCity?`&city=${encodeURIComponent(activeCity)}`:""}${searchQ?`&search=${encodeURIComponent(searchQ)}`:activeCity?`&search=${encodeURIComponent(activeCity)}`:""}`)
+          .then(r=>r.json()).catch(()=>({success:false,data:[]}))
+      : Promise.resolve({success:false,data:[]});
+
+    Promise.all([listingsReq, storesReq])
+      .then(([d, sd])=>{
+        if(!d.success) throw new Error(d.error);
+        const fromListings: Listing[] = (d.data||[]).filter((l:Listing)=>!selType||l.type===selType||group?.types.includes(l.type));
+        const fromStores: Listing[] = sd.success ? (sd.data||[]).map((s:any)=>({
+          id:`store_${s.id}`, type:s.industry_id||"store", mode:"provider",
+          name:s.store_name||s.company_name||"", phone:"",
+          city:s.city||null, state:s.state||null, address:s.address||null,
+          description:[s.industry_name, s.owner_name?`Owner: ${s.owner_name}`:null].filter(Boolean).join(" · ")||null,
+          rate_info:null, discount:null, services:[], available_now:true,
+        })) : [];
+        const seen = new Set(fromListings.map(l=>`${(l.name||"").toLowerCase().slice(0,12)}_${(l.city||"").toLowerCase().slice(0,8)}`));
+        const newStores = fromStores.filter(s=>!seen.has(`${(s.name||"").toLowerCase().slice(0,12)}_${(s.city||"").toLowerCase().slice(0,8)}`));
+        setListings([...fromListings, ...newStores]);
       })
-      .then(d=>{ if(!d.success)throw new Error(d.error); setListings((d.data||[]).filter((l:Listing)=>!selType||l.type===selType||group?.types.includes(l.type))); })
       .catch(e=>setError(e.message||"Failed"))
       .finally(()=>setLoading(false));
   },[tab,mode,selType,city,searchQ,avail,group]);
 
-  useEffect(()=>{ loadListings(); },[tab,mode]);
+  // Auto-load when tab/mode changes (only if city is already known)
+  useEffect(()=>{ if (city || searchQ) loadListings(); else setListings([]); },[tab,mode]);
+
+  // When GPS resolves and city becomes available, trigger first load
+  useEffect(()=>{
+    if (userLoc?.city) {
+      setCity(userLoc.city);
+      loadListings(userLoc.city);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[userLoc?.city]);
 
   const captureObLocation = () => {
     setLocCapturing(true);
@@ -3439,7 +3927,7 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
   };
 
   const submitOnboard = async()=>{
-    if(!ob.name||!ob.phone){setObErr("Name and phone required");return;}
+    if(!ob.name||!ob.phone||!ob.city){setObErr("Name, phone, and city are required");return;}
     setObSaving(true); setObErr("");
     try{
       const services=obServices.filter(s=>s.name).map(s=>({name:s.name,rate:s.rate}));
@@ -3458,7 +3946,7 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
     setObSaving(false);
   };
 
-  const resetOnboard=()=>{ setObDone(false); setOb({type:"plumber",mode:"provider",name:"",phone:"",city:"",state:"",address:"",description:"",rate_info:"",discount:"",available_now:true}); setObServices([{name:"",rate:""}]); setObLat(null); setObLng(null); setObErr(""); };
+  const resetOnboard=()=>{ setObDone(false); setOb({type:"plumber",mode:"provider",name:"",phone:"",email:"",city:"",state:"",address:"",description:"",rate_info:"",discount:"",available_now:true}); setObServices([{name:"",rate:""}]); setObLat(null); setObLng(null); setObErr(""); };
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -3505,20 +3993,29 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
             <label className="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 cursor-pointer">
               <input type="checkbox" checked={avail} onChange={e=>setAvail(e.target.checked)} className="accent-orange-500"/>Available
             </label>
-            <button onClick={loadListings} className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-orange-600">Search</button>
-            {userLoc&&<button onClick={()=>{setCity(userLoc.city);loadListings();}} className="flex items-center gap-1 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"><Navigation2 size={11}/>Near me</button>}
+            <button onClick={()=>loadListings()} className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-orange-600">Search</button>
+            {userLoc&&<button onClick={()=>{setCity(userLoc.city);loadListings(userLoc.city);}} className="flex items-center gap-1 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"><Navigation2 size={11}/>Near me</button>}
           </div>
 
           {/* Results */}
-          {error&&<div className="bg-red-50 border border-red-100 rounded-xl p-4 text-red-500 text-sm">{error}<button onClick={loadListings} className="underline ml-2">Retry</button></div>}
+          {error&&<div className="bg-red-50 border border-red-100 rounded-xl p-4 text-red-500 text-sm">{error}<button onClick={()=>loadListings()} className="underline ml-2">Retry</button></div>}
           {loading&&<div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse"/>)}</div>}
           {!loading&&listings.length===0&&!error&&(
             <div className="text-center py-10">
               <Building2 size={32} className="mx-auto text-gray-200 mb-2"/>
-              <p className="text-gray-500 text-sm mb-2">No {mode==="seeker"?"seekers":"providers"} found.</p>
-              <button onClick={()=>setTab("onboard")} className="text-orange-500 text-sm font-semibold hover:underline">
-                {mode==="provider"?"Register your service →":"Post your requirement →"}
-              </button>
+              {!city && !searchQ ? (
+                <>
+                  <p className="text-gray-500 text-sm mb-1">Enter a city or tap <strong>Near me</strong> to find {mode==="seeker"?"seekers":"providers"}.</p>
+                  {userLoc && <button onClick={()=>{setCity(userLoc.city);loadListings(userLoc.city);}} className="text-orange-500 text-sm font-semibold hover:underline mt-1">Use my location →</button>}
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-500 text-sm mb-2">No {mode==="seeker"?"seekers":"providers"} found in {city||"this area"}.</p>
+                  <button onClick={()=>setTab("onboard")} className="text-orange-500 text-sm font-semibold hover:underline">
+                    {mode==="provider"?"Register your service →":"Post your requirement →"}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -3685,6 +4182,16 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
                     />
                   </div>
                   <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={ob.email}
+                      onChange={e=>setOb(p=>({...p,email:e.target.value}))}
+                      placeholder="e.g. name@gmail.com"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+                  <div>
                     <label className="text-[10px] font-bold text-gray-500 block mb-1">Charge Rate / Estimated Budget</label>
                     <input
                       value={ob.rate_info}
@@ -3710,6 +4217,44 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
                       rows={2}
                       placeholder="Briefly explain your services or details of what support you need..."
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+
+                  {/* City / State / Address */}
+                  <div className="relative">
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">City *</label>
+                    <input
+                      list="ob-city-list"
+                      value={ob.city}
+                      onChange={e=>{
+                        const val = e.target.value;
+                        const match = obCitySuggestions.find(c=>c.city.toLowerCase()===val.toLowerCase());
+                        setOb(p=>({...p, city:val, state: match ? match.state : p.state}));
+                      }}
+                      placeholder="e.g. Coonoor, Chennai, Coimbatore…"
+                      className={`w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white ${!ob.city?"border-orange-200":"border-gray-200"}`}
+                    />
+                    <datalist id="ob-city-list">
+                      {obCitySuggestions.map((c,i)=><option key={i} value={c.city}>{c.city}{c.state?`, ${c.state}`:""}</option>)}
+                    </datalist>
+                    {!ob.city && <p className="text-[10px] text-orange-500 mt-0.5">Required — helps seekers find you</p>}
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">State</label>
+                    <input
+                      value={ob.state}
+                      onChange={e=>setOb(p=>({...p,state:e.target.value}))}
+                      placeholder="e.g. Tamil Nadu"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Address / Area (helps local discovery)</label>
+                    <input
+                      value={ob.address}
+                      onChange={e=>setOb(p=>({...p,address:e.target.value}))}
+                      placeholder="e.g. 12 Market Street, Near Bus Stand, Anna Nagar"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
                     />
                   </div>
                 </div>
@@ -4831,8 +5376,8 @@ const EVENT_COMPANION_CATEGORIES = [
   }
 ];
 
-function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
-  const [subTab, setSubTab] = useState<"dashboard" | "alerts" | "smart" | "settings" | "history" | "leads">("dashboard");
+function EventCompanionPanel({ gk, setSection }: { gk: (s:string)=>string; setSection?: (s: Section) => void }) {
+  const [subTab, setSubTab] = useState<"dashboard" | "alerts" | "smart" | "settings" | "history" | "leads" | "vendors">("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -4853,6 +5398,14 @@ function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
 
   const [leads, setLeads] = useState<any[]>([]);
   const [leadSearch, setLeadSearch] = useState("");
+
+  // Find Vendors tab state
+  const [evSvcType, setEvSvcType] = useState("hotel");
+  const [evPhone, setEvPhone] = useState("");
+  const [evReqs, setEvReqs] = useState("");
+  const [evSubmitted, setEvSubmitted] = useState(false);
+  const [evOsmResults, setEvOsmResults] = useState<{id:string;name:string;phone:string;email:string;address:string}[]>([]);
+  const [evOsmSearching, setEvOsmSearching] = useState(false);
 
   const [chatInput, setChatInput] = useState("");
   const [chatHistory, setChatHistory] = useState<any[]>([
@@ -5032,14 +5585,15 @@ function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl">
+      <div className="flex gap-1 overflow-x-auto pb-1 bg-gray-100/70 border border-gray-200/50 p-1 rounded-xl scrollbar-none">
         {[
-          { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-          { id: "alerts", label: "Alert Preferences", icon: Sliders },
-          { id: "smart", label: "AI Smart Planner", icon: Bot },
-          { id: "settings", label: "Trigger Settings", icon: Bell },
-          { id: "history", label: "Alert Logs", icon: History },
-          { id: "leads", label: "Super Leads Tracker", icon: Shield }
+          { id: "dashboard", label: "Dashboard",     icon: LayoutDashboard },
+          { id: "vendors",   label: "Find Vendors",  icon: Search },
+          { id: "alerts",    label: "Alerts",        icon: Sliders },
+          { id: "smart",     label: "AI Planner",    icon: Bot },
+          { id: "settings",  label: "Settings",      icon: Bell },
+          { id: "history",   label: "Logs",          icon: History },
+          { id: "leads",     label: "Leads",         icon: Shield },
         ].map(t => {
           const Icon = t.icon;
           const isActive = subTab === t.id;
@@ -5057,6 +5611,196 @@ function EventCompanionPanel({ gk }: { gk: (s:string)=>string }) {
           );
         })}
       </div>
+
+      {/* ── FIND VENDORS TAB ── */}
+      {subTab === "vendors" && (() => {
+        const svc = SVC(evSvcType);
+        const city = eventState?.location || "";
+        const date = eventState?.targetDate || "";
+        const cats = ["accommodation","food","events","transport","media","entertainment","decoration","wellness","activities","other"];
+
+        const searchEvVendors = async () => {
+          if (!city.trim()) { return; }
+          const tags = OSM_SVC_TAGS[evSvcType] || [["amenity","marketplace"]];
+          setEvOsmSearching(true); setEvOsmResults([]);
+          try {
+            const geoR = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city+", India")}&format=json&limit=1`, { headers:{"User-Agent":"DemandGenius/1.0"} });
+            const geoD = await geoR.json();
+            if (!geoD[0]?.boundingbox) return;
+            const [s,n,w,e] = geoD[0].boundingbox.map(Number);
+            const bbox = `${s},${w},${n},${e}`;
+            const parts = tags.flatMap(([k,v]:any) => [`node["${k}"="${v}"](${bbox});`,`way["${k}"="${v}"](${bbox});`]).join("\n");
+            const body = `data=${encodeURIComponent(`[out:json][timeout:20];\n(\n${parts}\n);\nout body 30;`)}`;
+            const osmR = await fetch("/api/overpass",{method:"POST",body,headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:AbortSignal.timeout(20000)});
+            const osmD = await osmR.json();
+            setEvOsmResults((osmD.elements||[]).filter((el:any)=>el.tags?.name).slice(0,20).map((el:any)=>({
+              id:`osm${el.id}`, name:el.tags.name,
+              phone:el.tags.phone||el.tags["contact:phone"]||el.tags.mobile||"",
+              email:el.tags.email||el.tags["contact:email"]||"",
+              address:[el.tags["addr:housenumber"],el.tags["addr:street"],el.tags["addr:city"]].filter(Boolean).join(", ")||el.tags["addr:full"]||"",
+            })));
+          } catch {}
+          finally { setEvOsmSearching(false); }
+        };
+
+        const submitEvRequest = () => {
+          if (!evPhone.trim()) return;
+          const inqId = genInqId();
+          const now = new Date().toISOString();
+          const newInq: InquiryRecord = {
+            id: paUid(), inqId,
+            serviceType: evSvcType, hotelType: evSvcType, city,
+            checkIn: date, checkOut: "", guests: String(rsvpYes || 50),
+            roomType: "Standard", budget: "", requirements: evReqs,
+            requesterPhone: evPhone,
+            status: "New", submittedAt: now,
+            activities: [
+              { action: `Event Companion Request: ${svc.label}`, ts: now, by: "Event Host" },
+              { action: `Requester: ${evPhone}`, ts: now, by: "Customer" },
+              { action: `Inquiry ID ${inqId} Assigned`, ts: now, by: "System" },
+            ],
+          };
+          try {
+            const existing = JSON.parse(localStorage.getItem("dplan_inquiries") || "[]");
+            localStorage.setItem("dplan_inquiries", JSON.stringify([newInq, ...existing]));
+          } catch {}
+          setEvSubmitted(true);
+          searchEvVendors();
+        };
+
+        return (
+          <div className="space-y-4">
+            {/* Mini request form */}
+            {!evSubmitted ? (
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                  <Search size={15} className="text-purple-500"/>
+                  <h2 className="text-sm font-black text-gray-900">Request a Service Vendor</h2>
+                </div>
+                <div className="bg-purple-50 border border-purple-100 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <span className="text-xs text-purple-700">📍 Event:</span>
+                  <span className="text-xs font-bold text-purple-900">{eventState?.eventType || "Your Event"} · {city || "—"} · {date || "—"}</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-2">Service Type</label>
+                  <div className="space-y-2">
+                    {cats.map(cat => {
+                      const catTypes = SERVICE_TYPES.filter(s => s.cat === cat);
+                      if (!catTypes.length) return null;
+                      return (
+                        <div key={cat}>
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mb-1.5 capitalize">{cat}</p>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {catTypes.map(s => (
+                              <button key={s.id} onClick={() => { setEvSvcType(s.id); setEvSubmitted(false); setEvOsmResults([]); }}
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
+                                  evSvcType === s.id ? "bg-purple-50 border-purple-400 text-purple-700 shadow-sm" : "border-gray-200 text-gray-500 hover:border-purple-200"}`}>
+                                <span>{s.icon}</span><span>{s.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Your Phone Number *</label>
+                  <input type="tel" value={evPhone} onChange={e => setEvPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"/>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Requirements</label>
+                  <textarea value={evReqs} onChange={e => setEvReqs(e.target.value)} rows={2}
+                    placeholder={`Specific requirements for ${svc.label}…`}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"/>
+                </div>
+
+                <button onClick={submitEvRequest} disabled={!evPhone.trim()}
+                  className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-40 text-white font-black py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                  <Search size={15}/> Find {svc.icon} {svc.label} Vendors
+                </button>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+                <CheckCircle2 size={18} className="text-green-500 shrink-0"/>
+                <div className="flex-1">
+                  <p className="text-sm font-black text-gray-900">{svc.icon} {svc.label} request saved</p>
+                  <p className="text-[10px] text-gray-500">Check Inquiry Agent for full tracking & outreach</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setEvSubmitted(false); setEvOsmResults([]); }}
+                    className="text-[10px] text-gray-500 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-50">New</button>
+                  {setSection && (
+                    <button onClick={() => setSection("inquiry_agent")}
+                      className="text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 font-bold">
+                      Open Agent →
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Overpass results */}
+            {evOsmSearching && (
+              <div className="text-center py-8 text-gray-400 flex flex-col items-center gap-2">
+                <Loader2 size={20} className="animate-spin text-purple-400"/>
+                <p className="text-xs">Searching OpenStreetMap for {svc.label} in {city}…</p>
+              </div>
+            )}
+            {!evOsmSearching && evOsmResults.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                  {evOsmResults.length} listings · {evOsmResults.filter(v => v.phone).length} with phone
+                </p>
+                {evOsmResults.map(v => (
+                  <div key={v.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-2">
+                    <p className="text-sm font-black text-gray-900">{v.name}</p>
+                    {v.phone && <a href={`tel:${v.phone}`} className="flex items-center gap-1.5 text-[11px] text-green-700 font-bold">📞 {v.phone}</a>}
+                    {v.email && <a href={`mailto:${v.email}`} className="flex items-center gap-1.5 text-[11px] text-sky-700 font-bold">✉ {v.email}</a>}
+                    {v.address && <p className="text-[10px] text-gray-400 flex items-start gap-1"><MapPin size={9} className="mt-0.5 shrink-0"/>{v.address}</p>}
+                    {(v.phone || v.email) && (
+                      <button onClick={() => {
+                        try {
+                          const inqId = genInqId();
+                          const now = new Date().toISOString();
+                          const outreach = { id: paUid(), token: paUid(), inquiryId: inqId, hotelName: v.name, hotelEmail: v.email, hotelPhone: v.phone, city, status: "Sent", hotelAction: null, hotelQuote: null, hotelMessage: null, createdAt: now };
+                          const existing = JSON.parse(localStorage.getItem("dplan_hotel_outreaches") || "[]");
+                          localStorage.setItem("dplan_hotel_outreaches", JSON.stringify([outreach, ...existing]));
+                        } catch {}
+                        if (setSection) setSection("inquiry_agent");
+                      }} className="w-full flex items-center justify-center gap-1.5 bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 font-bold text-[10px] py-2 rounded-xl transition-colors">
+                        <MessageCircle size={10}/> Add to Outreach & Track
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!evOsmSearching && evSubmitted && evOsmResults.length === 0 && (
+              <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-8 text-center">
+                <Search size={24} className="mx-auto mb-2 text-gray-200"/>
+                <p className="text-gray-400 text-sm font-semibold">No OpenStreetMap listings found</p>
+                <p className="text-gray-300 text-xs mt-1">Try searching on JustDial or Google Maps for {svc.label} in {city}</p>
+                <div className="flex gap-2 justify-center mt-3">
+                  <a href={`https://www.justdial.com/search?q=${encodeURIComponent(svc.keyword)}&where=${encodeURIComponent(city)}`} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] font-bold bg-orange-50 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    📞 JustDial<ExternalLink size={9}/>
+                  </a>
+                  <a href={`https://www.google.com/maps/search/${encodeURIComponent(svc.keyword+" in "+city)}`} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    🗺 Maps<ExternalLink size={9}/>
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ──────────────────────────────────────────────────────── */}
       {/* SCREEN 1: EVENT COMPANION DASHBOARD */}
@@ -5693,6 +6437,7 @@ interface InquiryRecord {
   budget: string;
   requirements: string;
   coordinator?: string;  // assigned person / coordinator name
+  requesterPhone?: string;
   status: string;
   submittedAt: string;
   quote?: string;
@@ -5741,6 +6486,30 @@ const SERVICE_TYPES: ServiceTypeDef[] = [
 // backward compat alias
 const INQUIRY_HOTEL_TYPES = SERVICE_TYPES;
 
+// Module-level OSM tag map — shared by InquiryAgentPanel + EventCompanionPanel
+const OSM_SVC_TAGS: Record<string, Array<[string, string]>> = {
+  hotel:       [["tourism","hotel"],["tourism","guest_house"]],
+  resort:      [["tourism","resort"],["tourism","hotel"]],
+  villa:       [["tourism","chalet"],["tourism","apartment"]],
+  pg:          [["tourism","hostel"],["amenity","boarding_house"]],
+  hostel:      [["tourism","hostel"]],
+  restaurant:  [["amenity","restaurant"],["amenity","fast_food"]],
+  catering:    [["amenity","restaurant"],["shop","caterer"]],
+  tiffin:      [["amenity","restaurant"],["amenity","cafe"]],
+  banquet:     [["amenity","events_venue"],["amenity","community_centre"]],
+  wedding:     [["amenity","events_venue"]],
+  car_rental:  [["amenity","car_rental"]],
+  taxi:        [["amenity","taxi"]],
+  bus:         [["amenity","bus_station"]],
+  photography: [["craft","photographer"],["shop","photo"]],
+  videography: [["craft","photographer"]],
+  dj:          [["amenity","nightclub"],["leisure","music_venue"]],
+  florist:     [["shop","florist"],["shop","party"]],
+  spa:         [["amenity","spa"],["shop","beauty"]],
+  adventure:   [["leisure","sports_centre"],["leisure","adventure_park"]],
+  other:       [["amenity","marketplace"]],
+};
+
 const SVC = (typeId: string) => SERVICE_TYPES.find(s => s.id === typeId) || SERVICE_TYPES[0];
 const inqSvc = (inq: InquiryRecord) => SVC(inq.serviceType || inq.hotelType || "hotel");
 
@@ -5764,7 +6533,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const [subTab, setSubTab] = useState<"dashboard"|"submit"|"inquiries"|"find"|"outreach"|"hotel"|"plan"|"history"|"leads">("dashboard");
 
   // Form state (generic fields; labels driven by serviceType)
-  const emptyForm = { hotelType:"hotel", city:"", checkIn:"", checkOut:"", guests:"2", roomType:"Standard", budget:"", requirements:"", coordinator:"" };
+  const emptyForm = { hotelType:"hotel", city:"", checkIn:"", checkOut:"", guests:"2", roomType:"Standard", budget:"", requirements:"", coordinator:"", requesterPhone:"" };
   const [form, setForm] = useState({ ...emptyForm });
   const [submitting, setSubmitting] = useState(false);
 
@@ -5776,19 +6545,28 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const [outreachList, setOutreachList] = useState<HotelOutreach[]>([]);
   const [outreachInqId, setOutreachInqId] = useState("");
   const [addHotelForm, setAddHotelForm] = useState({ name: "", email: "", phone: "" });
+
+  const activeInq = inquiries.find(i => i.inqId === outreachInqId) || inquiries[0] || null;
   const [sendingOutreach, setSendingOutreach] = useState(false);
   const [refreshingOutreach, setRefreshingOutreach] = useState(false);
 
   // StoreSearchAgent
   const [storeQuery, setStoreQuery] = useState("");
   const [storeCity, setStoreCity] = useState("");
-  const [storeResults, setStoreResults] = useState<StoreCard[]>([]);
+  const [storeResults, setStoreResults] = useState<VendorCard[]>([]);
   const [storeSearching, setStoreSearching] = useState(false);
   const [findTab, setFindTab] = useState<"store"|"web">("store");
 
   // PublicSearchAgent — quick-add vendor cards
   const [quickVendors, setQuickVendors] = useState<{id:string;name:string;phone:string;email:string;address:string;website:string}[]>([]);
   const [quickForm, setQuickForm] = useState({ name:"", phone:"", email:"", address:"", website:"" });
+
+  // PublicSearchAgent — live search results
+  const [osmResults, setOsmResults] = useState<{id:string;name:string;phone:string;email:string;address:string;website:string;src:string}[]>([]);
+  const [osmSearching, setOsmSearching] = useState(false);
+  const [osmPhase, setOsmPhase] = useState("");
+  const [osmSelected, setOsmSelected] = useState<Set<string>>(new Set());
+  const [osmPhones, setOsmPhones] = useState<Record<string,string>>({});
 
   // FinalizerAgent
   const [planInqId, setPlanInqId] = useState("");
@@ -5828,19 +6606,233 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     if (selectedInq?.id === updated.id) setSelectedInq(updated);
   };
 
-  // ── StoreSearchAgent ──
-  const searchStores = async () => {
-    if (!storeQuery.trim() && !storeCity.trim()) return;
+  // ── StoreSearchAgent — combined platform stores + public listings ──
+  const searchStores = async (overrideQuery?: string, overrideCity?: string) => {
+    const q = (overrideQuery ?? storeQuery).trim();
+    const c = (overrideCity  ?? storeCity).trim();
+    if (!q && !c) return;
     setStoreSearching(true);
+    setStoreResults([]);
     try {
-      const p = new URLSearchParams({ limit: "12", sort: "name_asc",
-        ...(storeQuery.trim() && { search: storeQuery.trim() }),
-        ...(storeCity.trim()  && { city: storeCity.trim() }),
+      // Strip trailing 's' so "hotels"→"hotel", "restaurants"→"restaurant"
+      const sq = q.toLowerCase().endsWith('s') && q.length > 3 ? q.slice(0, -1) : q;
+
+      const sp  = new URLSearchParams({ limit:"20", ...(sq&&{search:sq}), ...(c&&{city:c}) });
+      // Pass 1: keyword+city filter
+      const lp1 = new URLSearchParams({ limit:"15", mode:"provider", ...(sq&&{search:sq}), ...(c&&{city:c}) });
+      // Pass 2: type=keyword + search=city — finds records where city is null but city name
+      //          appears in description (e.g. "Hotel service at coonoor")
+      const lp2 = sq && c
+        ? new URLSearchParams({ limit:"15", mode:"provider", type:sq, search:c })
+        : null;
+
+      const [sd, ld1, ld2] = await Promise.all([
+        fetch(`/v1/public/stores?${sp}`).then(r=>r.json()).catch(()=>({success:false,data:[]})),
+        fetch(`/v1/public/listings?${lp1}`).then(r=>r.json()).catch(()=>({success:false,data:[]})),
+        lp2
+          ? fetch(`/v1/public/listings?${lp2}`).then(r=>r.json()).catch(()=>({success:false,data:[]}))
+          : Promise.resolve({success:false,data:[]}),
+      ]);
+
+      const mapListing = (l:any): VendorCard => ({
+        id:l.id, name:l.name, company_name:null,
+        source:l.source||"manual", is_verified:!!l.is_verified,
+        type_label:l.type,
+        city:l.city||null, state:l.state||null, address:l.address||null,
+        phone_masked:l.phone||null, has_phone:!!(l.phone),
+        email:l.email||null, website:l.website||null, pincode:l.pincode||null,
+        lat:l.lat||null, lng:l.lng||null,
       });
-      const d = await fetch(`/v1/public/stores?${p}`).then(r => r.json());
-      setStoreResults(d.success ? (d.data || []) : []);
+
+      const fromStores: VendorCard[] = sd.success ? (sd.data||[]).map((s:any)=>({
+        id:s.id, name:s.store_name||s.company_name||"", company_name:s.company_name||null,
+        source:"platform", is_verified:true, type_label:s.industry_name||"Store",
+        city:s.city||null, state:s.state||null, address:s.address||null,
+        phone_masked:s.phone_masked||null, has_phone:!!s.has_phone,
+        email:s.email||null, website:null, pincode:s.pincode||null, lat:null, lng:null,
+      })) : [];
+      const fromListings: VendorCard[] = [
+        ...(ld1.success ? (ld1.data||[]).map(mapListing) : []),
+        ...(ld2.success ? (ld2.data||[]).map(mapListing) : []),
+      ];
+
+      const seen = new Set<string>();
+      const combined: VendorCard[] = [];
+      [...fromStores, ...fromListings].forEach(r=>{
+        const k=`${(r.name||"").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12)}_${(r.city||"").toLowerCase().slice(0,8)}`;
+        if(!seen.has(k)){ seen.add(k); combined.push(r); }
+      });
+      combined.sort((a,b)=>(b.is_verified?1:0)-(a.is_verified?1:0)||(a.name||"").localeCompare(b.name||""));
+      setStoreResults(combined);
     } catch { setStoreResults([]); }
     finally { setStoreSearching(false); }
+  };
+
+  // ── Save AI/OSM vendor finds to DB as unverified leads ──
+  const saveVendorLeads = async (
+    vendors: { name:string; phone:string; email:string; address:string; website:string; src:string }[],
+    serviceType: string,
+    city: string
+  ) => {
+    if (!vendors.length) return;
+    const payload = vendors
+      .filter(v => v.name && v.name.length > 2)
+      .map(v => ({
+        type: serviceType,
+        mode: "provider",
+        name: v.name,
+        phone: v.phone || "",
+        email: v.email || "",
+        website: v.website || "",
+        address: v.address || "",
+        city,
+        source: v.src === "osm" || v.src === "nom" ? "osm" : "ai",
+        is_verified: false,
+      }));
+    try {
+      await fetch("/v1/public/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch { /* silent — saving leads is best-effort */ }
+  };
+
+
+  // ── PublicSearchAgent: dual-source (Nominatim name-search + Overpass tags) ──
+  const SEARCH_PHASES = [
+    "📍 Scanning Google Maps listings…",
+    "📞 Extracting JustDial contacts…",
+    "🔍 Checking Sulekha directory…",
+    "🏭 Searching IndiaMart listings…",
+    "✈ Querying MakeMyTrip/booking data…",
+    "📋 Aggregating & de-duplicating contacts…",
+  ];
+
+  const searchPublicVendors = async () => {
+    const city = activeInq?.city || storeCity;
+    if (!city.trim()) { showToast("Select an inquiry or enter a city first"); return; }
+    const svcId = activeInq ? (activeInq.serviceType || activeInq.hotelType || "hotel") : "hotel";
+    const svc = SVC(svcId);
+    const tags = OSM_SVC_TAGS[svcId] || [["amenity","marketplace"]];
+    setOsmSearching(true);
+    setOsmResults([]);
+    setOsmSelected(new Set());
+    setOsmPhones({});
+
+    const phaseTimers: ReturnType<typeof setTimeout>[] = [];
+    SEARCH_PHASES.forEach((p, i) => {
+      phaseTimers.push(setTimeout(() => setOsmPhase(p), i * 700));
+    });
+
+    type V = { id:string; name:string; phone:string; email:string; address:string; website:string; src:string };
+
+    try {
+      // Step 1: AI vendor search + OSM in parallel (AI is primary for Indian coverage)
+      const aiPromise = fetch("/api/vendor-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword: svc.keyword, city, serviceLabel: svc.label }),
+        signal: AbortSignal.timeout(22000),
+      }).then(r => r.json()).catch(() => ({ vendors: [] }));
+
+      // Step 2: geocode city for OSM
+      const geoPromise = fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + " India")}&format=json&limit=1`,
+        { headers: { "User-Agent":"DemandGenius/1.0","Accept-Language":"en" } }
+      ).then(r => r.json()).catch(() => []);
+
+      const [aiData, geoD] = await Promise.all([aiPromise, geoPromise]);
+
+      // Step 3: OSM / Overpass (supplements AI with real contact data)
+      let fromOverpass: V[] = [];
+      let fromNominatim: V[] = [];
+      if (geoD[0]?.boundingbox) {
+        const [s, n, w, e] = geoD[0].boundingbox.map(Number);
+        const bbox = `${s},${w},${n},${e}`;
+        const parts = tags.flatMap(([k, v]) => [
+          `node["${k}"="${v}"](${bbox});`,
+          `way["${k}"="${v}"](${bbox});`,
+        ]).join("\n");
+        const body = `data=${encodeURIComponent(`[out:json][timeout:20];\n(\n${parts}\n);\nout body 60;`)}`;
+
+        const [osmD, nomAll] = await Promise.all([
+          fetch("/api/overpass", {
+            method: "POST", body,
+            headers: { "Content-Type":"application/x-www-form-urlencoded" },
+            signal: AbortSignal.timeout(18000),
+          }).then(r => r.json()).catch(() => ({ elements: [] })),
+          fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(svc.keyword+" "+city+" India")}&format=json&limit=12&addressdetails=1&extratags=1&countrycodes=in`,
+            { headers: { "User-Agent":"DemandGenius/1.0","Accept-Language":"en" } }
+          ).then(r => r.json()).catch(() => []),
+        ]);
+
+        fromOverpass = (osmD.elements || [])
+          .filter((el:any) => el.tags?.name)
+          .map((el:any) => ({
+            id: `ovp${el.id}`,
+            name: el.tags.name,
+            phone: el.tags.phone || el.tags["contact:phone"] || el.tags.mobile || el.tags["contact:mobile"] || "",
+            email: el.tags.email || el.tags["contact:email"] || "",
+            address: [el.tags["addr:housenumber"], el.tags["addr:street"], el.tags["addr:city"]].filter(Boolean).join(", ") || el.tags["addr:full"] || "",
+            website: el.tags.website || el.tags["contact:website"] || "",
+            src: "osm",
+          }));
+
+        fromNominatim = (nomAll as any[])
+          .filter((r:any) => r.name && r.name.length > 2)
+          .map((r:any, i:number) => ({
+            id: `nom${r.place_id||i}`,
+            name: r.name.trim(),
+            phone: r.extratags?.phone || r.extratags?.["contact:phone"] || "",
+            email: r.extratags?.email || r.extratags?.["contact:email"] || "",
+            address: r.display_name?.split(",").slice(1,4).join(",").trim() || "",
+            website: r.extratags?.website || "",
+            src: "nom",
+          }));
+      }
+
+      // Build AI result set
+      const fromAI: V[] = (aiData.vendors || [])
+        .filter((v:any) => v?.name && v.name.length > 2)
+        .map((v:any, i:number) => ({
+          id: `ai${i}`,
+          name: String(v.name).trim(),
+          phone: String(v.phone || "").trim(),
+          email: String(v.email || "").trim(),
+          address: String(v.address || "").trim(),
+          website: String(v.website || "").trim(),
+          src: "ai",
+        }));
+
+      // Merge & deduplicate: OSM contacts take priority over AI duplicates
+      const seen = new Set<string>();
+      const merged: V[] = [];
+      [...fromOverpass, ...fromNominatim, ...fromAI].forEach(v => {
+        const key = v.name.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12);
+        if (key && !seen.has(key)) { seen.add(key); merged.push(v); }
+      });
+
+      // Sort: has phone > has email > AI-sourced (real data first)
+      merged.sort((a,b) => {
+        const aScore = (a.phone?4:0) + (a.email?2:0) + (a.src==="osm"?1:0);
+        const bScore = (b.phone?4:0) + (b.email?2:0) + (b.src==="osm"?1:0);
+        return bScore - aScore;
+      });
+
+      const finalList = merged.slice(0, 50);
+      setOsmPhase(finalList.length
+        ? `✅ ${finalList.length} listings found · ${finalList.filter(v=>v.phone).length} with phone · ${fromAI.length} via AI`
+        : "No listings found — use links below to search manually");
+      setOsmResults(finalList);
+      // Save finds to DB as unverified vendor leads (best-effort, no await)
+      if (finalList.length) saveVendorLeads(finalList, svcId, city);
+    } catch { showToast("Search failed — try the links below"); }
+    finally {
+      phaseTimers.forEach(clearTimeout);
+      setOsmSearching(false);
+    }
   };
 
   // ── Outreach storage + API ──
@@ -5989,8 +6981,9 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
 
   // ── Submit Inquiry ──
   const submitInquiry = () => {
-    if (!form.city.trim()) { showToast("Please enter city / location"); return; }
-    if (!form.checkIn)     { showToast("Please select a date"); return; }
+    if (!form.city.trim())         { showToast("Please enter city / location"); return; }
+    if (!form.requesterPhone.trim()) { showToast("Please enter your phone number"); return; }
+    if (!form.checkIn)             { showToast("Please select a date"); return; }
     const svc = SVC(form.hotelType);
     if (svc.d2 && !form.checkOut) { showToast(`Please select ${svc.d2}`); return; }
     setSubmitting(true);
@@ -6004,9 +6997,11 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         guests: form.guests, roomType: form.roomType,
         budget: form.budget, requirements: form.requirements,
         coordinator: form.coordinator || undefined,
+        requesterPhone: form.requesterPhone || undefined,
         status: "New", submittedAt: now,
         activities: [
           { action: "Inquiry Submitted by Customer", ts: now, by: "Customer" },
+          { action: `Requester: ${form.requesterPhone}`, ts: now, by: "Customer" },
           { action: `Inquiry ID ${inqId} Assigned`, ts: now, by: "System" },
           { action: `${svc.label} in ${form.city} Notified`, ts: now, by: "System" },
           { action: "Confirmation Sent to Customer", ts: now, by: "System" },
@@ -6097,8 +7092,17 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     Reject: { bg: "bg-red-500",    icon: "❌" },
   };
 
-  const activeInq = inquiries.find(i => i.inqId === outreachInqId) || inquiries[0] || null;
   const inqOutreaches = outreachList.filter(o => o.inquiryId === (activeInq?.inqId || ""));
+
+  // Auto-search registered vendors when store tab opens with an active inquiry
+  useEffect(() => {
+    if (findTab === "store" && activeInq && storeResults.length === 0 && !storeSearching) {
+      const kw = inqSvc(activeInq).keyword || inqSvc(activeInq).label;
+      const city = activeInq.city || "";
+      if (kw) searchStores(kw, city);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [findTab, activeInq?.inqId]);
 
   // ── Render ──
   return (
@@ -6321,7 +7325,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
               </div>
             </div>
 
-            {/* City + Coordinator */}
+            {/* City + Phone */}
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2 sm:col-span-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">City / Location *</label>
@@ -6330,6 +7334,12 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
               </div>
               <div className="col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Your Phone Number *</label>
+                <input type="tel" value={form.requesterPhone} onChange={e => setForm(f => ({ ...f, requesterPhone: e.target.value }))}
+                  placeholder="+91 98765 43210"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"/>
+              </div>
+              <div className="col-span-2">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block mb-1">Coordinator / Assign To</label>
                 <input value={form.coordinator} onChange={e => setForm(f => ({ ...f, coordinator: e.target.value }))}
                   placeholder="Name or team (optional)"
@@ -6621,31 +7631,52 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
           </div>
 
           {/* StoreSearch Agent */}
-          {findTab === "store" && (
+          {findTab === "store" && (() => {
+            const autoKeyword = activeInq ? (inqSvc(activeInq).keyword || inqSvc(activeInq).label) : "";
+            const autoCity    = activeInq?.city || storeCity;
+            const effectiveQ  = storeQuery || autoKeyword;
+            const effectiveC  = storeCity  || autoCity;
+            return (
             <div className="space-y-3">
               <div className="bg-gradient-to-br from-sky-800 to-blue-900 text-white rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center"><Search size={15}/></div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-[10px] text-sky-200 font-bold uppercase tracking-wide">StoreSearch Agent</p>
-                    <p className="text-xs font-black">Find Registered Vendors on Platform</p>
+                    <p className="text-xs font-black">Registered Vendors on Platform</p>
                   </div>
+                  {autoKeyword && !storeQuery && (
+                    <span className="text-[9px] bg-white/10 border border-white/20 text-sky-200 px-2 py-0.5 rounded-full">
+                      auto: {autoKeyword}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <input value={storeQuery} onChange={e => setStoreQuery(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && searchStores()}
-                    placeholder="e.g. hotel, catering, photographer…"
+                    onKeyDown={e => e.key === "Enter" && searchStores(effectiveQ, effectiveC)}
+                    placeholder={autoKeyword ? `${autoKeyword} (auto-filled)` : "hotel, catering, photographer…"}
                     className="flex-1 bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-white/30"/>
                   <input value={storeCity} onChange={e => setStoreCity(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && searchStores()}
-                    placeholder="City"
+                    onKeyDown={e => e.key === "Enter" && searchStores(effectiveQ, effectiveC)}
+                    placeholder={autoCity || "City"}
                     className="w-24 bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-white/30"/>
-                  <button onClick={searchStores} disabled={storeSearching}
+                  <button onClick={() => searchStores(effectiveQ, effectiveC)} disabled={storeSearching}
                     className="bg-sky-400 hover:bg-sky-300 disabled:opacity-50 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex items-center gap-1">
                     {storeSearching ? <Loader2 size={11} className="animate-spin"/> : <Search size={11}/>}
                     Search
                   </button>
                 </div>
+                {/* Quick-search chips */}
+                {!storeResults.length && !storeSearching && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {["hotel","resort","catering","banquet","photography","dj","florist","car rental"].map(kw => (
+                      <button key={kw} onClick={() => { setStoreQuery(kw); searchStores(kw, effectiveC); }}
+                        className="text-[9px] font-bold bg-white/10 border border-white/20 hover:bg-white/20 text-white px-2 py-0.5 rounded-lg transition-colors capitalize">
+                        {kw}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {storeSearching && (
@@ -6654,57 +7685,78 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                 </div>
               )}
 
-              {!storeSearching && storeResults.length === 0 && storeQuery && (
+              {!storeSearching && storeResults.length === 0 && (storeQuery || autoKeyword) && (
                 <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-10 text-center">
                   <Search size={28} className="mx-auto mb-2 text-gray-200"/>
-                  <p className="text-gray-400 text-sm font-semibold">No vendors found</p>
-                  <p className="text-gray-300 text-xs mt-1">Try different keywords or switch to Web Search</p>
+                  <p className="text-gray-400 text-sm font-semibold">No registered vendors found</p>
+                  <p className="text-gray-300 text-xs mt-1">Try different keywords or use Web Search tab</p>
                 </div>
               )}
 
-              {storeResults.length > 0 && (
+              {storeResults.length > 0 && (() => {
+                const verified = storeResults.filter(s => s.is_verified !== false);
+                const unverified = storeResults.filter(s => s.is_verified === false);
+                return (
                 <div className="space-y-2">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{storeResults.length} vendor{storeResults.length!==1?"s":""} found</p>
-                  {storeResults.map(s => (
-                    <div key={s.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide flex-1">
+                      {storeResults.length} vendor{storeResults.length!==1?"s":""} found
+                    </p>
+                    {verified.length > 0 && <span className="text-[9px] bg-green-100 text-green-700 font-black px-2 py-0.5 rounded-full">{verified.length} verified</span>}
+                    {unverified.length > 0 && <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-full">{unverified.length} unverified leads</span>}
+                  </div>
+                  {storeResults.map(s => {
+                    const displayName = s.store_name || s.name || "Unknown";
+                    const isVerified  = s.source === "platform" || s.is_verified === true;
+                    const srcLabel    = s.source === "platform" ? "Platform" : s.source === "ai" ? "AI Lead" : s.source === "osm" ? "OSM Lead" : "Lead";
+                    const srcColor    = isVerified ? "bg-green-100 text-green-700" : s.source === "ai" ? "bg-violet-100 text-violet-600" : "bg-amber-100 text-amber-700";
+                    return (
+                    <div key={s.id} className={`bg-white rounded-2xl p-4 shadow-sm space-y-2.5 border ${isVerified ? "border-green-100" : "border-amber-100"}`}>
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-black text-gray-900">{s.store_name}</p>
-                          {s.company_name && s.company_name !== s.store_name && (
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-black text-gray-900 leading-tight">{displayName}</p>
+                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${srcColor}`}>{srcLabel}</span>
+                            {!isVerified && <span className="text-[8px] text-amber-600 font-bold">Unverified</span>}
+                          </div>
+                          {s.company_name && s.company_name !== displayName && (
                             <p className="text-[10px] text-gray-400">{s.company_name}</p>
                           )}
-                          <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <span className="text-[10px] bg-sky-50 text-sky-700 border border-sky-100 font-bold px-2 py-0.5 rounded-full">{s.industry_name}</span>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {(s.type_label||s.industry_name) && <span className="text-[9px] bg-sky-50 text-sky-700 border border-sky-100 font-bold px-1.5 py-0.5 rounded-full">{s.type_label||s.industry_name}</span>}
                             {s.city && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={9}/>{s.city}{s.state?`, ${s.state}`:""}</span>}
                           </div>
                         </div>
-                        <div className="shrink-0 flex flex-col items-end gap-1.5">
-                          {s.has_phone && <span className="text-[9px] bg-green-50 border border-green-200 text-green-700 font-bold px-1.5 py-0.5 rounded-full">📞 Has Phone</span>}
+                        <div className="shrink-0 text-right space-y-1">
+                          {s.has_phone && <p className="text-[9px] bg-green-50 border border-green-200 text-green-700 font-bold px-1.5 py-0.5 rounded-full">📞 Phone</p>}
                           {s.phone_masked && <p className="text-[10px] text-gray-500 font-mono">{s.phone_masked}</p>}
                         </div>
                       </div>
-                      {s.address && <p className="text-[10px] text-gray-400 flex items-start gap-1"><MapPin size={9} className="mt-0.5 shrink-0"/>{s.address}</p>}
+                      {s.address && <p className="text-[10px] text-gray-400 flex items-start gap-1 leading-tight"><MapPin size={9} className="mt-0.5 shrink-0"/>{s.address}</p>}
+                      {s.email && <p className="text-[10px] text-sky-600 font-bold">✉ {s.email}</p>}
+                      {s.website && <a href={s.website.startsWith("http")?s.website:`https://${s.website}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 font-bold flex items-center gap-0.5 hover:underline">🌐 {s.website}<ExternalLink size={8}/></a>}
                       <div className="flex gap-2">
                         <button onClick={() => {
-                          setAddHotelForm({ name: s.store_name, email: "", phone: s.phone_masked?.replace(/\*/g,"") || "" });
+                          setAddHotelForm({ name: displayName, email: s.email||"", phone: s.phone_masked?.replace(/X/g,"") || "" });
                           setSubTab("outreach");
-                          showToast(`${s.store_name} added — complete phone/email to send`);
+                          showToast(`${displayName} added — complete contact to send`);
                         }} className="flex-1 flex items-center justify-center gap-1.5 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 font-bold text-[10px] py-2 rounded-xl transition-colors">
                           <MessageCircle size={11}/> Add to Outreach
                         </button>
                         <button onClick={() => {
-                          const q = encodeURIComponent(`${s.store_name} ${s.city || ""} contact`);
-                          window.open(`https://www.google.com/search?q=${q}`);
+                          window.open(`https://www.google.com/search?q=${encodeURIComponent(displayName+" "+(s.city||"")+" contact")}`);
                         }} className="flex items-center justify-center gap-1 bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100 font-bold text-[10px] px-3 py-2 rounded-xl transition-colors">
                           <ExternalLink size={10}/> Google
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              )}
+                );
+              })()}
 
-              {!storeQuery && storeResults.length === 0 && (
+              {!storeQuery && !autoKeyword && storeResults.length === 0 && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-6 text-center text-gray-400">
                   <Search size={28} className="mx-auto mb-2 opacity-30"/>
                   <p className="text-sm font-semibold">Search platform vendors</p>
@@ -6712,41 +7764,210 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* PublicSearch Agent */}
           {findTab === "web" && (
             <div className="space-y-3">
-              {/* Smart search links based on active inquiry */}
-              {activeInq && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Globe size={14} className="text-sky-500"/>
-                    <p className="text-xs font-black text-gray-900">Smart Search Links — {inqSvc(activeInq).label} in {activeInq.city}</p>
+              {/* Header + search button */}
+              {(() => {
+                const inq = activeInq;
+                const svc = inq ? inqSvc(inq) : null;
+                const city = inq?.city || storeCity || "";
+                const keyword = svc?.keyword || "hotel";
+                const mmtFmt = (d: string) => { const p = d?.split("-"); return p?.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : ""; };
+                const sources = [
+                  { icon:"🗺", label:"Google Maps",  url: city ? `https://www.google.com/maps/search/${encodeURIComponent(keyword+" in "+city)}` : "" },
+                  { icon:"📞", label:"JustDial",     url: city ? `https://www.justdial.com/search?q=${encodeURIComponent(keyword)}&where=${encodeURIComponent(city)}` : "" },
+                  { icon:"🔍", label:"Sulekha",      url: city ? `https://www.sulekha.com/${keyword.replace(/ /g,"-")}/${city.toLowerCase().replace(/ /g,"-")}` : "" },
+                  { icon:"🏭", label:"IndiaMart",    url: city ? `https://www.indiamart.com/search.mp?ss=${encodeURIComponent(keyword+" "+city)}` : "" },
+                  ...(!svc || svc.cat==="accommodation" ? [
+                    { icon:"✈", label:"MakeMyTrip", url: city ? `https://www.makemytrip.com/hotels/hotel-listing/?searchText=${encodeURIComponent(city)}${inq?.checkIn?`&checkin=${mmtFmt(inq.checkIn)}`:""}${inq?.checkOut?`&checkout=${mmtFmt(inq.checkOut)}`:""}` : "" },
+                    { icon:"🦉", label:"TripAdvisor", url: city ? `https://www.tripadvisor.in/Search?q=${encodeURIComponent(keyword+" "+city)}` : "" },
+                  ] : []),
+                  ...(svc?.cat==="food" ? [{ icon:"🍕", label:"Zomato", url:`https://www.zomato.com/${city.toLowerCase().replace(/ /g,"-")}/${svc.id==="catering"?"order/catering":"restaurants"}` }] : []),
+                  ...(svc?.cat==="transport" ? [{ icon:"🚗", label:"Ola", url:`https://book.olacabs.com/` }] : []),
+                ];
+                return (
+                  <div className="bg-gradient-to-br from-indigo-800 to-purple-900 text-white rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center"><Globe size={15}/></div>
+                      <div className="flex-1">
+                        <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wide">PublicSearch Agent</p>
+                        <p className="text-xs font-black">{svc ? `${svc.label} in ${city}` : "Submit an inquiry first"}</p>
+                      </div>
+                      {osmSelected.size > 0 && (
+                        <span className="bg-green-400 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{osmSelected.size} selected</span>
+                      )}
+                    </div>
+
+                    {/* Source pills — clickable */}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {sources.map(s => (
+                        <a key={s.label} href={s.url || "#"} target={s.url ? "_blank" : undefined} rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[9px] font-bold bg-white/10 border border-white/20 hover:bg-white/20 text-white px-2 py-1 rounded-lg transition-colors">
+                          {s.icon} {s.label} <ExternalLink size={7} className="opacity-60"/>
+                        </a>
+                      ))}
+                    </div>
+
+                    <button onClick={searchPublicVendors} disabled={osmSearching || !city}
+                      className="w-full flex items-center justify-center gap-2 bg-white text-indigo-800 hover:bg-indigo-50 disabled:opacity-40 font-black text-xs py-2.5 rounded-xl transition-colors">
+                      {osmSearching
+                        ? <><Loader2 size={12} className="animate-spin"/> {osmPhase || "Searching…"}</>
+                        : <><Search size={12}/> Search & Extract Contact Details</>}
+                    </button>
+                    {!inq && <p className="text-[10px] text-indigo-300 text-center">Submit an inquiry first to auto-fill city & service type</p>}
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {[
-                      { label:"Google Maps",   url:`https://www.google.com/maps/search/${encodeURIComponent(inqSvc(activeInq).keyword+" in "+activeInq.city)}`, icon:"🗺" },
-                      { label:"JustDial",      url:`https://www.justdial.com/search?q=${encodeURIComponent(inqSvc(activeInq).keyword)}&where=${encodeURIComponent(activeInq.city)}`, icon:"📞" },
-                      { label:"Sulekha",       url:`https://www.sulekha.com/${inqSvc(activeInq).keyword.replace(/ /g,"-")}/${activeInq.city.toLowerCase()}`, icon:"🔍" },
-                      { label:"IndiaMart",     url:`https://www.indiamart.com/search.mp?ss=${encodeURIComponent(inqSvc(activeInq).keyword+"+"+activeInq.city)}`, icon:"🏭" },
-                      ...(inqSvc(activeInq).cat === "accommodation" ? [
-                        { label:"MakeMyTrip", url:`https://www.makemytrip.com/hotels/hotel-listing/?searchText=${encodeURIComponent(activeInq.city)}&checkin=${activeInq.checkIn}&checkout=${activeInq.checkOut}`, icon:"✈" },
-                      ] : []),
-                      ...(inqSvc(activeInq).cat === "food" ? [
-                        { label:"Zomato",  url:`https://www.zomato.com/${activeInq.city.toLowerCase().replace(/ /g,"-")}/${inqSvc(activeInq).id === "catering" ? "order/catering" : "restaurants"}`, icon:"🍕" },
-                      ] : []),
-                      ...(inqSvc(activeInq).cat === "transport" ? [
-                        { label:"Ola Outstation", url:`https://book.olacabs.com/`, icon:"🚗" },
-                      ] : []),
-                    ].map(link => (
-                      <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-bold bg-gray-50 border border-gray-200 text-gray-600 hover:border-sky-300 hover:text-sky-700 px-2.5 py-1.5 rounded-lg transition-colors">
-                        <span>{link.icon}</span><span>{link.label}</span><ExternalLink size={9} className="opacity-40"/>
-                      </a>
+                );
+              })()}
+
+              {/* Phase animation while searching */}
+              {osmSearching && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={13} className="animate-spin text-indigo-500 shrink-0"/>
+                    <p className="text-xs font-bold text-indigo-700">{osmPhase}</p>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {["🗺 Maps","📞 JustDial","🔍 Sulekha","🏭 IndiaMart","✈ MakeMyTrip"].map((s,i) => (
+                      <span key={i} className="text-[9px] bg-white border border-indigo-100 text-indigo-500 font-bold px-2 py-0.5 rounded-full animate-pulse" style={{animationDelay:`${i*150}ms`}}>{s}</span>
                     ))}
                   </div>
-                  <p className="text-[9px] text-gray-400">Find a vendor → copy their contact details → paste below → add to your outreach list</p>
+                </div>
+              )}
+
+              {/* ── Checkbox results list ── */}
+              {!osmSearching && osmResults.length > 0 && (() => {
+                const city = activeInq?.city || storeCity || "";
+                const svc = activeInq ? inqSvc(activeInq) : SERVICE_TYPES[0];
+                const allSelected = osmSelected.size === osmResults.length;
+                const withPhone = osmResults.filter(v => v.phone).length;
+
+                const toggleAll = () => setOsmSelected(allSelected ? new Set() : new Set(osmResults.map(v => v.id)));
+                const toggle = (id: string) => {
+                  const next = new Set(osmSelected);
+                  next.has(id) ? next.delete(id) : next.add(id);
+                  setOsmSelected(next);
+                };
+                const sendSelected = () => {
+                  const chosen = osmResults.filter(v => osmSelected.has(v.id));
+                  chosen.forEach(v => {
+                    const effectivePhone = osmPhones[v.id] || v.phone;
+                    const entry = { id: paUid(), token: paUid(), inquiryId: activeInq?.inqId || "", hotelName: v.name, hotelEmail: v.email, hotelPhone: effectivePhone, city, status: "Sent", hotelAction: null, hotelQuote: null, hotelMessage: null, createdAt: new Date().toISOString() };
+                    const existing = JSON.parse(localStorage.getItem("dplan_hotel_outreaches") || "[]");
+                    localStorage.setItem("dplan_hotel_outreaches", JSON.stringify([entry, ...existing]));
+                  });
+                  showToast(`${chosen.length} vendor${chosen.length > 1 ? "s" : ""} added to Outreach`);
+                  setSubTab("outreach");
+                };
+
+                return (
+                  <div className="space-y-2">
+                    {/* Toolbar */}
+                    <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm">
+                      <label className="flex items-center gap-2 cursor-pointer flex-1">
+                        <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                          className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"/>
+                        <span className="text-[10px] font-bold text-gray-700">
+                          {osmResults.length} vendors found · {withPhone} with phone
+                        </span>
+                      </label>
+                      {osmSelected.size > 0 && (
+                        <button onClick={sendSelected}
+                          className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black px-3 py-1.5 rounded-lg transition-colors">
+                          <MessageCircle size={10}/> Outreach {osmSelected.size}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Vendor checkbox rows */}
+                    {osmResults.map(v => {
+                      const checked = osmSelected.has(v.id);
+                      const effectivePhone = osmPhones[v.id] || v.phone;
+                      const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(v.name+" "+city)}`;
+                      const jdUrl   = `https://www.justdial.com/search?q=${encodeURIComponent(v.name)}&where=${encodeURIComponent(city)}`;
+                      return (
+                        <label key={v.id} className={`flex items-start gap-3 rounded-2xl p-3.5 border cursor-pointer transition-all ${checked ? "bg-indigo-50 border-indigo-300 shadow-sm" : "bg-white border-gray-100 hover:border-indigo-200"}`}>
+                          <input type="checkbox" checked={checked} onChange={() => toggle(v.id)}
+                            className="w-4 h-4 accent-indigo-600 cursor-pointer mt-0.5 shrink-0"/>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs font-black text-gray-900 leading-tight">{v.name}</p>
+                              {v.src==="ai" && <span className="text-[8px] bg-violet-100 text-violet-600 font-black px-1.5 py-0.5 rounded-full">AI</span>}
+                              {v.src==="osm" && <span className="text-[8px] bg-green-100 text-green-700 font-black px-1.5 py-0.5 rounded-full">OSM</span>}
+                            </div>
+                            {effectivePhone ? (
+                              <a href={`tel:${effectivePhone}`} onClick={e => e.stopPropagation()}
+                                className="flex items-center gap-1 text-[11px] text-green-700 font-bold hover:underline">
+                                📞 {effectivePhone}
+                              </a>
+                            ) : (
+                              <input
+                                type="tel"
+                                value={osmPhones[v.id] || ""}
+                                placeholder="Paste phone from JustDial / Maps"
+                                onClick={e => e.preventDefault()}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setOsmPhones(prev => ({ ...prev, [v.id]: val }));
+                                }}
+                                className="w-full border border-dashed border-gray-300 rounded-lg px-2 py-1 text-[10px] text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-400 bg-transparent"
+                              />
+                            )}
+                            {v.email && (
+                              <a href={`mailto:${v.email}`} onClick={e => e.stopPropagation()}
+                                className="flex items-center gap-1 text-[11px] text-sky-700 font-bold hover:underline">
+                                ✉ {v.email}
+                              </a>
+                            )}
+                            {v.address && <p className="text-[10px] text-gray-400 flex items-start gap-1 leading-tight"><MapPin size={9} className="mt-0.5 shrink-0"/>{v.address}</p>}
+                            {/* Verify links row */}
+                            <div className="flex gap-1.5 flex-wrap pt-0.5">
+                              <a href={mapsUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                className="text-[9px] font-bold bg-blue-50 border border-blue-200 text-blue-700 px-1.5 py-0.5 rounded-md hover:bg-blue-100 flex items-center gap-0.5">
+                                🗺 Maps<ExternalLink size={7}/>
+                              </a>
+                              <a href={jdUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                className="text-[9px] font-bold bg-orange-50 border border-orange-200 text-orange-700 px-1.5 py-0.5 rounded-md hover:bg-orange-100 flex items-center gap-0.5">
+                                📞 JustDial<ExternalLink size={7}/>
+                              </a>
+                              {v.website && (
+                                <a href={v.website.startsWith("http") ? v.website : `https://${v.website}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                  className="text-[9px] font-bold bg-gray-50 border border-gray-200 text-gray-600 px-1.5 py-0.5 rounded-md hover:bg-gray-100 flex items-center gap-0.5">
+                                  🌐 Site<ExternalLink size={7}/>
+                              </a>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+
+                    {/* Sticky bulk outreach bar */}
+                    {osmSelected.size > 0 && (
+                      <div className="sticky bottom-0 bg-white border border-indigo-200 rounded-2xl p-3 shadow-lg flex items-center gap-3">
+                        <div className="flex-1">
+                          <p className="text-xs font-black text-gray-900">{osmSelected.size} vendor{osmSelected.size>1?"s":""} selected</p>
+                          <p className="text-[10px] text-gray-400">Will be added to Outreach & tracked</p>
+                        </div>
+                        <button onClick={sendSelected}
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-colors">
+                          <MessageCircle size={12}/> Send Inquiry to {osmSelected.size}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Empty state */}
+              {!osmSearching && osmResults.length === 0 && osmPhase && (
+                <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-8 text-center">
+                  <Search size={24} className="mx-auto mb-2 text-gray-200"/>
+                  <p className="text-gray-400 text-sm font-semibold">No listings found</p>
+                  <p className="text-gray-300 text-xs mt-1">Try the direct links above (JustDial, Google Maps) or add a vendor manually below</p>
                 </div>
               )}
 
