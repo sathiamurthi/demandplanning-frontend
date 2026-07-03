@@ -724,7 +724,7 @@ function NotificationSettingsPanel({ guest, onVerified }: { guest: GuestIdentity
   );
 }
 
-// ── InterestsPanel ────────────────────────────────────────────
+// ── Interests config ─────────────────────────────────────────
 const ALL_INTERESTS_CFG = [
   { id:"restaurant", label:"Restaurants",  emoji:"🍽",  desc:"Food & cafes nearby" },
   { id:"hotel",      label:"Hotels",       emoji:"🏨",  desc:"Stay & accommodation" },
@@ -740,6 +740,172 @@ const ALL_INTERESTS_CFG = [
   { id:"services",   label:"Services",     emoji:"🔧",  desc:"Plumber, electrician…" },
 ];
 
+const INTEREST_PLATFORMS: Record<string, Array<{name:string, emoji:string, url:(city:string, lat:number, lon:number)=>string}>> = {
+  restaurant: [
+    { name:"Zomato",   emoji:"🍴", url:(c)=>`https://www.zomato.com/${c.toLowerCase().replace(/\s+/g,'-')}/restaurants` },
+    { name:"Swiggy",   emoji:"🛵", url:(_,la,lo)=>`https://www.swiggy.com/restaurants?lat=${la}&lng=${lo}` },
+    { name:"Google",   emoji:"🔍", url:(c)=>`https://www.google.com/search?q=restaurants+near+${encodeURIComponent(c)}` },
+  ],
+  hotel: [
+    { name:"MakeMyTrip", emoji:"✈️", url:(c)=>`https://www.makemytrip.com/hotels/${c.toLowerCase().replace(/\s+/g,'-')}.html` },
+    { name:"OYO",        emoji:"🏨", url:(c)=>`https://www.oyorooms.com/s/?location=${encodeURIComponent(c)}` },
+    { name:"Booking.com",emoji:"🔖", url:(c)=>`https://www.booking.com/searchresults.html?ss=${encodeURIComponent(c)}` },
+    { name:"Google Hotels",emoji:"🔍",url:(c)=>`https://www.google.com/travel/hotels?q=${encodeURIComponent(c+' hotels')}` },
+  ],
+  hospital: [
+    { name:"Practo",  emoji:"🩺", url:(c)=>`https://www.practo.com/${c.toLowerCase().replace(/\s+/g,'-')}/doctors` },
+    { name:"Apollo",  emoji:"🏥", url:(c)=>`https://apolloclinic.com/find-clinic?city=${encodeURIComponent(c)}` },
+    { name:"Google",  emoji:"🔍", url:(c)=>`https://www.google.com/search?q=hospitals+near+${encodeURIComponent(c)}` },
+  ],
+  pharmacy: [
+    { name:"1mg",      emoji:"💊", url:()=>`https://www.1mg.com/` },
+    { name:"Netmeds",  emoji:"💉", url:()=>`https://www.netmeds.com/` },
+    { name:"PharmEasy",emoji:"🛒", url:()=>`https://pharmeasy.in/` },
+    { name:"Google",   emoji:"🔍", url:(c)=>`https://www.google.com/search?q=pharmacy+near+${encodeURIComponent(c)}` },
+  ],
+  school: [
+    { name:"Google",   emoji:"🔍", url:(c)=>`https://www.google.com/search?q=schools+colleges+near+${encodeURIComponent(c)}` },
+    { name:"JustDial", emoji:"📞", url:(c)=>`https://www.justdial.com/${c.toLowerCase().replace(/\s+/g,'-')}/Schools` },
+    { name:"Shiksha",  emoji:"🎓", url:(c)=>`https://www.shiksha.com/university/universities-in-${c.toLowerCase().replace(/\s+/g,'-')}` },
+  ],
+  bank: [
+    { name:"Google Maps",emoji:"🗺", url:(_,la,lo)=>`https://www.google.com/maps/search/bank+ATM/@${la},${lo},15z` },
+    { name:"BankBazaar", emoji:"🏦", url:()=>`https://www.bankbazaar.com/` },
+    { name:"Google",     emoji:"🔍", url:(c)=>`https://www.google.com/search?q=bank+ATM+near+${encodeURIComponent(c)}` },
+  ],
+  fuel: [
+    { name:"Google Maps",emoji:"🗺", url:(_,la,lo)=>`https://www.google.com/maps/search/petrol+bunk/@${la},${lo},15z` },
+    { name:"IOCL",       emoji:"⛽", url:()=>`https://iocl.com/` },
+    { name:"Google",     emoji:"🔍", url:(c)=>`https://www.google.com/search?q=petrol+pump+near+${encodeURIComponent(c)}` },
+  ],
+  supermarket: [
+    { name:"BigBasket", emoji:"🛒", url:()=>`https://www.bigbasket.com/` },
+    { name:"Blinkit",   emoji:"⚡", url:()=>`https://blinkit.com/` },
+    { name:"JioMart",   emoji:"🛍", url:()=>`https://www.jiomart.com/` },
+    { name:"Google",    emoji:"🔍", url:(c)=>`https://www.google.com/search?q=supermarket+near+${encodeURIComponent(c)}` },
+  ],
+  temple: [
+    { name:"Google Maps",emoji:"🗺", url:(_,la,lo)=>`https://www.google.com/maps/search/temple/@${la},${lo},15z` },
+    { name:"Google",     emoji:"🔍", url:(c)=>`https://www.google.com/search?q=temples+near+${encodeURIComponent(c)}` },
+  ],
+  park: [
+    { name:"Google Maps",emoji:"🗺", url:(_,la,lo)=>`https://www.google.com/maps/search/park/@${la},${lo},15z` },
+    { name:"Google",     emoji:"🔍", url:(c)=>`https://www.google.com/search?q=parks+gardens+near+${encodeURIComponent(c)}` },
+  ],
+  jobs: [
+    { name:"Naukri",      emoji:"💼", url:(c)=>`https://www.naukri.com/${c.toLowerCase().replace(/\s+/g,'-')}-jobs` },
+    { name:"LinkedIn",    emoji:"🔗", url:(c)=>`https://www.linkedin.com/jobs/search/?location=${encodeURIComponent(c)}` },
+    { name:"Indeed",      emoji:"🔎", url:(c)=>`https://in.indeed.com/jobs?l=${encodeURIComponent(c)}` },
+    { name:"Internshala", emoji:"🎓", url:()=>`https://internshala.com/internships/` },
+    { name:"Google Jobs", emoji:"🔍", url:(c)=>`https://www.google.com/search?q=jobs+in+${encodeURIComponent(c)}` },
+  ],
+  services: [
+    { name:"Urban Company",emoji:"🔧", url:()=>`https://www.urbancompany.com/` },
+    { name:"JustDial",     emoji:"📞", url:(c)=>`https://www.justdial.com/${c.toLowerCase().replace(/\s+/g,'-')}/Home-Services` },
+    { name:"Sulekha",      emoji:"🛠", url:(c)=>`https://www.sulekha.com/${c.toLowerCase().replace(/\s+/g,'-')}/home-services` },
+    { name:"Google",       emoji:"🔍", url:(c)=>`https://www.google.com/search?q=home+services+near+${encodeURIComponent(c)}` },
+  ],
+};
+
+// ── InterestDetailModal ───────────────────────────────────────
+function InterestDetailModal({ interestId, onClose, userLoc }: {
+  interestId: string|null; onClose:()=>void; userLoc?: UserLocation|null;
+}) {
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!interestId) return;
+    setLoading(true); setResults([]);
+    const lat = userLoc?.lat ?? 0; const lon = userLoc?.lon ?? 0;
+    const p = new URLSearchParams({ category:interestId, ai:"true", q:`${interestId} near me`, lat:String(lat), lng:String(lon), radius:"5" });
+    fetch(`/v1/public/quicksearch?${p}`).then(r=>r.json()).then(d=>{
+      if (d.success) {
+        const items:any[] = d.data?.[interestId] || Object.values(d.data||{})[0] || [];
+        setResults(items);
+      }
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  }, [interestId, userLoc?.lat, userLoc?.lon]);
+
+  if (!interestId) return null;
+  const it = ALL_INTERESTS_CFG.find(x=>x.id===interestId);
+  if (!it) return null;
+  const city = userLoc?.city || "India";
+  const lat  = userLoc?.lat ?? 0;
+  const lon  = userLoc?.lon ?? 0;
+  const platforms = INTEREST_PLATFORMS[interestId] || [];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[88vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl leading-none">{it.emoji}</span>
+            <div>
+              <h2 className="font-black text-gray-900 text-lg leading-tight">{it.label}</h2>
+              <p className="text-xs text-gray-500">{it.desc}{userLoc ? ` · near ${city}` : ""}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-5">
+          {/* Platform quick-links */}
+          {platforms.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Search on</p>
+              <div className="flex flex-wrap gap-2">
+                {platforms.map(pl=>(
+                  <a key={pl.name} href={pl.url(city,lat,lon)} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 bg-gray-50 hover:bg-orange-50 border border-gray-200 hover:border-orange-300 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:text-orange-700 transition-all">
+                    <span className="text-base leading-none">{pl.emoji}</span>{pl.name}
+                    <ExternalLink size={9} className="text-gray-400 ml-0.5"/>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI nearby results */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5 flex items-center gap-1">
+              <Sparkles size={10}/> AI — Nearby Results
+              {userLoc && <span className="font-normal ml-1">({city})</span>}
+            </p>
+            {loading ? (
+              <div className="flex items-center gap-2 text-gray-400 text-sm py-6 justify-center">
+                <Loader2 size={18} className="animate-spin text-orange-400"/> Finding {it.label} near you…
+              </div>
+            ) : results.length > 0 ? (
+              <div className="space-y-2">
+                {results.slice(0,8).map((r:any,i:number)=>(
+                  <div key={i} className="flex items-start gap-3 bg-gray-50 hover:bg-orange-50 rounded-xl px-3.5 py-3 transition-colors">
+                    <span className="text-xl leading-none shrink-0 mt-0.5">{it.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{r.name}</p>
+                      {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
+                      {r.address && <p className="text-xs text-gray-400 mt-0.5 truncate flex items-center gap-1"><MapPin size={9}/>{r.address}</p>}
+                    </div>
+                    {r.dist_km != null && <span className="text-[10px] text-gray-400 font-semibold shrink-0 mt-1 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
+                  </div>
+                ))}
+              </div>
+            ) : !loading && (
+              <div className="text-center py-6 text-gray-400">
+                <span className="text-3xl block mb-2">{it.emoji}</span>
+                <p className="text-sm">No AI results yet.</p>
+                <p className="text-xs mt-1">Try the platform links above to search {it.label.toLowerCase()} directly.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── InterestsPanel ────────────────────────────────────────────
 function InterestsPanel({ gk }: { gk:(s:string)=>string }) {
   const [selected, setSelected] = useLocalStore<string[]>(gk("interests"), []);
 
@@ -1114,6 +1280,7 @@ export default function DemandGeniusApp() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [notifVerified, setNotifVerified] = useState<{wa:boolean,email:boolean}>({wa:false,email:false});
+  const [activeInterest, setActiveInterest] = useState<string|null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifUnread, setNotifUnread] = useState(0);
@@ -1366,6 +1533,24 @@ export default function DemandGeniusApp() {
                     {item.label}
                   </button>
                 )}
+                {item.id === "interests" && (
+                  <div className="mt-0.5 space-y-0.5">
+                    <button onClick={()=>{setSection("interests");setSidebarOpen(false);}}
+                      className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 rounded-xl text-xs transition-all text-gray-500 hover:bg-gray-50 hover:text-gray-800">
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-gray-200"/><Settings size={10}/>View All
+                    </button>
+                    {ALL_INTERESTS_CFG.map(it=>(
+                      <button key={it.id} onClick={()=>{setActiveInterest(it.id);setSidebarOpen(false);}}
+                        className={`w-full flex items-center gap-2 pl-7 pr-3 py-1.5 rounded-xl text-xs transition-all ${
+                          activeInterest===it.id?"text-orange-600 font-semibold bg-orange-50":"text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeInterest===it.id?"bg-orange-500":"bg-gray-200"}`}/>
+                        <span className="text-sm leading-none">{it.emoji}</span>
+                        {it.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1499,6 +1684,11 @@ export default function DemandGeniusApp() {
             onClose={() => setShowSubscribeModal(false)}
             guest={guest}
             onVerified={(wa:boolean,email:boolean) => setNotifVerified({wa,email})}
+          />
+          <InterestDetailModal
+            interestId={activeInterest}
+            onClose={() => setActiveInterest(null)}
+            userLoc={userLoc}
           />
         </>
       )}
