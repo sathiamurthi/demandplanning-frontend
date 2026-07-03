@@ -15,11 +15,12 @@ import {
   History, Navigation2, FileText, Globe, Sparkles, Home, Activity,
   Scissors, ShoppingBag, Palette, Bot, Loader2, Copy, Download, Smartphone, Share2, Wifi, WifiOff, RefreshCw,
   Lock as LockIcon, ExternalLink, MessageCircle, ClipboardList, CheckSquare, Clock, XCircle, RotateCcw, Filter,
+  Settings, Mail, PhoneCall, ShieldCheck, BadgeCheck,
 } from "lucide-react";
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow"|"notify_settings";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -206,7 +207,8 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"jobs",       label:"Job Board",          icon:Briefcase },
   { id:"ideas",      label:"Ideas",              icon:Lightbulb,     group:"COMMUNITY" },
   { id:"contacts",   label:"Safe Directory",     icon:Shield },
-  { id:"install",    label:"Install App",        icon:Download,      group:"APP" },
+  { id:"notify_settings", label:"Notification Settings", icon:Settings,   group:"APP" },
+  { id:"install",    label:"Install App",        icon:Download },
   { id:"login" as Section, label:"Enterprise Dashboard", icon:LockIcon },
 ];
 
@@ -378,6 +380,284 @@ function NotificationDrawer({ notifications, unread, phone, onClose, onRead, onR
             View all bookings & workflows →
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── NotificationSettingsPanel ────────────────────────────────
+function NotificationSettingsPanel({ guest }: { guest: GuestIdentity }) {
+  const [prefs, setPrefs]   = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // WA state
+  const [waPhone, setWaPhone]     = useState(guest.phone || '');
+  const [waOtp,   setWaOtp]       = useState('');
+  const [waStep,  setWaStep]      = useState<'input'|'otp'|'done'>('input');
+  const [waSending,  setWaSending]   = useState(false);
+  const [waVerifying,setWaVerifying] = useState(false);
+  const [waError, setWaError]     = useState('');
+
+  // Email state
+  const [email,       setEmail]      = useState('');
+  const [emailOtp,    setEmailOtp]   = useState('');
+  const [emailStep,   setEmailStep]  = useState<'input'|'otp'|'done'>('input');
+  const [emailSending,setEmailSending]   = useState(false);
+  const [emailVerifying,setEmailVerifying] = useState(false);
+  const [emailError,  setEmailError] = useState('');
+
+  useEffect(() => {
+    fetch(`/v1/public/notify-settings?guest_id=${encodeURIComponent(guest.id)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setPrefs(d.data);
+          if (d.data.whatsapp_verified) setWaStep('done');
+          if (d.data.email_verified) setEmailStep('done');
+          if (d.data.whatsapp_phone) setWaPhone(d.data.whatsapp_phone);
+          if (d.data.email) setEmail(d.data.email);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [guest.id]);
+
+  const sendWaOtp = async () => {
+    if (!waPhone.trim()) { setWaError('Enter your WhatsApp number'); return; }
+    setWaSending(true); setWaError('');
+    try {
+      const r = await fetch('/v1/public/notify-settings/send-wa-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: waPhone, guest_id: guest.id }),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      setWaStep('otp');
+    } catch (e: any) { setWaError(e.message); }
+    finally { setWaSending(false); }
+  };
+
+  const verifyWaOtp = async () => {
+    if (!waOtp.trim()) { setWaError('Enter the OTP'); return; }
+    setWaVerifying(true); setWaError('');
+    try {
+      const r = await fetch('/v1/public/notify-settings/verify-wa-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: waPhone, otp: waOtp, guest_id: guest.id }),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      setWaStep('done');
+      setPrefs((p: any) => ({ ...p, whatsapp_phone: d.data.phone, whatsapp_verified: true }));
+    } catch (e: any) { setWaError(e.message); }
+    finally { setWaVerifying(false); }
+  };
+
+  const sendEmailOtp = async () => {
+    if (!email.trim()) { setEmailError('Enter your email address'); return; }
+    setEmailSending(true); setEmailError('');
+    try {
+      const r = await fetch('/v1/public/notify-settings/send-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, guest_id: guest.id }),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      setEmailStep('otp');
+    } catch (e: any) { setEmailError(e.message); }
+    finally { setEmailSending(false); }
+  };
+
+  const verifyEmailOtp = async () => {
+    if (!emailOtp.trim()) { setEmailError('Enter the OTP'); return; }
+    setEmailVerifying(true); setEmailError('');
+    try {
+      const r = await fetch('/v1/public/notify-settings/verify-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: emailOtp, guest_id: guest.id }),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      setEmailStep('done');
+      setPrefs((p: any) => ({ ...p, email: d.data.email, email_verified: true }));
+    } catch (e: any) { setEmailError(e.message); }
+    finally { setEmailVerifying(false); }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
+      <Loader2 size={20} className="animate-spin mr-2" /> Loading settings…
+    </div>
+  );
+
+  return (
+    <div className="max-w-lg mx-auto space-y-4">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+            <Settings size={18} className="text-orange-500" />
+          </div>
+          <div>
+            <h2 className="font-black text-gray-900 text-base">Notification Settings</h2>
+            <p className="text-xs text-gray-500">Verify your contacts to receive booking updates</p>
+          </div>
+        </div>
+      </div>
+
+      {/* WhatsApp Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-green-50 rounded-xl flex items-center justify-center">
+              <PhoneCall size={16} className="text-green-600" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-gray-900">WhatsApp</p>
+              <p className="text-xs text-gray-400">Booking alerts, vendor replies</p>
+            </div>
+          </div>
+          {waStep === 'done' && (
+            <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+              <BadgeCheck size={12} /> Verified
+            </span>
+          )}
+        </div>
+
+        {waStep === 'done' ? (
+          <div className="bg-green-50 border border-green-100 rounded-xl p-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-green-800">Connected</p>
+              <p className="text-xs text-green-600 font-mono mt-0.5">{prefs?.whatsapp_phone || waPhone}</p>
+            </div>
+            <button onClick={() => { setWaStep('input'); setWaOtp(''); setWaError(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline">Change</button>
+          </div>
+        ) : waStep === 'input' ? (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 block mb-1">WhatsApp Number</label>
+              <div className="flex gap-2">
+                <input type="tel" value={waPhone} onChange={e => setWaPhone(e.target.value)}
+                  placeholder="+91 9876 543 210"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+                <button onClick={sendWaOtp} disabled={waSending}
+                  className="px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                  {waSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                  Send OTP
+                </button>
+              </div>
+              {waError && <p className="text-xs text-red-500 mt-1">{waError}</p>}
+            </div>
+            <p className="text-[11px] text-gray-400">We'll send a 6-digit code via WhatsApp to verify your number.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 text-xs text-green-700">
+              OTP sent to <strong>{waPhone}</strong> via WhatsApp. Check your messages.
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 block mb-1">Enter 6-digit OTP</label>
+              <div className="flex gap-2">
+                <input type="number" value={waOtp} onChange={e => setWaOtp(e.target.value)}
+                  placeholder="123456" maxLength={6}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center font-mono tracking-widest focus:outline-none focus:border-green-400" />
+                <button onClick={verifyWaOtp} disabled={waVerifying}
+                  className="px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                  {waVerifying ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                  Verify
+                </button>
+              </div>
+              {waError && <p className="text-xs text-red-500 mt-1">{waError}</p>}
+              <button onClick={() => { setWaStep('input'); setWaError(''); }}
+                className="text-xs text-gray-400 hover:underline mt-1 block">← Change number</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Email Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Mail size={16} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-gray-900">Email</p>
+              <p className="text-xs text-gray-400">Booking summaries, status updates</p>
+            </div>
+          </div>
+          {emailStep === 'done' && (
+            <span className="flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+              <BadgeCheck size={12} /> Verified
+            </span>
+          )}
+        </div>
+
+        {emailStep === 'done' ? (
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-blue-800">Connected</p>
+              <p className="text-xs text-blue-600 mt-0.5">{prefs?.email || email}</p>
+            </div>
+            <button onClick={() => { setEmailStep('input'); setEmailOtp(''); setEmailError(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline">Change</button>
+          </div>
+        ) : emailStep === 'input' ? (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 block mb-1">Email Address</label>
+              <div className="flex gap-2">
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+                <button onClick={sendEmailOtp} disabled={emailSending}
+                  className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                  {emailSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                  Send OTP
+                </button>
+              </div>
+              {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
+            </div>
+            <p className="text-[11px] text-gray-400">We'll send a 6-digit code to your inbox to verify your email.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs text-blue-700">
+              OTP sent to <strong>{email}</strong>. Check your inbox (and spam folder).
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 block mb-1">Enter 6-digit OTP</label>
+              <div className="flex gap-2">
+                <input type="number" value={emailOtp} onChange={e => setEmailOtp(e.target.value)}
+                  placeholder="123456" maxLength={6}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-center font-mono tracking-widest focus:outline-none focus:border-blue-400" />
+                <button onClick={verifyEmailOtp} disabled={emailVerifying}
+                  className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                  {emailVerifying ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                  Verify
+                </button>
+              </div>
+              {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
+              <button onClick={() => { setEmailStep('input'); setEmailError(''); }}
+                className="text-xs text-gray-400 hover:underline mt-1 block">← Change email</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Info box */}
+      <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-500 space-y-1.5">
+        <p className="font-semibold text-gray-700 flex items-center gap-1.5"><ShieldCheck size={12} className="text-green-500" /> Your privacy</p>
+        <p>• Your contact details are only used for DemandGenius notifications</p>
+        <p>• Phone numbers are never shared with vendors directly</p>
+        <p>• You can change or remove your details anytime</p>
+        <p>• OTPs expire in 10 minutes and are single-use</p>
       </div>
     </div>
   );
@@ -1042,6 +1322,7 @@ export default function DemandGeniusApp() {
           {section === "skills"         && <SkillsPanel    gk={gk} />}
           {section === "reminders"      && <RemindersPanel gk={gk} />}
           {section === "workflow"       && <WorkflowAgentPanel guest={guest} />}
+          {section === "notify_settings" && <NotificationSettingsPanel guest={guest} />}
           {section === "install"        && <InstallPanel />}
         </main>
       </div>
@@ -3971,48 +4252,101 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
           {/* Provider / Seeker toggle */}
           <div className="flex items-center gap-3">
             <div className="flex bg-gray-100 rounded-xl p-0.5">
-              <button onClick={()=>{setMode("provider");setListings([]);}} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode==="provider"?"bg-white shadow-sm text-orange-500":"text-gray-500"}`}>Providers</button>
-              <button onClick={()=>{setMode("seeker");setListings([]);}} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode==="seeker"?"bg-white shadow-sm text-orange-500":"text-gray-500"}`}>Seekers</button>
+              <button onClick={()=>{setMode("provider");setListings([]);}} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${mode==="provider"?"bg-white shadow-sm text-orange-500":"text-gray-500"}`}>Providers</button>
+              <button onClick={()=>{setMode("seeker");setListings([]);}} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${mode==="seeker"?"bg-white shadow-sm text-orange-500":"text-gray-500"}`}>Seekers</button>
             </div>
-            <p className="text-xs text-gray-500">{mode==="provider"?"People offering services":"People looking for services"}</p>
+            <p className="text-sm text-gray-500 font-medium">{mode==="provider"?"People offering services":"People looking for services"}</p>
           </div>
 
-          {/* Filter row */}
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[160px]">
-              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
-              <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder={`Search ${group?.hint||"services"}…`} className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-orange-400"/>
+          {/* Search + City row — full width on mobile */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+              <input value={searchQ} onChange={e=>setSearchQ(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&loadListings()}
+                placeholder={`Search ${group?.hint||"services, skills…"}`}
+                className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-[15px] focus:outline-none focus:border-orange-400 bg-gray-50 focus:bg-white transition-colors"/>
             </div>
-            <input value={city} onChange={e=>setCity(e.target.value)} placeholder="City" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400 w-28"/>
+            <div className="relative">
+              <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+              <input value={city} onChange={e=>setCity(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&loadListings()}
+                placeholder="City"
+                className="border border-gray-200 rounded-xl pl-8 pr-3 py-3 text-[15px] focus:outline-none focus:border-orange-400 bg-gray-50 focus:bg-white w-32 transition-colors"/>
+            </div>
+          </div>
+
+          {/* Filter chips row */}
+          <div className="flex gap-2 flex-wrap items-center">
             {group && group.types.length > 1 && (
-              <select value={selType} onChange={e=>setSelType(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none">
+              <select value={selType} onChange={e=>setSelType(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none text-gray-700 font-medium">
                 <option value="">All Types</option>
                 {group.types.map(t=>{const lt=LISTING_TYPES.find(x=>x.id===t);return lt?<option key={t} value={t}>{lt.label}</option>:null;})}
               </select>
             )}
-            <label className="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={avail} onChange={e=>setAvail(e.target.checked)} className="accent-orange-500"/>Available
+            <label className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 cursor-pointer font-medium hover:border-orange-300 transition-colors">
+              <input type="checkbox" checked={avail} onChange={e=>setAvail(e.target.checked)} className="accent-orange-500 w-4 h-4"/>
+              Available now
             </label>
-            <button onClick={()=>loadListings()} className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-orange-600">Search</button>
-            {userLoc&&<button onClick={()=>{setCity(userLoc.city);loadListings(userLoc.city);}} className="flex items-center gap-1 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"><Navigation2 size={11}/>Near me</button>}
+            {userLoc && (
+              <button onClick={()=>{setCity(userLoc.city);loadListings(userLoc.city);}}
+                className="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-600 transition-colors font-medium">
+                <Navigation2 size={13}/> Near me
+              </button>
+            )}
+            <button onClick={()=>loadListings()}
+              className="ml-auto bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm shadow-orange-200 min-h-[40px]">
+              Search
+            </button>
           </div>
 
-          {/* Results */}
-          {error&&<div className="bg-red-50 border border-red-100 rounded-xl p-4 text-red-500 text-sm">{error}<button onClick={()=>loadListings()} className="underline ml-2">Retry</button></div>}
-          {loading&&<div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse"/>)}</div>}
-          {!loading&&listings.length===0&&!error&&(
-            <div className="text-center py-10">
-              <Building2 size={32} className="mx-auto text-gray-200 mb-2"/>
+          {/* Results area */}
+          {error && (
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-red-600 text-sm flex items-start gap-2">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5"/>
+              <span>{error} <button onClick={()=>loadListings()} className="underline font-semibold ml-1">Retry</button></span>
+            </div>
+          )}
+          {loading && (
+            <div className="space-y-3">
+              {[1,2,3].map(i=>(
+                <div key={i} className="bg-white border-2 border-gray-100 rounded-2xl p-4 space-y-3 animate-pulse">
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl shrink-0"/>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-100 rounded-lg w-3/4"/>
+                      <div className="h-3 bg-gray-100 rounded-lg w-1/2"/>
+                      <div className="flex gap-2"><div className="h-6 bg-gray-100 rounded-full w-20"/><div className="h-6 bg-gray-100 rounded-full w-16"/></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!loading && listings.length === 0 && !error && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Building2 size={28} className="text-gray-300"/>
+              </div>
               {!city && !searchQ ? (
                 <>
-                  <p className="text-gray-500 text-sm mb-1">Enter a city or tap <strong>Near me</strong> to find {mode==="seeker"?"seekers":"providers"}.</p>
-                  {userLoc && <button onClick={()=>{setCity(userLoc.city);loadListings(userLoc.city);}} className="text-orange-500 text-sm font-semibold hover:underline mt-1">Use my location →</button>}
+                  <p className="text-gray-600 text-base font-semibold mb-1">Where are you looking?</p>
+                  <p className="text-gray-400 text-sm mb-3">Enter a city or use your location to find {mode==="seeker"?"seekers":"providers"} nearby.</p>
+                  {userLoc && (
+                    <button onClick={()=>{setCity(userLoc.city);loadListings(userLoc.city);}}
+                      className="bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-orange-600 transition-colors">
+                      📍 Use my location
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
-                  <p className="text-gray-500 text-sm mb-2">No {mode==="seeker"?"seekers":"providers"} found in {city||"this area"}.</p>
-                  <button onClick={()=>setTab("onboard")} className="text-orange-500 text-sm font-semibold hover:underline">
-                    {mode==="provider"?"Register your service →":"Post your requirement →"}
+                  <p className="text-gray-600 text-base font-semibold mb-1">No results found</p>
+                  <p className="text-gray-400 text-sm mb-3">No {mode==="seeker"?"seekers":"providers"} in <strong>{city||"this area"}</strong> yet.</p>
+                  <button onClick={()=>setTab("onboard")}
+                    className="bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-orange-600 transition-colors">
+                    {mode==="provider" ? "+ Register your service" : "+ Post your requirement"}
                   </button>
                 </>
               )}
@@ -4059,34 +4393,86 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
 
           {!comparing && (
             <div className="space-y-3">
-              {listings.length > 0 && <p className="text-xs text-gray-400">Tip: Check multiple providers to compare them side by side</p>}
+              {listings.length > 0 && (
+                <p className="text-xs text-gray-400 px-1">
+                  {listings.length} result{listings.length!==1?'s':''} · Select up to 4 to compare
+                </p>
+              )}
               {listings.map(l=>{
                 const info=LISTING_TYPES.find(t=>t.id===l.type);
                 const Icon=info?.icon||Building2;
                 const badge=TYPE_COLORS[l.type]||"bg-gray-100 text-gray-600";
                 const isSel=selected.has(l.id);
+                const isAvail=l.available_now && l.mode==="provider";
+                const isSeeker=l.mode==="seeker";
                 return(
-                  <div key={l.id} className={`bg-white border rounded-2xl p-4 hover:border-orange-200 transition-all cursor-pointer ${isSel?"border-orange-400 bg-orange-50":"border-gray-100"}`}
+                  <div key={l.id}
+                    className={`bg-white border-2 rounded-2xl transition-all active:scale-[0.99] cursor-pointer
+                      ${isSel ? "border-orange-400 shadow-md shadow-orange-100" : "border-gray-100 hover:border-orange-200 hover:shadow-sm"}`}
                     onClick={()=>setSelected(p=>{const n=new Set(p);n.has(l.id)?n.delete(l.id):n.size<4&&n.add(l.id);return n;})}>
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center gap-2 shrink-0">
+
+                    {/* Card top — icon + title + badges */}
+                    <div className="flex items-start gap-3 p-4 pb-3">
+                      <div className="flex items-center gap-2 shrink-0 pt-0.5">
                         <input type="checkbox" checked={isSel} readOnly className="accent-orange-500 w-4 h-4 pointer-events-none"/>
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${badge}`}><Icon size={14}/></div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-gray-900">{l.name}</h3>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge}`}>{info?.label||l.type}</span>
-                          {l.mode==="seeker"&&<span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">Looking</span>}
-                          {l.available_now&&l.mode==="provider"&&<span className="text-[10px] bg-green-50 text-green-600 font-bold px-2 py-0.5 rounded-full">Available</span>}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${badge}`}>
+                          <Icon size={16}/>
                         </div>
-                        {(l.city||l.state)&&<p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><MapPin size={9}/>{[l.city,l.state].filter(Boolean).join(", ")}</p>}
-                        {l.description&&<p className="text-xs text-gray-600 mt-1">{l.description}</p>}
-                        {l.rate_info&&<p className="text-xs text-orange-600 font-semibold mt-1"><Banknote size={9} className="inline mr-0.5"/>₹{l.rate_info}</p>}
-                        {l.discount&&<p className="text-xs text-green-600">🏷 {l.discount}</p>}
-                        {l.services?.length>0&&<div className="flex flex-wrap gap-1 mt-1">{l.services.map((s:any,i:number)=><span key={i} className="text-xs bg-white border border-gray-100 rounded-lg px-2 py-0.5">{s.name}{s.rate?` ₹${s.rate}`:""}</span>)}</div>}
                       </div>
-                      <a href={`tel:${l.phone}`} onClick={e=>e.stopPropagation()} className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shrink-0"><Phone size={11}/>Call</a>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Name — large, bold */}
+                        <h3 className="font-extrabold text-gray-900 text-[15px] leading-snug pr-1">{l.name}</h3>
+
+                        {/* Location */}
+                        {(l.city||l.state) && (
+                          <p className="text-sm text-gray-500 flex items-center gap-1 mt-1 font-medium">
+                            <MapPin size={11} className="text-gray-400 shrink-0"/>
+                            {[l.city, l.state].filter(Boolean).join(", ")}
+                          </p>
+                        )}
+
+                        {/* Badges row */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${badge}`}>{info?.label||l.type}</span>
+                          {isAvail && <span className="text-xs bg-green-500 text-white font-bold px-2.5 py-1 rounded-full">✓ Available</span>}
+                          {isSeeker && <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full">🔍 Looking</span>}
+                          {l.discount && <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full">🏷 {l.discount}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    {l.description && (
+                      <p className="text-sm text-gray-600 leading-relaxed px-4 pb-2 line-clamp-2">{l.description}</p>
+                    )}
+
+                    {/* Services chips */}
+                    {l.services?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+                        {l.services.map((s:any,i:number) => (
+                          <span key={i} className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 font-medium text-gray-600">
+                            {s.name}{s.rate ? ` · ₹${s.rate}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bottom row — rate + CTA */}
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-50">
+                      <div>
+                        {l.rate_info ? (
+                          <p className="text-sm font-bold text-orange-600 flex items-center gap-1">
+                            <Banknote size={13}/> ₹{l.rate_info}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400">Rate on request</p>
+                        )}
+                      </div>
+                      <a href={`tel:${l.phone}`} onClick={e=>e.stopPropagation()}
+                        className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-sm shadow-orange-200 min-h-[40px]">
+                        <Phone size={14}/> Call
+                      </a>
                     </div>
                   </div>
                 );
