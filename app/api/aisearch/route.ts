@@ -37,19 +37,50 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY
       || Buffer.from('QUl6YVN5Qi1JdUNLelJPSXpkSDNxdnBqeUtjWjVZMTdMRm9xVjQ=', 'base64').toString('utf-8');
 
+    const isJobs = /job|hiring|recruit|employ|work|career|vacancy/i.test(q);
+    const isServices = /plumber|electrician|repair|service|technician/i.test(q);
     const locationLine = latF && lngF
       ? `User location: lat=${latF.toFixed(4)}, lng=${lngF.toFixed(4)}.`
-      : 'Location: India (city unknown).';
+      : 'Location: India.';
 
-    const prompt = `${locationLine}
+    let prompt: string;
+
+    if (isJobs) {
+      prompt = `${locationLine}
+Generate 6 realistic current job openings that would be available near the user in India.
+Return JSON with a single key "jobs". Each item:
+- name: job title (e.g. "Software Engineer", "Sales Executive", "Data Analyst")
+- company: company name (real Indian companies)
+- type: employment type (Full Time / Part Time / Contract / Remote)
+- salary: salary range (e.g. "4-7 LPA", "25,000-40,000/mo")
+- description: 1-line about the role and company
+- tip: where/how to apply
+
+Output ONLY valid JSON, no markdown. Example:
+{"jobs":[{"name":"Frontend Developer","company":"Infosys","type":"Full Time","salary":"6-10 LPA","description":"React.js role at Infosys Bangalore campus","tip":"Apply on Naukri or Infosys careers portal"}]}`;
+    } else if (isServices) {
+      prompt = `${locationLine}
+Search Query: "${q}"
+Generate 5 realistic local home-service providers near the user in India.
+Return JSON with a single key "services". Each item:
+- name: provider/business name
+- type: service type
+- dist_km: estimated distance 0.2-3.0
+- description: short description of what they offer
+- tip: practical advice for hiring them
+
+Output ONLY valid JSON, no markdown.`;
+    } else {
+      prompt = `${locationLine}
 Search Query: "${q}"
 
-Return a JSON object of real places matching the Search Query that would exist near the user.
-Use 1-3 relevant category keys. Each category has 3-5 real-sounding places.
+Return a JSON object of real places matching the Search Query near the user in India.
+Use 1-2 relevant category keys. Each category has 4-6 places.
 Place fields: name (string), type (string), dist_km (number 0.1-3.0), description (short), tip (recommendation).
 
 Output ONLY valid JSON, no markdown. Example:
 {"restaurants":[{"name":"Anand Bhavan","type":"South Indian","dist_km":0.3,"description":"Famous idli & dosa","tip":"Try masala dosa"}]}`;
+    }
 
     let parsed: Record<string, any[]> | null = null;
     let lastErr = '';
@@ -151,10 +182,12 @@ function getCategoryFallback(query: string): Record<string, any[]> {
   }
   if (q.includes('job') || q.includes('hiring') || q.includes('recruitment') || q.includes('employment')) {
     return { jobs: [
-      { name: 'Naukri.com (Local)', type: 'Job Portal', dist_km: 0.0, description: 'India\'s largest job board', tip: 'Upload updated resume for better matches' },
-      { name: 'TeamLease Services', type: 'Staffing Agency', dist_km: 1.2, description: 'Placement across industries', tip: 'Walk-in every Monday 10am–1pm' },
-      { name: 'Quess Corp Office', type: 'Recruitment Firm', dist_km: 1.8, description: 'IT & non-IT placements', tip: 'Carry original documents' },
-      { name: 'LinkedIn Local Network', type: 'Online Platform', dist_km: 0.0, description: 'Connect with local hiring managers', tip: 'Add "Open to Work" to your profile' },
+      { name: 'Software Engineer', company: 'Infosys', type: 'Full Time', salary: '6-10 LPA', description: 'Java/React role at Infosys Bangalore campus', tip: 'Apply at infosys.com/careers' },
+      { name: 'Data Analyst', company: 'Wipro', type: 'Full Time', salary: '5-8 LPA', description: 'SQL & Python skills required, WFH hybrid', tip: 'Apply on Wipro careers or LinkedIn' },
+      { name: 'Sales Executive', company: 'HDFC Bank', type: 'Full Time', salary: '3-5 LPA + incentives', description: 'Retail banking sales, field & branch role', tip: 'Walk-in to nearest HDFC branch with resume' },
+      { name: 'Digital Marketing Manager', company: 'Flipkart', type: 'Full Time', salary: '8-14 LPA', description: 'Growth & performance marketing at Flipkart', tip: 'Apply at flipkartcareers.com' },
+      { name: 'Content Writer', company: 'Razorpay', type: 'Full Time', salary: '4-7 LPA', description: 'Tech & fintech content, remote-friendly', tip: 'Apply via LinkedIn or Naukri' },
+      { name: 'Operations Executive', company: 'Amazon India', type: 'Full Time', salary: '2.5-4 LPA', description: 'Warehouse & logistics ops, shift-based', tip: 'Apply at amazon.jobs' },
     ]};
   }
   if (q.includes('plumber') || q.includes('electrician') || q.includes('repair') || q.includes('service')) {

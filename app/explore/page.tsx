@@ -838,9 +838,12 @@ const OSM_INTEREST_QUERY: Partial<Record<string,(lat:number,lon:number)=>string|
   services:   (la,lo)=>`(node["shop"~"hardware|electronics|mobile"](around:3000,${la},${lo});node["craft"](around:3000,${la},${lo});)`,
 };
 
-function resultSearchLink(name: string, city: string, interestId: string): string {
+function resultSearchLink(name: string, city: string, interestId: string, company?: string): string {
   const q = encodeURIComponent(`${name} ${city}`);
-  if (interestId === "jobs")        return `https://www.google.com/search?q=${encodeURIComponent(name+' jobs in '+city)}`;
+  if (interestId === "jobs") {
+    const jobQ = encodeURIComponent(company ? `${name} at ${company}` : `${name} jobs in ${city}`);
+    return `https://www.naukri.com/jobs?q=${encodeURIComponent(name)}&l=${encodeURIComponent(city)}`;
+  }
   if (interestId === "hotel")       return `https://www.google.com/travel/hotels?q=${encodeURIComponent(name+' '+city)}`;
   if (interestId === "restaurant")  return `https://www.zomato.com/search?q=${encodeURIComponent(name)}`;
   if (interestId === "hospital")    return `https://www.practo.com/search?results_type=hospital&q=${q}`;
@@ -990,19 +993,33 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
             ) : (
               <div className="space-y-2">
                 {visible.map((r:any,i:number)=>{
-                  const link = resultSearchLink(r.name, city, interestId);
+                  const isJob = interestId === "jobs";
+                  const link = resultSearchLink(r.name, city, interestId, r.company);
                   return (
                     <div key={`${r.source}-${i}`}
-                      className="flex items-start gap-3 border border-gray-100 hover:border-orange-200 hover:bg-orange-50/40 rounded-xl px-3.5 py-3 transition-all group">
+                      className="flex items-start gap-3 border border-gray-100 hover:border-orange-200 hover:bg-orange-50/40 rounded-xl px-3.5 py-3 transition-all">
                       <span className="text-xl leading-none shrink-0 mt-0.5">{it.emoji}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-bold text-gray-800 leading-tight">{r.name}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-gray-800 leading-tight truncate">{r.name}</p>
+                            {/* Job-specific: company name */}
+                            {isJob && r.company && (
+                              <p className="text-xs font-semibold text-gray-600 mt-0.5">{r.company}</p>
+                            )}
+                          </div>
                           <a href={link} target="_blank" rel="noopener noreferrer"
                             className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded-lg transition-colors">
-                            Open<ExternalLink size={8} className="ml-0.5"/>
+                            {isJob ? "Apply" : "Open"}<ExternalLink size={8} className="ml-0.5"/>
                           </a>
                         </div>
+                        {/* Job-specific: salary + type badges */}
+                        {isJob && (r.salary || r.type) && (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {r.salary && <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">💰 {r.salary}</span>}
+                            {r.type   && <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{r.type}</span>}
+                          </div>
+                        )}
                         {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
                         {r.tip && <p className="text-xs text-orange-500 mt-0.5 italic">{r.tip}</p>}
                         {r.address && (
@@ -1011,7 +1028,7 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
-                          {r.dist_km != null && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
+                          {!isJob && r.dist_km != null && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
                           {r.source==="ai" && <span className="text-[9px] font-bold text-purple-400 bg-purple-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">AI</span>}
                           {r.source==="osm" && <span className="text-[9px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Map</span>}
                         </div>
