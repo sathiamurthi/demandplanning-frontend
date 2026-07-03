@@ -808,94 +808,196 @@ const INTEREST_PLATFORMS: Record<string, Array<{name:string, emoji:string, url:(
 };
 
 // ── InterestDetailModal ───────────────────────────────────────
+const OSM_INTEREST_QUERY: Partial<Record<string,(lat:number,lon:number)=>string|null>> = {
+  restaurant: (la,lo)=>`(node["amenity"="restaurant"](around:5000,${la},${lo});node["amenity"="cafe"](around:5000,${la},${lo});node["amenity"="fast_food"](around:4000,${la},${lo});)`,
+  hotel:      (la,lo)=>`(node["tourism"="hotel"](around:10000,${la},${lo});node["tourism"="guest_house"](around:10000,${la},${lo});node["tourism"="hostel"](around:8000,${la},${lo});)`,
+  hospital:   (la,lo)=>`(node["amenity"="hospital"](around:8000,${la},${lo});node["amenity"="clinic"](around:5000,${la},${lo});)`,
+  pharmacy:   (la,lo)=>`node["amenity"="pharmacy"](around:4000,${la},${lo});`,
+  school:     (la,lo)=>`(node["amenity"="school"](around:5000,${la},${lo});node["amenity"="college"](around:8000,${la},${lo});node["amenity"="university"](around:10000,${la},${lo});)`,
+  bank:       (la,lo)=>`(node["amenity"="bank"](around:4000,${la},${lo});node["amenity"="atm"](around:2000,${la},${lo});)`,
+  fuel:       (la,lo)=>`node["amenity"="fuel"](around:5000,${la},${lo});`,
+  supermarket:(la,lo)=>`(node["shop"="supermarket"](around:4000,${la},${lo});node["shop"="grocery"](around:3000,${la},${lo});node["shop"="convenience"](around:2000,${la},${lo});)`,
+  temple:     (la,lo)=>`node["amenity"="place_of_worship"]["religion"="hindu"](around:5000,${la},${lo});`,
+  park:       (la,lo)=>`(node["leisure"="park"](around:5000,${la},${lo});way["leisure"="park"](around:5000,${la},${lo});)`,
+  jobs:       ()=>null,
+  services:   (la,lo)=>`(node["shop"~"hardware|electronics|mobile"](around:3000,${la},${lo});node["craft"](around:3000,${la},${lo});)`,
+};
+
+function resultSearchLink(name: string, city: string, interestId: string): string {
+  const q = encodeURIComponent(`${name} ${city}`);
+  if (interestId === "jobs")        return `https://www.google.com/search?q=${encodeURIComponent(name+' jobs in '+city)}`;
+  if (interestId === "hotel")       return `https://www.google.com/travel/hotels?q=${encodeURIComponent(name+' '+city)}`;
+  if (interestId === "restaurant")  return `https://www.zomato.com/search?q=${encodeURIComponent(name)}`;
+  if (interestId === "hospital")    return `https://www.practo.com/search?results_type=hospital&q=${q}`;
+  return `https://www.google.com/search?q=${q}`;
+}
+
 function InterestDetailModal({ interestId, onClose, userLoc }: {
   interestId: string|null; onClose:()=>void; userLoc?: UserLocation|null;
 }) {
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [aiResults,  setAiResults]  = useState<any[]>([]);
+  const [osmResults, setOsmResults] = useState<any[]>([]);
+  const [aiLoading,  setAiLoading]  = useState(false);
+  const [osmLoading, setOsmLoading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   useEffect(() => {
     if (!interestId) return;
-    setLoading(true); setResults([]);
+    setAiResults([]); setOsmResults([]); setVisibleCount(10);
     const lat = userLoc?.lat ?? 0; const lon = userLoc?.lon ?? 0;
-    const p = new URLSearchParams({ category:interestId, ai:"true", q:`${interestId} near me`, lat:String(lat), lng:String(lon), radius:"5" });
+
+    // ── AI search ────────────────────────────────────────────────
+    setAiLoading(true);
+    const p = new URLSearchParams({ category:interestId, ai:"true", q:`best ${interestId} near me`, lat:String(lat), lng:String(lon), radius:"10" });
     fetch(`/v1/public/quicksearch?${p}`).then(r=>r.json()).then(d=>{
       if (d.success) {
-        const items:any[] = d.data?.[interestId] || Object.values(d.data||{})[0] || [];
-        setResults(items);
+        const raw:any[] = d.data?.[interestId] || Object.values(d.data||{})[0] || [];
+        // strip phone numbers from AI results
+        setAiResults(raw.map(({phone:_p, contact:_c, ...rest})=>({...rest, source:"ai"})));
       }
-    }).catch(()=>{}).finally(()=>setLoading(false));
+    }).catch(()=>{}).finally(()=>setAiLoading(false));
+
+    // ── OSM search via proxy ──────────────────────────────────────
+    const osmQ = lat && lon ? (OSM_INTEREST_QUERY[interestId]?.(lat, lon) ?? null) : null;
+    if (osmQ) {
+      setOsmLoading(true);
+      const body = `data=${encodeURIComponent(`[out:json][timeout:25];${osmQ};out center 50;`)}`;
+      fetch('/api/overpass',{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout(28000)})
+        .then(r=>r.json()).then(d=>{
+          const els = (d.elements||[]).filter((el:any)=>el.tags?.name);
+          const pois = els.map((el:any)=>{
+            const elLat=el.lat??el.center?.lat??0; const elLon=el.lon??el.center?.lon??0;
+            return {
+              name: el.tags.name,
+              description: [el.tags.cuisine, el.tags.amenity, el.tags.tourism, el.tags.shop].filter(Boolean).join(' · '),
+              address: [el.tags['addr:housenumber'], el.tags['addr:street'], el.tags['addr:city']].filter(Boolean).join(', '),
+              dist_km: lat ? +haversine(lat,lon,elLat,elLon).toFixed(1) : null,
+              source: "osm",
+            };
+          }).sort((a:any,b:any)=>(a.dist_km??99)-(b.dist_km??99));
+          setOsmResults(pois);
+        }).catch(()=>{}).finally(()=>setOsmLoading(false));
+    }
   }, [interestId, userLoc?.lat, userLoc?.lon]);
 
   if (!interestId) return null;
   const it = ALL_INTERESTS_CFG.find(x=>x.id===interestId);
   if (!it) return null;
-  const city = userLoc?.city || "India";
-  const lat  = userLoc?.lat ?? 0;
-  const lon  = userLoc?.lon ?? 0;
+  const city      = userLoc?.city || "India";
+  const lat       = userLoc?.lat ?? 0;
+  const lon       = userLoc?.lon ?? 0;
   const platforms = INTEREST_PLATFORMS[interestId] || [];
+
+  // Merge: AI first (richer desc), then OSM deduplicated by name
+  const aiNames = new Set(aiResults.map(r=>r.name?.toLowerCase()));
+  const merged  = [
+    ...aiResults,
+    ...osmResults.filter(r=>!aiNames.has(r.name?.toLowerCase())),
+  ];
+  const visible = merged.slice(0, visibleCount);
+  const hasMore = visibleCount < merged.length;
+  const loading = aiLoading || osmLoading;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[88vh] flex flex-col" onClick={e=>e.stopPropagation()}>
-        {/* Header */}
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+
+        {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-3xl leading-none">{it.emoji}</span>
             <div>
               <h2 className="font-black text-gray-900 text-lg leading-tight">{it.label}</h2>
-              <p className="text-xs text-gray-500">{it.desc}{userLoc ? ` · near ${city}` : ""}</p>
+              <p className="text-xs text-gray-500">{it.desc}{userLoc ? ` · ${city}` : ""}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
         </div>
 
-        <div className="overflow-y-auto p-5 space-y-5">
-          {/* Platform quick-links */}
+        <div className="overflow-y-auto flex-1">
+          {/* ── Platform quick-links ── */}
           {platforms.length > 0 && (
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Search on</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="px-5 pt-4 pb-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Search on</p>
+              <div className="flex flex-wrap gap-1.5">
                 {platforms.map(pl=>(
                   <a key={pl.name} href={pl.url(city,lat,lon)} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 bg-gray-50 hover:bg-orange-50 border border-gray-200 hover:border-orange-300 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:text-orange-700 transition-all">
-                    <span className="text-base leading-none">{pl.emoji}</span>{pl.name}
-                    <ExternalLink size={9} className="text-gray-400 ml-0.5"/>
+                    className="flex items-center gap-1.5 bg-gray-50 hover:bg-orange-50 border border-gray-100 hover:border-orange-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-orange-700 transition-all">
+                    <span className="text-sm leading-none">{pl.emoji}</span>{pl.name}<ExternalLink size={8} className="text-gray-300 ml-0.5"/>
                   </a>
                 ))}
               </div>
             </div>
           )}
 
-          {/* AI nearby results */}
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5 flex items-center gap-1">
-              <Sparkles size={10}/> AI — Nearby Results
-              {userLoc && <span className="font-normal ml-1">({city})</span>}
-            </p>
-            {loading ? (
-              <div className="flex items-center gap-2 text-gray-400 text-sm py-6 justify-center">
-                <Loader2 size={18} className="animate-spin text-orange-400"/> Finding {it.label} near you…
+          {/* ── Results ── */}
+          <div className="px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles size={10} className="text-orange-400"/>
+                AI + Nearby Results
+                {loading && <Loader2 size={10} className="animate-spin text-orange-400"/>}
+              </p>
+              {merged.length > 0 && <span className="text-[10px] text-gray-400">{merged.length} found</span>}
+            </div>
+
+            {!loading && merged.length === 0 ? (
+              <div className="text-center py-10 text-gray-400">
+                <span className="text-4xl block mb-3">{it.emoji}</span>
+                <p className="text-sm font-medium">No results found nearby.</p>
+                <p className="text-xs mt-1">Try the platform links above.</p>
               </div>
-            ) : results.length > 0 ? (
+            ) : (
               <div className="space-y-2">
-                {results.slice(0,8).map((r:any,i:number)=>(
-                  <div key={i} className="flex items-start gap-3 bg-gray-50 hover:bg-orange-50 rounded-xl px-3.5 py-3 transition-colors">
-                    <span className="text-xl leading-none shrink-0 mt-0.5">{it.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{r.name}</p>
-                      {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
-                      {r.address && <p className="text-xs text-gray-400 mt-0.5 truncate flex items-center gap-1"><MapPin size={9}/>{r.address}</p>}
+                {visible.map((r:any,i:number)=>{
+                  const link = resultSearchLink(r.name, city, interestId);
+                  return (
+                    <div key={`${r.source}-${i}`}
+                      className="flex items-start gap-3 border border-gray-100 hover:border-orange-200 hover:bg-orange-50/40 rounded-xl px-3.5 py-3 transition-all group">
+                      <span className="text-xl leading-none shrink-0 mt-0.5">{it.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold text-gray-800 leading-tight">{r.name}</p>
+                          <a href={link} target="_blank" rel="noopener noreferrer"
+                            className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded-lg transition-colors">
+                            Open<ExternalLink size={8} className="ml-0.5"/>
+                          </a>
+                        </div>
+                        {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
+                        {r.tip && <p className="text-xs text-orange-500 mt-0.5 italic">{r.tip}</p>}
+                        {r.address && (
+                          <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                            <MapPin size={9} className="shrink-0 text-gray-300"/>{r.address}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          {r.dist_km != null && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
+                          {r.source==="ai" && <span className="text-[9px] font-bold text-purple-400 bg-purple-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">AI</span>}
+                          {r.source==="osm" && <span className="text-[9px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Map</span>}
+                        </div>
+                      </div>
                     </div>
-                    {r.dist_km != null && <span className="text-[10px] text-gray-400 font-semibold shrink-0 mt-1 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
+                  );
+                })}
+
+                {/* Load more */}
+                {hasMore && (
+                  <button onClick={()=>setVisibleCount(c=>c+10)}
+                    className="w-full py-2.5 text-sm font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors border border-orange-100">
+                    Show more ({merged.length - visibleCount} remaining)
+                  </button>
+                )}
+
+                {/* Loading skeleton when results are still coming in */}
+                {loading && merged.length === 0 && [0,1,2,3].map(i=>(
+                  <div key={i} className="flex items-center gap-3 border border-gray-100 rounded-xl px-3.5 py-3 animate-pulse">
+                    <div className="w-8 h-8 bg-gray-100 rounded-xl shrink-0"/>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3.5 bg-gray-100 rounded-full w-3/4"/>
+                      <div className="h-2.5 bg-gray-100 rounded-full w-1/2"/>
+                    </div>
                   </div>
                 ))}
-              </div>
-            ) : !loading && (
-              <div className="text-center py-6 text-gray-400">
-                <span className="text-3xl block mb-2">{it.emoji}</span>
-                <p className="text-sm">No AI results yet.</p>
-                <p className="text-xs mt-1">Try the platform links above to search {it.label.toLowerCase()} directly.</p>
               </div>
             )}
           </div>
