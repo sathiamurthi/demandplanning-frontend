@@ -20,7 +20,7 @@ import {
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow"|"notify_settings";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow"|"notify_settings"|"interests";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -241,6 +241,7 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"ideas",      label:"Ideas",              icon:Lightbulb,     group:"COMMUNITY" },
   { id:"contacts",   label:"Safe Directory",     icon:Shield },
   { id:"notify_settings", label:"Notification Settings", icon:Settings,   group:"APP" },
+  { id:"interests",      label:"My Interests",          icon:Heart },
   { id:"install",    label:"Install App",        icon:Download },
   { id:"login" as Section, label:"Enterprise Dashboard", icon:LockIcon },
 ];
@@ -418,8 +419,33 @@ function NotificationDrawer({ notifications, unread, phone, onClose, onRead, onR
   );
 }
 
+// ── SubscribeModal ────────────────────────────────────────────
+function SubscribeModal({ isOpen, onClose, guest, onVerified }: {
+  isOpen: boolean; onClose: () => void;
+  guest: GuestIdentity;
+  onVerified: (wa: boolean, email: boolean) => void;
+}) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="text-orange-500" />
+            <span className="font-black text-gray-900 text-sm">Subscribe to Alerts</span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1"><X size={18}/></button>
+        </div>
+        <div className="p-4">
+          <NotificationSettingsPanel guest={guest} onVerified={onVerified} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── NotificationSettingsPanel ────────────────────────────────
-function NotificationSettingsPanel({ guest }: { guest: GuestIdentity }) {
+function NotificationSettingsPanel({ guest, onVerified }: { guest: GuestIdentity; onVerified?: (wa:boolean,email:boolean)=>void }) {
   const [prefs, setPrefs]   = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -484,6 +510,7 @@ function NotificationSettingsPanel({ guest }: { guest: GuestIdentity }) {
       if (!d.success) throw new Error(d.error);
       setWaStep('done');
       setPrefs((p: any) => ({ ...p, whatsapp_phone: d.data.phone, whatsapp_verified: true }));
+      onVerified?.(true, prefs?.email_verified ?? false);
     } catch (e: any) { setWaError(e.message); }
     finally { setWaVerifying(false); }
   };
@@ -517,6 +544,7 @@ function NotificationSettingsPanel({ guest }: { guest: GuestIdentity }) {
       if (!d.success) throw new Error(d.error);
       setEmailStep('done');
       setPrefs((p: any) => ({ ...p, email: d.data.email, email_verified: true }));
+      onVerified?.(prefs?.whatsapp_verified ?? false, true);
     } catch (e: any) { setEmailError(e.message); }
     finally { setEmailVerifying(false); }
   };
@@ -691,6 +719,73 @@ function NotificationSettingsPanel({ guest }: { guest: GuestIdentity }) {
         <p>• Phone numbers are never shared with vendors directly</p>
         <p>• You can change or remove your details anytime</p>
         <p>• OTPs expire in 10 minutes and are single-use</p>
+      </div>
+    </div>
+  );
+}
+
+// ── InterestsPanel ────────────────────────────────────────────
+const ALL_INTERESTS_CFG = [
+  { id:"restaurant", label:"Restaurants",  emoji:"🍽",  desc:"Food & cafes nearby" },
+  { id:"hotel",      label:"Hotels",       emoji:"🏨",  desc:"Stay & accommodation" },
+  { id:"hospital",   label:"Health",       emoji:"🏥",  desc:"Hospitals & clinics" },
+  { id:"pharmacy",   label:"Pharmacy",     emoji:"💊",  desc:"Medicine & drugs" },
+  { id:"school",     label:"Schools",      emoji:"🏫",  desc:"Education & colleges" },
+  { id:"bank",       label:"Banking",      emoji:"🏦",  desc:"Banks & ATMs" },
+  { id:"fuel",       label:"Petrol",       emoji:"⛽",  desc:"Fuel stations" },
+  { id:"supermarket",label:"Shopping",     emoji:"🛍",  desc:"Markets & grocery" },
+  { id:"temple",     label:"Temples",      emoji:"🛕",  desc:"Places of worship" },
+  { id:"park",       label:"Parks",        emoji:"🌳",  desc:"Green spaces & leisure" },
+  { id:"jobs",       label:"Jobs",         emoji:"💼",  desc:"Local job openings" },
+  { id:"services",   label:"Services",     emoji:"🔧",  desc:"Plumber, electrician…" },
+];
+
+function InterestsPanel({ gk }: { gk:(s:string)=>string }) {
+  const [selected, setSelected] = useLocalStore<string[]>(gk("interests"), []);
+
+  const toggle = (key: string) => {
+    setSelected(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev, key]);
+  };
+
+  return (
+    <div className="max-w-lg mx-auto space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+            <Heart size={18} className="text-orange-500" />
+          </div>
+          <div>
+            <h2 className="font-black text-gray-900 text-base">My Interests</h2>
+            <p className="text-xs text-gray-500">Select topics — your Dashboard shows AI results for these</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="grid grid-cols-2 gap-2.5">
+          {ALL_INTERESTS_CFG.map(it => {
+            const key = it.id + it.label;
+            const on  = selected.includes(key);
+            return (
+              <button key={key} onClick={() => toggle(key)}
+                className={`flex items-start gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                  on ? "border-orange-400 bg-orange-50" : "border-gray-100 hover:border-gray-200"
+                }`}>
+                <span className="text-2xl leading-none mt-0.5">{it.emoji}</span>
+                <div className="min-w-0">
+                  <p className={`text-sm font-bold truncate ${on?"text-orange-700":"text-gray-800"}`}>{it.label}</p>
+                  <p className="text-[11px] text-gray-400 truncate">{it.desc}</p>
+                </div>
+                {on && <CheckCircle2 size={14} className="text-orange-500 shrink-0 ml-auto mt-0.5"/>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-xs text-orange-700">
+        <p className="font-semibold mb-1 flex items-center gap-1.5"><Sparkles size={12}/>How it works</p>
+        <p>Checked interests appear as quick checkboxes on your Dashboard. Clicking one fetches live AI-powered nearby results without leaving the dashboard.</p>
       </div>
     </div>
   );
@@ -1017,7 +1112,8 @@ export default function DemandGeniusApp() {
   const [userLoc, setUserLoc]   = useState<UserLocation|null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showWaModal, setShowWaModal] = useState(false);
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [notifVerified, setNotifVerified] = useState<{wa:boolean,email:boolean}>({wa:false,email:false});
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifUnread, setNotifUnread] = useState(0);
@@ -1040,6 +1136,11 @@ export default function DemandGeniusApp() {
         .then(r=>r.json()).then(d=>{ if(d.success && d.data?.is_active===false) setIsDeactivated(true); }).catch(()=>{});
       const daysSince = Math.round((Date.now() - new Date(g.createdAt).getTime()) / 86400000);
       if (daysSince >= 30) setTimeout(() => setShow30DayGate(true), 3000);
+      // Load subscription state so the header button reflects verified status
+      fetch(`/v1/public/notify-settings?guest_id=${encodeURIComponent(g.id)}`)
+        .then(r=>r.json()).then(d=>{
+          if (d.success) setNotifVerified({wa:!!d.data?.whatsapp_verified, email:!!d.data?.email_verified});
+        }).catch(()=>{});
     }
     // ── Location: restore cached first, then silently refresh ───
     const gId = g?.id;
@@ -1238,7 +1339,7 @@ export default function DemandGeniusApp() {
                     className={`w-full flex items-center gap-2 pl-7 pr-3 py-1.5 rounded-xl text-xs transition-all ${
                       section === item.id
                         ? "text-orange-600 font-semibold bg-orange-50"
-                        : "text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
                     <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${section === item.id ? "bg-orange-500" : "bg-gray-200"}`}/>
@@ -1258,7 +1359,7 @@ export default function DemandGeniusApp() {
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
                       isActive
                         ? "bg-orange-50 text-orange-600 font-semibold"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        : "text-gray-800 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
                     <Icon size={15} />
@@ -1304,10 +1405,16 @@ export default function DemandGeniusApp() {
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-700 cursor-pointer"
                 onClick={() => setSection("search")} />
             </div>
-            <button onClick={() => setShowWaModal(true)}
-              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-green-500/10 shrink-0">
-              <Bell size={12} className="animate-bounce" />
-              <span>WhatsApp Alerts</span>
+            <button onClick={() => setShowSubscribeModal(true)}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all shrink-0 ${
+                (notifVerified.wa || notifVerified.email)
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/20"
+              }`}>
+              {(notifVerified.wa || notifVerified.email)
+                ? <><CheckCircle2 size={12}/><span>Subscribed</span></>
+                : <><Plus size={12}/><span>Subscribe</span></>
+              }
             </button>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -1352,8 +1459,8 @@ export default function DemandGeniusApp() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {section === "assistant"      && <PersonalAssistantPanel guest={guest} setSection={setSection} onOpenWhatsApp={() => setShowWaModal(true)} />}
-          {section === "dashboard"      && <DashboardPanel guest={guest} gk={gk} setSection={setSection} />}
+          {section === "assistant"      && <PersonalAssistantPanel guest={guest} setSection={setSection} onOpenWhatsApp={() => setShowSubscribeModal(true)} />}
+          {section === "dashboard"      && <DashboardPanel guest={guest} gk={gk} setSection={setSection} userLoc={userLoc} />}
           {section === "search"         && <StoreSearchPanel />}
           {section === "nearby"         && <NearbyPanel userLoc={userLoc} captureLocation={captureLocation} locLoading={locLoading} gk={gk} />}
           {(section === "services" || section === "providers" || section === "seekers") && (
@@ -1374,6 +1481,7 @@ export default function DemandGeniusApp() {
           {section === "reminders"      && <RemindersPanel gk={gk} />}
           {section === "workflow"       && <WorkflowAgentPanel guest={guest} />}
           {section === "notify_settings" && <NotificationSettingsPanel guest={guest} />}
+          {section === "interests"      && <InterestsPanel gk={gk} />}
           {section === "install"        && <InstallPanel />}
         </main>
       </div>
@@ -1384,12 +1492,13 @@ export default function DemandGeniusApp() {
             isOpen={showProfileModal}
             onClose={() => setShowProfileModal(false)}
             guest={guest}
-            onOpenWhatsApp={() => setShowWaModal(true)}
+            onOpenWhatsApp={() => setShowSubscribeModal(true)}
           />
-          <WhatsAppVerificationModal
-            isOpen={showWaModal}
-            onClose={() => setShowWaModal(false)}
-            guestId={guest.id}
+          <SubscribeModal
+            isOpen={showSubscribeModal}
+            onClose={() => setShowSubscribeModal(false)}
+            guest={guest}
+            onVerified={(wa:boolean,email:boolean) => setNotifVerified({wa,email})}
           />
         </>
       )}
@@ -1804,7 +1913,7 @@ function getAiSuggestions(opts:{hour:number;todaySpend:number;budget:number;mont
   return s.slice(0, 4);
 }
 
-function DashboardPanel({ guest, gk, setSection }: { guest: GuestIdentity; gk:(s:string)=>string; setSection:(s:Section)=>void }) {
+function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdentity; gk:(s:string)=>string; setSection:(s:Section)=>void; userLoc?: UserLocation|null }) {
   const [expenses]  = useLocalStore<Expense[]>(gk("expenses"), []);
   const [contacts]  = useLocalStore<Contact[]>(gk("contacts"), []);
   const [ideas]     = useLocalStore<Idea[]>(gk("ideas"), []);
@@ -1814,10 +1923,32 @@ function DashboardPanel({ guest, gk, setSection }: { guest: GuestIdentity; gk:(s
   const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0 });
   const [showDelivery, setShowDelivery] = useState(false);
   const [dlv, setDlv] = useState({ pickup:"", dropoff:"", intermediate:"", notes:"", phone:"" });
+  const [interests,   setInterests]   = useLocalStore<string[]>(gk("interests"), []);
+  const [interestAI,  setInterestAI]  = useState<Record<string,any[]>>({});
+  const [interestLoad,setInterestLoad]= useState<string|null>(null);
 
   useEffect(() => {
     fetch("/v1/public/stats").then(r => r.json()).then(d => { if (d.success) setPlatform(d.data); }).catch(() => {});
   }, []);
+
+  const toggleInterest = async (key: string, apiId: string) => {
+    const adding = !interests.includes(key);
+    setInterests(prev => adding ? [...prev, key] : prev.filter(k=>k!==key));
+    if (adding) {
+      setInterestLoad(key);
+      try {
+        const lat = userLoc?.lat ?? 0;
+        const lon = userLoc?.lon ?? 0;
+        const p = new URLSearchParams({ category:apiId, ai:"true", q:`${apiId} near me`, lat:String(lat), lng:String(lon), radius:"5" });
+        const d = await fetch(`/v1/public/quicksearch?${p}`).then(r=>r.json());
+        if (d.success) {
+          const items:any[] = d.data?.[apiId] || Object.values(d.data||{})[0] || [];
+          setInterestAI(prev=>({...prev,[key]:items}));
+        }
+      } catch {}
+      setInterestLoad(null);
+    }
+  };
 
   const today = new Date().toISOString().slice(0, 10);
   const month = today.slice(0, 7);
@@ -2091,6 +2222,71 @@ function DashboardPanel({ guest, gk, setSection }: { guest: GuestIdentity; gk:(s
               ))}
         </div>
       </div>
+
+      {/* ── My Interests ── */}
+      {(() => {
+        const ALL_INTERESTS = [
+          { id:"restaurant", label:"Restaurants", emoji:"🍽" },
+          { id:"hotel",      label:"Hotels",      emoji:"🏨" },
+          { id:"hospital",   label:"Health",      emoji:"🏥" },
+          { id:"school",     label:"Schools",     emoji:"🏫" },
+          { id:"bank",       label:"Banking",     emoji:"🏦" },
+          { id:"fuel",       label:"Petrol",      emoji:"⛽" },
+          { id:"pharmacy",   label:"Pharmacy",    emoji:"💊" },
+          { id:"jobs",       label:"Jobs",        emoji:"💼", action:()=>setSection("jobs") },
+          { id:"services",   label:"Services",    emoji:"🔧", action:()=>setSection("services") },
+        ];
+        return (
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Heart size={14} className="text-orange-400"/>
+                <h2 className="font-bold text-gray-900 text-sm">My Interests</h2>
+              </div>
+              <button onClick={()=>setSection("interests")} className="text-orange-500 text-xs font-medium hover:underline">Manage →</button>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">Check an interest to get AI-powered nearby results instantly.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+              {ALL_INTERESTS.map(it=>{
+                const key = it.id;
+                return (
+                <label key={key} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                  interests.includes(key) ? "border-orange-300 bg-orange-50" : "border-gray-100 hover:border-gray-200"
+                }`}>
+                  <input type="checkbox" className="accent-orange-500 w-3.5 h-3.5 shrink-0"
+                    checked={interests.includes(key)}
+                    onChange={()=>{ if (it.action) { it.action(); return; } toggleInterest(key, it.id); }}/>
+                  <span className="text-base leading-none">{it.emoji}</span>
+                  <span className="text-xs font-medium text-gray-700 truncate">{it.label}</span>
+                  {interestLoad===key && <Loader2 size={10} className="animate-spin text-orange-400 ml-auto shrink-0"/>}
+                </label>
+                );
+              })}
+            </div>
+            {interests.length > 0 && Object.keys(interestAI).length > 0 && (
+              <div className="space-y-3">
+                {interests.filter(k=>interestAI[k]?.length).map(k=>{
+                  const it = ALL_INTERESTS.find(i=>i.id===k);
+                  return (
+                    <div key={k}>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{it?.emoji} {it?.label} Nearby</p>
+                      <div className="space-y-1.5">
+                        {(interestAI[k]||[]).slice(0,4).map((r:any,i:number)=>(
+                          <div key={i} className="flex items-center gap-2 text-xs text-gray-700 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                            <MapPin size={10} className="text-orange-400 shrink-0"/>
+                            <span className="truncate font-medium">{r.name}</span>
+                            {r.dist_km && <span className="ml-auto text-gray-400 shrink-0">{r.dist_km}km</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
