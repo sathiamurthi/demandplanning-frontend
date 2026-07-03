@@ -808,6 +808,21 @@ const INTEREST_PLATFORMS: Record<string, Array<{name:string, emoji:string, url:(
 };
 
 // ── InterestDetailModal ───────────────────────────────────────
+const INTEREST_AI_QUERY: Record<string,string> = {
+  restaurant:  "best restaurants, cafes and food places",
+  hotel:       "hotels, guest houses and accommodations",
+  hospital:    "hospitals, clinics and medical centers",
+  pharmacy:    "pharmacies, medical shops and drug stores",
+  school:      "schools, colleges and educational institutions",
+  bank:        "banks and ATM locations",
+  fuel:        "petrol stations and fuel pumps",
+  supermarket: "supermarkets, grocery stores and shopping malls",
+  temple:      "temples, churches and places of worship",
+  park:        "parks, gardens and recreational areas",
+  jobs:        "jobs, hiring companies and recruitment offices",
+  services:    "plumbers, electricians and home repair services",
+};
+
 const OSM_INTEREST_QUERY: Partial<Record<string,(lat:number,lon:number)=>string|null>> = {
   restaurant: (la,lo)=>`(node["amenity"="restaurant"](around:5000,${la},${lo});node["amenity"="cafe"](around:5000,${la},${lo});node["amenity"="fast_food"](around:4000,${la},${lo});)`,
   hotel:      (la,lo)=>`(node["tourism"="hotel"](around:10000,${la},${lo});node["tourism"="guest_house"](around:10000,${la},${lo});node["tourism"="hostel"](around:8000,${la},${lo});)`,
@@ -852,17 +867,18 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
     const lat = userLoc?.lat ?? 0;
     const lon = userLoc?.lon ?? 0;
 
-    // ── AI search (runs even without location; backend handles fallback) ──
-    const p = new URLSearchParams({ category:interestId, ai:"true", q:`best ${interestId} near me`, lat:String(lat), lng:String(lon), radius:"10" });
-    fetch(`/v1/public/quicksearch?${p}`)
+    // ── AI search via /api/aisearch (Gemini) ─────────────────────
+    const aiQuery = INTEREST_AI_QUERY[interestId] || `${interestId} near me`;
+    fetch('/api/aisearch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng: lon, q: aiQuery }),
+    })
       .then(r=>r.json())
       .then(d=>{
-        if (d.success) {
-          const raw:any[] = d.data?.[interestId]
-            ?? d.data?.results
-            ?? (Array.isArray(d.data) ? d.data : null)
-            ?? Object.values(d.data||{})[0]
-            ?? [];
+        if (d.success && d.data) {
+          // flatten all categories into one list
+          const raw:any[] = Object.values(d.data as Record<string,any[]>).flat();
           setAiResults(raw.map(({phone:_p, contact:_c, mobile:_m, tel:_t, ...rest}:any)=>({...rest, source:"ai"})));
         }
       })
