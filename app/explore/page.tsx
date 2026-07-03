@@ -3379,13 +3379,19 @@ function NearbyPanel({ userLoc, captureLocation, locLoading, gk }: {
   };
 
   const runOsmQuery = async (osmBody:string, lat:number, lon:number):Promise<PlacePOI[]> => {
-    const r = await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:`[out:json][timeout:20];${osmBody};out body 60;`});
+    const query = `[out:json][timeout:25];${osmBody};out center 60;`;
+    const body = `data=${encodeURIComponent(query)}`;
+    const r = await fetch('/api/overpass', {
+      method: 'POST', body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(28000),
+    });
     const d = await r.json();
     return (d.elements||[]).filter((el:any)=>el.tags?.name).map((el:any):PlacePOI=>({
-      id:String(el.id), name:el.tags.name,
-      kind:el.tags.tourism||el.tags.amenity||el.tags.historic||el.tags.leisure||"business",
-      lat:el.lat||0, lon:el.lon||0,
-      dist:haversine(lat,lon,el.lat||0,el.lon||0),
+      id: String(el.id), name: el.tags.name,
+      kind: el.tags.tourism||el.tags.amenity||el.tags.historic||el.tags.leisure||"business",
+      lat: el.lat??el.center?.lat??0, lon: el.lon??el.center?.lon??0,
+      dist: haversine(lat, lon, el.lat??el.center?.lat??0, el.lon??el.center?.lon??0),
     })).sort((a:PlacePOI,b:PlacePOI)=>a.dist-b.dist);
   };
 

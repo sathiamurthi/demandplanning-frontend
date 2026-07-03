@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         body,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        signal: AbortSignal.timeout(18000),
+        signal: AbortSignal.timeout(25000),
       });
       if (!resp.ok) continue;
       const data = await resp.text();
