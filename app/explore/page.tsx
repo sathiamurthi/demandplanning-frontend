@@ -32,6 +32,39 @@ interface TripItem  { id:string; destination:string; fromDate:string; toDate:str
 interface Listing   { id:string; type:string; mode?:string; name:string; phone:string; city:string|null; state:string|null; address:string|null; description:string|null; rate_info:string|null; discount:string|null; services:any[]; available_now:boolean; lat?:number; lon?:number; dist?:number; }
 interface PlacePOI  { id:string; name:string; kind:string; lat:number; lon:number; dist:number; description?:string; tip?:string; }
 interface UserLocation { lat:number; lon:number; city:string; state:string; country:string; accuracy:number; }
+
+// ── Location persistence helpers ──────────────────────────────
+const LOC_KEY = 'dg.userLoc';
+const LOC_TTL = 30 * 60 * 1000; // 30 minutes
+
+function saveLocStorage(loc: UserLocation) {
+  try { localStorage.setItem(LOC_KEY, JSON.stringify({ ...loc, ts: Date.now() })); } catch {}
+}
+
+function loadLocStorage(): UserLocation | null {
+  try {
+    const raw = localStorage.getItem(LOC_KEY);
+    if (!raw) return null;
+    const { ts, ...loc } = JSON.parse(raw);
+    if (Date.now() - ts > LOC_TTL) { localStorage.removeItem(LOC_KEY); return null; }
+    return loc as UserLocation;
+  } catch { return null; }
+}
+
+// Nominatim address → most specific local area name
+// Garudachar Palya is in address.suburb; Ramamurthy Nagar is in address.suburb too
+function nominatimCity(addr: any): string {
+  return addr?.suburb
+    || addr?.neighbourhood
+    || addr?.quarter
+    || addr?.residential
+    || addr?.city_district
+    || addr?.city
+    || addr?.town
+    || addr?.village
+    || addr?.county
+    || '';
+}
 interface SearchHistory { id:string; query:string; type:string; city:string; results:number; ts:string; }
 
 function logLeadInApp(seeker: string, vendor: string, cat: string, action: string, status: string) {
@@ -1008,18 +1041,35 @@ export default function DemandGeniusApp() {
       const daysSince = Math.round((Date.now() - new Date(g.createdAt).getTime()) / 86400000);
       if (daysSince >= 30) setTimeout(() => setShow30DayGate(true), 3000);
     }
-    // Auto-detect location silently
+    // ── Location: restore cached first, then silently refresh ───
     const gId = g?.id;
+    const cached = loadLocStorage();
+    if (cached) setUserLoc(cached);  // instant — no flicker on reload
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async pos => {
-        const {latitude:lat, longitude:lon, accuracy} = pos.coords;
+        const { latitude:lat, longitude:lon, accuracy } = pos.coords;
         if (gId) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: gId, lat, lng: lon, accuracy }) }).catch(()=>{});
         try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`);
           const geo = await r.json();
-          setUserLoc({ lat, lon, accuracy, city:geo.address?.city||geo.address?.town||geo.address?.village||"", state:geo.address?.state||"", country:geo.address?.country||"" });
-        } catch { setUserLoc({ lat, lon, accuracy, city:"", state:"", country:"" }); }
-      }, ()=>{}, { timeout:10000, enableHighAccuracy:false });
+          const newLoc: UserLocation = {
+            lat, lon, accuracy,
+            city:    nominatimCity(geo.address),
+            state:   geo.address?.state   || "",
+            country: geo.address?.country || "",
+          };
+          setUserLoc(newLoc);
+          saveLocStorage(newLoc);  // persist so next reload is instant
+        } catch {
+          // Keep cached if geocoding fails
+          if (!cached) setUserLoc({ lat, lon, accuracy, city: "", state: "", country: "" });
+        }
+      }, () => {}, {
+        timeout: 20000,
+        enableHighAccuracy: true,   // GPS, not WiFi triangulation
+        maximumAge: 5 * 60 * 1000, // accept a cached GPS fix up to 5 min old
+      });
     }
   }, []);
 
@@ -1045,64 +1095,65 @@ export default function DemandGeniusApp() {
 
   const captureLocation = () => {
     setLocLoading(true);
+
+    // ── No geolocation API → IP fallback ─────────────────────
     if (!navigator.geolocation) {
-      // Direct IP fallback if geolocation API is completely missing
       fetch("https://ipapi.co/json/")
         .then(r => r.json())
         .then(ipGeo => {
           if (ipGeo.latitude && ipGeo.longitude) {
-            setUserLoc({
-              lat: ipGeo.latitude,
-              lon: ipGeo.longitude,
-              accuracy: 5000,
-              city: ipGeo.city || "",
-              state: ipGeo.region || "",
-              country: ipGeo.country_name || ""
-            });
+            const loc: UserLocation = { lat: ipGeo.latitude, lon: ipGeo.longitude, accuracy: 5000, city: ipGeo.city || "", state: ipGeo.region || "", country: ipGeo.country_name || "" };
+            setUserLoc(loc);
+            saveLocStorage(loc);
             if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat: ipGeo.latitude, lng: ipGeo.longitude, accuracy: 5000 }) }).catch(()=>{});
           }
         })
-        .catch(() => {
-          // Delhi fallback
-          setUserLoc({ lat: 28.6139, lon: 77.2090, accuracy: 10000, city: "Delhi", state: "Delhi", country: "India" });
-        })
+        .catch(() => {})
         .finally(() => setLocLoading(false));
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const {latitude:lat, longitude:lon, accuracy} = pos.coords;
+    // ── Helper: process a GPS fix ─────────────────────────────
+    const processPosition = async (pos: GeolocationPosition) => {
+      const { latitude:lat, longitude:lon, accuracy } = pos.coords;
       if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat, lng: lon, accuracy }) }).catch(()=>{});
       try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`);
         const geo = await r.json();
-        setUserLoc({ lat, lon, accuracy, city:geo.address?.city||geo.address?.town||geo.address?.village||"", state:geo.address?.state||"", country:geo.address?.country||"" });
-      } catch { setUserLoc({ lat, lon, accuracy, city:"", state:"", country:"" }); }
-      setLocLoading(false);
-    }, async () => {
-      // Geolocation permission denied or timeout - trigger IP fallback
-      try {
-        const r = await fetch("https://ipapi.co/json/");
-        const ipGeo = await r.json();
-        if (ipGeo.latitude && ipGeo.longitude) {
-          setUserLoc({
-            lat: ipGeo.latitude,
-            lon: ipGeo.longitude,
-            accuracy: 5000,
-            city: ipGeo.city || "",
-            state: ipGeo.region || "",
-            country: ipGeo.country_name || ""
-          });
-          if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat: ipGeo.latitude, lng: ipGeo.longitude, accuracy: 5000 }) }).catch(()=>{});
-        } else {
-          throw new Error("No lat/lon returned");
-        }
+        const loc: UserLocation = {
+          lat, lon, accuracy,
+          city:    nominatimCity(geo.address),
+          state:   geo.address?.state   || "",
+          country: geo.address?.country || "",
+        };
+        setUserLoc(loc);
+        saveLocStorage(loc);  // persist — survives page reload
       } catch {
-        // Delhi default fallback
-        setUserLoc({ lat: 28.6139, lon: 77.2090, accuracy: 10000, city: "Delhi", state: "Delhi", country: "India" });
+        const loc: UserLocation = { lat, lon, accuracy, city: "", state: "", country: "" };
+        setUserLoc(loc);
+        saveLocStorage(loc);
       }
       setLocLoading(false);
-    }, {timeout:8000, enableHighAccuracy:false});
+    };
+
+    // ── Stage 1: High-accuracy GPS (20s timeout) ──────────────
+    navigator.geolocation.getCurrentPosition(processPosition, () => {
+      // GPS timed out or failed → Stage 2: network-based (faster, less accurate)
+      navigator.geolocation.getCurrentPosition(processPosition, async () => {
+        // Both GPS modes failed → IP-based fallback
+        try {
+          const r = await fetch("https://ipapi.co/json/");
+          const ipGeo = await r.json();
+          if (ipGeo.latitude && ipGeo.longitude) {
+            const loc: UserLocation = { lat: ipGeo.latitude, lon: ipGeo.longitude, accuracy: 5000, city: ipGeo.city || "", state: ipGeo.region || "", country: ipGeo.country_name || "" };
+            setUserLoc(loc);
+            saveLocStorage(loc);
+            if (guest?.id) fetch("/v1/public/location", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ guest_id: guest.id, lat: ipGeo.latitude, lng: ipGeo.longitude, accuracy: 5000 }) }).catch(()=>{});
+          }
+        } catch {}
+        setLocLoading(false);
+      }, { timeout: 10000, enableHighAccuracy: false });
+    }, { timeout: 20000, enableHighAccuracy: true, maximumAge: 0 });
   };
 
   const gk = (ns: string) => guest ? guestKey(guest.id, ns) : `nexus.anon.${ns}`;
