@@ -837,33 +837,46 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
 }) {
   const [aiResults,  setAiResults]  = useState<any[]>([]);
   const [osmResults, setOsmResults] = useState<any[]>([]);
-  const [aiLoading,  setAiLoading]  = useState(false);
+  // start aiLoading=true so we never flash "No results" before the first fetch
+  const [aiLoading,  setAiLoading]  = useState(true);
   const [osmLoading, setOsmLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+
+  const hasLoc = !!(userLoc?.lat && userLoc?.lon);
 
   useEffect(() => {
     if (!interestId) return;
     setAiResults([]); setOsmResults([]); setVisibleCount(10);
-    const lat = userLoc?.lat ?? 0; const lon = userLoc?.lon ?? 0;
+    setAiLoading(true); setOsmLoading(false);
 
-    // ── AI search ────────────────────────────────────────────────
-    setAiLoading(true);
+    const lat = userLoc?.lat ?? 0;
+    const lon = userLoc?.lon ?? 0;
+
+    // ── AI search (runs even without location; backend handles fallback) ──
     const p = new URLSearchParams({ category:interestId, ai:"true", q:`best ${interestId} near me`, lat:String(lat), lng:String(lon), radius:"10" });
-    fetch(`/v1/public/quicksearch?${p}`).then(r=>r.json()).then(d=>{
-      if (d.success) {
-        const raw:any[] = d.data?.[interestId] || Object.values(d.data||{})[0] || [];
-        // strip phone numbers from AI results
-        setAiResults(raw.map(({phone:_p, contact:_c, ...rest})=>({...rest, source:"ai"})));
-      }
-    }).catch(()=>{}).finally(()=>setAiLoading(false));
+    fetch(`/v1/public/quicksearch?${p}`)
+      .then(r=>r.json())
+      .then(d=>{
+        if (d.success) {
+          const raw:any[] = d.data?.[interestId]
+            ?? d.data?.results
+            ?? (Array.isArray(d.data) ? d.data : null)
+            ?? Object.values(d.data||{})[0]
+            ?? [];
+          setAiResults(raw.map(({phone:_p, contact:_c, mobile:_m, tel:_t, ...rest}:any)=>({...rest, source:"ai"})));
+        }
+      })
+      .catch(()=>{})
+      .finally(()=>setAiLoading(false));
 
-    // ── OSM search via proxy ──────────────────────────────────────
-    const osmQ = lat && lon ? (OSM_INTEREST_QUERY[interestId]?.(lat, lon) ?? null) : null;
+    // ── OSM search (only when we have a real location) ────────────
+    const osmQ = hasLoc ? (OSM_INTEREST_QUERY[interestId]?.(lat, lon) ?? null) : null;
     if (osmQ) {
       setOsmLoading(true);
       const body = `data=${encodeURIComponent(`[out:json][timeout:25];${osmQ};out center 50;`)}`;
       fetch('/api/overpass',{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:AbortSignal.timeout(28000)})
-        .then(r=>r.json()).then(d=>{
+        .then(r=>r.json())
+        .then(d=>{
           const els = (d.elements||[]).filter((el:any)=>el.tags?.name);
           const pois = els.map((el:any)=>{
             const elLat=el.lat??el.center?.lat??0; const elLon=el.lon??el.center?.lon??0;
@@ -876,7 +889,9 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
             };
           }).sort((a:any,b:any)=>(a.dist_km??99)-(b.dist_km??99));
           setOsmResults(pois);
-        }).catch(()=>{}).finally(()=>setOsmLoading(false));
+        })
+        .catch(()=>{})
+        .finally(()=>setOsmLoading(false));
     }
   }, [interestId, userLoc?.lat, userLoc?.lon]);
 
@@ -944,8 +959,17 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
             {!loading && merged.length === 0 ? (
               <div className="text-center py-10 text-gray-400">
                 <span className="text-4xl block mb-3">{it.emoji}</span>
-                <p className="text-sm font-medium">No results found nearby.</p>
-                <p className="text-xs mt-1">Try the platform links above.</p>
+                {!hasLoc ? (
+                  <>
+                    <p className="text-sm font-medium text-orange-500">Location not detected</p>
+                    <p className="text-xs mt-1">Tap the location icon in the header to enable it, then reopen this.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium">No results found nearby.</p>
+                    <p className="text-xs mt-1">Try the platform links above.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
