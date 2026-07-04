@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const info = await transporter.sendMail({
       from: `"${SMTP_FROM_NAME}" <${SMTP_FROM}>`,
       to: toName ? `"${toName}" <${to}>` : to,
+      cc: SMTP_FROM,
       subject,
       text,
     });
