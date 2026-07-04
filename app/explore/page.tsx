@@ -8405,28 +8405,41 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     return encodeURIComponent(`*Service Inquiry - ${inq.inqId}*\n\nCustomer looking for *${svc.label}* in *${inq.city}*\n${svc.d1}: ${inq.checkIn}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ""}\n${svc.gLabel}: ${inq.guests}${inq.budget ? `\nBudget: Rs.${inq.budget}${svc.bUnit}` : ""}${inq.requirements ? `\nNote: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
   };
 
-  const sendViaEmail = (inq: InquiryRecord) => {
+  const sendViaEmail = async (inq: InquiryRecord) => {
     const { name, email } = addHotelForm;
     if (!name.trim() || !email.trim()) { showToast("Enter vendor name and email first"); return; }
-    const svc = inqSvc(inq);
-    const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
-    const subject = encodeURIComponent(`Service Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`);
-    // Use inqId-based placeholder token — backend saves real token in background
-    const placeholderToken = `${inq.inqId}-pending`;
-    const body = encodeURIComponent(
-      `Dear ${name},\n\nA customer needs ${svc.label} in ${inq.city}.\n\n` +
-      `--- REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n` +
-      `${svc.d1}  : ${inq.checkIn}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ""}\n` +
-      `${svc.gLabel} : ${inq.guests}${inq.budget ? `\nBudget : Rs.${inq.budget}${svc.bUnit}` : ""}` +
-      `${inq.requirements ? `\nNote : ${inq.requirements}` : ""}\n\n` +
-      `Please reply to this email to confirm your availability.\n\nRegards,\nDemandGenius`
-    );
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
-    setAddHotelForm({ name: "", email: "", phone: "" });
-    showToast(`Email opened for ${name}!`);
-    // Save to backend in background — don't block sending, suppress toast on failure
-    createOutreach(inq, name, email, "", true).catch(() => {});
-    logLeadInApp(guest?.name || "Guest", name, "Outreach", `Email: ${inq.inqId}`, "Sent");
+    setSendingOutreach(true);
+    try {
+      const svc = inqSvc(inq);
+      const subject = `Service Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`;
+      const text =
+        `Dear ${name},\n\nA customer needs ${svc.label} in ${inq.city}.\n\n` +
+        `--- REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n` +
+        `${svc.d1}  : ${inq.checkIn || ''}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ''}\n` +
+        `${svc.gLabel} : ${inq.guests || ''}${inq.budget ? `\nBudget : Rs.${inq.budget}${svc.bUnit || ''}` : ''}` +
+        `${inq.requirements ? `\nNote : ${inq.requirements}` : ''}\n\n` +
+        `Please reply to this email to confirm your availability.\n\nRegards,\nDemandGenius`;
+
+      const resp = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: email, toName: name, subject, text }),
+      });
+      const data = await resp.json();
+
+      if (data.success) {
+        showToast(`✓ Email sent to ${name}!`);
+        createOutreach(inq, name, email, "", true).catch(() => {});
+      } else {
+        showToast(`Failed: ${data.error || 'unknown error'}`);
+      }
+    } catch (e: any) {
+      showToast(`Error: ${e?.message || 'network error'}`);
+    } finally {
+      setSendingOutreach(false);
+      setAddHotelForm({ name: "", email: "", phone: "" });
+      logLeadInApp(guest?.name || "Guest", name, "Outreach", `Email: ${inq.inqId}`, "Sent");
+    }
   };
 
   const sendViaWA = async (inq: InquiryRecord) => {
