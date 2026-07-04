@@ -2360,6 +2360,95 @@ function getAiSuggestions(opts:{hour:number;todaySpend:number;budget:number;mont
   return s.slice(0, 4);
 }
 
+// ── ListingsPopup (shared for Seekers & Providers) ────────────
+function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: () => void }) {
+  const [items, setItems]   = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]     = useState(1);
+  const [total, setTotal]   = useState(0);
+  const PER_PAGE = 20;
+
+  useEffect(() => {
+    setLoading(true);
+    const p = new URLSearchParams({ limit: String(PER_PAGE), page: String(page), mode });
+    fetch(`/v1/public/listings?${p}`).then(r=>r.json()).then(d=>{
+      if (d.success) { setItems(d.data||[]); setTotal(d.meta?.total||0); }
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  }, [mode, page]);
+
+  const isSeeker = mode === "seeker";
+  const title    = isSeeker ? "Seekers" : "Providers";
+  const emoji    = isSeeker ? "🔍" : "🛠";
+  const pages    = Math.ceil(total / PER_PAGE);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{emoji}</span>
+            <div>
+              <h2 className="font-black text-gray-900 text-lg leading-tight">{title}</h2>
+              <p className="text-xs text-gray-400">{total} {isSeeker ? "people looking for services" : "service providers"} on platform</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
+        </div>
+
+        {/* List */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-2">
+          {loading ? (
+            [0,1,2,3,4].map(i=>(
+              <div key={i} className="flex gap-3 border border-gray-100 rounded-xl p-3 animate-pulse">
+                <div className="w-10 h-10 bg-gray-100 rounded-xl shrink-0"/>
+                <div className="flex-1 space-y-2"><div className="h-3 bg-gray-100 rounded-full w-2/3"/><div className="h-2.5 bg-gray-100 rounded-full w-1/2"/></div>
+              </div>
+            ))
+          ) : items.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <span className="text-4xl block mb-2">{emoji}</span>
+              <p className="text-sm">No {title.toLowerCase()} found.</p>
+            </div>
+          ) : items.map((l:any, i:number) => (
+            <div key={l.id||i} className="flex items-start gap-3 border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 rounded-xl px-3.5 py-3 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 text-lg">
+                {isSeeker ? "🔍" : "🛠"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-800 truncate">{l.name||"Anonymous"}</p>
+                <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                  {l.type && <span className="text-[10px] bg-gray-100 text-gray-500 font-semibold px-1.5 py-0.5 rounded-full capitalize">{l.type}</span>}
+                  {l.city && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={8}/>{l.city}</span>}
+                  {l.available_now && <span className="text-[10px] text-green-600 font-semibold bg-green-50 px-1.5 py-0.5 rounded-full">● Available</span>}
+                </div>
+                {l.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{l.description}</p>}
+                {l.rate_info && l.rate_info !== "Varies" && <p className="text-xs text-orange-600 font-semibold mt-0.5">{l.rate_info}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {pages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 shrink-0">
+            <button disabled={page<=1} onClick={()=>setPage(p=>p-1)}
+              className="text-xs font-bold text-gray-500 disabled:opacity-30 hover:text-orange-600 px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-all">
+              ← Prev
+            </button>
+            <span className="text-xs text-gray-400">Page {page} of {pages} · {total} total</span>
+            <button disabled={page>=pages} onClick={()=>setPage(p=>p+1)}
+              className="text-xs font-bold text-gray-500 disabled:opacity-30 hover:text-orange-600 px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-all">
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdentity; gk:(s:string)=>string; setSection:(s:Section)=>void; userLoc?: UserLocation|null }) {
   const [expenses]  = useLocalStore<Expense[]>(gk("expenses"), []);
   const [contacts]  = useLocalStore<Contact[]>(gk("contacts"), []);
@@ -2367,7 +2456,11 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
   const [reminders] = useLocalStore<Reminder[]>(gk("reminders"), []);
   const [trips]     = useLocalStore<TripItem[]>(gk("trips"), []);
   const [budget]    = useLocalStore<number>(gk("budget"), 15000);
-  const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0, users: 0 });
+  const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0, users: 0, contributors: 0 });
+  const [seekerCount,   setSeekerCount]   = useState(0);
+  const [providerCount, setProviderCount] = useState(0);
+  const [showSeekers,   setShowSeekers]   = useState(false);
+  const [showProviders, setShowProviders] = useState(false);
   const [showDelivery, setShowDelivery] = useState(false);
   const [dlv, setDlv] = useState({ pickup:"", dropoff:"", intermediate:"", notes:"", phone:"" });
   const [interests,   setInterests]   = useLocalStore<string[]>(gk("interests"), []);
@@ -2376,6 +2469,8 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
 
   useEffect(() => {
     fetch("/v1/public/stats").then(r => r.json()).then(d => { if (d.success) setPlatform(d.data); }).catch(() => {});
+    fetch("/v1/public/listings?limit=1&mode=seeker").then(r=>r.json()).then(d=>{ if(d.success) setSeekerCount(d.meta?.total||0); }).catch(()=>{});
+    fetch("/v1/public/listings?limit=1&mode=provider").then(r=>r.json()).then(d=>{ if(d.success) setProviderCount(d.meta?.total||0); }).catch(()=>{});
   }, []);
 
   const toggleInterest = async (key: string, apiId: string) => {
@@ -2518,6 +2613,10 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
         </div>
       )}
 
+      {/* Seekers / Providers popups */}
+      {showSeekers   && <ListingsPopup mode="seeker"   onClose={()=>setShowSeekers(false)}/>}
+      {showProviders && <ListingsPopup mode="provider" onClose={()=>setShowProviders(false)}/>}
+
       {/* Platform stats banner */}
       {platform.stores > 0 && (
         <div className="bg-orange-500 rounded-2xl p-4 flex items-center gap-4 cursor-pointer" onClick={() => setSection("search")}>
@@ -2525,7 +2624,18 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
             <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Businesses</p><p className="text-white font-black text-xl">{platform.tenants}</p></div>
             <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Stores</p><p className="text-white font-black text-xl">{platform.stores}</p></div>
             <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Products</p><p className="text-white font-black text-xl">{platform.products}+</p></div>
-            <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Active Users</p><p className="text-white font-black text-xl">{platform.users > 0 ? platform.users : "500+"}🟢</p></div>
+            <button onClick={e=>{e.stopPropagation();setShowSeekers(true);}} className="text-left hover:opacity-80 transition-opacity">
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Seekers</p>
+              <p className="text-white font-black text-xl">{seekerCount||"—"}</p>
+            </button>
+            <button onClick={e=>{e.stopPropagation();setShowProviders(true);}} className="text-left hover:opacity-80 transition-opacity">
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Providers</p>
+              <p className="text-white font-black text-xl">{providerCount||"—"}</p>
+            </button>
+            <div title="Verified & committed platform members">
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Contributors ⭐</p>
+              <p className="text-white font-black text-xl">{platform.contributors||0}</p>
+            </div>
           </div>
           <div className="text-white/70 text-xs font-semibold shrink-0">Browse →</div>
         </div>
