@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-const ACCESS_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN    || '';
-const API_VERSION     = process.env.WHATSAPP_API_VERSION     || 'v25.0';
+// Strip BOM (U+FEFF) that PowerShell may inject when piping env var values
+const PHONE_NUMBER_ID = (process.env.WHATSAPP_PHONE_NUMBER_ID || '').replace(/^﻿/, '').trim();
+const ACCESS_TOKEN    = (process.env.WHATSAPP_ACCESS_TOKEN    || '').replace(/^﻿/, '').trim();
+const API_VERSION     = (process.env.WHATSAPP_API_VERSION     || 'v25.0').trim();
 
 export async function POST(req: NextRequest) {
   if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
