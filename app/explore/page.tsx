@@ -2584,35 +2584,12 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
   const [showContributorModal, setShowContributorModal] = useState(false);
   const [isContributor, setIsContributor] = useState(false);
   const [dlv, setDlv] = useState({ pickup:"", dropoff:"", intermediate:"", notes:"", phone:"" });
-  const [interests,   setInterests]   = useLocalStore<string[]>(gk("interests"), []);
-  const [interestAI,  setInterestAI]  = useState<Record<string,any[]>>({});
-  const [interestLoad,setInterestLoad]= useState<string|null>(null);
-
   useEffect(() => {
     setIsContributor(getContributorStatus().paid);
     fetch("/v1/public/stats").then(r => r.json()).then(d => { if (d.success) setPlatform(d.data); }).catch(() => {});
     fetch("/v1/public/listings?limit=1&mode=seeker").then(r=>r.json()).then(d=>{ if(d.success) setSeekerCount(d.meta?.total||0); }).catch(()=>{});
     fetch("/v1/public/listings?limit=1&mode=provider").then(r=>r.json()).then(d=>{ if(d.success) setProviderCount(d.meta?.total||0); }).catch(()=>{});
   }, []);
-
-  const toggleInterest = async (key: string, apiId: string) => {
-    const adding = !interests.includes(key);
-    setInterests(prev => adding ? [...prev, key] : prev.filter(k=>k!==key));
-    if (adding) {
-      setInterestLoad(key);
-      try {
-        const lat = userLoc?.lat ?? 0;
-        const lon = userLoc?.lon ?? 0;
-        const p = new URLSearchParams({ category:apiId, ai:"true", q:`${apiId} near me`, lat:String(lat), lng:String(lon), radius:"5" });
-        const d = await fetch(`/v1/public/quicksearch?${p}`).then(r=>r.json());
-        if (d.success) {
-          const items:any[] = d.data?.[apiId] || Object.values(d.data||{})[0] || [];
-          setInterestAI(prev=>({...prev,[key]:items}));
-        }
-      } catch {}
-      setInterestLoad(null);
-    }
-  };
 
   const today = new Date().toISOString().slice(0, 10);
   const month = today.slice(0, 7);
@@ -2912,70 +2889,6 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
         </div>
       </div>
 
-      {/* ── My Interests ── */}
-      {(() => {
-        const ALL_INTERESTS = [
-          { id:"restaurant", label:"Restaurants", emoji:"🍽" },
-          { id:"hotel",      label:"Hotels",      emoji:"🏨" },
-          { id:"hospital",   label:"Health",      emoji:"🏥" },
-          { id:"school",     label:"Schools",     emoji:"🏫" },
-          { id:"bank",       label:"Banking",     emoji:"🏦" },
-          { id:"fuel",       label:"Petrol",      emoji:"⛽" },
-          { id:"pharmacy",   label:"Pharmacy",    emoji:"💊" },
-          { id:"jobs",       label:"Jobs",        emoji:"💼", action:()=>setSection("jobs") },
-          { id:"services",   label:"Services",    emoji:"🔧", action:()=>setSection("services") },
-        ];
-        return (
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Heart size={14} className="text-orange-400"/>
-                <h2 className="font-bold text-gray-900 text-sm">My Interests</h2>
-              </div>
-              <button onClick={()=>setSection("interests")} className="text-orange-500 text-xs font-medium hover:underline">Manage →</button>
-            </div>
-            <p className="text-xs text-gray-400 mb-3">Check an interest to get AI-powered nearby results instantly.</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-              {ALL_INTERESTS.map(it=>{
-                const key = it.id;
-                return (
-                <label key={key} className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                  interests.includes(key) ? "border-orange-300 bg-orange-50" : "border-gray-100 hover:border-gray-200"
-                }`}>
-                  <input type="checkbox" className="accent-orange-500 w-3.5 h-3.5 shrink-0"
-                    checked={interests.includes(key)}
-                    onChange={()=>{ if (it.action) { it.action(); return; } toggleInterest(key, it.id); }}/>
-                  <span className="text-base leading-none">{it.emoji}</span>
-                  <span className="text-xs font-medium text-gray-700 truncate">{it.label}</span>
-                  {interestLoad===key && <Loader2 size={10} className="animate-spin text-orange-400 ml-auto shrink-0"/>}
-                </label>
-                );
-              })}
-            </div>
-            {interests.length > 0 && Object.keys(interestAI).length > 0 && (
-              <div className="space-y-3">
-                {interests.filter(k=>interestAI[k]?.length).map(k=>{
-                  const it = ALL_INTERESTS.find(i=>i.id===k);
-                  return (
-                    <div key={k}>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{it?.emoji} {it?.label} Nearby</p>
-                      <div className="space-y-1.5">
-                        {(interestAI[k]||[]).slice(0,4).map((r:any,i:number)=>(
-                          <div key={i} className="flex items-center gap-2 text-xs text-gray-700 bg-gray-50 rounded-lg px-2.5 py-1.5">
-                            <MapPin size={10} className="text-orange-400 shrink-0"/>
-                            <span className="truncate font-medium">{r.name}</span>
-                            {r.dist_km && <span className="ml-auto text-gray-400 shrink-0">{r.dist_km}km</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
     </div>
   );
 }
