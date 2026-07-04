@@ -8318,7 +8318,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     try { const r = localStorage.getItem("dplan_hotel_outreaches"); if (r) setOutreachList(JSON.parse(r)); } catch {}
   };
 
-  const createOutreach = async (inq: InquiryRecord, hotelName: string, email: string, phone: string): Promise<HotelOutreach | null> => {
+  const createOutreach = async (inq: InquiryRecord, hotelName: string, email: string, phone: string, silent = false): Promise<HotelOutreach | null> => {
     setSendingOutreach(true);
     try {
       const svc = inqSvc(inq);
@@ -8338,7 +8338,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         }),
       });
       const data = await resp.json();
-      if (!data.success) { showToast("Failed to create outreach"); return null; }
+      if (!data.success) { if (!silent) showToast("Failed to create outreach"); return null; }
       const outreach: HotelOutreach = {
         id: data.data.id, token: data.data.token,
         inquiryId: inq.inqId, hotelName, city: inq.city,
@@ -8351,7 +8351,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         return updated;
       });
       return outreach;
-    } catch { showToast("Network error — check connection"); return null; }
+    } catch { if (!silent) showToast("Network error — check connection"); return null; }
     finally { setSendingOutreach(false); }
   };
 
@@ -8424,8 +8424,8 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     window.open(`mailto:${email}?subject=${subject}&body=${body}`);
     setAddHotelForm({ name: "", email: "", phone: "" });
     showToast(`Email opened for ${name}!`);
-    // Save to backend in background — don't block sending
-    createOutreach(inq, name, email, "").catch(() => {});
+    // Save to backend in background — don't block sending, suppress toast on failure
+    createOutreach(inq, name, email, "", true).catch(() => {});
     logLeadInApp(guest?.name || "Guest", name, "Outreach", `Email: ${inq.inqId}`, "Sent");
   };
 
@@ -8446,8 +8446,8 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     window.open(`https://wa.me/${waNum}?text=${msg}`);
     setAddHotelForm({ name: "", email: "", phone: "" });
     showToast(`WhatsApp opened for ${name}!`);
-    // Save to backend in background — don't block sending
-    createOutreach(inq, name, "", phone).catch(() => {});
+    // Save to backend in background — don't block sending, suppress toast on failure
+    createOutreach(inq, name, "", phone, true).catch(() => {});
     logLeadInApp(guest?.name || "Guest", name, "Outreach", `WhatsApp: ${inq.inqId}`, "Sent");
   };
 
