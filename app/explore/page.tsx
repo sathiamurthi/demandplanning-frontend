@@ -8432,62 +8432,56 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const sendViaWA = async (inq: InquiryRecord) => {
     const { name, phone } = addHotelForm;
     if (!name.trim() || !phone.trim()) { showToast("Enter vendor name and WhatsApp number first"); return; }
-    // Pre-open blank window synchronously so popup blocker won't fire on URL fallback
+    const svc = inqSvc(inq);
+    // Pre-open blank window (sync) so popup blocker won't fire on URL fallback
     const fallbackWin = window.open('about:blank', '_blank');
     setSendingOutreach(true);
     try {
-      const svc = inqSvc(inq);
-      const resp = await fetch("/v1/public/hotel-response/outreach", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inquiry_id: inq.inqId, hotel_name: name, hotel_phone: phone, city: inq.city,
-          inquiry_snapshot: {
-            inqId: inq.inqId, serviceType: svc.label, city: inq.city,
-            checkIn: inq.checkIn, checkOut: inq.checkOut, guests: inq.guests,
-            guestLabel: svc.gLabel, roomType: inq.roomType, budget: inq.budget,
-            budgetUnit: svc.bUnit, requirements: inq.requirements,
-          },
-        }),
+      // Build the full message with inquiry details
+      const base = window.location.origin;
+      const message = [
+        `*Service Inquiry — ${inq.inqId}*`,
+        ``,
+        `Hello ${name}, a customer needs *${svc.label}* in *${inq.city}*.`,
+        `📅 ${inq.checkIn || ''}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ''}`,
+        `👥 ${svc.gLabel}: ${inq.guests}`,
+        inq.budget ? `💰 Budget: Rs.${inq.budget}${svc.bUnit}` : '',
+        inq.requirements ? `📝 ${inq.requirements}` : '',
+        ``,
+        `Please reply *YES* to confirm your availability.`,
+        `_DemandGenius — ${base}_`,
+      ].filter(Boolean).join('\n');
+
+      // Try direct API send via Vercel serverless route
+      const waResp = await fetch('/api/send-wa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, message }),
       });
-      const data = await resp.json();
-      if (data.success) {
-        // Add to outreach tracking list
-        const outreach: HotelOutreach = {
-          id: data.data.id, token: data.data.token,
-          inquiryId: inq.inqId, hotelName: name, city: inq.city,
-          hotelPhone: phone, status: "Sent", createdAt: data.data.created_at,
-        };
-        setOutreachList(prev => {
-          const updated = [outreach, ...prev.filter(o => o.id !== outreach.id)];
-          localStorage.setItem("dplan_hotel_outreaches", JSON.stringify(updated));
-          return updated;
-        });
-        if (data.data?.wa_sent) {
-          // Sent directly via Meta API — no browser URL needed
-          fallbackWin?.close();
-          showToast(`✓ WhatsApp message sent directly to ${name}!`);
-        } else {
-          // API not configured — use URL fallback via pre-opened window
-          const digits = phone.replace(/\D/g, "");
-          const waNum  = digits.length === 10 ? `91${digits}` : digits;
-          const url = `https://wa.me/${waNum}?text=${buildWAMsg(inq, data.data.token)}`;
-          if (fallbackWin) { fallbackWin.location.href = url; } else { window.open(url); }
-          showToast(`WhatsApp opened for ${name}`);
-        }
+      const waData = await waResp.json();
+
+      if (waData.success) {
+        // Sent directly — close the pre-opened blank window
+        fallbackWin?.close();
+        showToast(`✓ WhatsApp sent to ${name}!`);
+        // Save outreach record to backend for tracking (background, silent)
+        createOutreach(inq, name, "", phone, true).catch(() => {});
       } else {
-        // Backend failed — URL fallback with inline message (no token)
+        // API not configured/failed — use URL fallback via pre-opened window
         const digits = phone.replace(/\D/g, "");
         const waNum  = digits.length === 10 ? `91${digits}` : digits;
-        const msg = encodeURIComponent(`*${inq.inqId}* — ${svc.label} in ${inq.city}\n${inq.checkIn || ''}${inq.guests ? ` · ${inq.guests} guests` : ''}\nPlease reply YES to confirm.\n_DemandGenius_`);
-        if (fallbackWin) { fallbackWin.location.href = `https://wa.me/${waNum}?text=${msg}`; } else { window.open(`https://wa.me/${waNum}?text=${msg}`); }
+        const encoded = encodeURIComponent(message);
+        if (fallbackWin) { fallbackWin.location.href = `https://wa.me/${waNum}?text=${encoded}`; }
+        else { window.open(`https://wa.me/${waNum}?text=${encoded}`); }
         showToast(`WhatsApp opened for ${name}`);
+        createOutreach(inq, name, "", phone, true).catch(() => {});
       }
     } catch {
       // Network error — URL fallback
       const digits = phone.replace(/\D/g, "");
       const waNum  = digits.length === 10 ? `91${digits}` : digits;
-      if (fallbackWin) { fallbackWin.location.href = `https://wa.me/${waNum}`; } else { window.open(`https://wa.me/${waNum}`); }
+      if (fallbackWin) { fallbackWin.location.href = `https://wa.me/${waNum}`; }
+      else { window.open(`https://wa.me/${waNum}`); }
       showToast(`WhatsApp opened for ${name}`);
     } finally {
       setSendingOutreach(false);
