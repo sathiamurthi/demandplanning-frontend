@@ -8391,45 +8391,95 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     });
   };
 
-  const buildEmailBody = (inq: InquiryRecord, token: string) => {
-    const svc = inqSvc(inq);
-    const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
-    const url = `${base}/hotel-respond?token=${token}`;
-    return encodeURIComponent(`Dear ${svc.label} Team,\n\nA customer is looking for ${svc.label.toLowerCase()} service through DemandGenius.\n\n--- SERVICE REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n${svc.d1}  : ${inq.checkIn}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ""}\n${svc.gLabel} : ${inq.guests}${svc.showRoom && inq.roomType ? `\nRoom Type  : ${inq.roomType}` : ""}\nBudget     : ${inq.budget ? `Rs.${inq.budget}${svc.bUnit}` : "Flexible"}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}${inq.coordinator ? `\nCoordinator: ${inq.coordinator}` : ""}\n\n--- RESPOND TO THIS REQUEST ---\n${url}\n\nClick the link above to Accept, Send Quote, Hold, or Decline.\nYour response reaches the customer immediately.\n\nBest regards,\nDemandGenius Service Agent`);
-  };
-
-  const buildWAMsg = (inq: InquiryRecord, token: string) => {
-    const svc = inqSvc(inq);
-    const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
-    const url = `${base}/hotel-respond?token=${token}`;
-    return encodeURIComponent(`*Service Inquiry - ${inq.inqId}*\n\nCustomer looking for *${svc.label}* in *${inq.city}*\n${svc.d1}: ${inq.checkIn}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ""}\n${svc.gLabel}: ${inq.guests}${inq.budget ? `\nBudget: Rs.${inq.budget}${svc.bUnit}` : ""}${inq.requirements ? `\nNote: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
-  };
-
   const sendViaEmail = async (inq: InquiryRecord) => {
     const { name, email } = addHotelForm;
     if (!name.trim() || !email.trim()) { showToast("Enter vendor name and email first"); return; }
     setSendingOutreach(true);
     try {
       const svc = inqSvc(inq);
-      const subject = `Service Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`;
-      const text =
-        `Dear ${name},\n\nA customer needs ${svc.label} in ${inq.city}.\n\n` +
-        `--- REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n` +
-        `${svc.d1}  : ${inq.checkIn || ''}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ''}\n` +
-        `${svc.gLabel} : ${inq.guests || ''}${inq.budget ? `\nBudget : Rs.${inq.budget}${svc.bUnit || ''}` : ''}` +
-        `${inq.requirements ? `\nNote : ${inq.requirements}` : ''}\n\n` +
-        `Please reply to this email to confirm your availability.\n\nRegards,\nDemandGenius`;
+      const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
 
+      // Create outreach first to get the secure response token
+      const outreach = await createOutreach(inq, name, email, "");
+      const responseUrl = outreach ? `${base}/hotel-respond?token=${outreach.token}` : null;
+
+      const subject = `Service Inquiry ${inq.inqId} — ${svc.label} in ${inq.city} | DemandGenius`;
+
+      const text = [
+        `Dear ${name},`,
+        ``,
+        `A customer needs ${svc.label} in ${inq.city}.`,
+        ``,
+        `--- REQUEST DETAILS ---`,
+        `Inquiry ID  : ${inq.inqId}`,
+        `Service     : ${svc.label} in ${inq.city}`,
+        inq.checkIn  ? `${svc.d1}       : ${inq.checkIn}` : '',
+        inq.checkOut ? `${svc.d2 || 'Check-out'} : ${inq.checkOut}` : '',
+        `${svc.gLabel}     : ${inq.guests || ''}`,
+        inq.budget ? `Budget      : Rs.${inq.budget}${svc.bUnit || ''}` : '',
+        inq.requirements ? `Note        : ${inq.requirements}` : '',
+        ``,
+        responseUrl ? `Confirm availability: ${responseUrl}` : `Please reply to this email to confirm your availability.`,
+        ``,
+        `Regards,`,
+        `DemandGenius`,
+      ].filter(Boolean).join('\n');
+
+      const row = (label: string, value: string) =>
+        `<tr><td style="padding:6px 0;font-size:12px;color:#64748b;width:38%;vertical-align:top;">${label}</td><td style="padding:6px 0;font-size:12px;font-weight:700;color:#0f172a;">${value}</td></tr>`;
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f1f5f9;">
+<div style="max-width:560px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+  <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);padding:28px 32px;">
+    <p style="margin:0;color:#fff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">DemandGenius</p>
+    <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:12px;font-weight:500;">New Service Inquiry — Action Required</p>
+  </div>
+  <div style="padding:28px 32px 0;">
+    <p style="margin:0;font-size:15px;color:#0f172a;font-weight:700;">Hello ${name},</p>
+    <p style="margin:10px 0 0;font-size:13px;color:#475569;line-height:1.7;">A customer is looking for <strong>${svc.label}</strong> services in <strong>${inq.city}</strong> through DemandGenius. Please review the details and confirm your availability.</p>
+  </div>
+  <div style="margin:20px 32px;background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #e2e8f0;">
+    <p style="margin:0 0 12px;font-size:10px;font-weight:800;color:#64748b;letter-spacing:1px;text-transform:uppercase;">Request Details</p>
+    <table style="width:100%;border-collapse:collapse;">
+      ${row('Inquiry ID', inq.inqId)}
+      ${row('Service', `${svc.label} in ${inq.city}`)}
+      ${inq.checkIn ? row(svc.d1 || 'Check-in', inq.checkIn) : ''}
+      ${inq.checkOut ? row(svc.d2 || 'Check-out', inq.checkOut) : ''}
+      ${row(svc.gLabel || 'Guests', String(inq.guests || ''))}
+      ${inq.budget ? row('Budget', `Rs.${inq.budget}${svc.bUnit || ''}`) : ''}
+      ${inq.requirements ? row('Note', inq.requirements) : ''}
+    </table>
+  </div>
+  ${responseUrl ? `
+  <div style="padding:4px 32px 28px;text-align:center;">
+    <a href="${responseUrl}" style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:800;padding:14px 36px;border-radius:12px;text-decoration:none;">✓ Confirm Availability</a>
+    <p style="margin:14px 0 0;font-size:10px;color:#94a3b8;">Or copy this link: <span style="color:#0ea5e9;">${responseUrl}</span></p>
+  </div>
+  <div style="margin:0 32px 28px;background:#fff7ed;border-radius:12px;padding:16px 20px;border:1px solid #fed7aa;">
+    <p style="margin:0 0 10px;font-size:10px;font-weight:800;color:#9a3412;letter-spacing:1px;text-transform:uppercase;">How to respond</p>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${['Click the green button above to open your response form','Choose: Accept · Send Quote · Hold · Decline','Customer is notified instantly — no login needed'].map((s,i) =>
+        `<div style="display:flex;align-items:flex-start;gap:10px;"><span style="width:20px;height:20px;min-width:20px;background:#0ea5e9;border-radius:50%;font-size:10px;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;">${i+1}</span><p style="margin:0;font-size:12px;color:#44403c;padding-top:2px;">${s}</p></div>`
+      ).join('')}
+    </div>
+  </div>` : `<div style="padding:0 32px 28px;"><p style="font-size:13px;color:#475569;text-align:center;">Please reply to this email to confirm your availability.</p></div>`}
+  <div style="background:#f8fafc;padding:14px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+    <p style="margin:0;font-size:11px;color:#94a3b8;">Powered by <strong style="color:#64748b;">DemandGenius</strong> · Sent on behalf of a customer inquiry · This is not a promotional email.</p>
+  </div>
+</div>
+</body></html>`;
+
+      setSendingOutreach(true);
       const resp = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: email, toName: name, cc: email, subject, text }),
+        body: JSON.stringify({ to: email, toName: name, cc: email, subject, text, html }),
       });
       const data = await resp.json();
 
       if (data.success) {
         showToast(`✓ Email sent to ${name}!`);
-        createOutreach(inq, name, email, "", true).catch(() => {});
       } else {
         showToast(`Failed: ${data.error || 'unknown error'}`);
       }
@@ -8615,11 +8665,6 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     accepted:   outreachList.filter(o => o.hotelAction === "Accept").length,
   };
 
-  const OUTREACH_STATUS_STYLE: Record<string, string> = {
-    Sent:      "bg-sky-50 border-sky-200",
-    Viewed:    "bg-amber-50 border-amber-200",
-    Responded: "bg-green-50 border-green-200",
-  };
   const HOTEL_ACTION_STYLE: Record<string, { bg: string; icon: string }> = {
     Accept: { bg: "bg-green-500",  icon: "✅" },
     Quote:  { bg: "bg-sky-500",    icon: "💰" },
@@ -9660,64 +9705,119 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                         {sendingOutreach ? <Loader2 size={12} className="animate-spin"/> : <Smartphone size={12}/>} WhatsApp
                       </button>
                     </div>
-                    <p className="text-[9px] text-gray-400 text-center">Your email client or WhatsApp opens pre-filled. The hotel gets a unique secure link to respond — no login needed on their side.</p>
+                    <p className="text-[9px] text-gray-400 text-center">Email and WhatsApp are sent directly from the app. The vendor gets a secure link to Accept, Quote, Hold, or Decline — no login needed.</p>
                   </div>
                 )}
               </>
             )}
           </div>
 
-          {/* Outreaches for selected inquiry */}
+          {/* Outreach thread for selected inquiry */}
           {inqOutreaches.length > 0 && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-gray-900">Outreaches — {activeInq?.inqId}</h3>
-                <span className="text-[10px] bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded-full border border-sky-100">{inqOutreaches.length} hotels</span>
+                <h3 className="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block"/>
+                  Outreach Thread — {activeInq?.inqId}
+                </h3>
+                <span className="text-[10px] bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded-full border border-sky-100">{inqOutreaches.length} contact{inqOutreaches.length !== 1 ? "s" : ""}</span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {inqOutreaches.map(o => {
                   const as = HOTEL_ACTION_STYLE[o.hotelAction || ""];
+                  const sentAt = o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : null;
+                  const respondedAt = o.respondedAt ? new Date(o.respondedAt).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : null;
+                  const isResponded = o.status === "Responded";
+                  const isViewed    = o.status === "Viewed" || isResponded;
                   return (
-                    <div key={o.id} className={`p-3 rounded-xl border ${OUTREACH_STATUS_STYLE[o.status] || "bg-white border-gray-100"} space-y-2`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-bold text-gray-900">{as?.icon || "🏨"} {o.hotelName}</p>
-                          <p className="text-[10px] text-gray-500 mt-0.5">
-                            {o.hotelEmail && <span className="mr-2">✉ {o.hotelEmail}</span>}
-                            {o.hotelPhone && <span>📱 {o.hotelPhone}</span>}
-                          </p>
+                    <div key={o.id} className="border border-gray-100 rounded-2xl overflow-hidden">
+                      {/* Thread header */}
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-gray-50 border-b border-gray-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-base shrink-0">{as?.icon || "🏨"}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-gray-900 truncate">{o.hotelName}</p>
+                            <p className="text-[9px] text-gray-400 truncate">
+                              {o.hotelEmail && <span className="mr-1.5">✉ {o.hotelEmail}</span>}
+                              {o.hotelPhone && <span>📱 {o.hotelPhone}</span>}
+                            </p>
+                          </div>
                         </div>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                          o.status === "Responded" ? "bg-green-100 text-green-700" :
-                          o.status === "Viewed"    ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"
+                        <span className={`text-[9px] font-black px-2 py-1 rounded-full shrink-0 ${
+                          isResponded ? "bg-green-100 text-green-700" :
+                          isViewed    ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"
                         }`}>
-                          {o.status === "Sent" ? "📤 Sent" : o.status === "Viewed" ? "👁 Viewed" : "✅ Responded"}
+                          {isResponded ? "✅ Responded" : isViewed ? "👁 Viewed" : "📤 Sent"}
                         </span>
                       </div>
-                      {o.status === "Responded" && (
-                        <div className="bg-white/70 rounded-lg p-2.5 space-y-1 border border-white">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">{as?.icon}</span>
-                            <span className="text-xs font-black text-gray-900">{o.hotelAction}</span>
-                            {o.hotelQuote && <span className="text-xs font-black text-green-700 ml-auto">₹{o.hotelQuote}/night</span>}
+
+                      {/* Timeline */}
+                      <div className="px-3 py-3 space-y-0">
+                        {/* Step 1: Sent */}
+                        <div className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0 mt-0.5"/>
+                            <div className={`w-px flex-1 mt-1 ${isViewed ? 'bg-sky-200' : 'bg-gray-100'}`}/>
                           </div>
-                          {o.hotelMessage && <p className="text-[10px] text-gray-600 italic">"{o.hotelMessage}"</p>}
-                          {o.hotelContactName && <p className="text-[9px] text-gray-400">Contact: {o.hotelContactName}</p>}
+                          <div className="pb-3 flex-1">
+                            <p className="text-[11px] font-bold text-gray-900">📤 Outreach Sent</p>
+                            {sentAt && <p className="text-[10px] text-gray-400 mt-0.5">{sentAt}</p>}
+                          </div>
                         </div>
-                      )}
-                      {o.status !== "Responded" && activeInq && (
-                        <div className="flex gap-1.5">
+
+                        {/* Step 2: Viewed */}
+                        <div className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-0.5 ${isViewed ? 'bg-amber-400' : 'bg-gray-200'}`}/>
+                            <div className={`w-px flex-1 mt-1 ${isResponded ? 'bg-amber-200' : 'bg-gray-100'}`}/>
+                          </div>
+                          <div className="pb-3 flex-1">
+                            <p className={`text-[11px] font-bold ${isViewed ? 'text-amber-700' : 'text-gray-300'}`}>👁 Opened by Vendor</p>
+                            {!isViewed && <p className="text-[10px] text-gray-300 mt-0.5">Waiting…</p>}
+                          </div>
+                        </div>
+
+                        {/* Step 3: Responded */}
+                        <div className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-0.5 ${isResponded ? 'bg-green-500' : 'bg-gray-200'}`}/>
+                          </div>
+                          <div className="flex-1">
+                            {isResponded ? (
+                              <div>
+                                <p className="text-[11px] font-bold text-green-700">{as?.icon} {o.hotelAction}</p>
+                                {respondedAt && <p className="text-[10px] text-gray-400 mt-0.5">{respondedAt}</p>}
+                                {(o.hotelQuote || o.hotelMessage || o.hotelContactName) && (
+                                  <div className="mt-2 bg-green-50 border border-green-100 rounded-xl p-2.5 space-y-1">
+                                    {o.hotelQuote && <p className="text-xs font-black text-green-800">₹{o.hotelQuote.toLocaleString()}<span className="font-normal text-green-600">/night</span></p>}
+                                    {o.hotelMessage && <p className="text-[11px] text-gray-600 italic">"{o.hotelMessage}"</p>}
+                                    {o.hotelContactName && <p className="text-[10px] text-gray-400">Contact: {o.hotelContactName}</p>}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[11px] font-bold text-gray-300">Awaiting Response</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      {!isResponded && activeInq && (
+                        <div className="flex gap-1.5 px-3 pb-3">
                           {o.hotelEmail && (
                             <button onClick={() => {
-                              const subject = encodeURIComponent(`Hotel Inquiry ${activeInq.inqId} - ${activeInq.city} - DemandGenius`);
-                              window.open(`mailto:${o.hotelEmail}?subject=${subject}&body=${buildEmailBody(activeInq, o.token)}`);
+                              setAddHotelForm({ name: o.hotelName, email: o.hotelEmail || "", phone: "" });
+                              sendViaEmail(activeInq);
                             }} className="text-[10px] bg-sky-50 border border-sky-200 text-sky-700 font-bold px-2.5 py-1 rounded-lg hover:bg-sky-100 flex items-center gap-1">
                               <Globe size={9}/> Re-send Email
                             </button>
                           )}
                           {o.hotelPhone && (
-                            <button onClick={() => window.open(`https://wa.me/${(o.hotelPhone||"").replace(/\D/g,"")}?text=${buildWAMsg(activeInq, o.token)}`)}
-                              className="text-[10px] bg-green-50 border border-green-200 text-green-700 font-bold px-2.5 py-1 rounded-lg hover:bg-green-100 flex items-center gap-1">
+                            <button onClick={() => {
+                              setAddHotelForm({ name: o.hotelName, email: "", phone: o.hotelPhone || "" });
+                              sendViaWA(activeInq);
+                            }} className="text-[10px] bg-green-50 border border-green-200 text-green-700 font-bold px-2.5 py-1 rounded-lg hover:bg-green-100 flex items-center gap-1">
                               <Smartphone size={9}/> Re-send WA
                             </button>
                           )}

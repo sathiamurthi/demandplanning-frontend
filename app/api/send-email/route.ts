@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Email not configured' }, { status: 503 });
   }
 
-  const { to, toName, cc, subject, text } = await req.json();
+  const { to, toName, cc, subject, text, html } = await req.json();
   if (!to || !subject || !text) {
     return NextResponse.json({ success: false, error: 'to, subject, and text are required' }, { status: 400 });
   }
@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
     auth: { user: SMTP_USER, pass: SMTP_PASS },
   });
 
-  // Build CC: always include sender's own email + any extra cc passed in
   const ccList = [SMTP_FROM, ...(cc ? [cc] : [])].filter(Boolean).join(', ');
 
   try {
@@ -32,6 +31,7 @@ export async function POST(req: NextRequest) {
       cc: ccList,
       subject,
       text,
+      ...(html ? { html } : {}),
     });
     return NextResponse.json({ success: true, messageId: info.messageId });
   } catch (e: any) {
