@@ -8405,36 +8405,50 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     return encodeURIComponent(`*Service Inquiry - ${inq.inqId}*\n\nCustomer looking for *${svc.label}* in *${inq.city}*\n${svc.d1}: ${inq.checkIn}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ""}\n${svc.gLabel}: ${inq.guests}${inq.budget ? `\nBudget: Rs.${inq.budget}${svc.bUnit}` : ""}${inq.requirements ? `\nNote: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
   };
 
-  const sendViaEmail = async (inq: InquiryRecord) => {
+  const sendViaEmail = (inq: InquiryRecord) => {
     const { name, email } = addHotelForm;
-    if (!name.trim() || !email.trim()) { showToast("Enter hotel name and email first"); return; }
-    // Open immediately (sync) before async call — prevents popup blocker
-    const win = window.open('', '_blank');
-    const outreach = await createOutreach(inq, name, email, "");
-    if (!outreach) { win?.close(); return; }
+    if (!name.trim() || !email.trim()) { showToast("Enter vendor name and email first"); return; }
+    const svc = inqSvc(inq);
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
     const subject = encodeURIComponent(`Service Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`);
-    const url = `mailto:${email}?subject=${subject}&body=${buildEmailBody(inq, outreach.token)}`;
-    if (win) { win.location.href = url; } else { window.open(url); }
+    // Use inqId-based placeholder token — backend saves real token in background
+    const placeholderToken = `${inq.inqId}-pending`;
+    const body = encodeURIComponent(
+      `Dear ${name},\n\nA customer needs ${svc.label} in ${inq.city}.\n\n` +
+      `--- REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n` +
+      `${svc.d1}  : ${inq.checkIn}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ""}\n` +
+      `${svc.gLabel} : ${inq.guests}${inq.budget ? `\nBudget : Rs.${inq.budget}${svc.bUnit}` : ""}` +
+      `${inq.requirements ? `\nNote : ${inq.requirements}` : ""}\n\n` +
+      `Please reply to this email to confirm your availability.\n\nRegards,\nDemandGenius`
+    );
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
     setAddHotelForm({ name: "", email: "", phone: "" });
-    showToast(`Email ready for ${name}!`);
-    logLeadInApp(guest?.name || "Guest", name, "Hotel Outreach", `Email: ${inq.inqId}`, "Sent");
+    showToast(`Email opened for ${name}!`);
+    // Save to backend in background — don't block sending
+    createOutreach(inq, name, email, "").catch(() => {});
+    logLeadInApp(guest?.name || "Guest", name, "Outreach", `Email: ${inq.inqId}`, "Sent");
   };
 
-  const sendViaWA = async (inq: InquiryRecord) => {
+  const sendViaWA = (inq: InquiryRecord) => {
     const { name, phone } = addHotelForm;
     if (!name.trim() || !phone.trim()) { showToast("Enter vendor name and WhatsApp number first"); return; }
-    // Open immediately (sync) before async call — prevents popup blocker
-    const win = window.open('', '_blank');
-    const outreach = await createOutreach(inq, name, "", phone);
-    if (!outreach) { win?.close(); return; }
+    const svc = inqSvc(inq);
     // Ensure country code — prepend 91 if 10-digit Indian number
     const digits = phone.replace(/\D/g, "");
     const waNum  = digits.length === 10 ? `91${digits}` : digits;
-    const url = `https://wa.me/${waNum}?text=${buildWAMsg(inq, outreach.token)}`;
-    if (win) { win.location.href = url; } else { window.open(url); }
+    const msg = encodeURIComponent(
+      `*Service Inquiry — ${inq.inqId}*\n\nHello ${name}, a customer is looking for *${svc.label}* in *${inq.city}*.\n\n` +
+      `${svc.d1}: ${inq.checkIn}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ""}\n` +
+      `${svc.gLabel}: ${inq.guests}${inq.budget ? `\nBudget: Rs.${inq.budget}${svc.bUnit}` : ""}` +
+      `${inq.requirements ? `\nNote: ${inq.requirements}` : ""}\n\n` +
+      `Please reply *YES* to confirm availability or let us know your rate.\n\n_DemandGenius_`
+    );
+    window.open(`https://wa.me/${waNum}?text=${msg}`);
     setAddHotelForm({ name: "", email: "", phone: "" });
-    showToast(`WhatsApp ready for ${name}!`);
-    logLeadInApp(guest?.name || "Guest", name, "Hotel Outreach", `WhatsApp: ${inq.inqId}`, "Sent");
+    showToast(`WhatsApp opened for ${name}!`);
+    // Save to backend in background — don't block sending
+    createOutreach(inq, name, "", phone).catch(() => {});
+    logLeadInApp(guest?.name || "Guest", name, "Outreach", `WhatsApp: ${inq.inqId}`, "Sent");
   };
 
   useEffect(() => {
