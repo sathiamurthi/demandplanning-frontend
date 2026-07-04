@@ -95,7 +95,7 @@ function HotelRespondInner() {
 
   // ── Load inquiry on mount ──
   useEffect(() => {
-    if (!token) { setErrorMsg("No inquiry link found. Please check the link."); setPhase("error"); return; }
+    if (!token) { setPhase("error"); setErrorMsg("__no_token__"); return; }
     fetch(`/v1/public/hotel-response/${token}`)
       .then(r => r.json())
       .then(data => {
@@ -153,7 +153,48 @@ function HotelRespondInner() {
     );
   }
 
-  // ── Error ──
+  // ── No token — show info landing page ──
+  if (phase === "error" && errorMsg === "__no_token__") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 space-y-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-sky-500 flex items-center justify-center mx-auto shadow-lg shadow-sky-200">
+            <span className="text-3xl">🏨</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-gray-900">Vendor Response Portal</h1>
+            <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+              This page is for <strong>hotels, caterers, and service providers</strong> to respond to customer inquiries sent via DemandGenius.
+            </p>
+          </div>
+          <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5 text-left space-y-3">
+            <p className="text-xs font-black text-sky-700 uppercase tracking-wide">How it works</p>
+            {[
+              { n: "1", text: "A customer sends you an inquiry via email or WhatsApp" },
+              { n: "2", text: "You receive a unique link in that message" },
+              { n: "3", text: "Click the link to open your personal response form" },
+              { n: "4", text: "Accept, quote, hold, or decline — no login needed" },
+            ].map(s => (
+              <div key={s.n} className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-sky-500 text-white text-xs font-black flex items-center justify-center shrink-0">{s.n}</span>
+                <p className="text-sm text-gray-600 pt-0.5">{s.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-800">
+            <strong>Looking for your inquiry link?</strong>
+            <p className="text-xs text-amber-700 mt-1">Check your email inbox or WhatsApp for a message from DemandGenius. The link looks like:<br/>
+            <code className="bg-amber-100 px-1.5 py-0.5 rounded text-[11px] font-mono mt-1 inline-block break-all">
+              dplan-ebon.vercel.app/hotel-respond?token=...
+            </code></p>
+          </div>
+          <a href="/" className="inline-block text-xs text-sky-600 font-bold hover:underline">← Back to DemandGenius</a>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Token error ──
   if (phase === "error") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-4">
