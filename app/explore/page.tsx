@@ -8393,23 +8393,28 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
 
   const buildEmailBody = (inq: InquiryRecord, token: string) => {
     const svc = inqSvc(inq);
-    const url = `https://demandgenius.vercel.app/hotel-respond?token=${token}`;
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
+    const url = `${base}/hotel-respond?token=${token}`;
     return encodeURIComponent(`Dear ${svc.label} Team,\n\nA customer is looking for ${svc.label.toLowerCase()} service through DemandGenius.\n\n--- SERVICE REQUEST DETAILS ---\nInquiry ID : ${inq.inqId}\nService    : ${svc.label} in ${inq.city}\n${svc.d1}  : ${inq.checkIn}${svc.d2 && inq.checkOut ? `\n${svc.d2} : ${inq.checkOut}` : ""}\n${svc.gLabel} : ${inq.guests}${svc.showRoom && inq.roomType ? `\nRoom Type  : ${inq.roomType}` : ""}\nBudget     : ${inq.budget ? `Rs.${inq.budget}${svc.bUnit}` : "Flexible"}${inq.requirements ? `\nRequirements: ${inq.requirements}` : ""}${inq.coordinator ? `\nCoordinator: ${inq.coordinator}` : ""}\n\n--- RESPOND TO THIS REQUEST ---\n${url}\n\nClick the link above to Accept, Send Quote, Hold, or Decline.\nYour response reaches the customer immediately.\n\nBest regards,\nDemandGenius Service Agent`);
   };
 
   const buildWAMsg = (inq: InquiryRecord, token: string) => {
     const svc = inqSvc(inq);
-    const url = `https://demandgenius.vercel.app/hotel-respond?token=${token}`;
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
+    const url = `${base}/hotel-respond?token=${token}`;
     return encodeURIComponent(`*Service Inquiry - ${inq.inqId}*\n\nCustomer looking for *${svc.label}* in *${inq.city}*\n${svc.d1}: ${inq.checkIn}${svc.d2 && inq.checkOut ? ` → ${inq.checkOut}` : ""}\n${svc.gLabel}: ${inq.guests}${inq.budget ? `\nBudget: Rs.${inq.budget}${svc.bUnit}` : ""}${inq.requirements ? `\nNote: ${inq.requirements}` : ""}\n\n*Respond here:* ${url}\n\n_Powered by DemandGenius_`);
   };
 
   const sendViaEmail = async (inq: InquiryRecord) => {
     const { name, email } = addHotelForm;
     if (!name.trim() || !email.trim()) { showToast("Enter hotel name and email first"); return; }
+    // Open immediately (sync) before async call — prevents popup blocker
+    const win = window.open('', '_blank');
     const outreach = await createOutreach(inq, name, email, "");
-    if (!outreach) return;
-    const subject = encodeURIComponent(`Hotel Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`);
-    window.open(`mailto:${email}?subject=${subject}&body=${buildEmailBody(inq, outreach.token)}`);
+    if (!outreach) { win?.close(); return; }
+    const subject = encodeURIComponent(`Service Inquiry ${inq.inqId} - ${inq.city} - DemandGenius`);
+    const url = `mailto:${email}?subject=${subject}&body=${buildEmailBody(inq, outreach.token)}`;
+    if (win) { win.location.href = url; } else { window.open(url); }
     setAddHotelForm({ name: "", email: "", phone: "" });
     showToast(`Email ready for ${name}!`);
     logLeadInApp(guest?.name || "Guest", name, "Hotel Outreach", `Email: ${inq.inqId}`, "Sent");
@@ -8417,10 +8422,16 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
 
   const sendViaWA = async (inq: InquiryRecord) => {
     const { name, phone } = addHotelForm;
-    if (!name.trim() || !phone.trim()) { showToast("Enter hotel name and WhatsApp number first"); return; }
+    if (!name.trim() || !phone.trim()) { showToast("Enter vendor name and WhatsApp number first"); return; }
+    // Open immediately (sync) before async call — prevents popup blocker
+    const win = window.open('', '_blank');
     const outreach = await createOutreach(inq, name, "", phone);
-    if (!outreach) return;
-    window.open(`https://wa.me/${phone.replace(/\D/g, "")}?text=${buildWAMsg(inq, outreach.token)}`);
+    if (!outreach) { win?.close(); return; }
+    // Ensure country code — prepend 91 if 10-digit Indian number
+    const digits = phone.replace(/\D/g, "");
+    const waNum  = digits.length === 10 ? `91${digits}` : digits;
+    const url = `https://wa.me/${waNum}?text=${buildWAMsg(inq, outreach.token)}`;
+    if (win) { win.location.href = url; } else { window.open(url); }
     setAddHotelForm({ name: "", email: "", phone: "" });
     showToast(`WhatsApp ready for ${name}!`);
     logLeadInApp(guest?.name || "Guest", name, "Hotel Outreach", `WhatsApp: ${inq.inqId}`, "Sent");
@@ -9663,7 +9674,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                               <Smartphone size={9}/> Re-send WA
                             </button>
                           )}
-                          <button onClick={() => { navigator.clipboard?.writeText(`https://demandgenius.vercel.app/hotel-respond?token=${o.token}`); showToast("Link copied!"); }}
+                          <button onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/hotel-respond?token=${o.token}`); showToast("Link copied!"); }}
                             className="ml-auto text-[10px] text-gray-400 font-bold px-2.5 py-1 rounded-lg hover:bg-gray-50 flex items-center gap-1 border border-gray-100">
                             <Copy size={9}/> Copy Link
                           </button>
