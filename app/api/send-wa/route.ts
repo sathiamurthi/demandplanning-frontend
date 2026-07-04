@@ -6,17 +6,6 @@ const PHONE_NUMBER_ID = stripBOM(process.env.WHATSAPP_PHONE_NUMBER_ID || '');
 const ACCESS_TOKEN    = stripBOM(process.env.WHATSAPP_ACCESS_TOKEN    || '');
 const API_VERSION     = stripBOM(process.env.WHATSAPP_API_VERSION     || 'v25.0') || 'v25.0';
 
-export async function GET() {
-  return NextResponse.json({
-    phone_id_len: PHONE_NUMBER_ID.length,
-    phone_id_val: PHONE_NUMBER_ID,
-    token_len: ACCESS_TOKEN.length,
-    token_start: ACCESS_TOKEN.slice(0, 8),
-    token_end: ACCESS_TOKEN.slice(-6),
-    api_version: API_VERSION,
-  });
-}
-
 async function callMetaAPI(body: object) {
   const res = await fetch(
     `https://graph.facebook.com/${API_VERSION}/${PHONE_NUMBER_ID}/messages`,
