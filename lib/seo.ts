@@ -29,8 +29,9 @@ export function buildMeta(page?: PageMeta) {
   const url         = `${SITE.url}${page?.path || ''}`;
   const ogImage     = `${SITE.url}/og-image.png`;
 
+  const base = (() => { try { return new URL(SITE.url); } catch { return new URL('https://dplan-ebon.vercel.app'); } })();
   return {
-    metadataBase:       new URL(SITE.url),
+    metadataBase:       base,
     title,
     description,
     keywords:           SITE.keywords.join(', '),
