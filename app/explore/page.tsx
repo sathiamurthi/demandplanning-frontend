@@ -2541,8 +2541,10 @@ function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: 
   const title      = isSeeker ? "Seekers" : "Providers";
   const emoji      = isSeeker ? "🔍" : "🛠";
   const pages      = Math.ceil(total / PER_PAGE);
-  const appCount   = items.filter(l => l.is_verified).length;
-  const otherCount = items.length - appCount;
+  const isAppMember = (l: any) => !!l.is_verified || l.source === 'app';
+  const sorted     = [...items].sort((a, b) => (isAppMember(b) ? 1 : 0) - (isAppMember(a) ? 1 : 0));
+  const appCount   = sorted.filter(isAppMember).length;
+  const otherCount = sorted.length - appCount;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -2583,9 +2585,9 @@ function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: 
                   <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest">App Members · {appCount}</span>
                 </div>
               )}
-              {items.map((l:any, i:number) => {
-                const isPlatform  = !!l.is_verified;
-                const prevPlatform = i > 0 && !!items[i-1].is_verified;
+              {sorted.map((l:any, i:number) => {
+                const isPlatform  = isAppMember(l);
+                const prevPlatform = i > 0 && isAppMember(sorted[i-1]);
                 const showOtherHeader = !isPlatform && prevPlatform && otherCount > 0;
                 return (
                   <div key={l.id||i}>
@@ -4121,7 +4123,7 @@ function TravelPanel() {
     setObSaving(true); setObErr("");
     try {
       const services=obServices.filter(s=>s.name).map(s=>({name:s.name,rate:s.rate}));
-      const r=await fetch("/v1/public/listings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...ob,services})});
+      const r=await fetch("/v1/public/listings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...ob,services,source:'app',is_verified:true})});
       const d=await r.json();
       if(!d.success)throw new Error(d.error);
       setObDone(true);
@@ -5264,7 +5266,7 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
     try{
       const services=obServices.filter(s=>s.name).map(s=>({name:s.name,rate:s.rate}));
       const r=await fetch("/v1/public/listings",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({...ob,services,...(obLat!==null&&{lat:obLat,lng:obLng})})});
+        body:JSON.stringify({...ob,services,...(obLat!==null&&{lat:obLat,lng:obLng}),source:'app',is_verified:true})});
       const txt = await r.text();
       let d;
       try {
