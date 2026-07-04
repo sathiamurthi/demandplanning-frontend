@@ -52,12 +52,12 @@ function loadLocStorage(): UserLocation | null {
 }
 
 // Nominatim address → most specific local area name
-// Garudachar Palya is in address.suburb; Ramamurthy Nagar is in address.suburb too
+// Shows road + suburb when available (e.g. "80 Feet Rd, Dooravaninagar")
 function nominatimCity(addr: any): string {
-  return addr?.suburb
-    || addr?.neighbourhood
-    || addr?.quarter
-    || addr?.residential
+  const specific = addr?.quarter || addr?.neighbourhood || addr?.suburb || addr?.residential;
+  const road     = addr?.road;
+  if (road && specific && road !== specific) return `${road}, ${specific}`;
+  return specific
     || addr?.city_district
     || addr?.city
     || addr?.town
@@ -807,6 +807,37 @@ const INTEREST_PLATFORMS: Record<string, Array<{name:string, emoji:string, url:(
   ],
 };
 
+// ── InterestsPickerModal ──────────────────────────────────────
+function InterestsPickerModal({ open, onClose, onSelect }: {
+  open: boolean; onClose: () => void; onSelect: (id: string) => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="font-black text-gray-900 text-lg leading-tight">My Interests</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Choose a topic to explore AI-powered results</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
+        </div>
+        <div className="overflow-y-auto p-4">
+          <div className="grid grid-cols-3 gap-3">
+            {ALL_INTERESTS_CFG.map(it => (
+              <button key={it.id} onClick={() => onSelect(it.id)}
+                className="flex flex-col items-center gap-2 bg-gray-50 hover:bg-orange-50 border border-gray-100 hover:border-orange-300 rounded-2xl p-4 transition-all active:scale-95">
+                <span className="text-3xl leading-none">{it.emoji}</span>
+                <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{it.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── InterestDetailModal ───────────────────────────────────────
 const INTEREST_AI_QUERY: Record<string,string> = {
   restaurant:  "best restaurants, cafes and food places",
@@ -1440,6 +1471,7 @@ export default function DemandGeniusApp() {
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [notifVerified, setNotifVerified] = useState<{wa:boolean,email:boolean}>({wa:false,email:false});
   const [activeInterest, setActiveInterest] = useState<string|null>(null);
+  const [showInterestPicker, setShowInterestPicker] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifList, setNotifList] = useState<any[]>([]);
   const [notifUnread, setNotifUnread] = useState(0);
@@ -1677,6 +1709,9 @@ export default function DemandGeniusApp() {
                     onClick={() => {
                       if (item.id === "login" as any) {
                         window.location.href = "/login";
+                      } else if (item.id === "interests") {
+                        setShowInterestPicker(true);
+                        setSidebarOpen(false);
                       } else {
                         setSection(item.id);
                         setSidebarOpen(false);
@@ -1843,6 +1878,11 @@ export default function DemandGeniusApp() {
             onClose={() => setShowSubscribeModal(false)}
             guest={guest}
             onVerified={(wa:boolean,email:boolean) => setNotifVerified({wa,email})}
+          />
+          <InterestsPickerModal
+            open={showInterestPicker}
+            onClose={() => setShowInterestPicker(false)}
+            onSelect={(id) => { setActiveInterest(id); setShowInterestPicker(false); }}
           />
           <InterestDetailModal
             interestId={activeInterest}
@@ -2269,7 +2309,7 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
   const [reminders] = useLocalStore<Reminder[]>(gk("reminders"), []);
   const [trips]     = useLocalStore<TripItem[]>(gk("trips"), []);
   const [budget]    = useLocalStore<number>(gk("budget"), 15000);
-  const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0 });
+  const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0, users: 0 });
   const [showDelivery, setShowDelivery] = useState(false);
   const [dlv, setDlv] = useState({ pickup:"", dropoff:"", intermediate:"", notes:"", phone:"" });
   const [interests,   setInterests]   = useLocalStore<string[]>(gk("interests"), []);
@@ -2427,6 +2467,7 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
             <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Businesses</p><p className="text-white font-black text-xl">{platform.tenants}</p></div>
             <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Stores</p><p className="text-white font-black text-xl">{platform.stores}</p></div>
             <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Products</p><p className="text-white font-black text-xl">{platform.products}+</p></div>
+            <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Active Users</p><p className="text-white font-black text-xl">{platform.users > 0 ? platform.users : "500+"}🟢</p></div>
           </div>
           <div className="text-white/70 text-xs font-semibold shrink-0">Browse →</div>
         </div>
