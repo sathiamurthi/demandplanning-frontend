@@ -41,10 +41,9 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
-          recipient_type: 'individual',
           to,
           type: 'text',
-          text: { preview_url: false, body: message },
+          text: { body: message },
         }),
       }
     );
