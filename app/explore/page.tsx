@@ -808,7 +808,41 @@ const INTEREST_PLATFORMS: Record<string, Array<{name:string, emoji:string, url:(
 };
 
 // ── InterestsPickerModal ──────────────────────────────────────
-const MY_INTERESTS_KEY = "dg.myinterests";
+const MY_INTERESTS_KEY     = "dg.myinterests";
+const CUSTOM_INTERESTS_KEY = "dg.custom_interests";
+
+interface CustomInterest { id: string; label: string; emoji: string; }
+
+function loadCustomInterests(): CustomInterest[] {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_INTERESTS_KEY) || "[]"); } catch { return []; }
+}
+function saveCustomInterests(items: CustomInterest[]) {
+  try { localStorage.setItem(CUSTOM_INTERESTS_KEY, JSON.stringify(items)); } catch {}
+}
+function guessEmoji(label: string): string {
+  const l = label.toLowerCase();
+  if (/swim|pool/.test(l)) return '🏊';
+  if (/gym|fitness|workout/.test(l)) return '🏋';
+  if (/yoga|meditat/.test(l)) return '🧘';
+  if (/pet|dog|cat|vet/.test(l)) return '🐾';
+  if (/salon|beauty|hair|spa/.test(l)) return '💇';
+  if (/bakery|bread|cake|sweet/.test(l)) return '🥖';
+  if (/pizza|burger|fast.?food/.test(l)) return '🍕';
+  if (/coffee|cafe|chai|tea/.test(l)) return '☕';
+  if (/book|library|stationery/.test(l)) return '📚';
+  if (/cinema|movie|theater/.test(l)) return '🎬';
+  if (/sport|cricket|football|badminton/.test(l)) return '⚽';
+  if (/car|auto|garage|mechanic/.test(l)) return '🚗';
+  if (/flower|plant|nursery/.test(l)) return '🌸';
+  if (/music|concert|band/.test(l)) return '🎵';
+  if (/travel|tour|trek/.test(l)) return '🧳';
+  if (/cloth|fashion|tailor/.test(l)) return '👗';
+  if (/jewel|gold|silver/.test(l)) return '💍';
+  if (/mobile|phone|electronics/.test(l)) return '📱';
+  if (/doctor|clinic|dental|physio/.test(l)) return '🏥';
+  if (/laundry|dry.?clean/.test(l)) return '👔';
+  return '✨';
+}
 
 function InterestsPickerModal({ open, onClose, onSelect }: {
   open: boolean; onClose: () => void; onSelect: (id: string) => void;
@@ -817,8 +851,10 @@ function InterestsPickerModal({ open, onClose, onSelect }: {
   const [saved, setSaved] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(MY_INTERESTS_KEY) || "[]"); } catch { return []; }
   });
+  const [customs, setCustoms] = useState<CustomInterest[]>(() => loadCustomInterests());
+  const [newLabel, setNewLabel] = useState('');
 
-  const toggle = (id: string) => {
+  const toggleSaved = (id: string) => {
     setSaved(prev => {
       const next = prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id];
       localStorage.setItem(MY_INTERESTS_KEY, JSON.stringify(next));
@@ -826,11 +862,45 @@ function InterestsPickerModal({ open, onClose, onSelect }: {
     });
   };
 
-  // Sort: saved interests first, then the rest
-  const sorted = [
-    ...ALL_INTERESTS_CFG.filter(it => saved.includes(it.id)),
-    ...ALL_INTERESTS_CFG.filter(it => !saved.includes(it.id)),
-  ];
+  const addCustom = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    const newItem: CustomInterest = {
+      id: `custom_${Date.now()}`,
+      label,
+      emoji: guessEmoji(label),
+    };
+    const next = [...customs, newItem];
+    setCustoms(next);
+    saveCustomInterests(next);
+    // auto-save it
+    setSaved(prev => {
+      const nextSaved = [...prev, newItem.id];
+      localStorage.setItem(MY_INTERESTS_KEY, JSON.stringify(nextSaved));
+      return nextSaved;
+    });
+    setNewLabel('');
+  };
+
+  const removeCustom = (id: string) => {
+    const next = customs.filter(c => c.id !== id);
+    setCustoms(next);
+    saveCustomInterests(next);
+    setSaved(prev => {
+      const nextSaved = prev.filter(x => x !== id);
+      localStorage.setItem(MY_INTERESTS_KEY, JSON.stringify(nextSaved));
+      return nextSaved;
+    });
+  };
+
+  // All interests: defaults + custom; saved first in browse mode
+  const allItems = [...ALL_INTERESTS_CFG, ...customs];
+  const sorted = customize
+    ? allItems
+    : [
+        ...allItems.filter(it => saved.includes(it.id)),
+        ...allItems.filter(it => !saved.includes(it.id)),
+      ];
 
   if (!open) return null;
   return (
@@ -842,7 +912,7 @@ function InterestsPickerModal({ open, onClose, onSelect }: {
           <div>
             <h2 className="font-black text-gray-900 text-lg leading-tight">My Interests</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              {customize ? "Tap to save · your saved interests appear first" : "Tap any to explore AI-powered results"}
+              {customize ? "Check to save · add your own below" : "Tap any to explore AI-powered results"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -859,41 +929,39 @@ function InterestsPickerModal({ open, onClose, onSelect }: {
         </div>
 
         <div className="overflow-y-auto p-4">
-          {/* Saved section header in customize mode */}
-          {customize && saved.length > 0 && (
-            <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-2 px-1">
-              ★ Saved ({saved.length})
-            </p>
-          )}
-
           <div className="grid grid-cols-3 gap-3">
             {sorted.map(it => {
               const isSaved = saved.includes(it.id);
+              const isCustom = 'id' in it && (it.id as string).startsWith('custom_');
               if (customize) {
                 return (
-                  <button key={it.id} onClick={() => toggle(it.id)}
-                    className={`relative flex flex-col items-center gap-2 border rounded-2xl p-4 transition-all active:scale-95 ${
-                      isSaved
-                        ? "bg-orange-50 border-orange-300 shadow-sm"
-                        : "bg-gray-50 border-gray-100 hover:border-orange-200"
-                    }`}>
-                    {/* Checkbox indicator */}
-                    <div className={`absolute top-2 right-2 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                      isSaved ? "bg-orange-500 border-orange-500" : "border-gray-300 bg-white"
-                    }`}>
-                      {isSaved && <span className="text-white text-[8px] font-black">✓</span>}
-                    </div>
+                  <div key={it.id} className={`relative flex flex-col items-center gap-2 border rounded-2xl p-4 transition-all ${
+                    isSaved ? "bg-orange-50 border-orange-300 shadow-sm" : "bg-gray-50 border-gray-100"
+                  }`}>
+                    {/* Save toggle */}
+                    <button onClick={() => toggleSaved(it.id)} className="absolute top-2 right-2">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        isSaved ? "bg-orange-500 border-orange-500" : "border-gray-300 bg-white"
+                      }`}>
+                        {isSaved && <span className="text-white text-[8px] font-black">✓</span>}
+                      </div>
+                    </button>
+                    {/* Delete for custom */}
+                    {isCustom && (
+                      <button onClick={() => removeCustom(it.id)}
+                        className="absolute top-2 left-2 w-4 h-4 rounded-full bg-red-50 border border-red-200 flex items-center justify-center hover:bg-red-100">
+                        <X size={8} className="text-red-400"/>
+                      </button>
+                    )}
                     <span className="text-3xl leading-none">{it.emoji}</span>
                     <span className={`text-xs font-semibold text-center leading-tight ${isSaved ? "text-orange-700" : "text-gray-700"}`}>{it.label}</span>
-                  </button>
+                  </div>
                 );
               }
               return (
                 <button key={it.id} onClick={() => onSelect(it.id)}
                   className={`relative flex flex-col items-center gap-2 border rounded-2xl p-4 transition-all active:scale-95 ${
-                    isSaved
-                      ? "bg-orange-50 border-orange-200 hover:border-orange-400"
-                      : "bg-gray-50 border-gray-100 hover:bg-orange-50 hover:border-orange-300"
+                    isSaved ? "bg-orange-50 border-orange-200 hover:border-orange-400" : "bg-gray-50 border-gray-100 hover:bg-orange-50 hover:border-orange-300"
                   }`}>
                   {isSaved && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-400"/>}
                   <span className="text-3xl leading-none">{it.emoji}</span>
@@ -903,10 +971,31 @@ function InterestsPickerModal({ open, onClose, onSelect }: {
             })}
           </div>
 
+          {/* Add custom interest */}
           {customize && (
-            <p className="text-center text-[11px] text-gray-400 mt-4">
-              {saved.length === 0 ? "Tap interests above to save them to your profile" : `${saved.length} interest${saved.length>1?"s":""} saved`}
-            </p>
+            <div className="mt-4 space-y-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Add Your Own</p>
+              <div className="flex gap-2">
+                <input
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addCustom(); }}
+                  placeholder="e.g. Swimming Pool, Yoga, Bakery…"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+                />
+                <button onClick={addCustom} disabled={!newLabel.trim()}
+                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-bold px-4 rounded-xl text-sm transition-all flex items-center gap-1">
+                  <Plus size={14}/>Add
+                </button>
+              </div>
+              {newLabel.trim() && (
+                <p className="text-xs text-gray-400 px-1">Will be saved as {guessEmoji(newLabel)} {newLabel.trim()}</p>
+              )}
+              {saved.length === 0
+                ? <p className="text-center text-[11px] text-gray-400">Tap interests above to save them to your profile</p>
+                : <p className="text-center text-[11px] text-gray-400">{saved.length} interest{saved.length>1?"s":""} saved</p>
+              }
+            </div>
           )}
         </div>
       </div>
@@ -960,9 +1049,11 @@ function resultSearchLink(name: string, city: string, interestId: string, compan
 function InterestDetailModal({ interestId, onClose, userLoc }: {
   interestId: string|null; onClose:()=>void; userLoc?: UserLocation|null;
 }) {
+  const [dbResults,  setDbResults]  = useState<any[]>([]);
   const [aiResults,  setAiResults]  = useState<any[]>([]);
   const [osmResults, setOsmResults] = useState<any[]>([]);
   // start aiLoading=true so we never flash "No results" before the first fetch
+  const [dbLoading,  setDbLoading]  = useState(true);
   const [aiLoading,  setAiLoading]  = useState(true);
   const [osmLoading, setOsmLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -971,14 +1062,37 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
 
   useEffect(() => {
     if (!interestId) return;
-    setAiResults([]); setOsmResults([]); setVisibleCount(10);
-    setAiLoading(true); setOsmLoading(false);
+    setDbResults([]); setAiResults([]); setOsmResults([]); setVisibleCount(10);
+    setDbLoading(true); setAiLoading(true); setOsmLoading(false);
 
     const lat = userLoc?.lat ?? 0;
     const lon = userLoc?.lon ?? 0;
+    const customIt = loadCustomInterests().find(x => x.id === interestId);
+    const customLabel = customIt?.label || '';
+
+    // ── DB fetch (platform listings, verified) ────────────────────
+    const dbTypeMap: Record<string,string> = {
+      restaurant:'restaurant', hotel:'hotel', hospital:'hospital',
+      pharmacy:'pharmacy', school:'school', bank:'bank',
+      fuel:'fuel', supermarket:'supermarket', temple:'temple',
+      park:'park', jobs:'jobs', services:'service',
+    };
+    const dbType = dbTypeMap[interestId];
+    const dbParams = dbType
+      ? new URLSearchParams({ type: dbType, limit: '8' })
+      : new URLSearchParams({ search: customLabel || interestId, limit: '8' });
+    fetch(`/v1/public/listings?${dbParams}`)
+      .then(r=>r.json())
+      .then(d=>{
+        if (d.success && d.data?.length) {
+          setDbResults(d.data.map((item:any)=>({ ...item, source:'db' })));
+        }
+      })
+      .catch(()=>{})
+      .finally(()=>setDbLoading(false));
 
     // ── AI search via /api/aisearch (Gemini) ─────────────────────
-    const aiQuery = INTEREST_AI_QUERY[interestId] || `${interestId} near me`;
+    const aiQuery = INTEREST_AI_QUERY[interestId] || `${customLabel || interestId} near me`;
     fetch('/api/aisearch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -987,7 +1101,6 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
       .then(r=>r.json())
       .then(d=>{
         if (d.success && d.data) {
-          // flatten all categories into one list
           const raw:any[] = Object.values(d.data as Record<string,any[]>).flat();
           setAiResults(raw.map(({phone:_p, contact:_c, mobile:_m, tel:_t, ...rest}:any)=>({...rest, source:"ai"})));
         }
@@ -1022,22 +1135,25 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
   }, [interestId, userLoc?.lat, userLoc?.lon]);
 
   if (!interestId) return null;
-  const it = ALL_INTERESTS_CFG.find(x=>x.id===interestId);
+  const it = ALL_INTERESTS_CFG.find(x=>x.id===interestId)
+    || loadCustomInterests().find(x=>x.id===interestId) as typeof ALL_INTERESTS_CFG[0] | undefined;
   if (!it) return null;
   const city      = userLoc?.city || "India";
   const lat       = userLoc?.lat ?? 0;
   const lon       = userLoc?.lon ?? 0;
   const platforms = INTEREST_PLATFORMS[interestId] || [];
 
-  // Merge: AI first (richer desc), then OSM deduplicated by name
-  const aiNames = new Set(aiResults.map(r=>r.name?.toLowerCase()));
-  const merged  = [
-    ...aiResults,
-    ...osmResults.filter(r=>!aiNames.has(r.name?.toLowerCase())),
+  // Merge: DB (verified) first, then AI, then OSM — deduplicated
+  const dbNames  = new Set(dbResults.map(r=>r.name?.toLowerCase()));
+  const aiNames  = new Set(aiResults.map(r=>r.name?.toLowerCase()));
+  const aiOsm    = [
+    ...aiResults.filter(r=>!dbNames.has(r.name?.toLowerCase())),
+    ...osmResults.filter(r=>!dbNames.has(r.name?.toLowerCase()) && !aiNames.has(r.name?.toLowerCase())),
   ];
-  const visible = merged.slice(0, visibleCount);
-  const hasMore = visibleCount < merged.length;
-  const loading = aiLoading || osmLoading;
+  const merged   = [...dbResults, ...aiOsm];
+  const visible  = merged.slice(0, visibleCount);
+  const hasMore  = visibleCount < merged.length;
+  const loading  = dbLoading || aiLoading || osmLoading;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -1075,8 +1191,8 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
           <div className="px-5 py-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Sparkles size={10} className="text-orange-400"/>
-                AI + Nearby Results
+                <MapPin size={10} className="text-orange-400"/>
+                Nearby Results
                 {loading && <Loader2 size={10} className="animate-spin text-orange-400"/>}
               </p>
               {merged.length > 0 && <span className="text-[10px] text-gray-400">{merged.length} found</span>}
@@ -1099,45 +1215,71 @@ function InterestDetailModal({ interestId, onClose, userLoc }: {
               </div>
             ) : (
               <div className="space-y-2">
+                {/* ── DB section header ── */}
+                {dbResults.length > 0 && (
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ShieldCheck size={10} className="text-green-500"/>
+                    <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest">Platform Listings</span>
+                  </div>
+                )}
+
                 {visible.map((r:any,i:number)=>{
-                  const isJob = interestId === "jobs";
-                  const link = resultSearchLink(r.name, city, interestId, r.company);
+                  const isJob  = interestId === "jobs";
+                  const isDb   = r.source === "db";
+                  const link   = resultSearchLink(r.name, city, interestId, r.company);
+
+                  // Insert section divider between DB and AI/OSM results
+                  const prevIsDb = i > 0 && visible[i-1]?.source === "db";
+                  const showDivider = !isDb && prevIsDb && dbResults.length > 0;
+
                   return (
-                    <div key={`${r.source}-${i}`}
-                      className="flex items-start gap-3 border border-gray-100 hover:border-orange-200 hover:bg-orange-50/40 rounded-xl px-3.5 py-3 transition-all">
-                      <span className="text-xl leading-none shrink-0 mt-0.5">{it.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-gray-800 leading-tight truncate">{r.name}</p>
-                            {/* Job-specific: company name */}
-                            {isJob && r.company && (
-                              <p className="text-xs font-semibold text-gray-600 mt-0.5">{r.company}</p>
-                            )}
-                          </div>
-                          <a href={link} target="_blank" rel="noopener noreferrer"
-                            className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded-lg transition-colors">
-                            {isJob ? "Apply" : "Open"}<ExternalLink size={8} className="ml-0.5"/>
-                          </a>
+                    <div key={`${r.source}-${i}`}>
+                      {showDivider && (
+                        <div className="flex items-center gap-1.5 pt-2 pb-1">
+                          <Sparkles size={10} className="text-orange-400"/>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI &amp; Map Results</span>
                         </div>
-                        {/* Job-specific: salary + type badges */}
-                        {isJob && (r.salary || r.type) && (
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {r.salary && <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">💰 {r.salary}</span>}
-                            {r.type   && <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{r.type}</span>}
+                      )}
+                      <div
+                        className={`flex items-start gap-3 border rounded-xl px-3.5 py-3 transition-all ${
+                          isDb
+                            ? "border-green-100 bg-green-50/40 hover:border-green-300"
+                            : "border-gray-100 hover:border-orange-200 hover:bg-orange-50/40"
+                        }`}>
+                        <span className="text-xl leading-none shrink-0 mt-0.5">{it.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-gray-800 leading-tight truncate">{r.name}</p>
+                              {isJob && r.company && (
+                                <p className="text-xs font-semibold text-gray-600 mt-0.5">{r.company}</p>
+                              )}
+                            </div>
+                            <a href={link} target="_blank" rel="noopener noreferrer"
+                              className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded-lg transition-colors">
+                              {isJob ? "Apply" : "Open"}<ExternalLink size={8} className="ml-0.5"/>
+                            </a>
                           </div>
-                        )}
-                        {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
-                        {r.tip && <p className="text-xs text-orange-500 mt-0.5 italic">{r.tip}</p>}
-                        {r.address && (
-                          <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
-                            <MapPin size={9} className="shrink-0 text-gray-300"/>{r.address}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          {!isJob && r.dist_km != null && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
-                          {r.source==="ai" && <span className="text-[9px] font-bold text-purple-400 bg-purple-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">AI</span>}
-                          {r.source==="osm" && <span className="text-[9px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Map</span>}
+                          {isJob && (r.salary || r.type) && (
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {r.salary && <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">💰 {r.salary}</span>}
+                              {r.type   && <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{r.type}</span>}
+                            </div>
+                          )}
+                          {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
+                          {r.tip && <p className="text-xs text-orange-500 mt-0.5 italic">{r.tip}</p>}
+                          {r.address && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                              <MapPin size={9} className="shrink-0 text-gray-300"/>{r.address}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {!isJob && r.dist_km != null && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{r.dist_km}km</span>}
+                            {isDb && <span className="text-[9px] font-bold text-green-600 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full">✓ Verified</span>}
+                            {!isDb && <span className="text-[9px] font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-full">Not Verified</span>}
+                            {r.source==="ai"  && <span className="text-[9px] font-bold text-purple-400 bg-purple-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">AI</span>}
+                            {r.source==="osm" && <span className="text-[9px] font-bold text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Map</span>}
+                          </div>
                         </div>
                       </div>
                     </div>
