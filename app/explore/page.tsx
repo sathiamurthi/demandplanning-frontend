@@ -15,7 +15,7 @@ import {
   History, Navigation2, FileText, Globe, Sparkles, Home, Activity,
   Scissors, ShoppingBag, Palette, Bot, Loader2, Copy, Download, Smartphone, Share2, Wifi, WifiOff, RefreshCw,
   Lock as LockIcon, ExternalLink, MessageCircle, ClipboardList, CheckSquare, Clock, XCircle, RotateCcw, Filter,
-  Settings, Mail, PhoneCall, ShieldCheck, BadgeCheck,
+  Settings, Mail, PhoneCall, ShieldCheck, BadgeCheck, HelpCircle, BookOpen,
 } from "lucide-react";
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
@@ -1957,6 +1957,23 @@ export default function DemandGeniusApp() {
             );
           })}
         </nav>
+
+        {/* Help & Resources — bottom of sidebar */}
+        <div className="px-3 pb-2 border-t border-gray-100 pt-2 space-y-0.5">
+          <p className="text-[9px] font-bold tracking-widest text-gray-400 px-2 pt-1 pb-1 uppercase">Help</p>
+          {[
+            { href: "/help",  icon: BookOpen,     label: "User Guide",  color: "text-sky-500" },
+            { href: "/faq",   icon: HelpCircle,   label: "FAQ",         color: "text-sky-500" },
+          ].map(({ href, icon: Icon, label, color }) => (
+            <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs text-gray-600 hover:bg-sky-50 hover:text-sky-700 transition-all">
+              <Icon size={13} className={color}/>
+              {label}
+              <ExternalLink size={9} className="ml-auto text-gray-300"/>
+            </a>
+          ))}
+        </div>
 
         {/* Guest pill */}
         <div className="p-3 border-t border-gray-100">
@@ -12524,21 +12541,67 @@ function GuestProfileModal({ isOpen, onClose, guest, onOpenWhatsApp }: { isOpen:
                 <div className="text-[10px] text-gray-500">Get offer alerts on your phone</div>
               </div>
               <button
-                onClick={() => {
-                  onClose();
-                  onOpenWhatsApp();
-                }}
+                onClick={() => { onClose(); onOpenWhatsApp(); }}
                 className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
               >
                 <Phone size={10}/> Manage
               </button>
             </div>
           </div>
+
+          {/* Help & Resources */}
+          <div className="border border-sky-100 bg-sky-50/40 rounded-xl p-3.5 space-y-1.5">
+            <div className="font-bold text-sky-700 uppercase text-[9px] tracking-wider mb-2">Help & Resources</div>
+            {[
+              {
+                href: "/help",
+                icon: <BookOpen size={13} className="text-sky-500"/>,
+                label: "User Guide",
+                desc: "Step-by-step platform walkthrough",
+                badge: null,
+              },
+              {
+                href: "/faq",
+                icon: <HelpCircle size={13} className="text-sky-500"/>,
+                label: "FAQ",
+                desc: "Frequently asked questions",
+                badge: null,
+              },
+              {
+                href: "/hotel-respond",
+                icon: <CheckCircle2 size={13} className="text-green-500"/>,
+                label: "Vendor Response Portal",
+                desc: "For hotels & vendors to respond to inquiries",
+                badge: "For vendors",
+              },
+            ].map(link => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onClose}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white hover:shadow-sm transition-all group"
+              >
+                <span className="shrink-0">{link.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-gray-800 text-[11px]">{link.label}</span>
+                    {link.badge && (
+                      <span className="text-[9px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{link.badge}</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400">{link.desc}</div>
+                </div>
+                <ExternalLink size={10} className="text-gray-300 group-hover:text-sky-400 shrink-0 transition-colors"/>
+              </a>
+            ))}
+          </div>
         </div>
 
         <button
           onClick={onClose}
-          className="mt-6 w-full bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 rounded-lg transition-colors"
+          className="mt-4 w-full bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold py-2 rounded-lg transition-colors"
         >
           Close
         </button>
