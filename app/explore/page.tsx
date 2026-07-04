@@ -4119,7 +4119,7 @@ function TravelPanel() {
   const filteredListings = listings.filter(l=>(tab==="stay"?stayTypes:driverTypes).includes(l.type));
 
   const submitOnboard = async () => {
-    if(!ob.name||!ob.phone){setObErr("Name and phone required");return;}
+    if(!ob.name||!ob.phone||!ob.city){setObErr("Name, phone, and city are required");return;}
     setObSaving(true); setObErr("");
     try {
       const services=obServices.filter(s=>s.name).map(s=>({name:s.name,rate:s.rate}));
@@ -8057,19 +8057,26 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
       const sq = q.toLowerCase().endsWith('s') && q.length > 3 ? q.slice(0, -1) : q;
 
       const sp  = new URLSearchParams({ limit:"20", ...(sq&&{search:sq}), ...(c&&{city:c}) });
-      // Pass 1: keyword+city filter
-      const lp1 = new URLSearchParams({ limit:"15", mode:"provider", ...(sq&&{search:sq}), ...(c&&{city:c}) });
-      // Pass 2: type=keyword + search=city — finds records where city is null but city name
-      //          appears in description (e.g. "Hotel service at coonoor")
+      // Pass 1: keyword+city — search term matches name/type/description, city matches city field
+      const lp1 = new URLSearchParams({ limit:"20", mode:"provider", ...(sq&&{search:sq}), ...(c&&{city:c}) });
+      // Pass 2: explicit type+city — catches app-registered vendors whose name doesn't contain keyword
       const lp2 = sq && c
+        ? new URLSearchParams({ limit:"20", mode:"provider", type:sq, city:c })
+        : null;
+      // Pass 3: type=keyword + search=city — finds records where city field is null but city
+      //          name appears in description (e.g. "Hotel service at kotagiri")
+      const lp3 = sq && c
         ? new URLSearchParams({ limit:"15", mode:"provider", type:sq, search:c })
         : null;
 
-      const [sd, ld1, ld2] = await Promise.all([
+      const [sd, ld1, ld2, ld3] = await Promise.all([
         fetch(`/v1/public/stores?${sp}`).then(r=>r.json()).catch(()=>({success:false,data:[]})),
         fetch(`/v1/public/listings?${lp1}`).then(r=>r.json()).catch(()=>({success:false,data:[]})),
         lp2
           ? fetch(`/v1/public/listings?${lp2}`).then(r=>r.json()).catch(()=>({success:false,data:[]}))
+          : Promise.resolve({success:false,data:[]}),
+        lp3
+          ? fetch(`/v1/public/listings?${lp3}`).then(r=>r.json()).catch(()=>({success:false,data:[]}))
           : Promise.resolve({success:false,data:[]}),
       ]);
 
@@ -8093,7 +8100,12 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
       const fromListings: VendorCard[] = [
         ...(ld1.success ? (ld1.data||[]).map(mapListing) : []),
         ...(ld2.success ? (ld2.data||[]).map(mapListing) : []),
+        ...(ld3.success ? (ld3.data||[]).map(mapListing) : []),
       ];
+
+      // Sort app-registered vendors (source='app' or is_verified=true) before AI leads
+      const rankVendor = (v: VendorCard) =>
+        v.source === 'platform' ? 3 : (v.is_verified || v.source === 'app') ? 2 : 1;
 
       const seen = new Set<string>();
       const combined: VendorCard[] = [];
@@ -8101,7 +8113,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
         const k=`${(r.name||"").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12)}_${(r.city||"").toLowerCase().slice(0,8)}`;
         if(!seen.has(k)){ seen.add(k); combined.push(r); }
       });
-      combined.sort((a,b)=>(b.is_verified?1:0)-(a.is_verified?1:0)||(a.name||"").localeCompare(b.name||""));
+      combined.sort((a,b)=>rankVendor(b)-rankVendor(a)||(a.name||"").localeCompare(b.name||""));
       setStoreResults(combined);
     } catch { setStoreResults([]); }
     finally { setStoreSearching(false); }
