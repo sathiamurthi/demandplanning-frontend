@@ -5173,9 +5173,9 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
   const [selected, setSelected]= useState<Set<string>>(new Set());
   const [comparing,setComparing]=useState(false);
 
-  // Onboard form
-  const [ob, setOb]           = useState({ type:"plumber", mode:defaultMode||"provider", name:"", phone:"", email:"", city:"", state:"", address:"", description:"", rate_info:"", discount:"", available_now:true });
-  useEffect(() => { if (defaultMode) { setMode(defaultMode); setOb(p=>({...p,mode:defaultMode})); } }, [defaultMode]);
+  // Onboard form — always starts as provider regardless of which section navigated from
+  const [ob, setOb]           = useState({ type:"plumber", mode:"provider" as "provider"|"seeker", name:"", phone:"", email:"", city:"", state:"", address:"", description:"", rate_info:"", discount:"", available_now:true });
+  useEffect(() => { if (defaultMode) { setMode(defaultMode); } }, [defaultMode]);
   const [obServices, setObServices] = useState<{name:string;rate:string}[]>([{name:"",rate:""}]);
   const [locCapturing, setLocCapturing] = useState(false);
   const [obLat, setObLat]     = useState<number|null>(null);
@@ -5280,7 +5280,7 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
     setObSaving(false);
   };
 
-  const resetOnboard=()=>{ setObDone(false); setOb({type:"plumber",mode:"provider",name:"",phone:"",email:"",city:"",state:"",address:"",description:"",rate_info:"",discount:"",available_now:true}); setObServices([{name:"",rate:""}]); setObLat(null); setObLng(null); setObErr(""); };
+  const resetOnboard=()=>{ setObDone(false); setOb({type:"plumber",mode:"provider" as "provider"|"seeker",name:"",phone:"",email:"",city:"",state:"",address:"",description:"",rate_info:"",discount:"",available_now:true}); setObServices([{name:"",rate:""}]); setObLat(null); setObLng(null); setObErr(""); };
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -5539,58 +5539,78 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
       {tab==="onboard" && (
         <div className="max-w-xl space-y-4">
           {obDone?(
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center shadow-sm">
-              <CheckCircle2 size={40} className="mx-auto text-green-500 mb-3"/>
-              <h2 className="font-black text-gray-900 text-lg">Listing Successful!</h2>
-              <p className="text-gray-600 text-sm mt-1">Your record is active on the local network map. Neighbors can now discover and contact you.</p>
-              <button onClick={resetOnboard} className="mt-4 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm">Add Another Listing</button>
+            <div className={`border-2 rounded-2xl p-8 text-center shadow-sm ${ob.mode==="provider"?"bg-emerald-50 border-emerald-200":"bg-blue-50 border-blue-200"}`}>
+              <CheckCircle2 size={40} className={`mx-auto mb-3 ${ob.mode==="provider"?"text-emerald-500":"text-blue-500"}`}/>
+              <h2 className="font-black text-gray-900 text-lg">
+                {ob.mode==="provider" ? "You're Live as a Provider!" : "Requirement Posted!"}
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">
+                {ob.mode==="provider"
+                  ? "Your service profile is now active. People in your area can find and contact you."
+                  : "Local providers can now see your requirement and reach out to you."}
+              </p>
+              <button onClick={resetOnboard} className="mt-4 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm">Add Another</button>
             </div>
           ):(
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-6 shadow-sm">
-              <div>
-                <h2 className="font-extrabold text-gray-900 text-base">Register Seeker / Provider</h2>
-                <p className="text-xs text-gray-500 mt-0.5">List your service profile or post an active service need to the neighborhood network.</p>
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+
+              {/* Header Banner — changes color by mode */}
+              <div className={`p-5 ${ob.mode==="provider" ? "bg-emerald-600" : "bg-blue-600"}`}>
+                <h2 className="font-black text-white text-base leading-tight">
+                  {ob.mode==="provider" ? "💼 Register as Service Provider" : "🔍 Post a Service Requirement"}
+                </h2>
+                <p className="text-white/70 text-[11px] mt-0.5">
+                  {ob.mode==="provider"
+                    ? "Get discovered by people who need your skills in your area"
+                    : "Let local providers know what you need — they'll reach out to you"}
+                </p>
               </div>
 
-              {/* Step 1: Mode Toggle Cards */}
+              <div className="p-6 space-y-6">
+
+              {/* Step 1: Role Selection — large, obvious */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Registration Vibe</label>
+                <label className="text-xs font-black text-gray-700 block">Step 1 — Who are you?</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={()=>setOb(p=>({...p,mode:"provider"}))}
-                    className={`p-4 rounded-2xl border-2 text-center transition-all ${
+                    className={`p-4 rounded-2xl border-2 text-center transition-all relative ${
                       ob.mode==="provider"
-                        ? "border-emerald-500 bg-emerald-50/50 text-emerald-800"
-                        : "border-gray-100 hover:border-gray-200 bg-white text-gray-600"
+                        ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                        : "border-gray-200 hover:border-emerald-300 bg-white"
                     }`}
                   >
-                    <span className="text-xl block mb-1">💼</span>
-                    <span className="text-xs font-extrabold block">Service Provider</span>
-                    <span className="text-[9px] opacity-80 block mt-0.5">I want to offer my service</span>
+                    {ob.mode==="provider" && <span className="absolute top-2 right-2 text-[9px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">✓ SELECTED</span>}
+                    <span className="text-2xl block mb-1.5">💼</span>
+                    <span className={`text-sm font-extrabold block ${ob.mode==="provider"?"text-emerald-700":"text-gray-600"}`}>I Offer Services</span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">Plumber, driver, tutor, hotel...</span>
                   </button>
                   <button
                     type="button"
                     onClick={()=>setOb(p=>({...p,mode:"seeker"}))}
-                    className={`p-4 rounded-2xl border-2 text-center transition-all ${
+                    className={`p-4 rounded-2xl border-2 text-center transition-all relative ${
                       ob.mode==="seeker"
-                        ? "border-blue-500 bg-blue-50/50 text-blue-800"
-                        : "border-gray-100 hover:border-gray-200 bg-white text-gray-600"
+                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                        : "border-gray-200 hover:border-blue-300 bg-white"
                     }`}
                   >
-                    <span className="text-xl block mb-1">🔍</span>
-                    <span className="text-xs font-extrabold block">Service Seeker</span>
-                    <span className="text-[9px] opacity-80 block mt-0.5">I want to hire or post a need</span>
+                    {ob.mode==="seeker" && <span className="absolute top-2 right-2 text-[9px] font-black text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">✓ SELECTED</span>}
+                    <span className="text-2xl block mb-1.5">🔍</span>
+                    <span className={`text-sm font-extrabold block ${ob.mode==="seeker"?"text-blue-700":"text-gray-600"}`}>I Need Help</span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">Looking to hire or get work done</span>
                   </button>
                 </div>
               </div>
 
               {/* Step 2: Information Grid */}
               <div className="space-y-4 pt-3 border-t border-gray-100">
-                <h3 className="text-xs font-extrabold text-gray-800">Basic Information</h3>
+                <h3 className="text-xs font-black text-gray-800">Step 2 — Your Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Service Category</label>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">
+                      {ob.mode==="provider" ? "Your Service Category" : "Service You Need"}
+                    </label>
                     <select
                       value={ob.type}
                       onChange={e=>setOb(p=>({...p,type:e.target.value}))}
@@ -5602,11 +5622,13 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Full Name / Business Title *</label>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">
+                      {ob.mode==="provider" ? "Your Name / Business Name *" : "Your Name *"}
+                    </label>
                     <input
                       value={ob.name}
                       onChange={e=>setOb(p=>({...p,name:e.target.value}))}
-                      placeholder="e.g. Ramesh Kumar, Fast Courier"
+                      placeholder={ob.mode==="provider" ? "e.g. Ramesh Plumbing, Sathiamurthi Hotel" : "e.g. Suresh Kumar"}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
                     />
                   </div>
@@ -5631,11 +5653,13 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Charge Rate / Estimated Budget</label>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">
+                      {ob.mode==="provider" ? "Your Charge Rate" : "Your Budget"}
+                    </label>
                     <input
                       value={ob.rate_info}
                       onChange={e=>setOb(p=>({...p,rate_info:e.target.value}))}
-                      placeholder="e.g. ₹500/visit, ₹15,000/month"
+                      placeholder={ob.mode==="provider" ? "e.g. ₹500/visit, ₹15,000/month" : "e.g. Budget ₹5,000, negotiable"}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-orange-400 bg-white"
                     />
                   </div>
@@ -5649,12 +5673,14 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-bold text-gray-500 block mb-1">Service description / Detailed Requirement</label>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">
+                      {ob.mode==="provider" ? "About Your Service" : "What You Need"}
+                    </label>
                     <textarea
                       value={ob.description}
                       onChange={e=>setOb(p=>({...p,description:e.target.value}))}
                       rows={2}
-                      placeholder="Briefly explain your services or details of what support you need..."
+                      placeholder={ob.mode==="provider" ? "Describe your experience, what you offer, availability..." : "Describe what help you're looking for, timeline, any requirements..."}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-orange-400 bg-white"
                     />
                   </div>
@@ -5759,6 +5785,7 @@ function ServicesPanel({ userLoc, defaultMode }: { userLoc:UserLocation|null; de
               >
                 {obSaving ? <span className="flex items-center justify-center gap-1.5"><Loader2 size={12} className="animate-spin"/>Registering Profile...</span> : ob.mode === "provider" ? "Register as Provider & Go Live" : "Post Seeker Requirement"}
               </button>
+            </div>
             </div>
           )}
         </div>
