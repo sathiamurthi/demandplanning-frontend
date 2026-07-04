@@ -2449,6 +2449,125 @@ function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: 
   );
 }
 
+// ── Contributor storage key ───────────────────────────────────
+const CONTRIBUTOR_KEY = "dg.contributor";
+
+function getContributorStatus(): { paid: boolean; payment_id?: string; paid_at?: string } {
+  try {
+    const raw = localStorage.getItem(CONTRIBUTOR_KEY);
+    if (!raw) return { paid: false };
+    return { paid: true, ...JSON.parse(raw) };
+  } catch { return { paid: false }; }
+}
+
+// ── ContributorModal ──────────────────────────────────────────
+function ContributorModal({ guest, onClose, onSuccess }: {
+  guest: GuestIdentity; onClose: () => void; onSuccess: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const AMOUNT = 99;
+
+  const loadRazorpayScript = () => new Promise<boolean>(resolve => {
+    const src = 'https://checkout.razorpay.com/v1/checkout.js';
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(true); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+
+  const handlePay = async () => {
+    setLoading(true); setErr('');
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error('Could not load payment gateway. Check your internet connection.');
+
+      const orderRes = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: AMOUNT, guest_id: guest.id, currency: 'INR' }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderData.success) throw new Error(orderData.error || 'Could not create order');
+
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'DemandGenius',
+        description: 'Contributor Membership',
+        order_id: orderData.orderId,
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch('/api/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...response, guest_id: guest.id }),
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyData.success) throw new Error(verifyData.error);
+            localStorage.setItem(CONTRIBUTOR_KEY, JSON.stringify({
+              guest_id: guest.id,
+              payment_id: verifyData.payment_id,
+              paid_at: new Date().toISOString(),
+              amount: AMOUNT,
+            }));
+            onSuccess();
+          } catch (e: any) { setErr(e.message || 'Payment verification failed'); }
+        },
+        prefill: { contact: guest.phone || '' },
+        theme: { color: '#f97316' },
+        modal: { ondismiss: () => setLoading(false) },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (e: any) {
+      setErr(e.message || 'Payment failed');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Star size={16} className="text-orange-500 fill-orange-500"/>
+            <span className="font-black text-gray-900 text-sm">Become a Contributor</span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1"><X size={18}/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-2">
+            {[
+              '⭐ Contributor badge on your profile',
+              '🔓 Early access to new features',
+              '📞 Phone numbers of providers (coming soon)',
+              '🤝 Priority community support',
+              '💡 Help shape DemandGenius',
+            ].map((benefit, i) => (
+              <p key={i} className="text-sm text-gray-700">{benefit}</p>
+            ))}
+          </div>
+          {err && <p className="text-red-500 text-xs text-center">{err}</p>}
+          <button
+            onClick={handlePay}
+            disabled={loading}
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/20"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin"/> : <Star size={16} className="fill-white"/>}
+            {loading ? 'Processing…' : 'Pay ₹99 & Become a Contributor'}
+          </button>
+          <p className="text-[10px] text-gray-400 text-center">One-time payment · Secure checkout via Razorpay</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdentity; gk:(s:string)=>string; setSection:(s:Section)=>void; userLoc?: UserLocation|null }) {
   const [expenses]  = useLocalStore<Expense[]>(gk("expenses"), []);
   const [contacts]  = useLocalStore<Contact[]>(gk("contacts"), []);
@@ -2462,12 +2581,15 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
   const [showSeekers,   setShowSeekers]   = useState(false);
   const [showProviders, setShowProviders] = useState(false);
   const [showDelivery, setShowDelivery] = useState(false);
+  const [showContributorModal, setShowContributorModal] = useState(false);
+  const [isContributor, setIsContributor] = useState(false);
   const [dlv, setDlv] = useState({ pickup:"", dropoff:"", intermediate:"", notes:"", phone:"" });
   const [interests,   setInterests]   = useLocalStore<string[]>(gk("interests"), []);
   const [interestAI,  setInterestAI]  = useState<Record<string,any[]>>({});
   const [interestLoad,setInterestLoad]= useState<string|null>(null);
 
   useEffect(() => {
+    setIsContributor(getContributorStatus().paid);
     fetch("/v1/public/stats").then(r => r.json()).then(d => { if (d.success) setPlatform(d.data); }).catch(() => {});
     fetch("/v1/public/listings?limit=1&mode=seeker").then(r=>r.json()).then(d=>{ if(d.success) setSeekerCount(d.meta?.total||0); }).catch(()=>{});
     fetch("/v1/public/listings?limit=1&mode=provider").then(r=>r.json()).then(d=>{ if(d.success) setProviderCount(d.meta?.total||0); }).catch(()=>{});
@@ -2616,6 +2738,13 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
       {/* Seekers / Providers popups */}
       {showSeekers   && <ListingsPopup mode="seeker"   onClose={()=>setShowSeekers(false)}/>}
       {showProviders && <ListingsPopup mode="provider" onClose={()=>setShowProviders(false)}/>}
+      {showContributorModal && (
+        <ContributorModal
+          guest={guest}
+          onClose={() => setShowContributorModal(false)}
+          onSuccess={() => { setIsContributor(true); setShowContributorModal(false); }}
+        />
+      )}
 
       {/* Platform stats banner */}
       {platform.stores > 0 && (
@@ -2632,10 +2761,12 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
               <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Providers</p>
               <p className="text-white font-black text-xl">{providerCount||"—"}</p>
             </button>
-            <div title="Verified & committed platform members">
-              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Contributors ⭐</p>
+            <button onClick={e=>{e.stopPropagation();setShowContributorModal(true);}} className="text-left hover:opacity-80 transition-opacity" title={isContributor?"You're a Contributor!":"Become a Contributor"}>
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Contributors {isContributor?"⭐":"+"}</p>
               <p className="text-white font-black text-xl">{platform.contributors||0}</p>
-            </div>
+              {!isContributor && <p className="text-orange-200 text-[9px] font-semibold">Tap to join</p>}
+              {isContributor && <p className="text-yellow-200 text-[9px] font-semibold">You're one! ⭐</p>}
+            </button>
           </div>
           <div className="text-white/70 text-xs font-semibold shrink-0">Browse →</div>
         </div>
