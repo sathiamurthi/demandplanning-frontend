@@ -808,30 +808,106 @@ const INTEREST_PLATFORMS: Record<string, Array<{name:string, emoji:string, url:(
 };
 
 // ── InterestsPickerModal ──────────────────────────────────────
+const MY_INTERESTS_KEY = "dg.myinterests";
+
 function InterestsPickerModal({ open, onClose, onSelect }: {
   open: boolean; onClose: () => void; onSelect: (id: string) => void;
 }) {
+  const [customize, setCustomize] = useState(false);
+  const [saved, setSaved] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(MY_INTERESTS_KEY) || "[]"); } catch { return []; }
+  });
+
+  const toggle = (id: string) => {
+    setSaved(prev => {
+      const next = prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id];
+      localStorage.setItem(MY_INTERESTS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Sort: saved interests first, then the rest
+  const sorted = [
+    ...ALL_INTERESTS_CFG.filter(it => saved.includes(it.id)),
+    ...ALL_INTERESTS_CFG.filter(it => !saved.includes(it.id)),
+  ];
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[88vh] flex flex-col" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="font-black text-gray-900 text-lg leading-tight">My Interests</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Choose a topic to explore AI-powered results</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {customize ? "Tap to save · your saved interests appear first" : "Tap any to explore AI-powered results"}
+            </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCustomize(c=>!c)}
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                customize
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:border-orange-300 hover:text-orange-600"
+              }`}>
+              <Settings size={11}/>{customize ? "Done" : "Customize"}
+            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
+          </div>
         </div>
+
         <div className="overflow-y-auto p-4">
+          {/* Saved section header in customize mode */}
+          {customize && saved.length > 0 && (
+            <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-2 px-1">
+              ★ Saved ({saved.length})
+            </p>
+          )}
+
           <div className="grid grid-cols-3 gap-3">
-            {ALL_INTERESTS_CFG.map(it => (
-              <button key={it.id} onClick={() => onSelect(it.id)}
-                className="flex flex-col items-center gap-2 bg-gray-50 hover:bg-orange-50 border border-gray-100 hover:border-orange-300 rounded-2xl p-4 transition-all active:scale-95">
-                <span className="text-3xl leading-none">{it.emoji}</span>
-                <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{it.label}</span>
-              </button>
-            ))}
+            {sorted.map(it => {
+              const isSaved = saved.includes(it.id);
+              if (customize) {
+                return (
+                  <button key={it.id} onClick={() => toggle(it.id)}
+                    className={`relative flex flex-col items-center gap-2 border rounded-2xl p-4 transition-all active:scale-95 ${
+                      isSaved
+                        ? "bg-orange-50 border-orange-300 shadow-sm"
+                        : "bg-gray-50 border-gray-100 hover:border-orange-200"
+                    }`}>
+                    {/* Checkbox indicator */}
+                    <div className={`absolute top-2 right-2 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      isSaved ? "bg-orange-500 border-orange-500" : "border-gray-300 bg-white"
+                    }`}>
+                      {isSaved && <span className="text-white text-[8px] font-black">✓</span>}
+                    </div>
+                    <span className="text-3xl leading-none">{it.emoji}</span>
+                    <span className={`text-xs font-semibold text-center leading-tight ${isSaved ? "text-orange-700" : "text-gray-700"}`}>{it.label}</span>
+                  </button>
+                );
+              }
+              return (
+                <button key={it.id} onClick={() => onSelect(it.id)}
+                  className={`relative flex flex-col items-center gap-2 border rounded-2xl p-4 transition-all active:scale-95 ${
+                    isSaved
+                      ? "bg-orange-50 border-orange-200 hover:border-orange-400"
+                      : "bg-gray-50 border-gray-100 hover:bg-orange-50 hover:border-orange-300"
+                  }`}>
+                  {isSaved && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-400"/>}
+                  <span className="text-3xl leading-none">{it.emoji}</span>
+                  <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{it.label}</span>
+                </button>
+              );
+            })}
           </div>
+
+          {customize && (
+            <p className="text-center text-[11px] text-gray-400 mt-4">
+              {saved.length === 0 ? "Tap interests above to save them to your profile" : `${saved.length} interest${saved.length>1?"s":""} saved`}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -1726,24 +1802,6 @@ export default function DemandGeniusApp() {
                     <Icon size={15} />
                     {item.label}
                   </button>
-                )}
-                {item.id === "interests" && (
-                  <div className="mt-0.5 space-y-0.5">
-                    <button onClick={()=>{setSection("interests");setSidebarOpen(false);}}
-                      className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 rounded-xl text-xs transition-all text-gray-500 hover:bg-gray-50 hover:text-gray-800">
-                      <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-gray-200"/><Settings size={10}/>View All
-                    </button>
-                    {ALL_INTERESTS_CFG.map(it=>(
-                      <button key={it.id} onClick={()=>{setActiveInterest(it.id);setSidebarOpen(false);}}
-                        className={`w-full flex items-center gap-2 pl-7 pr-3 py-1.5 rounded-xl text-xs transition-all ${
-                          activeInterest===it.id?"text-orange-600 font-semibold bg-orange-50":"text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                        }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeInterest===it.id?"bg-orange-500":"bg-gray-200"}`}/>
-                        <span className="text-sm leading-none">{it.emoji}</span>
-                        {it.label}
-                      </button>
-                    ))}
-                  </div>
                 )}
               </div>
             );
