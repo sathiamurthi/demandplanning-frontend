@@ -1677,7 +1677,15 @@ function WorkflowAgentPanel({ guest }: { guest: GuestIdentity }) {
 export default function DemandGeniusApp() {
   const [guest, setGuest]             = useState<GuestIdentity | null>(null);
   const [guestReady, setGuestReady]   = useState(false);
-  const [section, setSection]         = useState<Section>("dashboard");
+  const [navStack, setNavStack]        = useState<Section[]>(["dashboard"]);
+  const section    = navStack[navStack.length - 1];
+  const canGoBack  = navStack.length > 1;
+  const setSection = useCallback((s: Section) => {
+    setNavStack(prev => prev[prev.length - 1] === s ? prev : [...prev, s]);
+  }, []);
+  const goBack = useCallback(() => {
+    setNavStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showContribute, setShowContribute] = useState(false);
   const [show30DayGate, setShow30DayGate]   = useState(false);
@@ -1974,9 +1982,20 @@ export default function DemandGeniusApp() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-800">
-            <Menu size={20} />
-          </button>
+          {canGoBack ? (
+            <button onClick={goBack} className="text-gray-500 hover:text-orange-600 flex items-center justify-center w-8 h-8 rounded-xl hover:bg-orange-50 transition-all shrink-0" title="Go back">
+              <ChevronRight size={20} className="rotate-180"/>
+            </button>
+          ) : (
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-800 shrink-0">
+              <Menu size={20} />
+            </button>
+          )}
+          {canGoBack && (
+            <span className="text-sm font-bold text-gray-700 capitalize shrink-0 hidden sm:block">
+              {section.replace(/_/g,' ')}
+            </span>
+          )}
           <div className="flex-1 relative max-w-lg flex items-center gap-2">
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -2518,10 +2537,12 @@ function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: 
     }).catch(()=>{}).finally(()=>setLoading(false));
   }, [mode, page]);
 
-  const isSeeker = mode === "seeker";
-  const title    = isSeeker ? "Seekers" : "Providers";
-  const emoji    = isSeeker ? "🔍" : "🛠";
-  const pages    = Math.ceil(total / PER_PAGE);
+  const isSeeker   = mode === "seeker";
+  const title      = isSeeker ? "Seekers" : "Providers";
+  const emoji      = isSeeker ? "🔍" : "🛠";
+  const pages      = Math.ceil(total / PER_PAGE);
+  const appCount   = items.filter(l => l.is_verified).length;
+  const otherCount = items.length - appCount;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -2533,7 +2554,7 @@ function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: 
             <span className="text-2xl">{emoji}</span>
             <div>
               <h2 className="font-black text-gray-900 text-lg leading-tight">{title}</h2>
-              <p className="text-xs text-gray-400">{total} {isSeeker ? "people looking for services" : "service providers"} on platform</p>
+              <p className="text-xs text-gray-400">{total} {isSeeker ? "people looking for services" : "service providers"} · {appCount > 0 ? `${appCount} app members` : "none yet from app"}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100"><X size={18}/></button>
@@ -2553,23 +2574,56 @@ function ListingsPopup({ mode, onClose }: { mode: "seeker"|"provider"; onClose: 
               <span className="text-4xl block mb-2">{emoji}</span>
               <p className="text-sm">No {title.toLowerCase()} found.</p>
             </div>
-          ) : items.map((l:any, i:number) => (
-            <div key={l.id||i} className="flex items-start gap-3 border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 rounded-xl px-3.5 py-3 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 text-lg">
-                {isSeeker ? "🔍" : "🛠"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-800 truncate">{l.name||"Anonymous"}</p>
-                <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                  {l.type && <span className="text-[10px] bg-gray-100 text-gray-500 font-semibold px-1.5 py-0.5 rounded-full capitalize">{l.type}</span>}
-                  {l.city && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={8}/>{l.city}</span>}
-                  {l.available_now && <span className="text-[10px] text-green-600 font-semibold bg-green-50 px-1.5 py-0.5 rounded-full">● Available</span>}
+          ) : (
+            <>
+              {/* Platform members section */}
+              {appCount > 0 && (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ShieldCheck size={11} className="text-green-500"/>
+                  <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest">App Members · {appCount}</span>
                 </div>
-                {l.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{l.description}</p>}
-                {l.rate_info && l.rate_info !== "Varies" && <p className="text-xs text-orange-600 font-semibold mt-0.5">{l.rate_info}</p>}
-              </div>
-            </div>
-          ))}
+              )}
+              {items.map((l:any, i:number) => {
+                const isPlatform  = !!l.is_verified;
+                const prevPlatform = i > 0 && !!items[i-1].is_verified;
+                const showOtherHeader = !isPlatform && prevPlatform && otherCount > 0;
+                return (
+                  <div key={l.id||i}>
+                    {showOtherHeader && (
+                      <div className="flex items-center gap-1.5 pt-2 pb-1">
+                        <Globe size={10} className="text-gray-400"/>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Others · {otherCount}</span>
+                      </div>
+                    )}
+                    <div className={`flex items-start gap-3 border rounded-xl px-3.5 py-3 transition-all ${
+                      isPlatform
+                        ? "border-green-100 bg-green-50/40 hover:border-green-300"
+                        : "border-gray-100 hover:border-orange-200 hover:bg-orange-50/30"
+                    }`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg ${
+                        isPlatform ? "bg-green-50 border border-green-100" : "bg-orange-50 border border-orange-100"
+                      }`}>
+                        {isSeeker ? "🔍" : "🛠"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-2">
+                          <p className="text-sm font-bold text-gray-800 truncate flex-1">{l.name||"Anonymous"}</p>
+                          {isPlatform && <span className="text-[9px] font-bold text-green-600 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">✓ App Member</span>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                          {l.type && <span className="text-[10px] bg-gray-100 text-gray-500 font-semibold px-1.5 py-0.5 rounded-full capitalize">{l.type}</span>}
+                          {l.city && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={8}/>{l.city}</span>}
+                          {l.available_now && <span className="text-[10px] text-green-600 font-semibold bg-green-50 px-1.5 py-0.5 rounded-full">● Available</span>}
+                        </div>
+                        {l.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{l.description}</p>}
+                        {l.rate_info && l.rate_info !== "Varies" && <p className="text-xs text-orange-600 font-semibold mt-0.5">{l.rate_info}</p>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
 
         {/* Pagination */}
