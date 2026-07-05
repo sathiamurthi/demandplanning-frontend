@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Shield, Bell,
   MessageSquare, CreditCard, BarChart2, Bot, LogOut,
-  ChevronRight, Menu, X, Tag, Briefcase,
+  ChevronRight, Menu, X, Tag, Briefcase, Store,
 } from "lucide-react";
 
 const NAV = [
@@ -21,6 +21,7 @@ const NAV = [
   { href: "/superadmin/ai-usage",         label: "AI & Pipeline",    icon: Bot },
   { href: "/superadmin/coupons",          label: "Coupons",          icon: Tag },
   { href: "/superadmin/job-board",        label: "Job Board",        icon: Briefcase },
+  { href: "/superadmin/enterprise-apps", label: "Enterprise Apps",  icon: Store },
 ];
 
 export default function SuperadminLayout({ children }: { children: React.ReactNode }) {

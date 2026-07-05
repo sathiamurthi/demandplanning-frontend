@@ -5,49 +5,63 @@ import { useEffect, useState } from "react";
 import Footer from "../components/Footer";
 import {
   BarChart3, Package, TrendingUp, Shield, ArrowRight, Star,
-  Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart,
+  Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw, Navigation2,
-} from "lucide-react";
+} from “lucide-react”;
 
 /* â”€â”€ INDUSTRIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-const industries = [
+const ALL_INDUSTRIES = [
   {
+    moduleId: “grocery”,
     icon: ShoppingCart,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20 hover:border-blue-500/50",
-    title: "Grocery & Retail",
-    desc: "Track perishables, manage shelf-life, auto-reorder before stockouts.",
-    link: "/login",
+    color: “text-blue-400”,
+    bg: “bg-blue-500/10”,
+    border: “border-blue-500/20 hover:border-blue-500/50”,
+    title: “Grocery & Retail”,
+    desc: “Track perishables, manage shelf-life, auto-reorder before stockouts.”,
+    link: “/login”,
   },
   {
+    moduleId: “autoparts”,
     icon: Wrench,
-    color: "text-orange-400",
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/20 hover:border-orange-500/50",
-    title: "Auto Parts",
-    desc: "SKU-level parts inventory with supplier lead times and demand forecasting.",
-    link: "/login",
+    color: “text-orange-400”,
+    bg: “bg-orange-500/10”,
+    border: “border-orange-500/20 hover:border-orange-500/50”,
+    title: “Auto Parts”,
+    desc: “SKU-level parts inventory with supplier lead times and demand forecasting.”,
+    link: “/login”,
   },
   {
+    moduleId: “pharmacy”,
     icon: Pill,
-    color: "text-pink-400",
-    bg: "bg-pink-500/10",
-    border: "border-pink-500/20 hover:border-pink-500/50",
-    title: "Pharma & Medical",
-    desc: "Batch tracking, expiry alerts, and regulatory-ready audit trails.",
-    link: "/login",
+    color: “text-pink-400”,
+    bg: “bg-pink-500/10”,
+    border: “border-pink-500/20 hover:border-pink-500/50”,
+    title: “Pharma & Medical”,
+    desc: “Batch tracking, expiry alerts, and regulatory-ready audit trails.”,
+    link: “/login”,
   },
   {
+    moduleId: “krishna”,
+    icon: Store,
+    color: “text-indigo-400”,
+    bg: “bg-indigo-500/10”,
+    border: “border-indigo-500/20 hover:border-indigo-500/50”,
+    title: “Krishna Store (Kirana)”,
+    desc: “Neighbourhood kirana retail — mixed grocery, household and daily essentials.”,
+    link: “/login”,
+  },
+  {
+    moduleId: “tea”,
     icon: Leaf,
-    color: "text-green-400",
-    bg: "bg-green-500/10",
-    border: "border-green-500/20 hover:border-green-500/50",
-    title: "Tea Procurement",
-    desc: "Full grower-to-factory workflow: collections, dispatch, settlements, payments.",
-    link: "/tea",
-    badge: "Live Demo â†’",
+    color: “text-green-400”,
+    bg: “bg-green-500/10”,
+    border: “border-green-500/20 hover:border-green-500/50”,
+    title: “Tea Procurement”,
+    desc: “Full grower-to-factory workflow: collections, dispatch, settlements, payments.”,
+    link: “/tea”,
+    badge: “Live Demo →”,
   },
 ];
 
@@ -193,7 +207,22 @@ const testimonials = [
 /* ──── COMPONENT ────────────────────────────────────────────────────────── */
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [enabledModules, setEnabledModules] = useState<string[]>([
+    "grocery", "pharmacy", "autoparts", "krishna", "tea",
+  ]);
+
+  useEffect(() => {
+    setMounted(true);
+    fetch("/v1/public/platform-config")
+      .then(r => r.json())
+      .then(d => {
+        const mods: string[] = d.data?.enterprise_apps?.enabled_modules;
+        if (Array.isArray(mods) && mods.length) setEnabledModules(mods);
+      })
+      .catch(() => {});
+  }, []);
+
+  const industries = ALL_INDUSTRIES.filter(ind => enabledModules.includes(ind.moduleId));
 
   return (
     <div className="min-h-screen bg-[#07090f] text-white flex flex-col overflow-x-hidden">

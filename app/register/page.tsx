@@ -73,6 +73,15 @@ const STATIC_INDUSTRIES = [
   { id: "restaurant",industry_id: "restaurant", display_name: "Restaurant" },
 ];
 
+// Maps enterprise_apps module IDs → industry_id values used in STATIC_INDUSTRIES
+const MODULE_TO_INDUSTRY: Record<string, string> = {
+  grocery:   "grocery",
+  pharmacy:  "pharma",
+  autoparts: "auto",
+  krishna:   "retail",
+  tea:       "tea",
+};
+
 /* ── Helper: step indicator ── */
 function StepDot({ active, done, n }: { active: boolean; done: boolean; n: number }) {
   return (
@@ -113,9 +122,30 @@ function RegisterContent() {
   }, [searchParams]);
 
   useEffect(() => {
+    // Fetch enabled enterprise modules from platform config, then filter industries
+    const applyModuleFilter = (list: Industry[], enabledModules: string[]) => {
+      const allowedIds = new Set(enabledModules.map(m => MODULE_TO_INDUSTRY[m]).filter(Boolean));
+      if (!allowedIds.size) return list;
+      return list.filter(ind => allowedIds.has(ind.industry_id));
+    };
+
+    let filteredList = STATIC_INDUSTRIES;
+
     apiGet<{ success: boolean; data: Industry[] }>("/industries")
-      .then(r => { if (r.data?.length) setIndustries(r.data); })
-      .catch(() => {});
+      .then(r => { if (r.data?.length) filteredList = r.data; })
+      .catch(() => {})
+      .finally(() => {
+        fetch("/v1/public/platform-config")
+          .then(r => r.json())
+          .then(d => {
+            const mods: string[] = d.data?.enterprise_apps?.enabled_modules;
+            setIndustries(Array.isArray(mods) && mods.length
+              ? applyModuleFilter(filteredList, mods)
+              : filteredList
+            );
+          })
+          .catch(() => setIndustries(filteredList));
+      });
   }, []);
 
   const setF = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
