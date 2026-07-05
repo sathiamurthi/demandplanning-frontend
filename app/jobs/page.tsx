@@ -437,9 +437,9 @@ function ResumeBuilderModal({ user, existing, onClose, onSave }: {
 }
 
 // ── Post Job Modal ─────────────────────────────────────────────────────────────
-function PostJobModal({ onClose, onSuccess, user }: { onClose: () => void; onSuccess: (j: Job) => void; user?: NexusUser | null }) {
+function PostJobModal({ onClose, onSuccess, user, enabledCats = ["Education"] }: { onClose: () => void; onSuccess: (j: Job) => void; user?: NexusUser | null; enabledCats?: string[] }) {
   const [form, setForm] = useState({
-    title:"", org: user?.org || "", city:"", type:"permanent", category:"Education",
+    title:"", org: user?.org || "", city:"", type:"permanent", category: enabledCats[0] || "Education",
     salary_min:"", salary_max:"", description:"", requirements:"",
     phone: user?.phone || "", email: user?.email || "", experience_years:"1",
   });
@@ -504,7 +504,7 @@ function PostJobModal({ onClose, onSuccess, user }: { onClose: () => void; onSuc
           <div>
             <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Category</label>
             <select value={form.category} onChange={e => set("category",e.target.value)} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
-              {CATS.filter(c => c !== "All").map(c => <option key={c}>{c}</option>)}
+              {enabledCats.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           {[["Min Salary (₹/mo)","salary_min","35000"],["Max Salary (₹/mo)","salary_max","65000"],
@@ -854,10 +854,11 @@ export default function JobsPage() {
   const [jobs,    setJobs]    = useState<Job[]>(MOCK_JOBS);
   const [seekers, setSeekers] = useState<Seeker[]>(MOCK_SEEKERS);
 
-  const [keyword,    setKeyword]    = useState("");
-  const [cityFilter, setCityFilter] = useState("All Cities");
-  const [catFilter,  setCatFilter]  = useState("All");
-  const [typeFilter, setTypeFilter] = useState<JobType>("all");
+  const [keyword,      setKeyword]      = useState("");
+  const [cityFilter,   setCityFilter]   = useState("All Cities");
+  const [catFilter,    setCatFilter]    = useState("All");
+  const [typeFilter,   setTypeFilter]   = useState<JobType>("all");
+  const [enabledCats,  setEnabledCats]  = useState<string[]>(["Education"]); // superadmin-controlled
 
   const [showAuth,     setShowAuth]     = useState(false);
   const [authMode,     setAuthMode]     = useState<"login"|"register">("register");
@@ -876,6 +877,14 @@ export default function JobsPage() {
       const r = localStorage.getItem(RESUME_KEY(u.id));
       if (r) { try { setResume(JSON.parse(r)); } catch {} }
     }
+    // Fetch superadmin-controlled enabled categories
+    fetch("/v1/public/platform-config")
+      .then(res => res.json())
+      .then(d => {
+        const cats: string[] = d.data?.job_board?.enabled_categories;
+        if (cats?.length) setEnabledCats(cats);
+      })
+      .catch(() => {}); // fallback to ["Education"]
   }, []);
 
   const handleApply = useCallback((target: Job | Seeker, type: "job" | "talent") => {
@@ -1074,7 +1083,7 @@ export default function JobsPage() {
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl p-4">
                   <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-3">Category</p>
-                  {CATS.map(c => (
+                  {["All", ...enabledCats].map(c => (
                     <button key={c} onClick={() => setCatFilter(c)}
                       className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition ${catFilter===c?"bg-teal-50 text-teal-700 font-bold":"text-gray-600 hover:bg-gray-50"}`}>
                       {c}
@@ -1161,7 +1170,7 @@ export default function JobsPage() {
           onSave={r => { setResume(r); setShowResume(false); }}/>
       )}
       {showPostJob && (
-        <PostJobModal user={user} onClose={() => setShowPostJob(false)}
+        <PostJobModal user={user} enabledCats={enabledCats} onClose={() => setShowPostJob(false)}
           onSuccess={j => { setJobs(p => [j,...p]); setShowPostJob(false); }}/>
       )}
       {showProfile && (
