@@ -16,11 +16,12 @@ import {
   Scissors, ShoppingBag, Palette, Bot, Loader2, Copy, Download, Smartphone, Share2, Wifi, WifiOff, RefreshCw,
   Lock as LockIcon, ExternalLink, MessageCircle, ClipboardList, CheckSquare, Clock, XCircle, RotateCcw, Filter,
   Settings, Mail, PhoneCall, ShieldCheck, BadgeCheck, HelpCircle, BookOpen,
+  Mic, MicOff, Volume2, ArrowLeftRight, StopCircle, Languages,
 } from "lucide-react";
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
-type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow"|"notify_settings"|"interests";
+type Section = "dashboard"|"search"|"expenses"|"contacts"|"ideas"|"notes"|"water"|"jobs"|"skills"|"reminders"|"trips"|"travel"|"travel_companion"|"event_companion"|"inquiry_agent"|"nearby"|"services"|"providers"|"seekers"|"assistant"|"install"|"workflow"|"notify_settings"|"interests"|"translate";
 interface Expense   { id:string; label:string; category:string; amount:number; date:string; }
 interface Contact   { id:string; name:string; phone:string; type:string; note?:string; priority?:boolean; }
 interface Idea      { id:string; title:string; desc:string; likes:number; status:"open"|"done"; createdAt:string; }
@@ -239,6 +240,7 @@ const NAV: { id: Section; label: string; icon: any; group?: string; isSubItem?: 
   { id:"skills",     label:"Skill Track",        icon:Zap,           group:"GROWTH" },
   { id:"jobs",       label:"Job Board",          icon:Briefcase },
   { id:"ideas",      label:"Ideas",              icon:Lightbulb,     group:"COMMUNITY" },
+  { id:"translate",  label:"Voice Translate",    icon:Mic,           isSubItem:true },
   { id:"contacts",   label:"Safe Directory",     icon:Shield },
   { id:"notify_settings", label:"Notification Settings", icon:Settings,   group:"APP" },
   { id:"interests",      label:"My Interests",          icon:Heart },
@@ -1390,7 +1392,7 @@ function WorkflowAgentPanel({ guest }: { guest: GuestIdentity }) {
     const phone = form.seeker_phone.replace(/\D/g,'');
     if (!phone) return;
     setLoadingHistory(true);
-    fetch(`/v1/public/bookings?phone=${encodeURIComponent(phone)}`)
+    fetch(`/api/book-service?phone=${encodeURIComponent(phone)}`)
       .then(r => r.json())
       .then(d => { if (d.success) setBookings(d.data || []); })
       .catch(() => {})
@@ -1398,7 +1400,7 @@ function WorkflowAgentPanel({ guest }: { guest: GuestIdentity }) {
   };
 
   const loadBookingDetail = (id: string) => {
-    fetch(`/v1/public/bookings/${id}`)
+    fetch(`/api/book-service?id=${encodeURIComponent(id)}`)
       .then(r => r.json())
       .then(d => { if (d.success) setSelectedBooking(d.data); })
       .catch(() => {});
@@ -1414,7 +1416,7 @@ function WorkflowAgentPanel({ guest }: { guest: GuestIdentity }) {
     }
     setSubmitting(true); setError(''); setResult(null);
     try {
-      const r = await fetch('/v1/public/bookings', {
+      const r = await fetch('/api/book-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -1690,7 +1692,7 @@ export default function DemandGeniusApp() {
   const [showContribute, setShowContribute] = useState(false);
   const [show30DayGate, setShow30DayGate]   = useState(false);
   const [isDeactivated, setIsDeactivated]   = useState(false);
-  const [platformStats, setPlatformStats]   = useState({ stores: 0, products: 0, tenants: 0, contributors: 0 });
+  const [platformStats, setPlatformStats]   = useState({ stores: 0, products: 0, tenants: 0, contributors: 0, daily_active_users: 0, total_users: 0 });
   const [userLoc, setUserLoc]   = useState<UserLocation|null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -1898,13 +1900,42 @@ export default function DemandGeniusApp() {
         </div>
 
         {/* Platform stats mini */}
-        {platformStats.stores > 0 && (
-          <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-100 flex items-center justify-between text-xs">
-            <span className="text-gray-700 font-semibold">{platformStats.stores} Stores</span>
-            <span className="text-gray-500">·</span>
-            <span className="text-gray-700 font-semibold">{platformStats.products}+ Products</span>
-          </div>
-        )}
+        <div className="px-3 py-2 bg-orange-50 border-b border-orange-100 flex items-center gap-2 text-[10px] overflow-x-auto">
+          {platformStats.daily_active_users > 0 && (
+            <>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
+                <span className="font-black text-green-700">{platformStats.daily_active_users}</span>
+                <span className="text-gray-500 font-medium">today</span>
+              </span>
+              <span className="text-gray-300">·</span>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="font-black text-gray-800">{platformStats.total_users.toLocaleString('en-IN')}</span>
+                <span className="text-gray-500 font-medium">total users</span>
+              </span>
+              <span className="text-gray-300">·</span>
+            </>
+          )}
+          {platformStats.daily_active_users === 0 && (
+            <>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
+                {platformStats.contributors > 0
+                  ? <><span className="font-black text-green-700">{platformStats.contributors}</span><span className="text-gray-500 font-medium">members</span></>
+                  : <><span className="font-black text-green-700">Live</span><span className="text-gray-500 font-medium">platform</span></>
+                }
+              </span>
+              <span className="text-gray-300">·</span>
+            </>
+          )}
+          {platformStats.stores > 0 && (
+            <>
+              <span className="font-semibold text-gray-700 shrink-0">{platformStats.stores} Stores</span>
+              <span className="text-gray-300">·</span>
+              <span className="font-semibold text-gray-700 shrink-0">{platformStats.products}+ Products</span>
+            </>
+          )}
+        </div>
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
@@ -2097,6 +2128,7 @@ export default function DemandGeniusApp() {
           {section === "workflow"       && <WorkflowAgentPanel guest={guest} />}
           {section === "notify_settings" && <NotificationSettingsPanel guest={guest} />}
           {section === "interests"      && <InterestsPanel gk={gk} />}
+          {section === "translate"      && <VoiceTranslatePanel />}
           {section === "install"        && <InstallPanel />}
         </main>
       </div>
@@ -2790,9 +2822,7 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
   const [reminders] = useLocalStore<Reminder[]>(gk("reminders"), []);
   const [trips]     = useLocalStore<TripItem[]>(gk("trips"), []);
   const [budget]    = useLocalStore<number>(gk("budget"), 15000);
-  const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0, users: 0, contributors: 0 });
-  const [seekerCount,   setSeekerCount]   = useState(0);
-  const [providerCount, setProviderCount] = useState(0);
+  const [platform,  setPlatform] = useState({ stores: 0, products: 0, tenants: 0, users: 0, contributors: 0, seeker_count: 0, provider_count: 0, daily_active_users: 0, total_users: 0 });
   const [showSeekers,   setShowSeekers]   = useState(false);
   const [showProviders, setShowProviders] = useState(false);
   const [showDelivery, setShowDelivery] = useState(false);
@@ -2802,8 +2832,6 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
   useEffect(() => {
     setIsContributor(getContributorStatus().paid);
     fetch("/v1/public/stats").then(r => r.json()).then(d => { if (d.success) setPlatform(d.data); }).catch(() => {});
-    fetch("/v1/public/listings?limit=1&mode=seeker").then(r=>r.json()).then(d=>{ if(d.success) setSeekerCount(d.meta?.total||0); }).catch(()=>{});
-    fetch("/v1/public/listings?limit=1&mode=provider").then(r=>r.json()).then(d=>{ if(d.success) setProviderCount(d.meta?.total||0); }).catch(()=>{});
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -2846,7 +2874,7 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
     { emoji:"🍽", label:"Find Food",       sub:"Restaurants near", click:()=>setSection("nearby") },
     { emoji:"🔧", label:"Home Service",    sub:"Plumber, Electrician", click:()=>setSection("services") },
     { emoji:"✈️", label:"Plan Trip",       sub:"Trip planner + AI", click:()=>setSection("trips") },
-    { emoji:"🛍", label:"Shop",            sub:"Products & stores", click:()=>setSection("search") },
+    { emoji:"🎙️", label:"Translate",       sub:"Voice + language",  click:()=>setSection("translate") },
     { emoji:"💰", label:"Track Spend",     sub:"Daily expenses",   click:()=>setSection("expenses") },
   ];
 
@@ -2939,25 +2967,74 @@ function DashboardPanel({ guest, gk, setSection, userLoc }: { guest: GuestIdenti
       )}
 
       {/* Platform stats banner */}
+      {/* Active users strip — always shown */}
+      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-3 flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"/>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"/>
+          </span>
+          <span className="text-white text-xs font-bold">Live</span>
+        </div>
+        <div className="h-4 w-px bg-white/30"/>
+        <div className="flex flex-wrap gap-4">
+          {platform.daily_active_users > 0 && (
+            <div>
+              <p className="text-green-100 text-[10px] font-semibold uppercase tracking-widest">Today</p>
+              <p className="text-white font-black text-lg leading-none">{platform.daily_active_users.toLocaleString('en-IN')}</p>
+              <p className="text-green-100 text-[9px]">active users</p>
+            </div>
+          )}
+          {platform.total_users > 0 && (
+            <div>
+              <p className="text-green-100 text-[10px] font-semibold uppercase tracking-widest">Total</p>
+              <p className="text-white font-black text-lg leading-none">{platform.total_users.toLocaleString('en-IN')}</p>
+              <p className="text-green-100 text-[9px]">registered users</p>
+            </div>
+          )}
+          {platform.daily_active_users === 0 && platform.total_users === 0 && platform.contributors > 0 && (
+            <div>
+              <p className="text-green-100 text-[10px] font-semibold uppercase tracking-widest">Community</p>
+              <p className="text-white font-black text-lg leading-none">{platform.contributors.toLocaleString('en-IN')}</p>
+              <p className="text-green-100 text-[9px]">active members</p>
+            </div>
+          )}
+          {platform.daily_active_users === 0 && platform.total_users === 0 && platform.contributors === 0 && (
+            <div>
+              <p className="text-green-100 text-[10px] font-semibold uppercase tracking-widest">Platform</p>
+              <p className="text-white font-black text-lg leading-none">Online</p>
+              <p className="text-green-100 text-[9px]">ready to use</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {platform.stores > 0 && (
-        <div className="bg-orange-500 rounded-2xl p-4 flex items-center gap-4 cursor-pointer" onClick={() => setSection("search")}>
-          <div className="flex-1 flex flex-wrap gap-4 sm:gap-6">
-            <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Businesses</p><p className="text-white font-black text-xl">{platform.tenants}</p></div>
-            <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Stores</p><p className="text-white font-black text-xl">{platform.stores}</p></div>
-            <div><p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Products</p><p className="text-white font-black text-xl">{platform.products}+</p></div>
-            <button onClick={e=>{e.stopPropagation();setShowSeekers(true);}} className="text-left hover:opacity-80 transition-opacity">
+        <div className="bg-orange-500 rounded-2xl p-4 flex items-center gap-3 cursor-pointer overflow-hidden" onClick={() => setSection("search")}>
+          <div className="flex-1 flex gap-4 sm:gap-5 overflow-x-auto items-start" style={{scrollbarWidth:'none'}}>
+            <div className="shrink-0">
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap">Businesses</p>
+              <p className="text-white font-black text-xl">{platform.tenants}</p>
+            </div>
+            <div className="shrink-0">
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Stores</p>
+              <p className="text-white font-black text-xl">{platform.stores}</p>
+            </div>
+            <div className="shrink-0">
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Products</p>
+              <p className="text-white font-black text-xl">{platform.products}+</p>
+            </div>
+            <button onClick={e=>{e.stopPropagation();setShowSeekers(true);}} className="text-left hover:opacity-80 transition-opacity shrink-0">
               <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Seekers</p>
-              <p className="text-white font-black text-xl">{seekerCount||"—"}</p>
+              <p className="text-white font-black text-xl">{platform.seeker_count||"—"}</p>
             </button>
-            <button onClick={e=>{e.stopPropagation();setShowProviders(true);}} className="text-left hover:opacity-80 transition-opacity">
+            <button onClick={e=>{e.stopPropagation();setShowProviders(true);}} className="text-left hover:opacity-80 transition-opacity shrink-0">
               <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Providers</p>
-              <p className="text-white font-black text-xl">{providerCount||"—"}</p>
+              <p className="text-white font-black text-xl">{platform.provider_count||"—"}</p>
             </button>
-            <button onClick={e=>{e.stopPropagation();setShowContributorModal(true);}} className="text-left hover:opacity-80 transition-opacity" title={isContributor?"You're a Contributor!":"Become a Contributor"}>
-              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest">Contributors {isContributor?"⭐":"+"}</p>
+            <button onClick={e=>{e.stopPropagation();setShowContributorModal(true);}} className="text-left hover:opacity-80 transition-opacity shrink-0" title={isContributor?"You're a Contributor!":"Become a Contributor"}>
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap">{isContributor ? "Contributors ⭐" : "Contributors"}</p>
               <p className="text-white font-black text-xl">{platform.contributors||0}</p>
-              {!isContributor && <p className="text-orange-200 text-[9px] font-semibold">Tap to join</p>}
-              {isContributor && <p className="text-yellow-200 text-[9px] font-semibold">You're one! ⭐</p>}
             </button>
           </div>
           <div className="text-white/70 text-xs font-semibold shrink-0">Browse →</div>
@@ -8032,6 +8109,13 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
   const activeInq = inquiries.find(i => i.inqId === outreachInqId) || inquiries[0] || null;
   const [sendingOutreach, setSendingOutreach] = useState(false);
   const [refreshingOutreach, setRefreshingOutreach] = useState(false);
+  const [logReplyId, setLogReplyId]     = useState<string | null>(null);
+  const [logReplyAction, setLogReplyAction] = useState("");
+  const [logReplyQuote, setLogReplyQuote]   = useState("");
+  const [logReplyMsg, setLogReplyMsg]       = useState("");
+  const [loggingReply, setLoggingReply]     = useState(false);
+  const [noteOpenId, setNoteOpenId]         = useState<string | null>(null);
+  const [noteText, setNoteText]             = useState("");
 
   // StoreSearchAgent
   const [storeQuery, setStoreQuery] = useState("");
@@ -8372,6 +8456,53 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     finally { setSendingOutreach(false); }
   };
 
+  const submitLogReply = async (o: HotelOutreach) => {
+    if (!logReplyAction) { showToast("Select a response type first"); return; }
+    setLoggingReply(true);
+    try {
+      const resp = await fetch(`/v1/public/hotel-response/${o.token}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_name:  o.hotelName,
+          action:        logReplyAction,
+          quote_amount:  logReplyAction === "Quote" && logReplyQuote ? parseFloat(logReplyQuote) : undefined,
+          message:       logReplyMsg.trim() || undefined,
+        }),
+      });
+      const data = await resp.json();
+      if (!data.success) { showToast(data.error || "Failed to log reply"); return; }
+      setOutreachList(prev => {
+        const updated = prev.map(x => x.id !== o.id ? x : {
+          ...x,
+          status:           "Responded" as const,
+          hotelAction:      logReplyAction as HotelOutreach["hotelAction"],
+          hotelQuote:       logReplyQuote || undefined,
+          hotelMessage:     logReplyMsg.trim() || undefined,
+          hotelContactName: o.hotelName,
+          respondedAt:      new Date().toISOString(),
+        });
+        localStorage.setItem("dplan_hotel_outreaches", JSON.stringify(updated));
+        return updated;
+      });
+      setLogReplyId(null);
+      setLogReplyAction(""); setLogReplyQuote(""); setLogReplyMsg("");
+      showToast(`✓ Reply logged for ${o.hotelName}`);
+    } catch { showToast("Network error — could not log reply"); }
+    finally { setLoggingReply(false); }
+  };
+
+  const saveNote = (o: HotelOutreach) => {
+    if (!noteText.trim()) return;
+    setOutreachList(prev => {
+      const updated = prev.map(x => x.id !== o.id ? x : { ...x, hotelMessage: noteText.trim() });
+      localStorage.setItem("dplan_hotel_outreaches", JSON.stringify(updated));
+      return updated;
+    });
+    setNoteOpenId(null); setNoteText("");
+    showToast("Note saved");
+  };
+
   const refreshOutreachStatuses = async () => {
     setOutreachList(prev => {
       if (!prev.length) return prev;
@@ -8414,89 +8545,66 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
     setSendingOutreach(true);
     try {
       const svc = inqSvc(inq);
-      const base = typeof window !== 'undefined' ? window.location.origin : 'https://dplan-ebon.vercel.app';
-
-      // Create outreach first to get the secure response token
-      const outreach = await createOutreach(inq, name, email, "");
-      const responseUrl = outreach ? `${base}/hotel-respond?token=${outreach.token}` : null;
 
       const subject = `Service Inquiry ${inq.inqId} — ${svc.label} in ${inq.city} | DemandGenius`;
 
+      // Plain-text fallback — server replaces the last line with the response URL if outreach was created
       const text = [
         `Dear ${name},`,
         ``,
         `A customer needs ${svc.label} in ${inq.city}.`,
         ``,
         `--- REQUEST DETAILS ---`,
-        `Inquiry ID  : ${inq.inqId}`,
-        `Service     : ${svc.label} in ${inq.city}`,
-        inq.checkIn  ? `${svc.d1}       : ${inq.checkIn}` : '',
-        inq.checkOut ? `${svc.d2 || 'Check-out'} : ${inq.checkOut}` : '',
-        `${svc.gLabel}     : ${inq.guests || ''}`,
-        inq.budget ? `Budget      : Rs.${inq.budget}${svc.bUnit || ''}` : '',
-        inq.requirements ? `Note        : ${inq.requirements}` : '',
+        `Inquiry ID : ${inq.inqId}`,
+        `Service    : ${svc.label} in ${inq.city}`,
+        inq.checkIn  ? `Check-in   : ${inq.checkIn}` : '',
+        inq.checkOut ? `Check-out  : ${inq.checkOut}` : '',
+        inq.guests   ? `Guests     : ${inq.guests}` : '',
+        inq.budget   ? `Budget     : Rs.${inq.budget}${svc.bUnit || ''}` : '',
+        inq.requirements ? `Note    : ${inq.requirements}` : '',
         ``,
-        responseUrl ? `Confirm availability: ${responseUrl}` : `Please reply to this email to confirm your availability.`,
+        `Please reply to this email to confirm your availability.`,
         ``,
         `Regards,`,
         `DemandGenius`,
       ].filter(Boolean).join('\n');
 
-      const row = (label: string, value: string) =>
-        `<tr><td style="padding:6px 0;font-size:12px;color:#64748b;width:38%;vertical-align:top;">${label}</td><td style="padding:6px 0;font-size:12px;font-weight:700;color:#0f172a;">${value}</td></tr>`;
+      // Pass structured inquiry data — server builds the HTML email
+      const inquiry = {
+        inqId:        inq.inqId,
+        service:      svc.label,
+        city:         inq.city,
+        checkIn:      inq.checkIn  || undefined,
+        checkOut:     inq.checkOut || undefined,
+        guests:       inq.guests   || undefined,
+        budget:       inq.budget ? `Rs.${inq.budget}${svc.bUnit || ''}` : undefined,
+        requirements: inq.requirements || undefined,
+      };
 
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f1f5f9;">
-<div style="max-width:560px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
-  <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);padding:28px 32px;">
-    <p style="margin:0;color:#fff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">DemandGenius</p>
-    <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:12px;font-weight:500;">New Service Inquiry — Action Required</p>
-  </div>
-  <div style="padding:28px 32px 0;">
-    <p style="margin:0;font-size:15px;color:#0f172a;font-weight:700;">Hello ${name},</p>
-    <p style="margin:10px 0 0;font-size:13px;color:#475569;line-height:1.7;">A customer is looking for <strong>${svc.label}</strong> services in <strong>${inq.city}</strong> through DemandGenius. Please review the details and confirm your availability.</p>
-  </div>
-  <div style="margin:20px 32px;background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #e2e8f0;">
-    <p style="margin:0 0 12px;font-size:10px;font-weight:800;color:#64748b;letter-spacing:1px;text-transform:uppercase;">Request Details</p>
-    <table style="width:100%;border-collapse:collapse;">
-      ${row('Inquiry ID', inq.inqId)}
-      ${row('Service', `${svc.label} in ${inq.city}`)}
-      ${inq.checkIn ? row(svc.d1 || 'Check-in', inq.checkIn) : ''}
-      ${inq.checkOut ? row(svc.d2 || 'Check-out', inq.checkOut) : ''}
-      ${row(svc.gLabel || 'Guests', String(inq.guests || ''))}
-      ${inq.budget ? row('Budget', `Rs.${inq.budget}${svc.bUnit || ''}`) : ''}
-      ${inq.requirements ? row('Note', inq.requirements) : ''}
-    </table>
-  </div>
-  ${responseUrl ? `
-  <div style="padding:4px 32px 28px;text-align:center;">
-    <a href="${responseUrl}" style="display:inline-block;background:#16a34a;color:#fff;font-size:14px;font-weight:800;padding:14px 36px;border-radius:12px;text-decoration:none;">✓ Confirm Availability</a>
-    <p style="margin:14px 0 0;font-size:10px;color:#94a3b8;">Or copy this link: <span style="color:#0ea5e9;">${responseUrl}</span></p>
-  </div>
-  <div style="margin:0 32px 28px;background:#fff7ed;border-radius:12px;padding:16px 20px;border:1px solid #fed7aa;">
-    <p style="margin:0 0 10px;font-size:10px;font-weight:800;color:#9a3412;letter-spacing:1px;text-transform:uppercase;">How to respond</p>
-    <div style="display:flex;flex-direction:column;gap:6px;">
-      ${['Click the green button above to open your response form','Choose: Accept · Send Quote · Hold · Decline','Customer is notified instantly — no login needed'].map((s,i) =>
-        `<div style="display:flex;align-items:flex-start;gap:10px;"><span style="width:20px;height:20px;min-width:20px;background:#0ea5e9;border-radius:50%;font-size:10px;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;">${i+1}</span><p style="margin:0;font-size:12px;color:#44403c;padding-top:2px;">${s}</p></div>`
-      ).join('')}
-    </div>
-  </div>` : `<div style="padding:0 32px 28px;"><p style="font-size:13px;color:#475569;text-align:center;">Please reply to this email to confirm your availability.</p></div>`}
-  <div style="background:#f8fafc;padding:14px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-    <p style="margin:0;font-size:11px;color:#94a3b8;">Powered by <strong style="color:#64748b;">DemandGenius</strong> · Sent on behalf of a customer inquiry · This is not a promotional email.</p>
-  </div>
-</div>
-</body></html>`;
-
-      setSendingOutreach(true);
+      // Remove try/catch for createOutreach — now handled server-side
       const resp = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: email, toName: name, cc: email, subject, text, html }),
+        body: JSON.stringify({ to: email, toName: name, subject, text, inquiry }),
       });
       const data = await resp.json();
 
       if (data.success) {
-        showToast(`✓ Email sent to ${name}!`);
+        showToast(data.hasLink ? `✓ Email sent to ${name} with response link!` : `✓ Email sent to ${name}!`);
+        // Update outreach list with the record created server-side
+        if (data.outreach) {
+          const newOutreach: HotelOutreach = {
+            id: data.outreach.id, token: data.outreach.token,
+            inquiryId: inq.inqId, hotelName: name, city: inq.city,
+            hotelEmail: email, hotelPhone: undefined,
+            status: 'Sent', createdAt: data.outreach.created_at,
+          };
+          setOutreachList(prev => {
+            const updated = [newOutreach, ...prev.filter(o => o.id !== newOutreach.id)];
+            localStorage.setItem('dplan_hotel_outreaches', JSON.stringify(updated));
+            return updated;
+          });
+        }
       } else {
         showToast(`Failed: ${data.error || 'unknown error'}`);
       }
@@ -9819,10 +9927,79 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      {!isResponded && activeInq && (
-                        <div className="flex gap-1.5 px-3 pb-3">
-                          {o.hotelEmail && (
+                      {/* Log Reply inline form */}
+                      {logReplyId === o.id && (
+                        <div className="mx-3 mb-3 bg-violet-50 border border-violet-200 rounded-2xl p-3 space-y-2">
+                          <p className="text-[10px] font-black text-violet-700 uppercase tracking-wide">Log vendor reply</p>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {(["Accept","Quote","Hold","Reject"] as const).map(a => (
+                              <button key={a} onClick={() => setLogReplyAction(a)}
+                                className={`text-[10px] font-bold py-1.5 rounded-lg border transition-all ${
+                                  logReplyAction === a
+                                    ? "bg-violet-600 text-white border-violet-600"
+                                    : "bg-white text-gray-600 border-gray-200 hover:border-violet-300"
+                                }`}>
+                                {a === "Accept" ? "✅ Accept" : a === "Quote" ? "💰 Quote" : a === "Hold" ? "⏸ Hold" : "❌ Decline"}
+                              </button>
+                            ))}
+                          </div>
+                          {logReplyAction === "Quote" && (
+                            <input
+                              type="number"
+                              placeholder="Quote amount (₹/night)"
+                              value={logReplyQuote}
+                              onChange={e => setLogReplyQuote(e.target.value)}
+                              className="w-full text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:border-violet-400"
+                            />
+                          )}
+                          <textarea
+                            rows={2}
+                            placeholder="Message or notes from vendor (optional)"
+                            value={logReplyMsg}
+                            onChange={e => setLogReplyMsg(e.target.value)}
+                            className="w-full text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white resize-none focus:outline-none focus:border-violet-400"
+                          />
+                          <div className="flex gap-1.5">
+                            <button onClick={() => submitLogReply(o)} disabled={loggingReply || !logReplyAction}
+                              className="flex-1 text-[11px] font-black bg-violet-600 text-white py-1.5 rounded-lg disabled:opacity-40 hover:bg-violet-700">
+                              {loggingReply ? "Logging…" : "Save Reply"}
+                            </button>
+                            <button onClick={() => { setLogReplyId(null); setLogReplyAction(""); setLogReplyQuote(""); setLogReplyMsg(""); }}
+                              className="text-[10px] text-gray-400 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Note form */}
+                      {noteOpenId === o.id && (
+                        <div className="mx-3 mb-3 bg-amber-50 border border-amber-200 rounded-2xl p-3 space-y-2">
+                          <p className="text-[10px] font-black text-amber-700 uppercase tracking-wide">Add note to thread</p>
+                          <textarea
+                            rows={2}
+                            placeholder="e.g. Vendor called — will confirm by evening"
+                            value={noteText}
+                            onChange={e => setNoteText(e.target.value)}
+                            className="w-full text-[11px] border border-amber-200 rounded-lg px-2.5 py-1.5 bg-white resize-none focus:outline-none focus:border-amber-400"
+                          />
+                          <div className="flex gap-1.5">
+                            <button onClick={() => saveNote(o)} disabled={!noteText.trim()}
+                              className="flex-1 text-[11px] font-black bg-amber-500 text-white py-1.5 rounded-lg disabled:opacity-40 hover:bg-amber-600">
+                              Save Note
+                            </button>
+                            <button onClick={() => { setNoteOpenId(null); setNoteText(""); }}
+                              className="text-[10px] text-gray-400 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      {activeInq && (
+                        <div className="flex flex-wrap gap-1.5 px-3 pb-3">
+                          {!isResponded && o.hotelEmail && (
                             <button onClick={() => {
                               setAddHotelForm({ name: o.hotelName, email: o.hotelEmail || "", phone: "" });
                               sendViaEmail(activeInq);
@@ -9830,7 +10007,7 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                               <Globe size={9}/> Re-send Email
                             </button>
                           )}
-                          {o.hotelPhone && (
+                          {!isResponded && o.hotelPhone && (
                             <button onClick={() => {
                               setAddHotelForm({ name: o.hotelName, email: "", phone: o.hotelPhone || "" });
                               sendViaWA(activeInq);
@@ -9838,6 +10015,16 @@ function InquiryAgentPanel({ guest, gk }: { guest: GuestIdentity | null; gk: (s:
                               <Smartphone size={9}/> Re-send WA
                             </button>
                           )}
+                          {!isResponded && (
+                            <button onClick={() => { setLogReplyId(o.id); setNoteOpenId(null); setLogReplyAction(""); setLogReplyQuote(""); setLogReplyMsg(""); }}
+                              className="text-[10px] bg-violet-50 border border-violet-200 text-violet-700 font-bold px-2.5 py-1 rounded-lg hover:bg-violet-100 flex items-center gap-1">
+                              ✍ Log Reply
+                            </button>
+                          )}
+                          <button onClick={() => { setNoteOpenId(o.id); setLogReplyId(null); setNoteText(o.hotelMessage || ""); }}
+                            className="text-[10px] bg-amber-50 border border-amber-200 text-amber-700 font-bold px-2.5 py-1 rounded-lg hover:bg-amber-100 flex items-center gap-1">
+                            📝 Note
+                          </button>
                           <button onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/hotel-respond?token=${o.token}`); showToast("Link copied!"); }}
                             className="ml-auto text-[10px] text-gray-400 font-bold px-2.5 py-1 rounded-lg hover:bg-gray-50 flex items-center gap-1 border border-gray-100">
                             <Copy size={9}/> Copy Link
@@ -12605,6 +12792,303 @@ function GuestProfileModal({ isOpen, onClose, guest, onOpenWhatsApp }: { isOpen:
         >
           Close
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Voice Translate Panel ───────────────────────────────────────
+const VOICE_LANGS = [
+  { code: "en", speech: "en-IN", label: "English", native: "English" },
+  { code: "hi", speech: "hi-IN", label: "Hindi",   native: "हिंदी" },
+  { code: "kn", speech: "kn-IN", label: "Kannada", native: "ಕನ್ನಡ" },
+  { code: "ta", speech: "ta-IN", label: "Tamil",   native: "தமிழ்" },
+  { code: "te", speech: "te-IN", label: "Telugu",  native: "తెలుగు" },
+  { code: "ml", speech: "ml-IN", label: "Malayalam", native: "മലയാളം" },
+  { code: "mr", speech: "mr-IN", label: "Marathi", native: "मराठी" },
+  { code: "bn", speech: "bn-BD", label: "Bengali", native: "বাংলা" },
+  { code: "ur", speech: "ur-PK", label: "Urdu",    native: "اردو" },
+];
+
+function VoiceTranslatePanel() {
+  const [fromLang, setFromLang] = useState(VOICE_LANGS[1]); // Hindi default
+  const [toLang,   setToLang]   = useState(VOICE_LANGS[2]); // Kannada default
+  const [transcript, setTranscript] = useState("");
+  const [interimText, setInterimText] = useState("");
+  const [translation, setTranslation] = useState("");
+  const [recording,   setRecording]   = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [timeLeft,    setTimeLeft]    = useState(60);
+  const [error,       setError]       = useState("");
+  const [copied,      setCopied]      = useState<"orig"|"trans"|null>(null);
+  const [manualText,  setManualText]  = useState("");
+  const [mode,        setMode]        = useState<"voice"|"text">("voice");
+
+  const recRef  = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
+
+  const startTimer = () => {
+    setTimeLeft(60);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { stopRecording(); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+  };
+
+  const clearTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  const startRecording = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { setError("Voice recording not supported in this browser. Use Chrome or Edge."); return; }
+    setError(""); setTranscript(""); setInterimText(""); setTranslation("");
+    const rec = new SR();
+    rec.lang = fromLang.speech;
+    rec.continuous = true;
+    rec.interimResults = true;
+    let finalText = "";
+    rec.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript + " ";
+        else interim += r[0].transcript;
+      }
+      setTranscript(finalText);
+      setInterimText(interim);
+    };
+    rec.onerror = (e: any) => {
+      if (e.error !== "no-speech") setError(`Mic error: ${e.error}`);
+    };
+    rec.onend = () => { setRecording(false); clearTimer(); };
+    recRef.current = rec;
+    rec.start();
+    setRecording(true);
+    startTimer();
+  };
+
+  const stopRecording = () => {
+    clearTimer();
+    if (recRef.current) { recRef.current.stop(); recRef.current = null; }
+    setRecording(false);
+    setInterimText("");
+  };
+
+  const translate = async (text: string) => {
+    if (!text.trim()) return;
+    setTranslating(true); setError("");
+    try {
+      const r = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim(), fromLang: fromLang.code, toLang: toLang.code }),
+      });
+      const d = await r.json();
+      if (d.success) setTranslation(d.translation);
+      else setError(d.error || "Translation failed");
+    } catch { setError("Network error"); }
+    finally { setTranslating(false); }
+  };
+
+  const swapLangs = () => {
+    const tmp = fromLang;
+    setFromLang(toLang); setToLang(tmp);
+    setTranscript(""); setTranslation(""); setInterimText("");
+  };
+
+  const copyText = (which: "orig"|"trans") => {
+    const text = which === "orig" ? (transcript || manualText) : translation;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(which); setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  const inputText = mode === "voice" ? transcript : manualText;
+
+  // Auto-translate when recording stops and there's text
+  useEffect(() => {
+    if (!recording && transcript.trim()) translate(transcript);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording]);
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
+          <Languages size={20} className="text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-gray-900">Voice Translate</h2>
+          <p className="text-xs text-gray-500">Speak or type · up to 60 seconds · 9 Indian languages</p>
+        </div>
+      </div>
+
+      {/* Language Selector */}
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
+        <div className="flex-1">
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-1">Speak in</p>
+          <select
+            value={fromLang.code}
+            onChange={e => { const l = VOICE_LANGS.find(x=>x.code===e.target.value)!; setFromLang(l); setTranscript(""); setTranslation(""); }}
+            className="w-full text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-400"
+          >
+            {VOICE_LANGS.map(l => <option key={l.code} value={l.code}>{l.native} · {l.label}</option>)}
+          </select>
+        </div>
+
+        <button onClick={swapLangs} className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:bg-violet-50 hover:border-violet-300 transition-all shrink-0 mt-4">
+          <ArrowLeftRight size={14} className="text-gray-500" />
+        </button>
+
+        <div className="flex-1">
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-1">Translate to</p>
+          <select
+            value={toLang.code}
+            onChange={e => { const l = VOICE_LANGS.find(x=>x.code===e.target.value)!; setToLang(l); setTranslation(""); }}
+            className="w-full text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-400"
+          >
+            {VOICE_LANGS.map(l => <option key={l.code} value={l.code}>{l.native} · {l.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="flex gap-2">
+        <button onClick={() => setMode("voice")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${mode==="voice"?"bg-violet-600 text-white shadow-lg shadow-violet-200":"bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+          <Mic size={14} /> Voice
+        </button>
+        <button onClick={() => setMode("text")} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${mode==="text"?"bg-violet-600 text-white shadow-lg shadow-violet-200":"bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+          <FileText size={14} /> Type
+        </button>
+      </div>
+
+      {/* VOICE MODE */}
+      {mode === "voice" && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center space-y-4">
+          {/* Big mic button */}
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onClick={recording ? stopRecording : startRecording}
+              className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                recording
+                  ? "bg-red-500 shadow-red-200 scale-110"
+                  : "bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-200 hover:scale-105 active:scale-95"
+              }`}
+            >
+              {recording && (
+                <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-40"/>
+              )}
+              {recording
+                ? <StopCircle size={32} className="text-white"/>
+                : <Mic size={32} className="text-white"/>
+              }
+            </button>
+            <div className="text-center">
+              {recording
+                ? <p className="text-sm font-bold text-red-500">Recording · {timeLeft}s left · tap to stop</p>
+                : <p className="text-sm text-gray-500">Tap to start · max 60 seconds</p>
+              }
+            </div>
+          </div>
+
+          {/* Live transcript */}
+          {(transcript || interimText) && (
+            <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-left">
+              <p className="text-[10px] text-violet-500 font-semibold uppercase tracking-widest mb-1">You said ({fromLang.label})</p>
+              <p className="text-sm text-gray-900 leading-relaxed">
+                {transcript}
+                {interimText && <span className="text-gray-400 italic">{interimText}</span>}
+              </p>
+              {transcript && !recording && (
+                <div className="flex items-center justify-between mt-2">
+                  <button onClick={() => translate(transcript)} className="text-[10px] text-violet-600 font-bold hover:underline">
+                    Retranslate
+                  </button>
+                  <button onClick={() => copyText("orig")} className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-700">
+                    <Copy size={10}/> {copied==="orig"?"Copied!":"Copy"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!transcript && !recording && (
+            <p className="text-xs text-gray-400 italic">Speak in {fromLang.native} — translation appears automatically</p>
+          )}
+        </div>
+      )}
+
+      {/* TEXT MODE */}
+      {mode === "text" && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+          <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Type in {fromLang.native}</p>
+          <textarea
+            value={manualText}
+            onChange={e => setManualText(e.target.value)}
+            placeholder={`Type in ${fromLang.label}…`}
+            rows={4}
+            className="w-full text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-400 resize-none"
+          />
+          <button
+            onClick={() => translate(manualText)}
+            disabled={!manualText.trim() || translating}
+            className="w-full py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+          >
+            {translating ? <Loader2 size={14} className="animate-spin"/> : <Languages size={14}/>}
+            Translate to {toLang.label}
+          </button>
+        </div>
+      )}
+
+      {/* Translation Output */}
+      {(translating || translation) && (
+        <div className={`rounded-2xl p-4 space-y-2 border ${translating ? "bg-gray-50 border-gray-100" : "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100"}`}>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600">
+              {toLang.native} · {toLang.label}
+            </p>
+            {translation && (
+              <button onClick={() => copyText("trans")} className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-700">
+                <Copy size={10}/> {copied==="trans"?"Copied!":"Copy"}
+              </button>
+            )}
+          </div>
+          {translating
+            ? <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Loader2 size={14} className="animate-spin"/> Translating…
+              </div>
+            : <p className="text-base font-medium text-gray-900 leading-relaxed">{translation}</p>
+          }
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-start gap-2">
+          <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5"/>
+          <p className="text-xs text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Clear */}
+      {(transcript || manualText || translation) && (
+        <button
+          onClick={() => { setTranscript(""); setManualText(""); setTranslation(""); setInterimText(""); setError(""); }}
+          className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          Clear all
+        </button>
+      )}
+
+      {/* Browser note */}
+      <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+        <p className="text-[10px] text-amber-700 font-medium">
+          🎙️ Voice works best on <span className="font-bold">Chrome / Android browser</span>. Translation powered by MyMemory API — works offline for text, requires internet for voice.
+        </p>
       </div>
     </div>
   );

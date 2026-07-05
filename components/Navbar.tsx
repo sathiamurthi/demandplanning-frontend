@@ -11,6 +11,7 @@ export default function Navbar() {
         <Link href="/dashboard" className="hover:text-gray-200">Dashboard</Link>
         <Link href="/inventory" className="hover:text-gray-200">Inventory</Link>
         <Link href="/orders" className="hover:text-gray-200">Orders</Link>
+        <Link href="/ai-order" className="hover:text-gray-200 border border-indigo-400/50 rounded px-2 py-0.5 text-sm text-indigo-300">✨ AI Order</Link>
         <Link href="/sales" className="hover:text-gray-200">Sales</Link>
         <Link href="/report" className="hover:text-gray-200">AI Report</Link>
         <Link href="/settings" className="hover:text-gray-200">Settings</Link>
