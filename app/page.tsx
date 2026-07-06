@@ -10,7 +10,7 @@ import {
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw, Navigation2,
 } from “lucide-react”;
 
-/* â”€â”€ INDUSTRIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- INDUSTRIES --------------------------------------- */
 const ALL_INDUSTRIES = [
   {
     moduleId: “grocery”,
@@ -65,7 +65,7 @@ const ALL_INDUSTRIES = [
   },
 ];
 
-/* â”€â”€ FEATURES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- FEATURES ----------------------------------------- */
 const features = [
   {
     icon: BarChart3,
@@ -125,7 +125,7 @@ const features = [
   },
 ];
 
-/* â”€â”€ USER JOURNEYS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- USER JOURNEYS ------------------------------------- */
 const journeys = [
   {
     role: "Store Owner",
@@ -177,7 +177,7 @@ const journeys = [
   },
 ];
 
-/* â”€â”€ BENEFITS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- BENEFITS ------------------------------------------ */
 const benefits = [
   { stat: "40%",  label: "Fewer stockouts",       sub: "AI reorder recommendations" },
   { stat: "3Ã—",   label: "Faster invoicing",      sub: "Automated PO & receipt flow" },
@@ -185,7 +185,7 @@ const benefits = [
   { stat: "âˆž",    label: "Tenants & stores",       sub: "True multi-tenant SaaS" },
 ];
 
-/* â”€â”€ TESTIMONIALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- TESTIMONIALS -------------------------------------- */
 const testimonials = [
   {
     name: "Ravi Kumar",
@@ -358,7 +358,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ BENEFIT STATS â”€â”€ */}
+      {/* -- BENEFIT STATS -- */}
       <section className="px-4 pb-16">
         <div className="max-w-4xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4">
           {benefits.map((b) => (
@@ -371,7 +371,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ INDUSTRY VERTICALS â”€â”€ */}
+      {/* -- INDUSTRY VERTICALS -- */}
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
@@ -404,7 +404,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ FEATURES GRID â”€â”€ */}
+      {/* -- FEATURES GRID -- */}
       <section className="px-4 pb-20 bg-[#0a0c12]">
         <div className="max-w-5xl mx-auto pt-16">
           <div className="text-center mb-12">
@@ -428,7 +428,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ USER JOURNEYS â”€â”€ */}
+      {/* -- USER JOURNEYS -- */}
       <section className="px-4 py-20">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -461,7 +461,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ TEA MODULE SPOTLIGHT â”€â”€ */}
+      {/* -- TEA MODULE SPOTLIGHT -- */}
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto">
           <div className="bg-gradient-to-br from-green-950/60 to-emerald-950/30 border border-green-500/20 rounded-3xl p-8 sm:p-10 flex flex-col lg:flex-row gap-8 items-start">
@@ -528,7 +528,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ PUBLIC EXPLORE â”€â”€ */}
+      {/* -- PUBLIC EXPLORE -- */}
       <section className="px-4 pb-20 bg-[#0a0c12]">
         <div className="max-w-5xl mx-auto pt-16">
           <div className="bg-[#0d1117] border border-white/8 rounded-3xl p-8 sm:p-10 flex flex-col lg:flex-row gap-8 items-center">
@@ -580,7 +580,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ TESTIMONIALS â”€â”€ */}
+      {/* -- TESTIMONIALS -- */}
       <section className="px-4 py-20">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-10">What our customers say</h2>
@@ -603,7 +603,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* â”€â”€ CTA â”€â”€ */}
+      {/* -- CTA -- */}
       <section className="px-4 pb-24">
         <div className="max-w-2xl mx-auto text-center">
           <div className="bg-gradient-to-br from-indigo-950/60 to-purple-950/40 border border-indigo-500/20 rounded-3xl p-10">
