@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -204,7 +204,7 @@ const testimonials = [
   },
 ];
 
-/* ──── COMPONENT ────────────────────────────────────────────────────────── */
+/* ---- COMPONENT ---------------------------------------------------------- */
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [enabledModules, setEnabledModules] = useState<string[]>([
@@ -227,7 +227,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#07090f] text-white flex flex-col overflow-x-hidden">
 
-      {/* ──── NAV ──── */}
+      {/* ---- NAV ---- */}
       <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between bg-white/4 backdrop-blur-xl border border-white/8 rounded-2xl px-5 py-3 shadow-xl shadow-black/20">
           <Link href="/" className="flex items-center gap-2.5">
@@ -255,7 +255,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ──── HERO ──── */}
+      {/* ---- HERO ---- */}
       <section className="relative px-4 pt-28 pb-20 text-center overflow-hidden">
         {/* Glow */}
         <div className="absolute inset-0 pointer-events-none">
