@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -8,60 +8,60 @@ import {
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw, Navigation2,
-} from “lucide-react”;
+} from "lucide-react";
 
 /* -- INDUSTRIES --------------------------------------- */
 const ALL_INDUSTRIES = [
   {
-    moduleId: “grocery”,
+    moduleId: "grocery",
     icon: ShoppingCart,
-    color: “text-blue-400”,
-    bg: “bg-blue-500/10”,
-    border: “border-blue-500/20 hover:border-blue-500/50”,
-    title: “Grocery & Retail”,
-    desc: “Track perishables, manage shelf-life, auto-reorder before stockouts.”,
-    link: “/login”,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20 hover:border-blue-500/50",
+    title: "Grocery & Retail",
+    desc: "Track perishables, manage shelf-life, auto-reorder before stockouts.",
+    link: "/login",
   },
   {
-    moduleId: “autoparts”,
+    moduleId: "autoparts",
     icon: Wrench,
-    color: “text-orange-400”,
-    bg: “bg-orange-500/10”,
-    border: “border-orange-500/20 hover:border-orange-500/50”,
-    title: “Auto Parts”,
-    desc: “SKU-level parts inventory with supplier lead times and demand forecasting.”,
-    link: “/login”,
+    color: "text-orange-400",
+    bg: "bg-orange-500/10",
+    border: "border-orange-500/20 hover:border-orange-500/50",
+    title: "Auto Parts",
+    desc: "SKU-level parts inventory with supplier lead times and demand forecasting.",
+    link: "/login",
   },
   {
-    moduleId: “pharmacy”,
+    moduleId: "pharmacy",
     icon: Pill,
-    color: “text-pink-400”,
-    bg: “bg-pink-500/10”,
-    border: “border-pink-500/20 hover:border-pink-500/50”,
-    title: “Pharma & Medical”,
-    desc: “Batch tracking, expiry alerts, and regulatory-ready audit trails.”,
-    link: “/login”,
+    color: "text-pink-400",
+    bg: "bg-pink-500/10",
+    border: "border-pink-500/20 hover:border-pink-500/50",
+    title: "Pharma & Medical",
+    desc: "Batch tracking, expiry alerts, and regulatory-ready audit trails.",
+    link: "/login",
   },
   {
-    moduleId: “krishna”,
+    moduleId: "krishna",
     icon: Store,
-    color: “text-indigo-400”,
-    bg: “bg-indigo-500/10”,
-    border: “border-indigo-500/20 hover:border-indigo-500/50”,
-    title: “Krishna Store (Kirana)”,
-    desc: “Neighbourhood kirana retail — mixed grocery, household and daily essentials.”,
-    link: “/login”,
+    color: "text-indigo-400",
+    bg: "bg-indigo-500/10",
+    border: "border-indigo-500/20 hover:border-indigo-500/50",
+    title: "Krishna Store (Kirana)",
+    desc: "Neighbourhood kirana retail — mixed grocery, household and daily essentials.",
+    link: "/login",
   },
   {
-    moduleId: “tea”,
+    moduleId: "tea",
     icon: Leaf,
-    color: “text-green-400”,
-    bg: “bg-green-500/10”,
-    border: “border-green-500/20 hover:border-green-500/50”,
-    title: “Tea Procurement”,
-    desc: “Full grower-to-factory workflow: collections, dispatch, settlements, payments.”,
-    link: “/tea”,
-    badge: “Live Demo →”,
+    color: "text-green-400",
+    bg: "bg-green-500/10",
+    border: "border-green-500/20 hover:border-green-500/50",
+    title: "Tea Procurement",
+    desc: "Full grower-to-factory workflow: collections, dispatch, settlements, payments.",
+    link: "/tea",
+    badge: "Live Demo →",
   },
 ];
 
@@ -72,7 +72,7 @@ const features = [
     color: "text-indigo-400",
     bg: "bg-indigo-500/10",
     title: "Real-Time Analytics",
-    desc: "Live dashboards with sales velocity, stock turns, and revenue tracking â€” updated every minute.",
+    desc: "Live dashboards with sales velocity, stock turns, and revenue tracking â€" updated every minute.",
   },
   {
     icon: Brain,
@@ -100,14 +100,14 @@ const features = [
     color: "text-green-400",
     bg: "bg-green-500/10",
     title: "Multi-User Roles",
-    desc: "Owner, manager, staff â€” each with fine-grained permissions and a full audit log.",
+    desc: "Owner, manager, staff â€" each with fine-grained permissions and a full audit log.",
   },
   {
     icon: Globe,
     color: "text-cyan-400",
     bg: "bg-cyan-500/10",
     title: "Public Store Search",
-    desc: "Customers can find your store on the Explore page â€” with map links and product search.",
+    desc: "Customers can find your store on the Explore page â€" with map links and product search.",
   },
   {
     icon: Truck,
@@ -409,7 +409,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto pt-16">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">Everything you need</h2>
-            <p className="text-white/40 mt-2 text-sm">From day-1 setup to enterprise scale â€” no add-ons required.</p>
+            <p className="text-white/40 mt-2 text-sm">From day-1 setup to enterprise scale â€" no add-ons required.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map((f) => {
@@ -433,7 +433,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">User Journeys</h2>
-            <p className="text-white/40 mt-2 text-sm">Every role has a tailored workflow â€” from owner to guest.</p>
+            <p className="text-white/40 mt-2 text-sm">Every role has a tailored workflow â€" from owner to guest.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {journeys.map((j) => (
@@ -473,12 +473,12 @@ export default function HomePage() {
                 <span className="text-green-400 font-semibold text-sm">Tea Procurement Module</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3">
-                From leaf to ledger â€” every step tracked
+                From leaf to ledger â€" every step tracked
               </h3>
               <p className="text-white/50 text-sm leading-relaxed mb-6">
                 The Tea Procurement module handles the complete small-holder tea supply chain:
                 register growers, log daily collections by grade, dispatch to factories, settle
-                invoices, and pay growers weekly â€” with AI rate recommendations and cash-flow risk alerts.
+                invoices, and pay growers weekly â€" with AI rate recommendations and cash-flow risk alerts.
               </p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
@@ -539,7 +539,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3">Find any store, anywhere</h3>
               <p className="text-white/50 text-sm leading-relaxed mb-6">
-                Customers can discover stores on the Explore page â€” search by name or product,
+                Customers can discover stores on the Explore page â€" search by name or product,
                 filter by city or domain, sort by distance, toggle card/grid layout, open Google Maps,
                 and reveal the store phone number.
               </p>
