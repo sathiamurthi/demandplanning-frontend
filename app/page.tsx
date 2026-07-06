@@ -45,10 +45,10 @@ const ALL_INDUSTRIES = [
   {
     moduleId: "krishna",
     icon: Store,
-    color: "text-indigo-400",
-    bg: "bg-indigo-500/10",
-    border: "border-indigo-500/20 hover:border-indigo-500/50",
-    title: "Krishna Store (Kirana)",
+    color: "text-amber-400",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/20 hover:border-amber-500/50",
+    title: "Krishna Store",
     desc: "Neighbourhood kirana retail — mixed grocery, household and daily essentials.",
     link: "/login",
   },
@@ -61,7 +61,7 @@ const ALL_INDUSTRIES = [
     title: "Tea Procurement",
     desc: "Full grower-to-factory workflow: collections, dispatch, settlements, payments.",
     link: "/tea",
-    badge: "Live Demo →",
+    badge: "Live Demo ->",
   },
 ];
 
@@ -72,7 +72,7 @@ const features = [
     color: "text-indigo-400",
     bg: "bg-indigo-500/10",
     title: "Real-Time Analytics",
-    desc: "Live dashboards with sales velocity, stock turns, and revenue tracking â€" updated every minute.",
+    desc: "Live dashboards with sales velocity, stock turns, and revenue tracking â€” updated every minute.",
   },
   {
     icon: Brain,
@@ -100,14 +100,14 @@ const features = [
     color: "text-green-400",
     bg: "bg-green-500/10",
     title: "Multi-User Roles",
-    desc: "Owner, manager, staff â€" each with fine-grained permissions and a full audit log.",
+    desc: "Owner, manager, staff â€” each with fine-grained permissions and a full audit log.",
   },
   {
     icon: Globe,
     color: "text-cyan-400",
     bg: "bg-cyan-500/10",
     title: "Public Store Search",
-    desc: "Customers can find your store on the Explore page â€" with map links and product search.",
+    desc: "Customers can find your store on the Explore page â€” with map links and product search.",
   },
   {
     icon: Truck,
@@ -204,30 +204,27 @@ const testimonials = [
   },
 ];
 
-/* ---- COMPONENT ---------------------------------------------------------- */
+/* ──── COMPONENT ────────────────────────────────────────────────────────── */
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
-  const [enabledModules, setEnabledModules] = useState<string[]>([
-    "grocery", "pharmacy", "autoparts", "krishna", "tea",
-  ]);
+  useEffect(() => setMounted(true), []);
 
+  const [enabledModules, setEnabledModules] = useState<string[]>(["grocery", "pharmacy", "autoparts", "krishna", "tea"]);
   useEffect(() => {
-    setMounted(true);
     fetch("/v1/public/platform-config")
       .then(r => r.json())
       .then(d => {
-        const mods: string[] = d.data?.enterprise_apps?.enabled_modules;
+        const mods: string[] = d?.data?.enterprise_apps?.enabled_modules;
         if (Array.isArray(mods) && mods.length) setEnabledModules(mods);
       })
       .catch(() => {});
   }, []);
-
   const industries = ALL_INDUSTRIES.filter(ind => enabledModules.includes(ind.moduleId));
 
   return (
     <div className="min-h-screen bg-[#07090f] text-white flex flex-col overflow-x-hidden">
 
-      {/* ---- NAV ---- */}
+      {/* ──── NAV ──── */}
       <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between bg-white/4 backdrop-blur-xl border border-white/8 rounded-2xl px-5 py-3 shadow-xl shadow-black/20">
           <Link href="/" className="flex items-center gap-2.5">
@@ -255,7 +252,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ---- HERO ---- */}
+      {/* ──── HERO ──── */}
       <section className="relative px-4 pt-28 pb-20 text-center overflow-hidden">
         {/* Glow */}
         <div className="absolute inset-0 pointer-events-none">
@@ -409,7 +406,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto pt-16">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">Everything you need</h2>
-            <p className="text-white/40 mt-2 text-sm">From day-1 setup to enterprise scale â€" no add-ons required.</p>
+            <p className="text-white/40 mt-2 text-sm">From day-1 setup to enterprise scale â€” no add-ons required.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map((f) => {
@@ -433,7 +430,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">User Journeys</h2>
-            <p className="text-white/40 mt-2 text-sm">Every role has a tailored workflow â€" from owner to guest.</p>
+            <p className="text-white/40 mt-2 text-sm">Every role has a tailored workflow â€” from owner to guest.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {journeys.map((j) => (
@@ -473,12 +470,12 @@ export default function HomePage() {
                 <span className="text-green-400 font-semibold text-sm">Tea Procurement Module</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3">
-                From leaf to ledger â€" every step tracked
+                From leaf to ledger â€” every step tracked
               </h3>
               <p className="text-white/50 text-sm leading-relaxed mb-6">
                 The Tea Procurement module handles the complete small-holder tea supply chain:
                 register growers, log daily collections by grade, dispatch to factories, settle
-                invoices, and pay growers weekly â€" with AI rate recommendations and cash-flow risk alerts.
+                invoices, and pay growers weekly â€” with AI rate recommendations and cash-flow risk alerts.
               </p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
@@ -539,7 +536,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl sm:text-2xl font-bold mb-3">Find any store, anywhere</h3>
               <p className="text-white/50 text-sm leading-relaxed mb-6">
-                Customers can discover stores on the Explore page â€" search by name or product,
+                Customers can discover stores on the Explore page â€” search by name or product,
                 filter by city or domain, sort by distance, toggle card/grid layout, open Google Maps,
                 and reveal the store phone number.
               </p>
