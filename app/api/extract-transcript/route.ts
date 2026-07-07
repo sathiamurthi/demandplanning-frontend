@@ -90,19 +90,30 @@ async function callGemini(parts: any[]): Promise<any> {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const isPdf  = body.fileBase64 && body.mimeType === 'application/pdf';
+  const mime: string = body.mimeType || '';
+  const isFile = !!(body.fileBase64 && mime);
+  const isPdf  = isFile && mime === 'application/pdf';
+  const isImg  = isFile && mime.startsWith('image/');
   const isText = !!body.text?.trim();
 
-  if (!isPdf && !isText) {
+  if (!isFile && !isText) {
     return NextResponse.json({ success: false, error: 'Provide text or fileBase64+mimeType' }, { status: 400 });
   }
 
+  const buildClaudeContent = (): any[] => {
+    if (isPdf) return [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: body.fileBase64 } }, { type: 'text', text: PROMPT }];
+    if (isImg) return [{ type: 'image',    source: { type: 'base64', media_type: mime,               data: body.fileBase64 } }, { type: 'text', text: PROMPT }];
+    return [{ type: 'text', text: `${PROMPT}\n\nDocument text:\n${body.text.trim().slice(0, 8000)}` }];
+  };
+
+  const buildGeminiParts = (): any[] => {
+    if (isFile) return [{ inlineData: { mimeType: mime, data: body.fileBase64 } }, { text: PROMPT }];
+    return [{ text: `${PROMPT}\n\nDocument text:\n${body.text.trim().slice(0, 8000)}` }];
+  };
+
   if (ANTHROPIC_KEY) {
     try {
-      const content: any[] = isPdf
-        ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: body.fileBase64 } }, { type: 'text', text: PROMPT }]
-        : [{ type: 'text', text: `${PROMPT}\n\nDocument text:\n${body.text.trim().slice(0, 8000)}` }];
-      const data = await callClaude(content);
+      const data = await callClaude(buildClaudeContent());
       return NextResponse.json({ success: true, data, provider: 'claude' });
     } catch (e: any) {
       console.warn('Claude failed, falling back to Gemini:', e.message);
@@ -110,10 +121,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const parts: any[] = isPdf
-      ? [{ inlineData: { mimeType: 'application/pdf', data: body.fileBase64 } }, { text: PROMPT }]
-      : [{ text: `${PROMPT}\n\nDocument text:\n${body.text.trim().slice(0, 8000)}` }];
-    const data = await callGemini(parts);
+    const data = await callGemini(buildGeminiParts());
     return NextResponse.json({ success: true, data, provider: 'gemini' });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: `Both AI providers failed: ${e.message}` }, { status: 502 });

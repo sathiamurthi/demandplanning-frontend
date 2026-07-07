@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   BookOpen,
+  Wallet,
 } from "lucide-react";
 
 import { useStore } from "./appshell"; // ✅ IMPORTANT
@@ -65,6 +66,7 @@ const NAV: NavGroup[] = [
         icon: ShoppingCart,
         badge: 3,
       },
+      { label: "Khata (Credit)", href: "/khata", icon: Wallet },
     ],
   },
   {

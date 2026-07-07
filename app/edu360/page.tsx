@@ -327,11 +327,11 @@ function ProfileBuilderModal({ user, onClose, onSaved }: {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      const ab = ev.target?.result as ArrayBuffer;
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+      const dataUrl = ev.target?.result as string;
+      const b64 = dataUrl.split(",")[1];
       process(b64, file.type);
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataURL(file);
   };
 
   const save = () => {

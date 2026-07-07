@@ -332,8 +332,12 @@ function ResumeBuilderModal({ user, existing, onClose, onSave }: {
     try {
       let body: Record<string, string>;
       if (file) {
-        const ab  = await file.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+        const b64 = await new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res((r.result as string).split(",")[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
         body = { fileBase64: b64, mimeType: file.type };
       } else if (paste.trim()) {
         body = { text: paste };

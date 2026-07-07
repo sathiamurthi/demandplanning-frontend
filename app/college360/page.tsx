@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Search, Briefcase, Users, Building2, X, Send, Mail, Sparkles, Star,
-  Plus, Loader2, Upload, FileText, Printer, LogOut, Lock, ChevronDown,
-  Code2, TestTube2, Database, Palette, TrendingUp, Shield, Cloud,
-  BookOpen, Zap, Award, MapPin, IndianRupee, CheckCircle, ArrowRight,
-  GraduationCap, Rocket, Brain, Globe, UserCheck, Clock, Target, Heart,
+  Search, Briefcase, Building2, X, Send, Mail, Sparkles, Star,
+  Plus, Loader2, Upload, FileText, LogOut, Lock,
+  Code2, TestTube2, Database, Palette, Cloud,
+  BookOpen, Zap, Award, MapPin, CheckCircle,
+  GraduationCap, Rocket, Brain, Clock, Target, Heart,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -147,46 +147,18 @@ const LEARN_TRACKS: LearningTrack[] = [
 
 // ── AI Profile Extractor ───────────────────────────────────────────────────────
 async function extractProfile(input: { text?: string; base64?: string; mime?: string }): Promise<StudentProfile | null> {
-  const prompt = `Extract a student academic/professional profile from this content and return ONLY valid JSON (no markdown):
-{
-  "name":"","headline":"","college":"","year":"","cgpa":"",
-  "contact":{"phone":"","email":"","city":""},
-  "summary":"",
-  "skills":[],"domains":[],"languages":[],
-  "projects":[{"name":"","tech":"","desc":""}],
-  "education":[{"degree":"","institution":"","year":"","score":""}],
-  "certifications":[],
-  "seeking":[],"preferred_cities":[],
-  "achievements":[]
-}`;
   try {
-    const body: Record<string, unknown> = { model:"claude-opus-4-8", max_tokens:1200,
-      messages:[{ role:"user", content: input.base64
-        ? [{ type:"document", source:{ type:"base64", media_type: input.mime||"application/pdf", data: input.base64 }}, { type:"text", text: prompt }]
-        : [{ type:"text", text: prompt + "\n\n" + input.text }]
-      }]
-    };
-    const r = await fetch("/api/extract-transcript", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error("claude");
+    const body = input.base64
+      ? { fileBase64: input.base64, mimeType: input.mime || "application/pdf" }
+      : { text: input.text };
+    const r = await fetch("/api/extract-transcript", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     const d = await r.json();
-    const raw = d.content?.[0]?.text || d.text || "";
-    const m = raw.match(/\{[\s\S]*\}/);
-    if (m) return JSON.parse(m[0]) as StudentProfile;
-  } catch {
-    // Gemini fallback
-    try {
-      const GEMINI_KEY = Buffer.from("QUl6YVN5Qi1JdUNLelJPSXpkSDNxdnBqeUtjWjVZMTdMRm9xVjQ=","base64").toString("utf-8");
-      const model = "gemini-2.5-flash";
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
-        { method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ contents:[{ parts:[{ text: prompt + "\n\n" + (input.text||"") }] }] })
-        });
-      const gd = await resp.json();
-      const raw2 = gd.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      const m2 = raw2.match(/\{[\s\S]*\}/);
-      if (m2) return JSON.parse(m2[0]) as StudentProfile;
-    } catch {}
-  }
+    if (d.success && d.data) return d.data as StudentProfile;
+  } catch {}
   return null;
 }
 
