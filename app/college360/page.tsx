@@ -5,14 +5,16 @@ import {
   Search, Briefcase, Building2, X, Send, Mail, Sparkles, Star,
   Plus, Loader2, Upload, FileText, LogOut, Lock,
   Code2, TestTube2, Database, Palette, Cloud,
-  BookOpen, Zap, Award, MapPin, CheckCircle,
+  BookOpen, Zap, Award, MapPin, CheckCircle, AlertCircle,
   GraduationCap, Rocket, Brain, Clock, Target, Heart,
+  Check, Pencil, ExternalLink, Phone, Globe,
+  Bell, BellDot, MessageSquare, ChevronDown,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface C360User {
   id: string; name: string; email: string; phone: string;
-  role: "student" | "recruiter"; college?: string; year?: string;
+  role: "student" | "recruiter" | "mentor"; college?: string; year?: string;
   premium: boolean; createdAt: string;
 }
 interface StudentProfile {
@@ -37,6 +39,7 @@ interface Mentor {
   id: string; name: string; role: string; company: string; domain: string;
   exp: number; rating: number; sessions: number; bio: string;
   skills: string[]; wa_number: string; is_premium: boolean; avatar_color: string;
+  linkedin?: string; email?: string; is_community?: boolean;
 }
 interface LearningTrack {
   id: string; title: string; domain: string; icon: React.ReactNode;
@@ -44,11 +47,31 @@ interface LearningTrack {
   color: string; bg: string; is_premium: boolean;
 }
 type Mode = "student" | "recruiter";
+interface RecruiterProfile {
+  company: string; designation: string; industry: string;
+  hiring_for: "intern" | "fulltime" | "both";
+  skills_needed: string[]; open_positions: string[];
+  stipend_min: number; stipend_max: number;
+  city: string; email: string; phone: string; website: string; bio: string;
+}
 
 // ── Auth (localStorage) ────────────────────────────────────────────────────────
 const SK = "college360_session";
 const UK = "college360_users";
 const PK = (id: string) => `college360_profile_${id}`;
+const RP = (id: string) => `college360_recruiter_${id}`;
+const MK = "college360_mentors";
+const loadRP = (id: string): RecruiterProfile => {
+  try { const s = localStorage.getItem(RP(id)); if (s) return JSON.parse(s); } catch {}
+  return { company:"", designation:"", industry:"", hiring_for:"intern", skills_needed:[], open_positions:[], stipend_min:0, stipend_max:0, city:"", email:"", phone:"", website:"", bio:"" };
+};
+const loadMentors = (): Mentor[] => {
+  try { return JSON.parse(localStorage.getItem(MK) || "[]"); } catch { return []; }
+};
+const saveMentor = (m: Mentor) => {
+  const all = loadMentors();
+  localStorage.setItem(MK, JSON.stringify([...all.filter(x => x.id !== m.id), m]));
+};
 
 const loadSess = (): C360User | null => {
   try { const s = localStorage.getItem(SK); return s ? JSON.parse(s) : null; } catch { return null; }
@@ -60,7 +83,7 @@ const allUsers = (): Array<C360User & { pw: string }> => {
   try { return JSON.parse(localStorage.getItem(UK) || "[]"); } catch { return []; }
 };
 
-const doRegister = (d: { name: string; email: string; phone: string; pw: string; role: "student"|"recruiter"; college?: string; year?: string }): C360User | string => {
+const doRegister = (d: { name: string; email: string; phone: string; pw: string; role: "student"|"recruiter"|"mentor"; college?: string; year?: string }): C360User | string => {
   const users = allUsers();
   if (users.find(u => u.email === d.email)) return "Email already registered.";
   const u: C360User = { id: `c${Date.now()}`, name: d.name, email: d.email, phone: d.phone, role: d.role, college: d.college, year: d.year, premium: false, createdAt: new Date().toISOString() };
@@ -145,27 +168,180 @@ const LEARN_TRACKS: LearningTrack[] = [
   { id:"lt6", title:"DSA & Competitive Coding", domain:"dev", icon:<Zap size={22}/>, modules:15, hours:60, level:"Intermediate → Advanced", desc:"Arrays to Graphs. 200+ LeetCode-style problems. Interview-ready in 8 weeks.", color:"text-indigo-400", bg:"bg-indigo-500/10", is_premium:true },
 ];
 
+const COURSE_OPTIONS = [
+  "B.Tech / B.E. - Computer Science",
+  "B.Tech / B.E. - Information Technology",
+  "B.Tech / B.E. - Electronics & Communication",
+  "B.Tech / B.E. - Electrical Engineering",
+  "B.Tech / B.E. - Mechanical Engineering",
+  "B.Tech / B.E. - Civil Engineering",
+  "B.Sc - Computer Science",
+  "BCA", "MCA", "M.Tech", "MBA", "BBA", "B.Com",
+  "B.Sc - Mathematics / Statistics",
+  "Law (LLB)", "B.Des / BFA",
+];
+
+const TECH_GROUPS = [
+  { group: "Frontend",       items: ["React","Next.js","Vue.js","Angular","HTML/CSS","TypeScript","JavaScript"] },
+  { group: "Backend",        items: ["Node.js","Python","Java","Spring Boot","Django","Express","FastAPI","PHP","Ruby on Rails"] },
+  { group: "Database",       items: ["PostgreSQL","MySQL","MongoDB","Redis","Firebase","SQLite","Supabase"] },
+  { group: "Mobile",         items: ["React Native","Flutter","Android (Kotlin)","iOS (Swift)"] },
+  { group: "ML / AI",        items: ["TensorFlow","PyTorch","Scikit-learn","Pandas","NumPy","LangChain","Hugging Face"] },
+  { group: "Cloud & DevOps", items: ["AWS","Azure","GCP","Docker","Kubernetes","Linux","CI/CD","Terraform"] },
+  { group: "Testing",        items: ["Selenium","Pytest","Jest","Postman","Playwright","JUnit","Cypress"] },
+  { group: "Design",         items: ["Figma","Adobe XD","Canva","Framer","Blender"] },
+];
+
+const ROLE_OPTIONS = [
+  "SDE Intern","Full Stack Developer","Frontend Developer","Backend Developer",
+  "Data Science Intern","ML Engineer","Data Analyst","AI Research",
+  "DevOps Engineer","Cloud Engineer","QA / Test Engineer","SDET",
+  "UI/UX Designer","Product Designer","Product Manager","Business Analyst",
+  "Cybersecurity Analyst","Embedded Engineer","Game Developer",
+  "Content Writer","Digital Marketing","Finance Analyst","HR Intern",
+];
+
+// Flat list used by MultiSelectDropdown
+const ALL_SKILLS = TECH_GROUPS.flatMap(g => g.items);
+
+// ── Client-side resume text parser (AI-free fallback) ─────────────────────────
+function parseResumeTextLocally(text: string): StudentProfile {
+  const strip = (s: string) => s.replace(/[#*_`~[\]]/g, '').replace(/\(https?:\/\/[^)]+\)/g, '').trim();
+  const lines = text.split('\n').map(strip).filter(l => l.length > 0);
+
+  // Name: first line that looks like a person's name
+  let name = '';
+  for (const l of lines.slice(0, 8)) {
+    if (l.length >= 3 && l.length <= 50 && /^[A-Za-z][\w\s.'-]*$/.test(l) && l.split(/\s+/).length >= 2) {
+      name = l; break;
+    }
+  }
+
+  // Contact
+  const emailM    = text.match(/[\w.+%-]+@[\w-]+\.[a-zA-Z]{2,}/);
+  const phoneM    = text.match(/(?:\+91[\s-]?)?[6-9]\d{9}/);
+  const cityM     = text.match(/📍\s*([^,\n\r]+)/);
+  const linkedinM = text.match(/linkedin\.com\/in\/([\w-]+)/i);
+  const githubM   = text.match(/github\.com\/([\w-]+)/i);
+
+  // CGPA
+  const cgpaM = text.match(/(?:CGPA|GPA)[:\s]*([0-9.]+)\s*\/\s*10/i) || text.match(/([0-9]+\.[0-9]+)\s*\/\s*10/);
+  const cgpa  = cgpaM?.[1] || '';
+
+  // College name
+  let college = '';
+  const collegeM = text.match(/([A-Z][a-zA-Z\s&'.-]+(?:Institute|University|College|School of Technology|IIT|NIT|BITS|Academy)[a-zA-Z\s,&.-]*)/);
+  if (collegeM) college = strip(collegeM[1]).slice(0, 70);
+
+  // Year of study
+  let year = 'Final Year';
+  const semM   = text.match(/(\d+)(?:st|nd|rd|th)\s+(?:Semester|Year)/i);
+  const batchM = text.match(/(?:20\d{2})\s*[-–]\s*(20\d{2})/);
+  if (semM) {
+    const n = parseInt(semM[1]);
+    year = n <= 2 ? '1st Year' : n <= 4 ? '2nd Year' : n <= 6 ? '3rd Year' : '4th Year';
+  } else if (batchM) {
+    const endYr = parseInt(batchM[1]);
+    const rem = endYr - new Date().getFullYear();
+    year = rem > 2 ? '1st Year' : rem === 2 ? '2nd Year' : rem === 1 ? '3rd Year' : rem === 0 ? '4th Year' : 'Recently Graduated';
+  }
+
+  // Skills — match against known list (whole-word) + extract from skill sections
+  const knownSkills = ALL_SKILLS.filter(s =>
+    new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
+  );
+  const extraSkills: string[] = [];
+  const skillSecM = text.match(/(?:Programming Languages?|Technical Skills?|Frameworks?|Technologies?|Tools?)[:\s]*([\s\S]*?)(?:\n#{1,3} |\n\n[A-Z]|$)/i);
+  if (skillSecM) {
+    skillSecM[1].split('\n').map(strip).filter(l => l.length > 1 && l.length < 25 && /^[A-Za-z]/.test(l)).forEach(l => extraSkills.push(l));
+  }
+  const skills = [...new Set([...knownSkills, ...extraSkills])].slice(0, 20);
+
+  // Domains from skills
+  const sl = skills.map(s => s.toLowerCase()).join(' ');
+  const domains: string[] = [];
+  if (/react|vue|angular|html|css|javascript|typescript|next\.js/i.test(sl + ' ' + text)) domains.push('dev');
+  if (/python|tensorflow|pytorch|pandas|numpy|machine.?learn/i.test(sl + ' ' + text)) domains.push('data');
+  if (/aws|azure|gcp|cloud|docker|kubernetes/i.test(sl + ' ' + text)) domains.push('cloud');
+  if (/selenium|playwright|cypress|jest|pytest|junit/i.test(sl + ' ' + text)) domains.push('qa');
+  if (!domains.length) domains.push('dev');
+
+  // Projects
+  const projects: Array<{ name: string; tech: string; desc: string }> = [];
+  for (const m of text.matchAll(/(?:#{2,3})\s+([^\n#]+)\n(?:[\s\S]*?)\*\*Tech(?:nology)?[:\*]*\*\*\s*([^\n]+)/gi)) {
+    const pName = strip(m[1]).slice(0, 60);
+    if (pName && projects.length < 4) projects.push({ name: pName, tech: strip(m[2]).slice(0, 80), desc: '' });
+  }
+
+  // Education
+  const education: Array<{ degree: string; institution: string; year: string; score: string }> = [];
+  const degreeM = text.match(/(?:Bachelor|B\.Tech|B\.E\.?|B\.Sc\.?|M\.Tech|MCA|BCA|B\.Com|MBA|M\.Sc)[^\n]*/i);
+  if (degreeM) education.push({ degree: strip(degreeM[0]).slice(0, 80), institution: college, year: batchM?.[1] || '', score: cgpa });
+
+  // Certifications
+  const certs: string[] = [];
+  const certSecM = text.match(/Certifications?[\s\S]*?(?=\n#{1,3} |\n#[^#]|$)/i);
+  if (certSecM) certSecM[0].split('\n').map(strip).filter(l => l.length > 3 && l.length < 80 && !/certif/i.test(l)).slice(0, 6).forEach(c => certs.push(c));
+
+  // Achievements
+  const achievements: string[] = [];
+  const achSecM = text.match(/Achievements?[\s\S]*?(?=\n#{1,3} |\n#[^#]|$)/i);
+  if (achSecM) achSecM[0].split('\n').map(strip).filter(l => l.length > 3 && l.length < 100 && !/achievement/i.test(l)).slice(0, 5).forEach(a => achievements.push(a));
+
+  // Seeking roles
+  const seeking: string[] = [];
+  if (/intern/i.test(text)) seeking.push('SDE Intern');
+  if (/full.?stack/i.test(text)) seeking.push('Full Stack Developer');
+  if (/front.?end/i.test(text)) seeking.push('Frontend Developer');
+  if (/back.?end/i.test(text)) seeking.push('Backend Developer');
+  if (/data\s*sci|machine\s*learn/i.test(text)) seeking.push('Data Science Intern');
+  if (!seeking.length) seeking.push('SDE Intern');
+
+  const deg      = education[0]?.degree.split('–')[0]?.trim() || 'B.Tech CS';
+  const headline = [deg, year, cgpa ? `CGPA ${cgpa}` : '', college.split(',')[0]].filter(Boolean).join(' · ');
+  const summary  = `${name} is a ${year} ${deg} student${college ? ' at ' + college.split(',')[0] : ''}. Skilled in ${skills.slice(0, 4).join(', ')}. Seeking ${seeking.slice(0, 2).join(', ')} roles.`;
+
+  return {
+    name, headline, college, year, cgpa,
+    contact: { phone: phoneM?.[0] || '', email: emailM?.[0] || '', city: cityM?.[1]?.trim() || '' },
+    summary, skills, domains, projects, education,
+    certifications: certs, languages: ['English'],
+    github:   githubM   ? `https://github.com/${githubM[1]}` : '',
+    linkedin: linkedinM ? `https://linkedin.com/in/${linkedinM[1]}` : '',
+    seeking, preferred_cities: [], achievements,
+  };
+}
+
 // ── AI Profile Extractor ───────────────────────────────────────────────────────
-async function extractProfile(input: { text?: string; base64?: string; mime?: string }): Promise<StudentProfile | null> {
+async function extractProfile(input: { text?: string; base64?: string; mime?: string }): Promise<{ data: StudentProfile | null; error?: string }> {
   try {
     const body = input.base64
-      ? { fileBase64: input.base64, mimeType: input.mime || "application/pdf" }
-      : { text: input.text };
-    const r = await fetch("/api/extract-transcript", {
+      ? { fileBase64: input.base64, mimeType: input.mime || "application/pdf", mode: "student" }
+      : { text: input.text, mode: "student" };
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 55000);
+    const r = await fetch("/api/extract-resume", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+    clearTimeout(tid);
     const d = await r.json();
-    if (d.success && d.data) return d.data as StudentProfile;
-  } catch {}
-  return null;
+    if (d.success && d.data) return { data: d.data as StudentProfile };
+    return { data: null, error: d.error || "AI returned empty result — try pasting your resume text below." };
+  } catch (e: any) {
+    const msg = e?.name === "AbortError"
+      ? "Request timed out. Try pasting your resume text instead."
+      : (e?.message || "Network error — check connection and retry.");
+    return { data: null, error: msg };
+  }
 }
 
 // ── Auth Modal ────────────────────────────────────────────────────────────────
 function AuthModal({ onClose, onSuccess }: { onClose: ()=>void; onSuccess: (u: C360User)=>void }) {
   const [tab, setTab] = useState<"login"|"register">("register");
-  const [role, setRole] = useState<"student"|"recruiter">("student");
+  const [role, setRole] = useState<"student"|"recruiter"|"mentor">("student");
   const [form, setForm] = useState({ name:"", email:"", phone:"", pw:"", college:"", year:"1st Year" });
   const [err, setErr] = useState("");
 
@@ -197,8 +373,8 @@ function AuthModal({ onClose, onSuccess }: { onClose: ()=>void; onSuccess: (u: C
         </div>
         {tab === "register" && (
           <div className="flex bg-white/5 rounded-lg p-1 mb-4">
-            {(["student","recruiter"] as const).map(r => (
-              <button key={r} onClick={()=>setRole(r)} className={`flex-1 py-1.5 rounded-md text-sm font-semibold capitalize transition ${role===r?"bg-indigo-600 text-white":"text-gray-400"}`}>{r}</button>
+            {([["student","Student"],["recruiter","Recruiter"],["mentor","Expert/Mentor"]] as const).map(([r,l]) => (
+              <button key={r} onClick={()=>setRole(r)} className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition ${role===r?"bg-indigo-600 text-white":"text-gray-400"}`}>{l}</button>
             ))}
           </div>
         )}
@@ -282,19 +458,34 @@ function PremiumModal({ user, onClose, onUpgrade }: { user: C360User|null; onClo
 }
 
 // ── Profile Builder Modal ─────────────────────────────────────────────────────
-function ProfileBuilderModal({ user, onClose, onSave }: { user: C360User; onClose: ()=>void; onSave: (p: StudentProfile)=>void }) {
+function ProfileBuilderModal({ user, freeAI, onClose, onSave }: { user: C360User; freeAI?: boolean; onClose: ()=>void; onSave: (p: StudentProfile)=>void }) {
   const [step, setStep] = useState<"upload"|"manual"|"result">("upload");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<StudentProfile|null>(null);
+  const [aiErr, setAiErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  // Seed from localStorage so the manual form is pre-filled on open
+  const [profile, setProfile] = useState<StudentProfile|null>(() => {
+    try { const s = localStorage.getItem(PK(user.id)); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
 
   const runExtract = async (input: { text?: string; base64?: string; mime?: string }) => {
     setLoading(true);
-    const p = await extractProfile(input);
+    setAiErr("");
+    const result = await extractProfile(input);
     setLoading(false);
-    if (p) { setProfile(p); setStep("result"); }
-    else { alert("AI could not extract — please fill manually."); setStep("manual"); }
+    if (result.data) {
+      setProfile(result.data);
+      setStep("result");
+    } else if (input.text) {
+      // AI is down — parse the text locally as an instant fallback
+      const local = parseResumeTextLocally(input.text);
+      setProfile(local);
+      setAiErr("AI is currently unavailable. Profile extracted locally — please review and edit before saving.");
+      setStep("result");
+    } else {
+      setAiErr(result.error || "AI could not extract. Paste your resume text below.");
+    }
   };
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,25 +509,44 @@ function ProfileBuilderModal({ user, onClose, onSave }: { user: C360User; onClos
       <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            {user.premium ? <><Sparkles className="text-yellow-400" size={18}/>AI Profile Builder</> : <><FileText size={18}/>Build Your Profile</>}
+            {(user.premium || freeAI) ? <><Sparkles className="text-yellow-400" size={18}/>AI Profile Builder</> : <><FileText size={18}/>Build Your Profile</>}
           </h2>
           <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-white"/></button>
         </div>
 
         {step === "upload" && (
           <div className="space-y-4">
-            {user.premium ? (
+            {(user.premium || freeAI) ? (
               <>
-                <p className="text-sm text-gray-400">Upload your resume or transcript — Claude AI will extract everything automatically.</p>
-                <div className="border-2 border-dashed border-violet-500/40 hover:border-violet-500 rounded-xl p-8 text-center cursor-pointer transition" onClick={()=>fileRef.current?.click()}>
-                  <Upload size={32} className="text-violet-400 mx-auto mb-3"/>
-                  <p className="text-sm text-white font-semibold">Click to upload PDF / image</p>
-                  <p className="text-xs text-gray-500 mt-1">Resume, marksheet, transcript</p>
-                </div>
-                <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile}/>
-                <div className="text-center text-gray-500 text-xs">or</div>
-                <textarea className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 h-28 resize-none" placeholder="Paste your resume text here..." value={text} onChange={e=>setText(e.target.value)}/>
-                {text && <button onClick={()=>runExtract({text})} className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition">{loading?<Loader2 size={14} className="animate-spin"/>:<Brain size={14}/>}Extract with AI</button>}
+                <p className="text-sm text-gray-400">{freeAI && !user.premium ? "AI features are unlocked for everyone during our MVP launch! " : ""}Upload your resume — AI will extract everything automatically.</p>
+                {!loading && !aiErr && (
+                  <>
+                    <div className="border-2 border-dashed border-violet-500/40 hover:border-violet-500 rounded-xl p-8 text-center cursor-pointer transition" onClick={()=>fileRef.current?.click()}>
+                      <Upload size={32} className="text-violet-400 mx-auto mb-3"/>
+                      <p className="text-sm text-white font-semibold">Click to upload PDF / image</p>
+                      <p className="text-xs text-gray-500 mt-1">Resume, marksheet, transcript</p>
+                    </div>
+                    <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile}/>
+                    <div className="text-center text-gray-500 text-xs">or paste text below</div>
+                  </>
+                )}
+                {loading && (
+                  <div className="border-2 border-dashed border-violet-500/20 rounded-xl p-8 text-center">
+                    <Loader2 size={28} className="text-violet-400 mx-auto mb-3 animate-spin"/>
+                    <p className="text-sm text-gray-400">Extracting with AI — this may take 15–30 seconds for multi-page PDFs…</p>
+                  </div>
+                )}
+                {aiErr && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 space-y-1">
+                    <p className="text-xs text-red-400 font-semibold flex items-center gap-1.5"><X size={12}/>AI extraction failed</p>
+                    <p className="text-xs text-gray-400">{aiErr}</p>
+                    <p className="text-xs text-gray-500 pt-1">Paste your resume text in the box below and click <span className="text-violet-400">Extract with AI</span>, or <button className="text-violet-400 hover:underline" onClick={()=>fileRef.current?.click()}>try uploading again</button>.</p>
+                  </div>
+                )}
+                {aiErr && <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile}/>}
+                <textarea className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 h-28 resize-none" placeholder="Paste your resume text here (copy all text from your PDF)..." value={text} onChange={e=>setText(e.target.value)}/>
+                {text && <button onClick={()=>runExtract({text})} disabled={loading} className="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition">{loading?<Loader2 size={14} className="animate-spin"/>:<Brain size={14}/>}Extract with AI</button>}
+                <button onClick={()=>setStep("manual")} className="w-full py-1.5 border border-white/10 text-gray-400 hover:text-white rounded-lg text-xs transition">Fill manually instead</button>
               </>
             ) : (
               <>
@@ -344,7 +554,7 @@ function ProfileBuilderModal({ user, onClose, onSave }: { user: C360User; onClos
                   <Lock size={18} className="text-amber-400 shrink-0 mt-0.5"/>
                   <div>
                     <p className="text-sm text-amber-300 font-semibold">AI extraction is a Premium feature</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Free users can build their profile manually. Upgrade for instant AI-powered profile creation.</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Build your profile manually for free. Upgrade to ₹500/year for instant AI-powered extraction.</p>
                   </div>
                 </div>
                 <button onClick={()=>setStep("manual")} className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold transition">Fill Manually</button>
@@ -354,15 +564,22 @@ function ProfileBuilderModal({ user, onClose, onSave }: { user: C360User; onClos
         )}
 
         {step === "manual" && (
-          <ManualProfileForm userId={user.id} onSave={(p)=>{setProfile(p);setStep("result");}}/>
+          <ManualProfileForm userId={user.id} initialData={profile} onSave={(p)=>{setProfile(p);setAiErr("");setStep("result");}}/>
         )}
 
         {step === "result" && profile && (
           <div className="space-y-4">
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-2">
-              <CheckCircle size={16} className="text-emerald-400"/>
-              <p className="text-sm text-emerald-300 font-semibold">Profile built successfully!</p>
-            </div>
+            {aiErr ? (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle size={14} className="text-amber-400 shrink-0 mt-0.5"/>
+                <p className="text-xs text-amber-300">{aiErr}</p>
+              </div>
+            ) : (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-2">
+                <CheckCircle size={16} className="text-emerald-400"/>
+                <p className="text-sm text-emerald-300 font-semibold">Profile extracted successfully!</p>
+              </div>
+            )}
             <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
               <p className="text-white font-bold text-base">{profile.name}</p>
               <p className="text-violet-400">{profile.headline}</p>
@@ -385,31 +602,427 @@ function ProfileBuilderModal({ user, onClose, onSave }: { user: C360User; onClos
   );
 }
 
-function ManualProfileForm({ userId, onSave }: { userId: string; onSave: (p: StudentProfile)=>void }) {
-  const [f, setF] = useState({ name:"", headline:"", college:"", year:"", cgpa:"", city:"", email:"", phone:"", summary:"", skills:"", domains:"", seeking:"" });
+// ── Multi-Select Dropdown ─────────────────────────────────────────────────────
+function MultiSelectDropdown({
+  options, selected, onChange, placeholder, accent = "violet",
+}: {
+  options: string[]; selected: string[]; onChange: (v: string[]) => void;
+  placeholder: string; accent?: "violet" | "indigo";
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (!btnRef.current?.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  const openPanel = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom;
+      const panelH = 280;
+      const top = spaceBelow > panelH ? r.bottom + 4 : r.top - panelH - 4;
+      setPanelStyle({ position: "fixed", top, left: r.left, width: r.width, zIndex: 9999 });
+    }
+    setOpen(o => !o);
+    if (open) setSearch("");
+  };
+
+  const toggle = (o: string) =>
+    onChange(selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o]);
+  const filtered = search
+    ? options.filter(o => o.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
+  const chipCls = accent === "indigo"
+    ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/30"
+    : "bg-violet-600/20 text-violet-300 border-violet-500/30";
+  const chkCls  = accent === "indigo" ? "accent-indigo-500" : "accent-violet-500";
+  const bdrOpen = accent === "indigo" ? "border-indigo-500/50" : "border-violet-500/50";
+
+  return (
+    <div>
+      <button
+        ref={btnRef} type="button" onClick={openPanel}
+        className={`w-full bg-white/5 border rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between gap-2 transition ${open ? bdrOpen : "border-white/10 hover:border-white/20"}`}
+      >
+        <span className={selected.length ? "text-white" : "text-gray-500"}>
+          {selected.length ? `${selected.length} selected` : placeholder}
+        </span>
+        <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selected.map(s => (
+            <span key={s} className={`flex items-center gap-1 text-xs border rounded-full px-2.5 py-1 ${chipCls}`}>
+              {s}
+              <button type="button" onClick={() => toggle(s)} className="hover:text-white ml-0.5 text-sm leading-none">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div ref={panelRef} style={panelStyle} className="bg-gray-900 border border-white/15 rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-white/8">
+            <input
+              autoFocus
+              className="w-full bg-white/8 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none"
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-y-auto max-h-48">
+            {filtered.length === 0
+              ? <p className="text-xs text-gray-500 text-center py-4">No results for "{search}"</p>
+              : filtered.map(o => (
+                <label key={o} className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 cursor-pointer select-none">
+                  <input type="checkbox" className={chkCls} checked={selected.includes(o)} onChange={() => toggle(o)}/>
+                  <span className="text-sm text-white">{o}</span>
+                </label>
+              ))
+            }
+          </div>
+          <div className="border-t border-white/8 px-3 py-2 flex items-center justify-between">
+            <span className="text-xs text-gray-500">{selected.length} of {options.length} selected</span>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-violet-400 hover:text-violet-300 font-semibold">Done</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManualProfileForm({ userId, initialData, onSave }: { userId: string; initialData?: StudentProfile|null; onSave: (p: StudentProfile)=>void }) {
+  // Lazy-init: prefer passed-in data (AI extract), then localStorage, then empty
+  const [basic, setBasic] = useState(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    return {
+      name: d?.name || "", cgpa: d?.cgpa || "", college: d?.college || "",
+      year: d?.year || "", city: d?.contact?.city || "", email: d?.contact?.email || "",
+      phone: d?.contact?.phone || "", summary: d?.summary || "",
+      github: d?.github || "", linkedin: d?.linkedin || "",
+    };
+  });
+  const [course, setCourse] = useState(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    const deg = d?.education?.[0]?.degree || d?.headline?.split('·')[0]?.trim() || "";
+    return COURSE_OPTIONS.find(c => deg.toLowerCase().includes(c.split(' ')[0].toLowerCase())) || (deg ? "Other" : "");
+  });
+  const [courseOther, setCourseOther] = useState(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    const deg = d?.education?.[0]?.degree || d?.headline?.split('·')[0]?.trim() || "";
+    return COURSE_OPTIONS.find(c => deg.toLowerCase().includes(c.split(' ')[0].toLowerCase())) ? "" : deg;
+  });
+  const [selSkills, setSelSkills] = useState<string[]>(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    return (d?.skills || []).filter(s => ALL_SKILLS.includes(s));
+  });
+  const [skillOther, setSkillOther] = useState(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    return (d?.skills || []).filter(s => !ALL_SKILLS.includes(s)).join(", ");
+  });
+  const [selSeeking, setSelSeeking] = useState<string[]>(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    return (d?.seeking || []).filter(s => ROLE_OPTIONS.includes(s));
+  });
+  const [seekingOther, setSeekingOther] = useState(() => {
+    const d = initialData || (() => {
+      try { const s = localStorage.getItem(`college360_profile_${userId}`); return s ? JSON.parse(s) as StudentProfile : null; } catch { return null; }
+    })();
+    return (d?.seeking || []).filter(s => !ROLE_OPTIONS.includes(s)).join(", ");
+  });
+
   const save = () => {
-    const p: StudentProfile = { name:f.name, headline:f.headline, college:f.college, year:f.year, cgpa:f.cgpa, contact:{city:f.city,email:f.email,phone:f.phone}, summary:f.summary, skills:f.skills.split(",").map(s=>s.trim()).filter(Boolean), domains:f.domains.split(",").map(s=>s.trim()).filter(Boolean), projects:[], education:[{degree:"",institution:f.college,year:f.year,score:f.cgpa}], certifications:[], languages:[], seeking:f.seeking.split(",").map(s=>s.trim()).filter(Boolean), preferred_cities:[f.city], achievements:[] };
+    if (!basic.name || !basic.college) { alert("Name and college are required."); return; }
+    const finalCourse = course === "Other" ? courseOther : course;
+    const finalSkills = [...selSkills, ...skillOther.split(",").map(s=>s.trim()).filter(Boolean)];
+    const finalSeeking = [...selSeeking, ...seekingOther.split(",").map(s=>s.trim()).filter(Boolean)];
+    const p: StudentProfile = {
+      name: basic.name, headline: `${finalCourse||basic.year} · ${basic.college}`,
+      college: basic.college, year: basic.year, cgpa: basic.cgpa,
+      contact: { city: basic.city, email: basic.email, phone: basic.phone },
+      summary: basic.summary, skills: finalSkills, domains: [],
+      projects: [], education: [{ degree: finalCourse, institution: basic.college, year: basic.year, score: basic.cgpa }],
+      certifications: [], languages: [], github: basic.github, linkedin: basic.linkedin,
+      seeking: finalSeeking, preferred_cities: [basic.city], achievements: [],
+    };
     localStorage.setItem(`college360_profile_${userId}`, JSON.stringify(p));
     onSave(p);
   };
+
   const inp = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500";
+  const sel = "w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500";
+
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <input className={inp} placeholder="Full name" value={f.name} onChange={e=>setF(p=>({...p,name:e.target.value}))}/>
-        <input className={inp} placeholder="CGPA / Percentage" value={f.cgpa} onChange={e=>setF(p=>({...p,cgpa:e.target.value}))}/>
+    <div className="space-y-5">
+      {/* Basic Info */}
+      <div className="space-y-3">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Basic Info</p>
+        <div className="grid grid-cols-2 gap-3">
+          <input className={inp} placeholder="Full name *" value={basic.name} onChange={e=>setBasic(b=>({...b,name:e.target.value}))}/>
+          <input className={inp} placeholder="CGPA / Percentage" value={basic.cgpa} onChange={e=>setBasic(b=>({...b,cgpa:e.target.value}))}/>
+        </div>
+        <input className={inp} placeholder="College / University *" value={basic.college} onChange={e=>setBasic(b=>({...b,college:e.target.value}))}/>
+        <div className="grid grid-cols-2 gap-3">
+          <select className={sel} value={basic.year} onChange={e=>setBasic(b=>({...b,year:e.target.value}))}>
+            <option value="">Year of study</option>
+            {YEARS.map(y=><option key={y}>{y}</option>)}
+          </select>
+          <input className={inp} placeholder="City" value={basic.city} onChange={e=>setBasic(b=>({...b,city:e.target.value}))}/>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <input className={inp} placeholder="Email" type="email" value={basic.email} onChange={e=>setBasic(b=>({...b,email:e.target.value}))}/>
+          <input className={inp} placeholder="Phone" value={basic.phone} onChange={e=>setBasic(b=>({...b,phone:e.target.value}))}/>
+        </div>
       </div>
-      <input className={inp} placeholder="Headline (e.g. B.Tech CSE · 3rd Year · NSIT)" value={f.headline} onChange={e=>setF(p=>({...p,headline:e.target.value}))}/>
-      <input className={inp} placeholder="College / University" value={f.college} onChange={e=>setF(p=>({...p,college:e.target.value}))}/>
-      <div className="grid grid-cols-2 gap-3">
-        <input className={inp} placeholder="Email" value={f.email} onChange={e=>setF(p=>({...p,email:e.target.value}))}/>
-        <input className={inp} placeholder="Phone" value={f.phone} onChange={e=>setF(p=>({...p,phone:e.target.value}))}/>
+
+      {/* Course */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Course / Degree</p>
+        <select className={sel} value={course} onChange={e=>setCourse(e.target.value)}>
+          <option value="">Select your course</option>
+          {COURSE_OPTIONS.map(c=><option key={c}>{c}</option>)}
+          <option value="Other">Other</option>
+        </select>
+        {course === "Other" && <input className={inp} placeholder="Enter your course / degree" value={courseOther} onChange={e=>setCourseOther(e.target.value)}/>}
       </div>
-      <input className={inp} placeholder="City" value={f.city} onChange={e=>setF(p=>({...p,city:e.target.value}))}/>
-      <textarea className={`${inp} h-20 resize-none`} placeholder="Brief summary about yourself..." value={f.summary} onChange={e=>setF(p=>({...p,summary:e.target.value}))}/>
-      <input className={inp} placeholder="Skills (comma-separated: React, Python, SQL)" value={f.skills} onChange={e=>setF(p=>({...p,skills:e.target.value}))}/>
-      <input className={inp} placeholder="Seeking (e.g. SDE Intern, Data Science Role)" value={f.seeking} onChange={e=>setF(p=>({...p,seeking:e.target.value}))}/>
-      <button onClick={save} className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold transition">Save Profile</button>
+
+      {/* Technologies */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Technologies & Skills</p>
+        <MultiSelectDropdown
+          options={ALL_SKILLS}
+          selected={selSkills}
+          onChange={setSelSkills}
+          placeholder="Select technologies & skills..."
+          accent="violet"
+        />
+        <input className={inp} placeholder="Other skills not listed (comma-separated: Rust, GraphQL...)" value={skillOther} onChange={e=>setSkillOther(e.target.value)}/>
+      </div>
+
+      {/* Seeking */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Seeking — select all that apply</p>
+        <MultiSelectDropdown
+          options={ROLE_OPTIONS}
+          selected={selSeeking}
+          onChange={setSelSeeking}
+          placeholder="Select roles you're looking for..."
+          accent="indigo"
+        />
+        <input className={inp} placeholder="Other roles not listed (comma-separated)" value={seekingOther} onChange={e=>setSeekingOther(e.target.value)}/>
+      </div>
+
+      {/* Summary + Links */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">About & Links</p>
+        <textarea className={`${inp} h-20 resize-none`} placeholder="Brief summary about yourself..." value={basic.summary} onChange={e=>setBasic(b=>({...b,summary:e.target.value}))}/>
+        <div className="grid grid-cols-2 gap-3">
+          <input className={inp} placeholder="GitHub URL (optional)" value={basic.github} onChange={e=>setBasic(b=>({...b,github:e.target.value}))}/>
+          <input className={inp} placeholder="LinkedIn URL (optional)" value={basic.linkedin} onChange={e=>setBasic(b=>({...b,linkedin:e.target.value}))}/>
+        </div>
+      </div>
+
+      <button onClick={save} className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl transition sticky bottom-0">Save Profile</button>
+    </div>
+  );
+}
+
+// ── Inline-edit primitives ────────────────────────────────────────────────────
+function InlineText({ value, onSave, placeholder, className, size = "sm" }: {
+  value: string; onSave: (v: string) => void;
+  placeholder?: string; className?: string; size?: "sm"|"base"|"lg"|"xl";
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(value);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
+  const confirm = () => { if (draft.trim()) onSave(draft.trim()); setEditing(false); };
+  const cancel  = () => { setDraft(value); setEditing(false); };
+  const sz = { sm:"text-sm", base:"text-base", lg:"text-lg font-semibold", xl:"text-xl font-bold" }[size];
+  if (editing) return (
+    <div className="flex items-center gap-1.5">
+      <input ref={ref} value={draft} onChange={e=>setDraft(e.target.value)}
+        onKeyDown={e=>{ if(e.key==="Enter") confirm(); if(e.key==="Escape") cancel(); }}
+        className={`flex-1 bg-white/10 border border-violet-500/60 rounded px-2 py-1 text-white focus:outline-none ${sz} ${className||""}`}/>
+      <button onClick={confirm} className="w-6 h-6 bg-emerald-600 hover:bg-emerald-500 rounded flex items-center justify-center shrink-0"><Check size={12} className="text-white"/></button>
+      <button onClick={cancel}  className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center shrink-0"><X size={12} className="text-gray-400"/></button>
+    </div>
+  );
+  return (
+    <div className={`group cursor-pointer flex items-center gap-1 ${className||""}`} onClick={()=>{ setDraft(value); setEditing(true); }}>
+      <span className={`${sz} ${value?"":"text-gray-600 italic"}`}>{value||placeholder||"Click to edit…"}</span>
+      <Pencil size={10} className="opacity-0 group-hover:opacity-40 text-violet-400 transition shrink-0"/>
+    </div>
+  );
+}
+
+function InlineArea({ value, onSave, placeholder, rows=4 }: {
+  value: string; onSave: (v: string) => void; placeholder?: string; rows?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(value);
+  const confirm = () => { onSave(draft.trim()); setEditing(false); };
+  const cancel  = () => { setDraft(value); setEditing(false); };
+  if (editing) return (
+    <div className="space-y-2">
+      <textarea value={draft} onChange={e=>setDraft(e.target.value)}
+        onKeyDown={e=>{ if(e.key==="Escape") cancel(); }}
+        rows={rows} className="w-full bg-white/10 border border-violet-500/60 rounded-lg px-3 py-2 text-sm text-white focus:outline-none resize-none" autoFocus/>
+      <div className="flex gap-2">
+        <button onClick={confirm} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs text-white font-semibold flex items-center gap-1"><Check size={11}/>Save</button>
+        <button onClick={cancel}  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs text-gray-400">Cancel</button>
+      </div>
+    </div>
+  );
+  return (
+    <div className="group relative cursor-pointer" onClick={()=>{ setDraft(value); setEditing(true); }}>
+      <p className={`text-sm leading-relaxed ${value?"text-gray-300":"text-gray-600 italic"}`}>{value||placeholder||"Click to add…"}</p>
+      <Pencil size={10} className="absolute top-0 right-0 opacity-0 group-hover:opacity-40 text-violet-400 transition"/>
+    </div>
+  );
+}
+
+function ChipEditor({ values, onSave, accent="violet" }: {
+  values: string[]; onSave: (vs: string[]) => void; accent?: string;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [newVal, setNewVal] = useState("");
+  const cls: Record<string,string> = {
+    violet: "bg-violet-500/20 text-violet-300 border-violet-500/20",
+    indigo: "bg-indigo-500/20 text-indigo-300 border-indigo-500/20",
+    emerald:"bg-emerald-500/20 text-emerald-300 border-emerald-500/20",
+    amber:  "bg-amber-500/20  text-amber-300  border-amber-500/20",
+    blue:   "bg-blue-500/20   text-blue-300   border-blue-500/20",
+  };
+  const chipCls = `border ${cls[accent]||cls.violet}`;
+  const add = () => {
+    const v = newVal.trim();
+    if (v && !values.includes(v)) onSave([...values, v]);
+    setNewVal(""); setAdding(false);
+  };
+  return (
+    <div className="flex flex-wrap gap-2">
+      {values.map(v => (
+        <span key={v} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${chipCls}`}>
+          {v}<button onClick={()=>onSave(values.filter(x=>x!==v))} className="hover:text-red-400 transition ml-0.5"><X size={10}/></button>
+        </span>
+      ))}
+      {adding ? (
+        <div className="flex items-center gap-1">
+          <input value={newVal} onChange={e=>setNewVal(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter") add(); if(e.key==="Escape") setAdding(false); }}
+            className="bg-white/10 border border-violet-500/60 rounded-full px-3 py-1 text-xs text-white focus:outline-none w-32" placeholder="Type + Enter" autoFocus/>
+          <button onClick={add}              className="text-emerald-400 hover:text-emerald-300"><Check size={12}/></button>
+          <button onClick={()=>setAdding(false)} className="text-gray-500 hover:text-gray-400"><X size={12}/></button>
+        </div>
+      ) : (
+        <button onClick={()=>setAdding(true)} className="px-2.5 py-1 rounded-full text-xs border border-dashed border-gray-600 text-gray-500 hover:border-violet-500 hover:text-violet-400 flex items-center gap-1 transition">
+          <Plus size={10}/>Add
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Become a Mentor Modal ────────────────────────────────────────────────────
+function BecomeMentorModal({ user, onClose, onSaved }: { user: C360User|null; onClose: ()=>void; onSaved: (m: Mentor)=>void }) {
+  const MENTOR_DOMAINS = DOMAINS.filter(d => d.id !== "all");
+  const [form, setForm] = useState({
+    name: user?.name || "", company: "", role: "", domain: "dev",
+    exp: "", bio: "", skills: "", wa: user?.phone || "",
+    email: user?.email || "", linkedin: "",
+  });
+  const [saved, setSaved] = useState(false);
+  const inp = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500";
+
+  const submit = () => {
+    if (!form.name || !form.company || !form.role || !form.bio || !form.skills) {
+      alert("Please fill name, company, role, bio, and skills."); return;
+    }
+    const mentor: Mentor = {
+      id: `cm${Date.now()}`, name: form.name, role: form.role, company: form.company,
+      domain: form.domain, exp: parseInt(form.exp) || 0, rating: 0, sessions: 0,
+      bio: form.bio, skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
+      wa_number: form.wa.replace(/\D/g, "").replace(/^0/, "91"),
+      linkedin: form.linkedin, email: form.email,
+      is_premium: false, avatar_color: clr(form.name), is_community: true,
+    };
+    saveMentor(mentor);
+    setSaved(true);
+    onSaved(mentor);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Award size={18} className="text-violet-400"/>Become a Mentor
+          </h2>
+          <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-white"/></button>
+        </div>
+        {saved ? (
+          <div className="text-center py-8">
+            <CheckCircle size={48} className="text-emerald-400 mx-auto mb-4"/>
+            <h3 className="text-white font-bold text-lg mb-2">You're listed as a mentor!</h3>
+            <p className="text-gray-400 text-sm mb-1">Students can now find you in the Industry Mentors section.</p>
+            <p className="text-gray-500 text-xs mb-5">Our team will reach out to verify your profile and credentials.</p>
+            <button onClick={onClose} className="px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold transition">Done</button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-400 mb-2">Share your expertise with college students. Your profile appears in the Mentors section right away.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <input className={inp} placeholder="Full name *" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+              <input className={inp} placeholder="Current company *" value={form.company} onChange={e=>setForm(f=>({...f,company:e.target.value}))}/>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input className={inp} placeholder="Your role/title *" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}/>
+              <input className={inp} placeholder="Years of experience" type="number" min="0" value={form.exp} onChange={e=>setForm(f=>({...f,exp:e.target.value}))}/>
+            </div>
+            <select className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500" value={form.domain} onChange={e=>setForm(f=>({...f,domain:e.target.value}))}>
+              {MENTOR_DOMAINS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+            <textarea className={`${inp} h-24 resize-none`} placeholder="Bio — what you do, who you help, how you mentor *" value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))}/>
+            <input className={inp} placeholder="Skills (comma-separated: DSA, System Design, Python) *" value={form.skills} onChange={e=>setForm(f=>({...f,skills:e.target.value}))}/>
+            <div className="grid grid-cols-2 gap-3">
+              <input className={inp} placeholder="WhatsApp (91XXXXXXXXXX)" value={form.wa} onChange={e=>setForm(f=>({...f,wa:e.target.value}))}/>
+              <input className={inp} placeholder="Email address" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/>
+            </div>
+            <input className={inp} placeholder="LinkedIn URL (optional)" value={form.linkedin} onChange={e=>setForm(f=>({...f,linkedin:e.target.value}))}/>
+            <button onClick={submit} className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2">
+              <Award size={15}/>Submit Mentor Profile
+            </button>
+            <p className="text-xs text-gray-600 text-center">Your profile is visible to students immediately. We may contact you to verify credentials.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -490,6 +1103,560 @@ function OppCard({ opp, onApply }: { opp: Opportunity; onApply: (o: Opportunity)
   );
 }
 
+// ── Profile View Modal (student / recruiter / mentor) ─────────────────────────
+function ProfileViewModal({ user, onClose, onBuild }: {
+  user: C360User; onClose: ()=>void; onBuild: ()=>void;
+}) {
+  const [sp, setSp] = useState<StudentProfile|null>(() => {
+    try { const s = localStorage.getItem(PK(user.id)); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [rp, setRp] = useState<RecruiterProfile>(() => loadRP(user.id));
+  const [mp, setMp] = useState<Mentor|null>(() => {
+    try { return loadMentors().find(m => m.email === user.email || m.id === user.id) || null; } catch { return null; }
+  });
+
+  const saveS = (p: StudentProfile)    => { localStorage.setItem(PK(user.id), JSON.stringify(p)); setSp(p); };
+  const saveR = (p: RecruiterProfile)  => { localStorage.setItem(RP(user.id), JSON.stringify(p)); setRp(p); };
+  const saveM = (m: Mentor)            => { saveMentor(m); setMp(m); };
+
+  const role = user.role;
+  const avatarBg = clr(user.name);
+  const initials = user.name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+
+  const gradients = {
+    student:   "from-violet-900/70 via-indigo-900/50 to-transparent",
+    recruiter: "from-blue-900/70 via-cyan-900/50 to-transparent",
+    mentor:    "from-amber-900/70 via-orange-900/50 to-transparent",
+  };
+  const badges = {
+    student:   "bg-violet-500/20 text-violet-300 border-violet-500/30",
+    recruiter: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    mentor:    "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  };
+  const badgeLabel = { student:"Student", recruiter:"Recruiter", mentor:"Industry Mentor" }[role] || role;
+
+  const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div className="bg-white/4 border border-white/8 rounded-xl p-4 space-y-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">{title}</p>
+      {children}
+    </div>
+  );
+
+  // ── Student layout ──
+  const StudentView = () => {
+    if (!sp) return (
+      <div className="text-center py-10 space-y-4">
+        <Brain size={40} className="text-violet-400/50 mx-auto"/>
+        <div><p className="text-white font-semibold">No profile built yet</p><p className="text-gray-500 text-sm mt-1">Use the AI Profile Builder to extract your details instantly</p></div>
+        <button onClick={()=>{ onClose(); onBuild(); }} className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold text-white flex items-center gap-2 mx-auto">
+          <Sparkles size={14}/>Build with AI
+        </button>
+      </div>
+    );
+    return (
+      <div className="grid md:grid-cols-[240px_1fr] gap-5 mt-5">
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <SectionCard title="Contact">
+            <div className="space-y-2 text-sm">
+              {[
+                { icon:<Mail size={13}/>, label: sp.contact.email, field:"email" as const },
+                { icon:<Phone size={13}/>, label: sp.contact.phone, field:"phone" as const },
+                { icon:<MapPin size={13}/>, label: sp.contact.city, field:"city" as const },
+              ].map(({ icon, label, field }) => (
+                <div key={field} className="flex items-start gap-2">
+                  <span className="text-gray-500 mt-0.5 shrink-0">{icon}</span>
+                  <InlineText value={label} onSave={v=>saveS({...sp, contact:{...sp.contact,[field]:v}})} placeholder={`Add ${field}`} className="text-gray-300 min-w-0"/>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+          <SectionCard title="Academic">
+            <div className="space-y-2 text-sm">
+              <div><p className="text-gray-500 text-xs mb-0.5">College</p><InlineText value={sp.college} onSave={v=>saveS({...sp,college:v})} placeholder="Add college" className="text-gray-200"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">Year</p>
+                <select value={sp.year} onChange={e=>saveS({...sp,year:e.target.value})} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none w-full">
+                  {YEARS.map(y=><option key={y}>{y}</option>)}
+                </select>
+              </div>
+              <div><p className="text-gray-500 text-xs mb-0.5">CGPA</p><InlineText value={sp.cgpa} onSave={v=>saveS({...sp,cgpa:v})} placeholder="e.g. 8.5" className="text-gray-200"/></div>
+            </div>
+          </SectionCard>
+          <SectionCard title="Links">
+            <div className="space-y-2">
+              {sp.github && <a href={sp.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition"><ExternalLink size={11}/>GitHub</a>}
+              {sp.linkedin && <a href={sp.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition"><ExternalLink size={11}/>LinkedIn</a>}
+              <div><p className="text-gray-500 text-[10px] mb-1">GitHub URL</p><InlineText value={sp.github||""} onSave={v=>saveS({...sp,github:v})} placeholder="https://github.com/..." className="text-xs text-gray-400"/></div>
+              <div><p className="text-gray-500 text-[10px] mb-1">LinkedIn URL</p><InlineText value={sp.linkedin||""} onSave={v=>saveS({...sp,linkedin:v})} placeholder="https://linkedin.com/in/..." className="text-xs text-gray-400"/></div>
+            </div>
+          </SectionCard>
+        </div>
+        {/* Main content */}
+        <div className="space-y-4">
+          <SectionCard title="Summary">
+            <InlineArea value={sp.summary} onSave={v=>saveS({...sp,summary:v})} placeholder="Write a short professional summary about yourself…" rows={4}/>
+          </SectionCard>
+          <SectionCard title="Technologies & Skills">
+            <ChipEditor values={sp.skills} onSave={vs=>saveS({...sp,skills:vs})} accent="violet"/>
+          </SectionCard>
+          <SectionCard title="Seeking Roles">
+            <ChipEditor values={sp.seeking} onSave={vs=>saveS({...sp,seeking:vs})} accent="indigo"/>
+          </SectionCard>
+          {sp.projects.length > 0 && (
+            <SectionCard title="Projects">
+              <div className="space-y-3">
+                {sp.projects.map((proj, i) => (
+                  <div key={i} className="border border-white/8 rounded-lg p-3 space-y-1.5">
+                    <InlineText value={proj.name} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,name:v}:p)})} size="base" className="text-white"/>
+                    <InlineText value={proj.tech} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,tech:v}:p)})} placeholder="Tech stack" className="text-violet-400 text-xs"/>
+                    <InlineArea value={proj.desc} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,desc:v}:p)})} placeholder="Describe the project…" rows={2}/>
+                    <button onClick={()=>saveS({...sp,projects:sp.projects.filter((_,j)=>j!==i)})} className="text-[10px] text-red-500 hover:text-red-400">Remove project</button>
+                  </div>
+                ))}
+                <button onClick={()=>saveS({...sp,projects:[...sp.projects,{name:"New Project",tech:"",desc:""}]})} className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"><Plus size={11}/>Add project</button>
+              </div>
+            </SectionCard>
+          )}
+          {sp.education.length > 0 && (
+            <SectionCard title="Education">
+              <div className="space-y-2">
+                {sp.education.map((edu, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="w-1.5 bg-violet-500/30 rounded-full shrink-0 mt-1"/>
+                    <div className="space-y-0.5">
+                      <InlineText value={edu.degree} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,degree:v}:e)})} className="text-white text-sm font-semibold"/>
+                      <InlineText value={edu.institution} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,institution:v}:e)})} placeholder="Institution" className="text-gray-400 text-xs"/>
+                      <div className="flex gap-3 text-xs text-gray-500">
+                        <InlineText value={edu.year} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,year:v}:e)})} placeholder="Year"/>
+                        <InlineText value={edu.score} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,score:v}:e)})} placeholder="Score/CGPA"/>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+          {(sp.certifications.length > 0 || sp.achievements.length > 0) && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <SectionCard title="Certifications">
+                <ChipEditor values={sp.certifications} onSave={vs=>saveS({...sp,certifications:vs})} accent="emerald"/>
+              </SectionCard>
+              <SectionCard title="Achievements">
+                <ChipEditor values={sp.achievements} onSave={vs=>saveS({...sp,achievements:vs})} accent="amber"/>
+              </SectionCard>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Recruiter layout ──
+  const RecruiterView = () => (
+    <div className="grid md:grid-cols-[240px_1fr] gap-5 mt-5">
+      <div className="space-y-4">
+        <SectionCard title="Company">
+          <div className="space-y-2 text-sm">
+            <div><p className="text-gray-500 text-xs mb-0.5">Company</p><InlineText value={rp.company} onSave={v=>saveR({...rp,company:v})} placeholder="Company name" className="text-white font-semibold"/></div>
+            <div><p className="text-gray-500 text-xs mb-0.5">Industry</p><InlineText value={rp.industry} onSave={v=>saveR({...rp,industry:v})} placeholder="e.g. FinTech, EdTech" className="text-gray-300"/></div>
+            <div><p className="text-gray-500 text-xs mb-0.5">City</p><InlineText value={rp.city} onSave={v=>saveR({...rp,city:v})} placeholder="Location" className="text-gray-300"/></div>
+          </div>
+        </SectionCard>
+        <SectionCard title="Contact">
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2"><Mail size={12} className="text-gray-500"/><InlineText value={rp.email||user.email} onSave={v=>saveR({...rp,email:v})} className="text-gray-300"/></div>
+            <div className="flex items-center gap-2"><Phone size={12} className="text-gray-500"/><InlineText value={rp.phone||user.phone} onSave={v=>saveR({...rp,phone:v})} placeholder="Phone" className="text-gray-300"/></div>
+            {rp.website&&<a href={rp.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300"><Globe size={11}/>Website</a>}
+            <div><p className="text-gray-500 text-[10px] mb-0.5">Website</p><InlineText value={rp.website} onSave={v=>saveR({...rp,website:v})} placeholder="https://..." className="text-xs text-gray-400"/></div>
+          </div>
+        </SectionCard>
+      </div>
+      <div className="space-y-4">
+        <SectionCard title="About the Company">
+          <InlineArea value={rp.bio} onSave={v=>saveR({...rp,bio:v})} placeholder="Describe your company, culture, and mission…" rows={4}/>
+        </SectionCard>
+        <SectionCard title="Hiring Details">
+          <div className="space-y-3">
+            <div>
+              <p className="text-gray-500 text-xs mb-1.5">We are looking for</p>
+              <div className="flex gap-2">
+                {(["intern","fulltime","both"] as const).map(t=>(
+                  <button key={t} onClick={()=>saveR({...rp,hiring_for:t})} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${rp.hiring_for===t?"bg-blue-600 text-white":"bg-white/5 text-gray-400 hover:bg-white/10"}`}>
+                    {t==="intern"?"Interns":t==="fulltime"?"Full-time":"Both"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs mb-1.5">Stipend / Salary range (₹/month)</p>
+              <div className="flex items-center gap-2 text-sm">
+                <input type="number" value={rp.stipend_min||""} onChange={e=>saveR({...rp,stipend_min:+e.target.value})} placeholder="Min" className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"/>
+                <span className="text-gray-600">–</span>
+                <input type="number" value={rp.stipend_max||""} onChange={e=>saveR({...rp,stipend_max:+e.target.value})} placeholder="Max" className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"/>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+        <SectionCard title="Skills / Technologies Required">
+          <ChipEditor values={rp.skills_needed} onSave={vs=>saveR({...rp,skills_needed:vs})} accent="blue"/>
+        </SectionCard>
+        <SectionCard title="Open Positions">
+          <ChipEditor values={rp.open_positions} onSave={vs=>saveR({...rp,open_positions:vs})} accent="indigo"/>
+        </SectionCard>
+      </div>
+    </div>
+  );
+
+  // ── Mentor layout ──
+  const MentorView = () => {
+    const m = mp || {
+      id:`m${user.id}`, name:user.name, role:"", company:"", domain:"dev",
+      exp:0, rating:0, sessions:0, bio:"", skills:[], wa_number:"",
+      is_premium:false, avatar_color:clr(user.name), email:user.email, linkedin:"", is_community:true,
+    } as Mentor;
+    return (
+      <div className="grid md:grid-cols-[240px_1fr] gap-5 mt-5">
+        <div className="space-y-4">
+          <SectionCard title="Professional Info">
+            <div className="space-y-2 text-sm">
+              <div><p className="text-gray-500 text-xs mb-0.5">Company</p><InlineText value={m.company} onSave={v=>saveM({...m,company:v})} placeholder="Your company" className="text-white font-semibold"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">Title / Role</p><InlineText value={m.role} onSave={v=>saveM({...m,role:v})} placeholder="e.g. Senior Engineer" className="text-gray-300"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">Domain</p>
+                <select value={m.domain} onChange={e=>saveM({...m,domain:e.target.value})} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none w-full">
+                  {DOMAINS.filter(d=>d.id!=="all").map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
+                </select>
+              </div>
+              <div><p className="text-gray-500 text-xs mb-0.5">Years of Experience</p>
+                <input type="number" value={m.exp||""} onChange={e=>saveM({...m,exp:+e.target.value})} className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-amber-500"/>
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard title="Contact">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2"><Mail size={12} className="text-gray-500 shrink-0"/><InlineText value={m.email||""} onSave={v=>saveM({...m,email:v})} placeholder="Email" className="text-gray-300 text-xs min-w-0"/></div>
+              <div className="flex items-center gap-2"><Phone size={12} className="text-gray-500 shrink-0"/><InlineText value={m.wa_number} onSave={v=>saveM({...m,wa_number:v.replace(/\D/g,"").replace(/^0/,"91")})} placeholder="WhatsApp number" className="text-gray-300 text-xs min-w-0"/></div>
+              {m.linkedin&&<a href={m.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-400 hover:text-amber-300 transition"><ExternalLink size={11}/>LinkedIn</a>}
+              <div><p className="text-gray-500 text-[10px] mb-0.5">LinkedIn URL</p><InlineText value={m.linkedin||""} onSave={v=>saveM({...m,linkedin:v})} placeholder="https://linkedin.com/in/..." className="text-xs text-gray-400"/></div>
+            </div>
+          </SectionCard>
+          <SectionCard title="Stats">
+            <div className="flex gap-4">
+              <div className="text-center"><p className="text-xl font-black text-amber-400">{m.rating>0?m.rating.toFixed(1):"–"}</p><p className="text-[10px] text-gray-500">Rating</p></div>
+              <div className="text-center"><p className="text-xl font-black text-white">{m.sessions}</p><p className="text-[10px] text-gray-500">Sessions</p></div>
+              <div className="text-center"><p className="text-xl font-black text-emerald-400">{m.exp||0}</p><p className="text-[10px] text-gray-500">Yrs exp</p></div>
+            </div>
+          </SectionCard>
+        </div>
+        <div className="space-y-4">
+          <SectionCard title="Bio / About">
+            <InlineArea value={m.bio} onSave={v=>saveM({...m,bio:v})} placeholder="Write about your experience, what you can help students with, and your mentoring style…" rows={5}/>
+          </SectionCard>
+          <SectionCard title="Skills & Expertise">
+            <ChipEditor values={m.skills} onSave={vs=>saveM({...m,skills:vs})} accent="amber"/>
+          </SectionCard>
+        </div>
+      </div>
+    );
+  };
+
+  const headline = role==="student" ? (sp?.headline||"") : role==="recruiter" ? (rp.designation||user.name) : (mp?.role||"");
+  const subline  = role==="student" ? (sp?.college||"") : role==="recruiter" ? rp.company : (mp?.company||"");
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-3 overflow-y-auto" onClick={onClose}>
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-3xl my-4 shadow-2xl" onClick={e=>e.stopPropagation()}>
+        {/* Banner */}
+        <div className={`h-24 rounded-t-2xl bg-gradient-to-r ${gradients[role as keyof typeof gradients]||gradients.student} relative`}>
+          <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white bg-black/30 rounded-full p-1.5 transition"><X size={16}/></button>
+          {role==="student" && (
+            <button onClick={()=>{ onClose(); onBuild(); }} className="absolute top-3 left-3 flex items-center gap-1.5 text-xs font-semibold text-violet-300 bg-violet-500/20 border border-violet-500/20 hover:bg-violet-500/30 rounded-full px-3 py-1.5 transition">
+              <Sparkles size={11}/>AI Builder
+            </button>
+          )}
+        </div>
+        {/* Identity */}
+        <div className="px-6 pb-2">
+          <div className="flex items-end gap-4 -mt-10 mb-1">
+            <div className={`w-20 h-20 rounded-2xl ${avatarBg} flex items-center justify-center text-white text-2xl font-black shadow-xl border-4 border-gray-900 shrink-0`}>{initials}</div>
+            <div className="flex-1 pb-1 min-w-0">
+              {role==="student"&&sp ? (
+                <InlineText value={sp.name} onSave={v=>saveS({...sp,name:v})} size="xl" className="text-white"/>
+              ) : role==="recruiter" ? (
+                <InlineText value={rp.designation||user.name} onSave={v=>saveR({...rp,designation:v})} placeholder="Your designation" size="xl" className="text-white"/>
+              ) : mp ? (
+                <InlineText value={mp.name} onSave={v=>saveM({...mp,name:v})} size="xl" className="text-white"/>
+              ) : (
+                <p className="text-xl font-bold text-white">{user.name}</p>
+              )}
+              {role==="student"&&sp && <InlineText value={sp.headline} onSave={v=>saveS({...sp,headline:v})} placeholder="Add headline…" className="text-violet-400 text-sm mt-0.5"/>}
+              {role==="recruiter" && <InlineText value={rp.company} onSave={v=>saveR({...rp,company:v})} placeholder="Company name…" className="text-blue-400 text-sm mt-0.5"/>}
+              {role==="mentor"&&mp && <p className="text-amber-400 text-sm mt-0.5">{mp.role}{mp.company?` · ${mp.company}`:""}</p>}
+              {subline && headline && <p className="text-gray-500 text-xs mt-0.5">{subline}</p>}
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${badges[role as keyof typeof badges]||badges.student}`}>{badgeLabel}</span>
+          </div>
+        </div>
+        {/* Role content */}
+        <div className="px-6 pb-6">
+          {role==="student"   && <StudentView/>}
+          {role==="recruiter" && <RecruiterView/>}
+          {role==="mentor"    && <MentorView/>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Interview Question Agent ──────────────────────────────────────────────────
+const IQ_QUOTA_KEY = (id: string) => `c360_iq_${id}_${new Date().toISOString().slice(0, 7)}`;
+const FREE_IQ_QUOTA = 50;
+
+interface IQSession { id: string; tech: string; role: string; diff: string; date: string; questions: Array<{q:string;a:string}>; }
+
+function InterviewQModal({ user, onClose }: { user: C360User; onClose: () => void }) {
+  const [tech, setTech] = useState("");
+  const [role, setRole] = useState("");
+  const [diff, setDiff] = useState<"Easy"|"Medium"|"Hard">("Medium");
+  const [loading, setLoading] = useState(false);
+  const [questions, setQuestions] = useState<Array<{q:string;a:string}>>([]);
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [err, setErr] = useState("");
+  const [quotaUsed, setQuotaUsed] = useState(0);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const v = parseInt(localStorage.getItem(IQ_QUOTA_KEY(user.id)) || "0");
+    setQuotaUsed(v);
+  }, [user.id]);
+
+  const remaining = user.premium ? Infinity : Math.max(0, FREE_IQ_QUOTA - quotaUsed);
+
+  async function generate() {
+    if (!tech) { setErr("Select a technology first."); return; }
+    if (!role) { setErr("Select a target role first."); return; }
+    if (!user.premium && quotaUsed >= FREE_IQ_QUOTA) { setErr("Free quota of 50 questions reached this month. Upgrade to Premium for unlimited access."); return; }
+    setLoading(true); setErr(""); setQuestions([]); setRevealed(new Set()); setSaved(false);
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 55000);
+      const r = await fetch("/api/interview-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ technology: tech, role, difficulty: diff, count: 10 }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(tid);
+      const d = await r.json();
+      if (d.success && d.questions?.length) {
+        setQuestions(d.questions);
+        const newUsed = quotaUsed + d.questions.length;
+        localStorage.setItem(IQ_QUOTA_KEY(user.id), String(newUsed));
+        setQuotaUsed(newUsed);
+      } else {
+        setErr(d.error || "AI failed to generate questions. Try again.");
+      }
+    } catch (e: any) {
+      setErr(e?.name === "AbortError" ? "Request timed out — please try again." : (e?.message || "Network error."));
+    }
+    setLoading(false);
+  }
+
+  function saveSession() {
+    const key = `c360_iq_sessions_${user.id}`;
+    let sessions: IQSession[] = [];
+    try { sessions = JSON.parse(localStorage.getItem(key) || "[]"); } catch {}
+    sessions.unshift({ id: `iq${Date.now()}`, tech, role, diff, date: new Date().toISOString(), questions });
+    localStorage.setItem(key, JSON.stringify(sessions.slice(0, 10)));
+    setSaved(true);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-teal-500/15 flex items-center justify-center">
+              <Brain size={16} className="text-teal-400"/>
+            </div>
+            <div>
+              <span className="font-bold text-white">Interview Question Agent</span>
+              <span className="text-xs text-teal-400 ml-2 bg-teal-500/10 px-2 py-0.5 rounded-full">AI</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {!user.premium && (
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${remaining > 10 ? "bg-teal-500/10 text-teal-400" : remaining > 0 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"}`}>
+                {remaining === Infinity ? "Unlimited" : `${remaining} left`}
+              </span>
+            )}
+            <button onClick={onClose} className="text-gray-500 hover:text-white transition p-1"><X size={18}/></button>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="p-5 space-y-4 flex-shrink-0 border-b border-white/5">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Technology / Stack</label>
+              <select value={tech} onChange={e => setTech(e.target.value)} className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500/50">
+                <option value="">Select technology…</option>
+                {TECH_GROUPS.map(g => (
+                  <optgroup key={g.group} label={g.group}>
+                    {g.items.map(item => <option key={item} value={item}>{item}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Target Role</label>
+              <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500/50">
+                <option value="">Select role…</option>
+                {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-400 mb-1.5 block font-medium">Difficulty</label>
+            <div className="flex gap-2">
+              {(["Easy","Medium","Hard"] as const).map(d => (
+                <button key={d} onClick={() => setDiff(d)} className={`flex-1 py-2 rounded-lg text-xs font-semibold transition border ${diff === d ? "bg-teal-500/20 border-teal-500 text-teal-300" : "border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-300"}`}>{d}</button>
+              ))}
+            </div>
+          </div>
+
+          {err && <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</div>}
+
+          <button onClick={generate} disabled={loading || !tech || !role} className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition flex items-center justify-center gap-2">
+            {loading ? <><Loader2 size={15} className="animate-spin"/>Generating 10 questions…</> : <><Brain size={15}/>Generate 10 Questions</>}
+          </button>
+        </div>
+
+        {/* Q&A list */}
+        {questions.length > 0 && (
+          <div className="overflow-y-auto flex-1 p-5 space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-500">{tech} · {role} · {diff} — {questions.length} questions</span>
+              <button onClick={saveSession} disabled={saved} className={`text-xs px-3 py-1 rounded-lg border transition font-medium ${saved ? "border-teal-500/20 text-teal-400 bg-teal-500/10 cursor-default" : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white"}`}>
+                {saved ? <><Check size={11} className="inline mr-1"/>Saved</> : "Save Session"}
+              </button>
+            </div>
+            {questions.map((item, i) => (
+              <div key={i} className="bg-gray-800/50 border border-white/5 rounded-xl p-4 hover:border-white/10 transition">
+                <p className="text-sm font-semibold text-white mb-2 leading-relaxed">Q{i + 1}. {item.q}</p>
+                {revealed.has(i) ? (
+                  <p className="text-sm text-gray-300 leading-relaxed border-t border-white/5 pt-2 mt-2">{item.a}</p>
+                ) : (
+                  <button onClick={() => setRevealed(prev => new Set([...prev, i]))} className="text-xs text-teal-400 hover:text-teal-300 transition font-medium">
+                    ▶ Reveal Answer
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {!user.premium && quotaUsed > 30 && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center mt-4">
+                <p className="text-amber-400 text-sm font-semibold mb-1">Running low on free questions</p>
+                <p className="text-gray-400 text-xs">Used {quotaUsed} of {FREE_IQ_QUOTA} this month. Upgrade for unlimited practice sessions.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Notifications Panel ────────────────────────────────────────────────────────
+interface C360Notif { id: string; type: "system"|"action"|"info"; title: string; body: string; time: string; read: boolean; }
+const NOTIF_KEY = (id: string) => `c360_notifs_${id}`;
+
+function loadNotifs(uid: string): C360Notif[] {
+  try { return JSON.parse(localStorage.getItem(NOTIF_KEY(uid)) || "[]"); } catch { return []; }
+}
+function saveNotifs(uid: string, notifs: C360Notif[]) {
+  localStorage.setItem(NOTIF_KEY(uid), JSON.stringify(notifs.slice(0, 50)));
+}
+function pushNotif(uid: string, n: Omit<C360Notif,"id"|"time"|"read">) {
+  const all = loadNotifs(uid);
+  all.unshift({ ...n, id: `n${Date.now()}`, time: new Date().toISOString(), read: false });
+  saveNotifs(uid, all);
+}
+
+function NotificationsPanel({ user }: { user: C360User }) {
+  const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState<C360Notif[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setNotifs(loadNotifs(user.id)); }, [user.id, open]);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  function markAllRead() {
+    const updated = notifs.map(n => ({ ...n, read: true }));
+    saveNotifs(user.id, updated);
+    setNotifs(updated);
+  }
+
+  const unread = notifs.filter(n => !n.read).length;
+  const timeAgo = (iso: string) => {
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(v => !v)} className="relative p-1.5 text-gray-400 hover:text-white transition">
+        {unread > 0 ? <BellDot size={18} className="text-teal-400"/> : <Bell size={18}/>}
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-teal-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-8 w-80 bg-gray-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+            <span className="text-sm font-semibold text-white">Notifications</span>
+            {unread > 0 && <button onClick={markAllRead} className="text-xs text-teal-400 hover:text-teal-300 transition">Mark all read</button>}
+          </div>
+          <div className="max-h-72 overflow-y-auto">
+            {notifs.length === 0 ? (
+              <div className="py-8 text-center">
+                <Bell size={24} className="text-gray-600 mx-auto mb-2"/>
+                <p className="text-xs text-gray-500">No notifications yet</p>
+              </div>
+            ) : notifs.map(n => (
+              <div key={n.id} className={`px-4 py-3 border-b border-white/5 last:border-0 ${n.read ? "opacity-60" : ""}`}>
+                <div className="flex items-start gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.read ? "bg-gray-600" : n.type === "action" ? "bg-teal-400" : n.type === "info" ? "bg-blue-400" : "bg-amber-400"}`}/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-white">{n.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{n.body}</p>
+                    <p className="text-[10px] text-gray-600 mt-1">{timeAgo(n.time)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-4 py-2.5 border-t border-white/5 bg-gray-900/50">
+            <p className="text-[10px] text-gray-600 text-center">Notifications are stored on this device only</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function College360Page() {
   const [user, setUser] = useState<C360User|null>(null);
@@ -502,7 +1669,12 @@ export default function College360Page() {
   const [showAuth, setShowAuth] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showProfileView, setShowProfileView] = useState(false);
+  const [showMentorForm, setShowMentorForm] = useState(false);
+  const [showInterviewQ, setShowInterviewQ] = useState(false);
   const [applyOpp, setApplyOpp] = useState<Opportunity|null>(null);
+  const [communityMentors, setCommunityMentors] = useState<Mentor[]>([]);
+  const [freeAI, setFreeAI] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -515,7 +1687,14 @@ export default function College360Page() {
         if (p) setProfile(JSON.parse(p));
       } catch {}
     }
+    setCommunityMentors(loadMentors());
+    fetch("/v1/public/platform-config")
+      .then(r => r.json())
+      .then(d => { if (d?.data?.college360?.free_ai_enabled) setFreeAI(true); })
+      .catch(() => {});
   }, []);
+
+  const allMentors = [...MOCK_MENTORS, ...communityMentors];
 
   const login = (u: C360User) => {
     setUser(u);
@@ -560,7 +1739,11 @@ export default function College360Page() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
-                <button onClick={()=>setShowProfile(true)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition">
+                <button onClick={()=>setShowInterviewQ(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 rounded-lg text-xs font-semibold text-teal-400 transition">
+                  <Brain size={13}/>Practice
+                </button>
+                <NotificationsPanel user={user}/>
+                <button onClick={()=>setShowProfileView(true)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition">
                   <div className={`w-5 h-5 rounded ${clr(user.name)} flex items-center justify-center text-white text-[10px] font-bold`}>{user.name[0]}</div>
                   <span className="text-gray-300 text-xs hidden sm:block">{user.name.split(" ")[0]}</span>
                   {user.premium && <Sparkles size={12} className="text-yellow-400"/>}
@@ -605,6 +1788,9 @@ export default function College360Page() {
             <button onClick={()=>document.getElementById("opportunities")?.scrollIntoView({behavior:"smooth"})} className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold transition flex items-center gap-2 justify-center">
               <Briefcase size={16}/>Browse Opportunities
             </button>
+            <button onClick={()=>{ if(user) setShowInterviewQ(true); else setShowAuth(true); }} className="px-8 py-3 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 rounded-xl text-sm font-semibold text-teal-400 transition flex items-center gap-2 justify-center">
+              <Brain size={16}/>Practice Interview
+            </button>
           </div>
 
           {/* Stats strip */}
@@ -623,6 +1809,17 @@ export default function College360Page() {
           </div>
         </div>
       </section>
+
+      {/* ── MVP Free AI Banner ── */}
+      {freeAI && !user?.premium && (
+        <div className="bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-b border-emerald-500/20">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2">
+            <Sparkles size={13} className="text-emerald-400 shrink-0"/>
+            <p className="text-xs text-emerald-300 font-semibold text-center">AI Profile Builder is <span className="text-white">free for everyone</span> during our MVP launch — try it now!</p>
+            <button onClick={()=>user?setShowProfile(true):setShowAuth(true)} className="shrink-0 ml-2 px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-full text-[10px] font-bold text-emerald-300 transition">Try AI →</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Interest / Domain Picker ── */}
       <section className="border-y border-white/5 bg-white/2">
@@ -717,10 +1914,13 @@ export default function College360Page() {
                 <h2 className="text-xl font-black text-white">Industry Mentors</h2>
                 <p className="text-xs text-gray-500 mt-0.5">1-on-1 sessions with professionals from top companies</p>
               </div>
-              {!user?.premium && <button onClick={()=>setShowPremium(true)} className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"><Lock size={11}/>Unlock all</button>}
+              <div className="flex items-center gap-2">
+                {!user?.premium && <button onClick={()=>setShowPremium(true)} className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"><Lock size={11}/>Unlock all</button>}
+                <button onClick={()=>setShowMentorForm(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 rounded-lg text-xs font-semibold text-violet-300 transition"><Plus size={12}/>Become a Mentor</button>
+              </div>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {MOCK_MENTORS.filter(m => domain === "all" || m.domain === domain).map(mentor => (
+              {allMentors.filter(m => domain === "all" || m.domain === domain).map(mentor => (
                 <div key={mentor.id} className="bg-white/5 border border-white/8 rounded-xl p-4 hover:border-violet-500/30 transition">
                   <div className="flex gap-3 mb-3">
                     <div className={`w-12 h-12 rounded-2xl ${mentor.avatar_color} flex items-center justify-center text-white font-black text-lg shrink-0`}>{mentor.name[0]}</div>
@@ -735,8 +1935,13 @@ export default function College360Page() {
                   </div>
                   <p className="text-xs text-gray-500 mb-3 line-clamp-2">{mentor.bio}</p>
                   <div className="flex flex-wrap gap-1 mb-3">{mentor.skills.slice(0,3).map(s=><span key={s} className="text-[10px] bg-white/5 text-gray-500 rounded px-1.5 py-0.5">{s}</span>)}</div>
+                  {mentor.is_community && <span className="text-[10px] text-violet-400 bg-violet-500/10 border border-violet-500/20 rounded px-1.5 py-0.5 mb-2 inline-block">Community Expert</span>}
                   {mentor.is_premium && !user?.premium ? (
                     <button onClick={()=>setShowPremium(true)} className="w-full py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-lg text-xs text-violet-400 font-semibold flex items-center justify-center gap-1 transition"><Lock size={11}/>Book Session (Premium)</button>
+                  ) : mentor.email && !mentor.wa_number ? (
+                    <a href={user ? `mailto:${mentor.email}?subject=Mentorship Request via College360&body=Hi ${mentor.name},%0A%0AI found your profile on College360 and would love a mentorship session.%0A%0ARegards,%0A${user?.name || "Student"}` : "#"}
+                       onClick={!user ? ()=>setShowAuth(true) : undefined}
+                       className="block w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-xs text-indigo-400 font-semibold text-center transition">Connect via Email</a>
                   ) : (
                     <a href={user ? `https://wa.me/${mentor.wa_number}?text=Hi+${encodeURIComponent(mentor.name)}!+I+found+you+on+College360+and+would+love+a+mentorship+session.+I+am+a+${encodeURIComponent(user?.college||"college")}+student.` : "#"}
                        onClick={!user ? ()=>setShowAuth(true) : undefined}
@@ -861,8 +2066,11 @@ export default function College360Page() {
       {/* ── Modals ── */}
       {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={login}/>}
       {showPremium && <PremiumModal user={user} onClose={()=>setShowPremium(false)} onUpgrade={upgradeDone}/>}
-      {showProfile && user && <ProfileBuilderModal user={user} onClose={()=>setShowProfile(false)} onSave={p=>{setProfile(p);setShowProfile(false);}}/>}
+      {showProfile && user && <ProfileBuilderModal user={user} freeAI={freeAI} onClose={()=>setShowProfile(false)} onSave={p=>{setProfile(p);setShowProfile(false);}}/>}
+      {showProfileView && user && <ProfileViewModal user={user} onClose={()=>setShowProfileView(false)} onBuild={()=>{ setShowProfileView(false); setShowProfile(true); }}/>}
+      {showMentorForm && <BecomeMentorModal user={user} onClose={()=>setShowMentorForm(false)} onSaved={m=>{setCommunityMentors(prev=>[...prev.filter(x=>x.id!==m.id),m]);}}/>}
       {applyOpp && <ApplyModal opp={applyOpp} user={user} onClose={()=>setApplyOpp(null)} onNeedAuth={()=>setShowAuth(true)} onNeedPremium={()=>setShowPremium(true)}/>}
+      {showInterviewQ && user && <InterviewQModal user={user} onClose={()=>setShowInterviewQ(false)}/>}
     </div>
   );
 }

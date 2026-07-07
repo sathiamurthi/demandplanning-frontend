@@ -2,5 +2,10 @@
   "name": "dplan",
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "functions": {
+    "app/api/extract-resume/route.ts": { "maxDuration": 60 },
+    "app/api/extract-transcript/route.ts": { "maxDuration": 60 },
+    "app/api/interview-questions/route.ts": { "maxDuration": 60 }
+  }
 }
