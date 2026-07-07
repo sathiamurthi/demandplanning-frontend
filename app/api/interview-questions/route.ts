@@ -8,10 +8,11 @@ const AZURE_ENDPOINT   = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/$/
 const AZURE_DEPLOYMENT = process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o';
 const OPENAI_KEY       = process.env.OPENAI_API_KEY || '';
 
+// Most reliable models first
 const GEMINI_MODELS = [
-  'gemini-1.5-flash-8b',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
   'gemini-1.5-pro',
 ];
 
@@ -23,7 +24,7 @@ Generate exactly ${count} interview questions with model answers for:
 - Role: ${role}
 - Difficulty: ${difficulty}
 
-Return ONLY valid JSON with NO markdown, NO code blocks, NO explanation:
+Return ONLY valid JSON (no markdown, no code blocks, no explanation):
 {
   "questions": [
     {
@@ -65,9 +66,9 @@ async function callClaude(prompt: string): Promise<any> {
       max_tokens: 3000,
       messages: [{ role: 'user', content: prompt }],
     }),
-    signal: AbortSignal.timeout(35000),
+    signal: AbortSignal.timeout(20000),
   });
-  if (!resp.ok) throw new Error(`Claude ${resp.status}: ${await resp.text()}`);
+  if (!resp.ok) throw new Error(`Claude ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
   const raw = (await resp.json()).content?.[0]?.text || '';
   return extractJson(raw);
 }
@@ -83,9 +84,8 @@ async function callOpenAICompat({ apiUrl, authHeader, model, prompt }: {
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 3000,
       temperature: 0.3,
-      response_format: { type: 'json_object' },
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(18000),
   });
   if (!resp.ok) throw new Error(`${resp.status}: ${(await resp.text().catch(() => '')).slice(0, 200)}`);
   const raw = (await resp.json()).choices?.[0]?.message?.content || '';
@@ -114,11 +114,14 @@ async function callGemini(prompt: string): Promise<any> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 3000, responseMimeType: 'application/json' },
+          generationConfig: { temperature: 0.3, maxOutputTokens: 3000 },
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(20000),
       });
-      if (!resp.ok) { const t = await resp.text().catch(() => `${resp.status}`); throw new Error(`${model} ${resp.status}: ${t.slice(0, 200)}`); }
+      if (!resp.ok) {
+        const t = await resp.text().catch(() => `${resp.status}`);
+        throw new Error(`${model} ${resp.status}: ${t.slice(0, 200)}`);
+      }
       const raw = (await resp.json()).candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (!raw) throw new Error(`${model}: empty response`);
       return extractJson(raw);
@@ -141,13 +144,20 @@ export async function POST(req: NextRequest) {
   }
 
   const prompt = buildPrompt(technology, role, difficulty, count);
+  const providerErrors: string[] = [];
 
   // 1 — Claude
   if (ANTHROPIC_KEY) {
     try {
       const data = await callClaude(prompt);
       if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'claude' });
-    } catch (e: any) { console.warn('[interview-questions] Claude failed:', e.message); }
+      providerErrors.push('claude: empty questions array');
+    } catch (e: any) {
+      providerErrors.push(`claude: ${e.message}`);
+      console.warn('[interview-questions] Claude failed:', e.message);
+    }
+  } else {
+    providerErrors.push('claude: not configured (ANTHROPIC_API_KEY missing)');
   }
 
   // 2 — Azure
@@ -155,7 +165,13 @@ export async function POST(req: NextRequest) {
     try {
       const data = await callAzure(prompt);
       if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'azure' });
-    } catch (e: any) { console.warn('[interview-questions] Azure failed:', e.message); }
+      providerErrors.push('azure: empty questions array');
+    } catch (e: any) {
+      providerErrors.push(`azure: ${e.message}`);
+      console.warn('[interview-questions] Azure failed:', e.message);
+    }
+  } else {
+    providerErrors.push('azure: not configured');
   }
 
   // 3 — OpenAI
@@ -163,25 +179,42 @@ export async function POST(req: NextRequest) {
     try {
       const data = await callOpenAI(prompt);
       if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'openai' });
-    } catch (e: any) { console.warn('[interview-questions] OpenAI failed:', e.message); }
+      providerErrors.push('openai: empty questions array');
+    } catch (e: any) {
+      providerErrors.push(`openai: ${e.message}`);
+      console.warn('[interview-questions] OpenAI failed:', e.message);
+    }
+  } else {
+    providerErrors.push('openai: not configured');
   }
 
-  // 4 — Gemini
+  // 4 — Gemini (has hardcoded fallback key, always tried)
   try {
     const data = await callGemini(prompt);
     if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'gemini' });
-  } catch (e: any) { console.error('[interview-questions] Gemini failed:', e.message); }
+    providerErrors.push('gemini: empty questions array');
+  } catch (e: any) {
+    providerErrors.push(`gemini: ${e.message}`);
+    console.error('[interview-questions] Gemini failed:', e.message);
+  }
 
   // 5 — Claude retry
   if (ANTHROPIC_KEY) {
     try {
       const data = await callClaude(prompt);
       if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'claude-retry' });
-    } catch (e: any) { console.error('[interview-questions] Claude retry failed:', e.message); }
+    } catch (e: any) {
+      providerErrors.push(`claude-retry: ${e.message}`);
+      console.error('[interview-questions] Claude retry failed:', e.message);
+    }
   }
 
   return NextResponse.json(
-    { success: false, error: 'All AI providers failed. Please try again in a moment.' },
+    {
+      success: false,
+      error: 'All AI providers failed. Please try again in a moment.',
+      details: providerErrors,
+    },
     { status: 502 }
   );
 }

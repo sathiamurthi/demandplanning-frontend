@@ -160,12 +160,12 @@ const MOCK_STUDENTS: Array<{ id:string; name:string; headline:string; college:st
 ];
 
 const LEARN_TRACKS: LearningTrack[] = [
-  { id:"lt1", title:"Full Stack Web Dev", domain:"dev", icon:<Code2 size={22}/>, modules:12, hours:48, level:"Beginner → Pro", desc:"HTML, CSS, React, Node.js, PostgreSQL, Deploy. Build 3 real projects.", color:"text-violet-400", bg:"bg-violet-500/10", is_premium:false },
-  { id:"lt2", title:"Python for Data Science", domain:"data", icon:<Database size={22}/>, modules:10, hours:40, level:"Beginner → Intermediate", desc:"NumPy, Pandas, Matplotlib, Scikit-learn, ML fundamentals with real datasets.", color:"text-teal-400", bg:"bg-teal-500/10", is_premium:false },
-  { id:"lt3", title:"QA & Test Automation", domain:"qa", icon:<TestTube2 size={22}/>, modules:8, hours:32, level:"Beginner → Intermediate", desc:"Manual testing, Selenium WebDriver, Pytest, Postman, CI/CD integration.", color:"text-amber-400", bg:"bg-amber-500/10", is_premium:true },
-  { id:"lt4", title:"UI/UX Design Foundations", domain:"design", icon:<Palette size={22}/>, modules:8, hours:30, level:"Beginner", desc:"Design thinking, Figma, wireframing, prototyping, usability testing.", color:"text-rose-400", bg:"bg-rose-500/10", is_premium:true },
-  { id:"lt5", title:"Cloud & DevOps Essentials", domain:"cloud", icon:<Cloud size={22}/>, modules:10, hours:38, level:"Intermediate", desc:"Linux, Docker, Kubernetes, AWS basics, CI/CD pipelines, Infrastructure as Code.", color:"text-cyan-400", bg:"bg-cyan-500/10", is_premium:true },
-  { id:"lt6", title:"DSA & Competitive Coding", domain:"dev", icon:<Zap size={22}/>, modules:15, hours:60, level:"Intermediate → Advanced", desc:"Arrays to Graphs. 200+ LeetCode-style problems. Interview-ready in 8 weeks.", color:"text-indigo-400", bg:"bg-indigo-500/10", is_premium:true },
+  { id:"lt1", title:"Full Stack Web Dev", domain:"dev", icon:<Code2 size={22}/>, modules:12, hours:48, level:"Beginner → Pro", desc:"HTML, CSS, React, Node.js, PostgreSQL, Deploy. Build 3 real projects.", color:"text-violet-600", bg:"bg-violet-100", is_premium:false },
+  { id:"lt2", title:"Python for Data Science", domain:"data", icon:<Database size={22}/>, modules:10, hours:40, level:"Beginner → Intermediate", desc:"NumPy, Pandas, Matplotlib, Scikit-learn, ML fundamentals with real datasets.", color:"text-teal-600", bg:"bg-teal-100", is_premium:false },
+  { id:"lt3", title:"QA & Test Automation", domain:"qa", icon:<TestTube2 size={22}/>, modules:8, hours:32, level:"Beginner → Intermediate", desc:"Manual testing, Selenium WebDriver, Pytest, Postman, CI/CD integration.", color:"text-amber-600", bg:"bg-amber-50", is_premium:true },
+  { id:"lt4", title:"UI/UX Design Foundations", domain:"design", icon:<Palette size={22}/>, modules:8, hours:30, level:"Beginner", desc:"Design thinking, Figma, wireframing, prototyping, usability testing.", color:"text-rose-500", bg:"bg-rose-500/10", is_premium:true },
+  { id:"lt5", title:"Cloud & DevOps Essentials", domain:"cloud", icon:<Cloud size={22}/>, modules:10, hours:38, level:"Intermediate", desc:"Linux, Docker, Kubernetes, AWS basics, CI/CD pipelines, Infrastructure as Code.", color:"text-cyan-600", bg:"bg-cyan-500/10", is_premium:true },
+  { id:"lt6", title:"DSA & Competitive Coding", domain:"dev", icon:<Zap size={22}/>, modules:15, hours:60, level:"Intermediate → Advanced", desc:"Arrays to Graphs. 200+ LeetCode-style problems. Interview-ready in 8 weeks.", color:"text-indigo-600", bg:"bg-indigo-500/10", is_premium:true },
 ];
 
 const COURSE_OPTIONS = [
@@ -361,44 +361,44 @@ function AuthModal({ onClose, onSuccess }: { onClose: ()=>void; onSuccess: (u: C
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-white">Join College360</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20}/></button>
+          <h2 className="text-lg font-bold text-gray-900">Join College360</h2>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
         </div>
-        <div className="flex bg-white/5 rounded-lg p-1 mb-5">
+        <div className="flex bg-gray-50 rounded-lg p-1 mb-5">
           {(["register","login"] as const).map(t => (
-            <button key={t} onClick={()=>setTab(t)} className={`flex-1 py-1.5 rounded-md text-sm font-semibold transition ${tab===t?"bg-violet-600 text-white":"text-gray-400"}`}>{t==="register"?"Create Account":"Sign In"}</button>
+            <button key={t} onClick={()=>setTab(t)} className={`flex-1 py-1.5 rounded-md text-sm font-semibold transition ${tab===t?"bg-violet-600 text-gray-900":"text-gray-600"}`}>{t==="register"?"Create Account":"Sign In"}</button>
           ))}
         </div>
         {tab === "register" && (
-          <div className="flex bg-white/5 rounded-lg p-1 mb-4">
+          <div className="flex bg-gray-50 rounded-lg p-1 mb-4">
             {([["student","Student"],["recruiter","Recruiter"],["mentor","Expert/Mentor"]] as const).map(([r,l]) => (
-              <button key={r} onClick={()=>setRole(r)} className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition ${role===r?"bg-indigo-600 text-white":"text-gray-400"}`}>{l}</button>
+              <button key={r} onClick={()=>setRole(r)} className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition ${role===r?"bg-indigo-600 text-white":"text-gray-600"}`}>{l}</button>
             ))}
           </div>
         )}
         <div className="space-y-3">
-          {tab === "register" && <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500" placeholder="Full name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>}
-          <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500" placeholder="Email" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/>
-          {tab === "register" && <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500" placeholder="Phone number" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/>}
+          {tab === "register" && <input className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500" placeholder="Full name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>}
+          <input className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500" placeholder="Email" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/>
+          {tab === "register" && <input className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500" placeholder="Phone number" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/>}
           {tab === "register" && role === "student" && (
             <>
-              <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500" placeholder="College / University name" value={form.college} onChange={e=>setForm(f=>({...f,college:e.target.value}))}/>
-              <select className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500" value={form.year} onChange={e=>setForm(f=>({...f,year:e.target.value}))}>
+              <input className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500" placeholder="College / University name" value={form.college} onChange={e=>setForm(f=>({...f,college:e.target.value}))}/>
+              <select className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-violet-500" value={form.year} onChange={e=>setForm(f=>({...f,year:e.target.value}))}>
                 {YEARS.map(y=><option key={y}>{y}</option>)}
               </select>
             </>
           )}
-          <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500" placeholder="Password" type="password" value={form.pw} onChange={e=>setForm(f=>({...f,pw:e.target.value}))}/>
+          <input className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500" placeholder="Password" type="password" value={form.pw} onChange={e=>setForm(f=>({...f,pw:e.target.value}))}/>
         </div>
-        {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
+        {err && <p className="text-red-600 text-xs mt-2">{err}</p>}
         <button onClick={submit} className="w-full mt-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-lg transition text-sm">
           {tab==="register"?"Create Free Account":"Sign In"}
         </button>
         <p className="text-xs text-gray-500 text-center mt-3">
           {tab==="register"?"Already have an account? ":"New here? "}
-          <button onClick={()=>setTab(tab==="register"?"login":"register")} className="text-violet-400 hover:underline">{tab==="register"?"Sign in":"Create account"}</button>
+          <button onClick={()=>setTab(tab==="register"?"login":"register")} className="text-violet-600 hover:underline">{tab==="register"?"Sign in":"Create account"}</button>
         </p>
       </div>
     </div>
@@ -418,20 +418,20 @@ function PremiumModal({ user, onClose, onUpgrade }: { user: C360User|null; onClo
   };
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-violet-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white border border-violet-200 rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Sparkles className="text-yellow-400" size={20}/>
-            <h2 className="text-lg font-bold text-white">Upgrade to Premium</h2>
+            <h2 className="text-lg font-bold text-gray-900">Upgrade to Premium</h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20}/></button>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
         </div>
-        <div className="bg-gradient-to-br from-violet-900/50 to-indigo-900/50 border border-violet-500/20 rounded-xl p-4 mb-4">
+        <div className="bg-gradient-to-br from-violet-100 to-indigo-100 border border-violet-200 rounded-xl p-4 mb-4">
           <div className="flex items-end gap-2 mb-1">
-            <span className="text-4xl font-black text-white">₹500</span>
-            <span className="text-gray-400 text-sm mb-1">/year</span>
+            <span className="text-4xl font-black text-gray-900">₹500</span>
+            <span className="text-gray-600 text-sm mb-1">/year</span>
           </div>
-          <p className="text-gray-400 text-xs">That's less than ₹42/month. Unlock your full potential.</p>
+          <p className="text-gray-600 text-xs">That's less than ₹42/month. Unlock your full potential.</p>
         </div>
         <div className="space-y-2 mb-5">
           {[
@@ -443,8 +443,8 @@ function PremiumModal({ user, onClose, onUpgrade }: { user: C360User|null; onClo
             { icon:<Award size={15}/>, label:"Priority Application", sub:"Your profile highlighted to recruiters" },
           ].map((f,i) => (
             <div key={i} className="flex gap-3 items-start">
-              <div className="text-violet-400 mt-0.5 shrink-0">{f.icon}</div>
-              <div><p className="text-sm text-white font-medium">{f.label}</p><p className="text-xs text-gray-500">{f.sub}</p></div>
+              <div className="text-violet-600 mt-0.5 shrink-0">{f.icon}</div>
+              <div><p className="text-sm text-gray-900 font-medium">{f.label}</p><p className="text-xs text-gray-500">{f.sub}</p></div>
             </div>
           ))}
         </div>
@@ -506,24 +506,24 @@ function ProfileBuilderModal({ user, freeAI, onClose, onSave }: { user: C360User
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             {(user.premium || freeAI) ? <><Sparkles className="text-yellow-400" size={18}/>AI Profile Builder</> : <><FileText size={18}/>Build Your Profile</>}
           </h2>
-          <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-white"/></button>
+          <button onClick={onClose}><X size={20} className="text-gray-600 hover:text-gray-900"/></button>
         </div>
 
         {step === "upload" && (
           <div className="space-y-4">
             {(user.premium || freeAI) ? (
               <>
-                <p className="text-sm text-gray-400">{freeAI && !user.premium ? "AI features are unlocked for everyone during our MVP launch! " : ""}Upload your resume — AI will extract everything automatically.</p>
+                <p className="text-sm text-gray-600">{freeAI && !user.premium ? "AI features are unlocked for everyone during our MVP launch! " : ""}Upload your resume — AI will extract everything automatically.</p>
                 {!loading && !aiErr && (
                   <>
-                    <div className="border-2 border-dashed border-violet-500/40 hover:border-violet-500 rounded-xl p-8 text-center cursor-pointer transition" onClick={()=>fileRef.current?.click()}>
-                      <Upload size={32} className="text-violet-400 mx-auto mb-3"/>
-                      <p className="text-sm text-white font-semibold">Click to upload PDF / image</p>
+                    <div className="border-2 border-dashed border-violet-300 hover:border-violet-500 rounded-xl p-8 text-center cursor-pointer transition" onClick={()=>fileRef.current?.click()}>
+                      <Upload size={32} className="text-violet-600 mx-auto mb-3"/>
+                      <p className="text-sm text-gray-900 font-semibold">Click to upload PDF / image</p>
                       <p className="text-xs text-gray-500 mt-1">Resume, marksheet, transcript</p>
                     </div>
                     <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile}/>
@@ -531,30 +531,30 @@ function ProfileBuilderModal({ user, freeAI, onClose, onSave }: { user: C360User
                   </>
                 )}
                 {loading && (
-                  <div className="border-2 border-dashed border-violet-500/20 rounded-xl p-8 text-center">
-                    <Loader2 size={28} className="text-violet-400 mx-auto mb-3 animate-spin"/>
-                    <p className="text-sm text-gray-400">Extracting with AI — this may take 15–30 seconds for multi-page PDFs…</p>
+                  <div className="border-2 border-dashed border-violet-200 rounded-xl p-8 text-center">
+                    <Loader2 size={28} className="text-violet-600 mx-auto mb-3 animate-spin"/>
+                    <p className="text-sm text-gray-600">Extracting with AI — this may take 15–30 seconds for multi-page PDFs…</p>
                   </div>
                 )}
                 {aiErr && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 space-y-1">
-                    <p className="text-xs text-red-400 font-semibold flex items-center gap-1.5"><X size={12}/>AI extraction failed</p>
-                    <p className="text-xs text-gray-400">{aiErr}</p>
-                    <p className="text-xs text-gray-500 pt-1">Paste your resume text in the box below and click <span className="text-violet-400">Extract with AI</span>, or <button className="text-violet-400 hover:underline" onClick={()=>fileRef.current?.click()}>try uploading again</button>.</p>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-1">
+                    <p className="text-xs text-red-600 font-semibold flex items-center gap-1.5"><X size={12}/>AI extraction failed</p>
+                    <p className="text-xs text-gray-600">{aiErr}</p>
+                    <p className="text-xs text-gray-500 pt-1">Paste your resume text in the box below and click <span className="text-violet-600">Extract with AI</span>, or <button className="text-violet-600 hover:underline" onClick={()=>fileRef.current?.click()}>try uploading again</button>.</p>
                   </div>
                 )}
                 {aiErr && <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile}/>}
-                <textarea className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 h-28 resize-none" placeholder="Paste your resume text here (copy all text from your PDF)..." value={text} onChange={e=>setText(e.target.value)}/>
+                <textarea className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500 h-28 resize-none" placeholder="Paste your resume text here (copy all text from your PDF)..." value={text} onChange={e=>setText(e.target.value)}/>
                 {text && <button onClick={()=>runExtract({text})} disabled={loading} className="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition">{loading?<Loader2 size={14} className="animate-spin"/>:<Brain size={14}/>}Extract with AI</button>}
-                <button onClick={()=>setStep("manual")} className="w-full py-1.5 border border-white/10 text-gray-400 hover:text-white rounded-lg text-xs transition">Fill manually instead</button>
+                <button onClick={()=>setStep("manual")} className="w-full py-1.5 border border-gray-200 text-gray-600 hover:text-gray-900 rounded-lg text-xs transition">Fill manually instead</button>
               </>
             ) : (
               <>
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3">
-                  <Lock size={18} className="text-amber-400 shrink-0 mt-0.5"/>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+                  <Lock size={18} className="text-amber-600 shrink-0 mt-0.5"/>
                   <div>
                     <p className="text-sm text-amber-300 font-semibold">AI extraction is a Premium feature</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Build your profile manually for free. Upgrade to ₹500/year for instant AI-powered extraction.</p>
+                    <p className="text-xs text-gray-600 mt-0.5">Build your profile manually for free. Upgrade to ₹500/year for instant AI-powered extraction.</p>
                   </div>
                 </div>
                 <button onClick={()=>setStep("manual")} className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold transition">Fill Manually</button>
@@ -570,22 +570,22 @@ function ProfileBuilderModal({ user, freeAI, onClose, onSave }: { user: C360User
         {step === "result" && profile && (
           <div className="space-y-4">
             {aiErr ? (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
-                <AlertCircle size={14} className="text-amber-400 shrink-0 mt-0.5"/>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5"/>
                 <p className="text-xs text-amber-300">{aiErr}</p>
               </div>
             ) : (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-2">
-                <CheckCircle size={16} className="text-emerald-400"/>
-                <p className="text-sm text-emerald-300 font-semibold">Profile extracted successfully!</p>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
+                <CheckCircle size={16} className="text-emerald-600"/>
+                <p className="text-sm text-emerald-700 font-semibold">Profile extracted successfully!</p>
               </div>
             )}
-            <div className="bg-white/5 rounded-xl p-4 space-y-2 text-sm">
-              <p className="text-white font-bold text-base">{profile.name}</p>
-              <p className="text-violet-400">{profile.headline}</p>
-              <p className="text-gray-400 text-xs">{profile.college} · {profile.year} · CGPA {profile.cgpa}</p>
-              <div className="flex flex-wrap gap-1 pt-1">{profile.skills.slice(0,6).map(s=><span key={s} className="text-xs bg-white/10 text-gray-300 rounded px-2 py-0.5">{s}</span>)}</div>
-              {profile.summary && <p className="text-xs text-gray-400 line-clamp-2 pt-1">{profile.summary}</p>}
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+              <p className="text-gray-900 font-bold text-base">{profile.name}</p>
+              <p className="text-violet-600">{profile.headline}</p>
+              <p className="text-gray-600 text-xs">{profile.college} · {profile.year} · CGPA {profile.cgpa}</p>
+              <div className="flex flex-wrap gap-1 pt-1">{profile.skills.slice(0,6).map(s=><span key={s} className="text-xs bg-gray-100 text-gray-700 rounded px-2 py-0.5">{s}</span>)}</div>
+              {profile.summary && <p className="text-xs text-gray-600 line-clamp-2 pt-1">{profile.summary}</p>}
             </div>
             <button onClick={saveProfile} className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl transition">Save Profile</button>
           </div>
@@ -593,8 +593,8 @@ function ProfileBuilderModal({ user, freeAI, onClose, onSave }: { user: C360User
 
         {loading && (
           <div className="flex flex-col items-center gap-3 py-8">
-            <Loader2 size={36} className="text-violet-400 animate-spin"/>
-            <p className="text-sm text-gray-400">Claude AI is reading your profile...</p>
+            <Loader2 size={36} className="text-violet-600 animate-spin"/>
+            <p className="text-sm text-gray-600">Claude AI is reading your profile...</p>
           </div>
         )}
       </div>
@@ -643,21 +643,21 @@ function MultiSelectDropdown({
     : options;
 
   const chipCls = accent === "indigo"
-    ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/30"
-    : "bg-violet-600/20 text-violet-300 border-violet-500/30";
+    ? "bg-indigo-100 text-indigo-700 border-indigo-200"
+    : "bg-violet-100 text-violet-600 border-violet-200";
   const chkCls  = accent === "indigo" ? "accent-indigo-500" : "accent-violet-500";
-  const bdrOpen = accent === "indigo" ? "border-indigo-500/50" : "border-violet-500/50";
+  const bdrOpen = accent === "indigo" ? "border-indigo-400" : "border-violet-400";
 
   return (
     <div>
       <button
         ref={btnRef} type="button" onClick={openPanel}
-        className={`w-full bg-white/5 border rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between gap-2 transition ${open ? bdrOpen : "border-white/10 hover:border-white/20"}`}
+        className={`w-full bg-gray-50 border rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between gap-2 transition ${open ? bdrOpen : "border-gray-200 hover:border-gray-300"}`}
       >
-        <span className={selected.length ? "text-white" : "text-gray-500"}>
+        <span className={selected.length ? "text-gray-900" : "text-gray-500"}>
           {selected.length ? `${selected.length} selected` : placeholder}
         </span>
-        <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`w-4 h-4 text-gray-600 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
         </svg>
       </button>
@@ -667,18 +667,18 @@ function MultiSelectDropdown({
           {selected.map(s => (
             <span key={s} className={`flex items-center gap-1 text-xs border rounded-full px-2.5 py-1 ${chipCls}`}>
               {s}
-              <button type="button" onClick={() => toggle(s)} className="hover:text-white ml-0.5 text-sm leading-none">×</button>
+              <button type="button" onClick={() => toggle(s)} className="hover:text-gray-900 ml-0.5 text-sm leading-none">×</button>
             </span>
           ))}
         </div>
       )}
 
       {open && (
-        <div ref={panelRef} style={panelStyle} className="bg-gray-900 border border-white/15 rounded-xl shadow-2xl overflow-hidden">
-          <div className="p-2 border-b border-white/8">
+        <div ref={panelRef} style={panelStyle} className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-gray-200">
             <input
               autoFocus
-              className="w-full bg-white/8 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none"
+              className="w-full bg-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none"
               placeholder="Search..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -688,16 +688,16 @@ function MultiSelectDropdown({
             {filtered.length === 0
               ? <p className="text-xs text-gray-500 text-center py-4">No results for "{search}"</p>
               : filtered.map(o => (
-                <label key={o} className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 cursor-pointer select-none">
+                <label key={o} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
                   <input type="checkbox" className={chkCls} checked={selected.includes(o)} onChange={() => toggle(o)}/>
-                  <span className="text-sm text-white">{o}</span>
+                  <span className="text-sm text-gray-900">{o}</span>
                 </label>
               ))
             }
           </div>
-          <div className="border-t border-white/8 px-3 py-2 flex items-center justify-between">
+          <div className="border-t border-gray-200 px-3 py-2 flex items-center justify-between">
             <span className="text-xs text-gray-500">{selected.length} of {options.length} selected</span>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-violet-400 hover:text-violet-300 font-semibold">Done</button>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-violet-600 hover:text-violet-600 font-semibold">Done</button>
           </div>
         </div>
       )}
@@ -775,8 +775,8 @@ function ManualProfileForm({ userId, initialData, onSave }: { userId: string; in
     onSave(p);
   };
 
-  const inp = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500";
-  const sel = "w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500";
+  const inp = "w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500";
+  const sel = "w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-violet-500";
 
   return (
     <div className="space-y-5">
@@ -869,15 +869,15 @@ function InlineText({ value, onSave, placeholder, className, size = "sm" }: {
     <div className="flex items-center gap-1.5">
       <input ref={ref} value={draft} onChange={e=>setDraft(e.target.value)}
         onKeyDown={e=>{ if(e.key==="Enter") confirm(); if(e.key==="Escape") cancel(); }}
-        className={`flex-1 bg-white/10 border border-violet-500/60 rounded px-2 py-1 text-white focus:outline-none ${sz} ${className||""}`}/>
-      <button onClick={confirm} className="w-6 h-6 bg-emerald-600 hover:bg-emerald-500 rounded flex items-center justify-center shrink-0"><Check size={12} className="text-white"/></button>
-      <button onClick={cancel}  className="w-6 h-6 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center shrink-0"><X size={12} className="text-gray-400"/></button>
+        className={`flex-1 bg-gray-100 border border-violet-400 rounded px-2 py-1 text-gray-900 focus:outline-none ${sz} ${className||""}`}/>
+      <button onClick={confirm} className="w-6 h-6 bg-emerald-600 hover:bg-emerald-500 rounded flex items-center justify-center shrink-0"><Check size={12} className="text-gray-900"/></button>
+      <button onClick={cancel}  className="w-6 h-6 bg-gray-100 hover:bg-gray-500 rounded flex items-center justify-center shrink-0"><X size={12} className="text-gray-600"/></button>
     </div>
   );
   return (
     <div className={`group cursor-pointer flex items-center gap-1 ${className||""}`} onClick={()=>{ setDraft(value); setEditing(true); }}>
       <span className={`${sz} ${value?"":"text-gray-600 italic"}`}>{value||placeholder||"Click to edit…"}</span>
-      <Pencil size={10} className="opacity-0 group-hover:opacity-40 text-violet-400 transition shrink-0"/>
+      <Pencil size={10} className="opacity-0 group-hover:opacity-40 text-violet-600 transition shrink-0"/>
     </div>
   );
 }
@@ -893,17 +893,17 @@ function InlineArea({ value, onSave, placeholder, rows=4 }: {
     <div className="space-y-2">
       <textarea value={draft} onChange={e=>setDraft(e.target.value)}
         onKeyDown={e=>{ if(e.key==="Escape") cancel(); }}
-        rows={rows} className="w-full bg-white/10 border border-violet-500/60 rounded-lg px-3 py-2 text-sm text-white focus:outline-none resize-none" autoFocus/>
+        rows={rows} className="w-full bg-gray-100 border border-violet-400 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none resize-none" autoFocus/>
       <div className="flex gap-2">
-        <button onClick={confirm} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs text-white font-semibold flex items-center gap-1"><Check size={11}/>Save</button>
-        <button onClick={cancel}  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs text-gray-400">Cancel</button>
+        <button onClick={confirm} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs text-gray-900 font-semibold flex items-center gap-1"><Check size={11}/>Save</button>
+        <button onClick={cancel}  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-500 rounded-lg text-xs text-gray-600">Cancel</button>
       </div>
     </div>
   );
   return (
     <div className="group relative cursor-pointer" onClick={()=>{ setDraft(value); setEditing(true); }}>
-      <p className={`text-sm leading-relaxed ${value?"text-gray-300":"text-gray-600 italic"}`}>{value||placeholder||"Click to add…"}</p>
-      <Pencil size={10} className="absolute top-0 right-0 opacity-0 group-hover:opacity-40 text-violet-400 transition"/>
+      <p className={`text-sm leading-relaxed ${value?"text-gray-700":"text-gray-600 italic"}`}>{value||placeholder||"Click to add…"}</p>
+      <Pencil size={10} className="absolute top-0 right-0 opacity-0 group-hover:opacity-40 text-violet-600 transition"/>
     </div>
   );
 }
@@ -914,11 +914,11 @@ function ChipEditor({ values, onSave, accent="violet" }: {
   const [adding, setAdding] = useState(false);
   const [newVal, setNewVal] = useState("");
   const cls: Record<string,string> = {
-    violet: "bg-violet-500/20 text-violet-300 border-violet-500/20",
-    indigo: "bg-indigo-500/20 text-indigo-300 border-indigo-500/20",
-    emerald:"bg-emerald-500/20 text-emerald-300 border-emerald-500/20",
-    amber:  "bg-amber-500/20  text-amber-300  border-amber-500/20",
-    blue:   "bg-blue-500/20   text-blue-300   border-blue-500/20",
+    violet: "bg-violet-100 text-violet-600 border-violet-200",
+    indigo: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    emerald:"bg-emerald-100 text-emerald-700 border-emerald-200",
+    amber:  "bg-amber-100  text-amber-700  border-amber-200",
+    blue:   "bg-blue-100   text-blue-700   border-blue-200",
   };
   const chipCls = `border ${cls[accent]||cls.violet}`;
   const add = () => {
@@ -930,19 +930,19 @@ function ChipEditor({ values, onSave, accent="violet" }: {
     <div className="flex flex-wrap gap-2">
       {values.map(v => (
         <span key={v} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${chipCls}`}>
-          {v}<button onClick={()=>onSave(values.filter(x=>x!==v))} className="hover:text-red-400 transition ml-0.5"><X size={10}/></button>
+          {v}<button onClick={()=>onSave(values.filter(x=>x!==v))} className="hover:text-red-600 transition ml-0.5"><X size={10}/></button>
         </span>
       ))}
       {adding ? (
         <div className="flex items-center gap-1">
           <input value={newVal} onChange={e=>setNewVal(e.target.value)}
             onKeyDown={e=>{ if(e.key==="Enter") add(); if(e.key==="Escape") setAdding(false); }}
-            className="bg-white/10 border border-violet-500/60 rounded-full px-3 py-1 text-xs text-white focus:outline-none w-32" placeholder="Type + Enter" autoFocus/>
-          <button onClick={add}              className="text-emerald-400 hover:text-emerald-300"><Check size={12}/></button>
-          <button onClick={()=>setAdding(false)} className="text-gray-500 hover:text-gray-400"><X size={12}/></button>
+            className="bg-gray-100 border border-violet-400 rounded-full px-3 py-1 text-xs text-gray-900 focus:outline-none w-32" placeholder="Type + Enter" autoFocus/>
+          <button onClick={add}              className="text-emerald-600 hover:text-emerald-700"><Check size={12}/></button>
+          <button onClick={()=>setAdding(false)} className="text-gray-500 hover:text-gray-600"><X size={12}/></button>
         </div>
       ) : (
-        <button onClick={()=>setAdding(true)} className="px-2.5 py-1 rounded-full text-xs border border-dashed border-gray-600 text-gray-500 hover:border-violet-500 hover:text-violet-400 flex items-center gap-1 transition">
+        <button onClick={()=>setAdding(true)} className="px-2.5 py-1 rounded-full text-xs border border-dashed border-gray-600 text-gray-500 hover:border-violet-500 hover:text-violet-600 flex items-center gap-1 transition">
           <Plus size={10}/>Add
         </button>
       )}
@@ -959,7 +959,7 @@ function BecomeMentorModal({ user, onClose, onSaved }: { user: C360User|null; on
     email: user?.email || "", linkedin: "",
   });
   const [saved, setSaved] = useState(false);
-  const inp = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500";
+  const inp = "w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500";
 
   const submit = () => {
     if (!form.name || !form.company || !form.role || !form.bio || !form.skills) {
@@ -980,24 +980,24 @@ function BecomeMentorModal({ user, onClose, onSaved }: { user: C360User|null; on
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Award size={18} className="text-violet-400"/>Become a Mentor
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Award size={18} className="text-violet-600"/>Become a Mentor
           </h2>
-          <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-white"/></button>
+          <button onClick={onClose}><X size={20} className="text-gray-600 hover:text-gray-900"/></button>
         </div>
         {saved ? (
           <div className="text-center py-8">
-            <CheckCircle size={48} className="text-emerald-400 mx-auto mb-4"/>
-            <h3 className="text-white font-bold text-lg mb-2">You're listed as a mentor!</h3>
-            <p className="text-gray-400 text-sm mb-1">Students can now find you in the Industry Mentors section.</p>
+            <CheckCircle size={48} className="text-emerald-600 mx-auto mb-4"/>
+            <h3 className="text-gray-900 font-bold text-lg mb-2">You're listed as a mentor!</h3>
+            <p className="text-gray-600 text-sm mb-1">Students can now find you in the Industry Mentors section.</p>
             <p className="text-gray-500 text-xs mb-5">Our team will reach out to verify your profile and credentials.</p>
             <button onClick={onClose} className="px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold transition">Done</button>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-400 mb-2">Share your expertise with college students. Your profile appears in the Mentors section right away.</p>
+            <p className="text-sm text-gray-600 mb-2">Share your expertise with college students. Your profile appears in the Mentors section right away.</p>
             <div className="grid grid-cols-2 gap-3">
               <input className={inp} placeholder="Full name *" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
               <input className={inp} placeholder="Current company *" value={form.company} onChange={e=>setForm(f=>({...f,company:e.target.value}))}/>
@@ -1006,7 +1006,7 @@ function BecomeMentorModal({ user, onClose, onSaved }: { user: C360User|null; on
               <input className={inp} placeholder="Your role/title *" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}/>
               <input className={inp} placeholder="Years of experience" type="number" min="0" value={form.exp} onChange={e=>setForm(f=>({...f,exp:e.target.value}))}/>
             </div>
-            <select className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500" value={form.domain} onChange={e=>setForm(f=>({...f,domain:e.target.value}))}>
+            <select className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-violet-500" value={form.domain} onChange={e=>setForm(f=>({...f,domain:e.target.value}))}>
               {MENTOR_DOMAINS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
             </select>
             <textarea className={`${inp} h-24 resize-none`} placeholder="Bio — what you do, who you help, how you mentor *" value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))}/>
@@ -1031,19 +1031,19 @@ function BecomeMentorModal({ user, onClose, onSaved }: { user: C360User|null; on
 function ApplyModal({ opp, user, onClose, onNeedAuth, onNeedPremium }: { opp: Opportunity; user: C360User|null; onClose: ()=>void; onNeedAuth: ()=>void; onNeedPremium: ()=>void }) {
   if (!user) return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
-        <p className="text-white font-semibold mb-1">Sign in to apply</p>
-        <p className="text-gray-400 text-sm mb-4">Create a free account to apply for opportunities.</p>
-        <button onClick={()=>{onClose();onNeedAuth();}} className="w-full py-2 bg-violet-600 text-white rounded-lg text-sm font-semibold">Create Account</button>
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
+        <p className="text-gray-900 font-semibold mb-1">Sign in to apply</p>
+        <p className="text-gray-600 text-sm mb-4">Create a free account to apply for opportunities.</p>
+        <button onClick={()=>{onClose();onNeedAuth();}} className="w-full py-2 bg-violet-600 text-gray-900 rounded-lg text-sm font-semibold">Create Account</button>
       </div>
     </div>
   );
   if (opp.is_premium_only && !user.premium) return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-violet-500/30 rounded-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white border border-violet-200 rounded-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
         <Sparkles className="text-yellow-400 mb-2" size={24}/>
-        <p className="text-white font-semibold mb-1">Premium Opportunity</p>
-        <p className="text-gray-400 text-sm mb-4">This opportunity is exclusive to Premium members. Upgrade for ₹500/year.</p>
+        <p className="text-gray-900 font-semibold mb-1">Premium Opportunity</p>
+        <p className="text-gray-600 text-sm mb-4">This opportunity is exclusive to Premium members. Upgrade for ₹500/year.</p>
         <button onClick={()=>{onClose();onNeedPremium();}} className="w-full py-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-lg text-sm font-semibold">Upgrade — ₹500/year</button>
       </div>
     </div>
@@ -1052,16 +1052,16 @@ function ApplyModal({ opp, user, onClose, onNeedAuth, onNeedPremium }: { opp: Op
   const wa = `https://wa.me/${opp.wa_number}?text=Hi+${encodeURIComponent(opp.company)}+team!+I+am+applying+for+${encodeURIComponent(opp.title)}.+My+name+is+${encodeURIComponent(user.name)},+a+college360+member.+Could+you+share+next+steps?`;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
-        <div className="flex justify-between mb-4"><h3 className="text-white font-bold">Apply Now</h3><button onClick={onClose}><X size={18} className="text-gray-400"/></button></div>
-        <p className="text-sm text-gray-400 mb-1 font-semibold text-white">{opp.title}</p>
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between mb-4"><h3 className="text-gray-900 font-bold">Apply Now</h3><button onClick={onClose}><X size={18} className="text-gray-600"/></button></div>
+        <p className="text-sm text-gray-600 mb-1 font-semibold text-gray-900">{opp.title}</p>
         <p className="text-xs text-gray-500 mb-4">{opp.company} · {opp.city}</p>
         <div className="space-y-3">
-          <a href={mailto} className="flex items-center gap-3 w-full p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition">
-            <Mail size={18} className="text-violet-400"/><div><p className="text-sm font-semibold text-white">Apply via Email</p><p className="text-xs text-gray-500">Opens your email app</p></div>
+          <a href={mailto} className="flex items-center gap-3 w-full p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition">
+            <Mail size={18} className="text-violet-600"/><div><p className="text-sm font-semibold text-gray-900">Apply via Email</p><p className="text-xs text-gray-500">Opens your email app</p></div>
           </a>
-          <a href={wa} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 w-full p-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl transition">
-            <Send size={18} className="text-emerald-400"/><div><p className="text-sm font-semibold text-white">WhatsApp the Recruiter</p><p className="text-xs text-gray-500">Instant message</p></div>
+          <a href={wa} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 w-full p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition">
+            <Send size={18} className="text-emerald-600"/><div><p className="text-sm font-semibold text-gray-900">WhatsApp the Recruiter</p><p className="text-xs text-gray-500">Instant message</p></div>
           </a>
         </div>
         <p className="text-xs text-gray-600 mt-3 text-center">paariwalaconnect@gmail.com will be CC'd on email applications</p>
@@ -1073,32 +1073,32 @@ function ApplyModal({ opp, user, onClose, onNeedAuth, onNeedPremium }: { opp: Op
 // ── Opportunity Card ──────────────────────────────────────────────────────────
 function OppCard({ opp, onApply }: { opp: Opportunity; onApply: (o: Opportunity)=>void }) {
   return (
-    <div className="bg-white/5 hover:bg-white/8 border border-white/8 hover:border-violet-500/30 rounded-xl p-4 transition group cursor-pointer" onClick={()=>onApply(opp)}>
+    <div className="bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-violet-200 rounded-xl p-4 transition group cursor-pointer" onClick={()=>onApply(opp)}>
       <div className="flex gap-3 mb-3">
         <div className={`w-10 h-10 rounded-xl ${opp.logo_color} flex items-center justify-center text-white font-black text-sm shrink-0`}>{opp.company[0]}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-semibold text-white group-hover:text-violet-300 transition leading-snug">{opp.title}</p>
-            {opp.is_premium_only && <span className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 rounded px-1.5 py-0.5 shrink-0 flex items-center gap-1"><Lock size={9}/>PRO</span>}
+            <p className="text-sm font-semibold text-gray-900 group-hover:text-violet-600 transition leading-snug">{opp.title}</p>
+            {opp.is_premium_only && <span className="text-[10px] bg-yellow-100 text-yellow-700 border border-yellow-200 rounded px-1.5 py-0.5 shrink-0 flex items-center gap-1"><Lock size={9}/>PRO</span>}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">{opp.company}</p>
+          <p className="text-xs text-gray-600 mt-0.5">{opp.company}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         <span className={`text-[11px] font-semibold rounded px-2 py-0.5 ${TYPE_BADGE[opp.type]}`}>{opp.type}</span>
-        <span className="text-[11px] bg-white/5 text-gray-400 rounded px-2 py-0.5 flex items-center gap-1"><MapPin size={9}/>{opp.city}</span>
-        {opp.duration && <span className="text-[11px] bg-white/5 text-gray-400 rounded px-2 py-0.5 flex items-center gap-1"><Clock size={9}/>{opp.duration}</span>}
+        <span className="text-[11px] bg-gray-50 text-gray-600 rounded px-2 py-0.5 flex items-center gap-1"><MapPin size={9}/>{opp.city}</span>
+        {opp.duration && <span className="text-[11px] bg-gray-50 text-gray-600 rounded px-2 py-0.5 flex items-center gap-1"><Clock size={9}/>{opp.duration}</span>}
       </div>
       <p className="text-xs text-gray-500 line-clamp-2 mb-3">{opp.desc}</p>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-emerald-400">{sal(opp.stipend_min, opp.stipend_max)}</span>
+        <span className="text-sm font-bold text-emerald-600">{sal(opp.stipend_min, opp.stipend_max)}</span>
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          {opp.is_verified && <CheckCircle size={12} className="text-teal-400"/>}
+          {opp.is_verified && <CheckCircle size={12} className="text-teal-600"/>}
           <span>{opp.spots} spot{opp.spots!==1?"s":""}</span>
           <span>by {new Date(opp.apply_by).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span>
         </div>
       </div>
-      <div className="flex flex-wrap gap-1 mt-2">{opp.skills.slice(0,3).map(s=><span key={s} className="text-[10px] bg-white/5 text-gray-500 rounded px-1.5 py-0.5">{s}</span>)}</div>
+      <div className="flex flex-wrap gap-1 mt-2">{opp.skills.slice(0,3).map(s=><span key={s} className="text-[10px] bg-gray-50 text-gray-500 rounded px-1.5 py-0.5">{s}</span>)}</div>
     </div>
   );
 }
@@ -1124,19 +1124,19 @@ function ProfileViewModal({ user, onClose, onBuild }: {
   const initials = user.name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
 
   const gradients = {
-    student:   "from-violet-900/70 via-indigo-900/50 to-transparent",
-    recruiter: "from-blue-900/70 via-cyan-900/50 to-transparent",
-    mentor:    "from-amber-900/70 via-orange-900/50 to-transparent",
+    student:   "from-violet-100 via-indigo-100 to-violet-50",
+    recruiter: "from-blue-100 via-cyan-100 to-blue-50",
+    mentor:    "from-amber-100 via-orange-100 to-amber-50",
   };
   const badges = {
-    student:   "bg-violet-500/20 text-violet-300 border-violet-500/30",
-    recruiter: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    mentor:    "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    student:   "bg-violet-100 text-violet-700 border-violet-200",
+    recruiter: "bg-blue-100 text-blue-700 border-blue-200",
+    mentor:    "bg-amber-100 text-amber-700 border-amber-200",
   };
   const badgeLabel = { student:"Student", recruiter:"Recruiter", mentor:"Industry Mentor" }[role] || role;
 
   const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="bg-white/4 border border-white/8 rounded-xl p-4 space-y-3">
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
       <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">{title}</p>
       {children}
     </div>
@@ -1146,8 +1146,8 @@ function ProfileViewModal({ user, onClose, onBuild }: {
   const StudentView = () => {
     if (!sp) return (
       <div className="text-center py-10 space-y-4">
-        <Brain size={40} className="text-violet-400/50 mx-auto"/>
-        <div><p className="text-white font-semibold">No profile built yet</p><p className="text-gray-500 text-sm mt-1">Use the AI Profile Builder to extract your details instantly</p></div>
+        <Brain size={40} className="text-violet-400 mx-auto"/>
+        <div><p className="text-gray-900 font-semibold">No profile built yet</p><p className="text-gray-500 text-sm mt-1">Use the AI Profile Builder to extract your details instantly</p></div>
         <button onClick={()=>{ onClose(); onBuild(); }} className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold text-white flex items-center gap-2 mx-auto">
           <Sparkles size={14}/>Build with AI
         </button>
@@ -1166,28 +1166,28 @@ function ProfileViewModal({ user, onClose, onBuild }: {
               ].map(({ icon, label, field }) => (
                 <div key={field} className="flex items-start gap-2">
                   <span className="text-gray-500 mt-0.5 shrink-0">{icon}</span>
-                  <InlineText value={label} onSave={v=>saveS({...sp, contact:{...sp.contact,[field]:v}})} placeholder={`Add ${field}`} className="text-gray-300 min-w-0"/>
+                  <InlineText value={label} onSave={v=>saveS({...sp, contact:{...sp.contact,[field]:v}})} placeholder={`Add ${field}`} className="text-gray-700 min-w-0"/>
                 </div>
               ))}
             </div>
           </SectionCard>
           <SectionCard title="Academic">
             <div className="space-y-2 text-sm">
-              <div><p className="text-gray-500 text-xs mb-0.5">College</p><InlineText value={sp.college} onSave={v=>saveS({...sp,college:v})} placeholder="Add college" className="text-gray-200"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">College</p><InlineText value={sp.college} onSave={v=>saveS({...sp,college:v})} placeholder="Add college" className="text-gray-800"/></div>
               <div><p className="text-gray-500 text-xs mb-0.5">Year</p>
-                <select value={sp.year} onChange={e=>saveS({...sp,year:e.target.value})} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none w-full">
+                <select value={sp.year} onChange={e=>saveS({...sp,year:e.target.value})} className="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-800 focus:outline-none w-full">
                   {YEARS.map(y=><option key={y}>{y}</option>)}
                 </select>
               </div>
-              <div><p className="text-gray-500 text-xs mb-0.5">CGPA</p><InlineText value={sp.cgpa} onSave={v=>saveS({...sp,cgpa:v})} placeholder="e.g. 8.5" className="text-gray-200"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">CGPA</p><InlineText value={sp.cgpa} onSave={v=>saveS({...sp,cgpa:v})} placeholder="e.g. 8.5" className="text-gray-800"/></div>
             </div>
           </SectionCard>
           <SectionCard title="Links">
             <div className="space-y-2">
-              {sp.github && <a href={sp.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition"><ExternalLink size={11}/>GitHub</a>}
-              {sp.linkedin && <a href={sp.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition"><ExternalLink size={11}/>LinkedIn</a>}
-              <div><p className="text-gray-500 text-[10px] mb-1">GitHub URL</p><InlineText value={sp.github||""} onSave={v=>saveS({...sp,github:v})} placeholder="https://github.com/..." className="text-xs text-gray-400"/></div>
-              <div><p className="text-gray-500 text-[10px] mb-1">LinkedIn URL</p><InlineText value={sp.linkedin||""} onSave={v=>saveS({...sp,linkedin:v})} placeholder="https://linkedin.com/in/..." className="text-xs text-gray-400"/></div>
+              {sp.github && <a href={sp.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-violet-600 hover:text-violet-600 transition"><ExternalLink size={11}/>GitHub</a>}
+              {sp.linkedin && <a href={sp.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-indigo-600 hover:text-indigo-300 transition"><ExternalLink size={11}/>LinkedIn</a>}
+              <div><p className="text-gray-500 text-[10px] mb-1">GitHub URL</p><InlineText value={sp.github||""} onSave={v=>saveS({...sp,github:v})} placeholder="https://github.com/..." className="text-xs text-gray-600"/></div>
+              <div><p className="text-gray-500 text-[10px] mb-1">LinkedIn URL</p><InlineText value={sp.linkedin||""} onSave={v=>saveS({...sp,linkedin:v})} placeholder="https://linkedin.com/in/..." className="text-xs text-gray-600"/></div>
             </div>
           </SectionCard>
         </div>
@@ -1206,14 +1206,14 @@ function ProfileViewModal({ user, onClose, onBuild }: {
             <SectionCard title="Projects">
               <div className="space-y-3">
                 {sp.projects.map((proj, i) => (
-                  <div key={i} className="border border-white/8 rounded-lg p-3 space-y-1.5">
-                    <InlineText value={proj.name} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,name:v}:p)})} size="base" className="text-white"/>
-                    <InlineText value={proj.tech} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,tech:v}:p)})} placeholder="Tech stack" className="text-violet-400 text-xs"/>
+                  <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-1.5">
+                    <InlineText value={proj.name} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,name:v}:p)})} size="base" className="text-gray-900"/>
+                    <InlineText value={proj.tech} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,tech:v}:p)})} placeholder="Tech stack" className="text-violet-600 text-xs"/>
                     <InlineArea value={proj.desc} onSave={v=>saveS({...sp,projects:sp.projects.map((p,j)=>j===i?{...p,desc:v}:p)})} placeholder="Describe the project…" rows={2}/>
-                    <button onClick={()=>saveS({...sp,projects:sp.projects.filter((_,j)=>j!==i)})} className="text-[10px] text-red-500 hover:text-red-400">Remove project</button>
+                    <button onClick={()=>saveS({...sp,projects:sp.projects.filter((_,j)=>j!==i)})} className="text-[10px] text-red-500 hover:text-red-600">Remove project</button>
                   </div>
                 ))}
-                <button onClick={()=>saveS({...sp,projects:[...sp.projects,{name:"New Project",tech:"",desc:""}]})} className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"><Plus size={11}/>Add project</button>
+                <button onClick={()=>saveS({...sp,projects:[...sp.projects,{name:"New Project",tech:"",desc:""}]})} className="text-xs text-violet-600 hover:text-violet-600 flex items-center gap-1"><Plus size={11}/>Add project</button>
               </div>
             </SectionCard>
           )}
@@ -1222,10 +1222,10 @@ function ProfileViewModal({ user, onClose, onBuild }: {
               <div className="space-y-2">
                 {sp.education.map((edu, i) => (
                   <div key={i} className="flex gap-3">
-                    <div className="w-1.5 bg-violet-500/30 rounded-full shrink-0 mt-1"/>
+                    <div className="w-1.5 bg-violet-200 rounded-full shrink-0 mt-1"/>
                     <div className="space-y-0.5">
-                      <InlineText value={edu.degree} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,degree:v}:e)})} className="text-white text-sm font-semibold"/>
-                      <InlineText value={edu.institution} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,institution:v}:e)})} placeholder="Institution" className="text-gray-400 text-xs"/>
+                      <InlineText value={edu.degree} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,degree:v}:e)})} className="text-gray-900 text-sm font-semibold"/>
+                      <InlineText value={edu.institution} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,institution:v}:e)})} placeholder="Institution" className="text-gray-600 text-xs"/>
                       <div className="flex gap-3 text-xs text-gray-500">
                         <InlineText value={edu.year} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,year:v}:e)})} placeholder="Year"/>
                         <InlineText value={edu.score} onSave={v=>saveS({...sp,education:sp.education.map((e,j)=>j===i?{...e,score:v}:e)})} placeholder="Score/CGPA"/>
@@ -1257,17 +1257,17 @@ function ProfileViewModal({ user, onClose, onBuild }: {
       <div className="space-y-4">
         <SectionCard title="Company">
           <div className="space-y-2 text-sm">
-            <div><p className="text-gray-500 text-xs mb-0.5">Company</p><InlineText value={rp.company} onSave={v=>saveR({...rp,company:v})} placeholder="Company name" className="text-white font-semibold"/></div>
-            <div><p className="text-gray-500 text-xs mb-0.5">Industry</p><InlineText value={rp.industry} onSave={v=>saveR({...rp,industry:v})} placeholder="e.g. FinTech, EdTech" className="text-gray-300"/></div>
-            <div><p className="text-gray-500 text-xs mb-0.5">City</p><InlineText value={rp.city} onSave={v=>saveR({...rp,city:v})} placeholder="Location" className="text-gray-300"/></div>
+            <div><p className="text-gray-500 text-xs mb-0.5">Company</p><InlineText value={rp.company} onSave={v=>saveR({...rp,company:v})} placeholder="Company name" className="text-gray-900 font-semibold"/></div>
+            <div><p className="text-gray-500 text-xs mb-0.5">Industry</p><InlineText value={rp.industry} onSave={v=>saveR({...rp,industry:v})} placeholder="e.g. FinTech, EdTech" className="text-gray-700"/></div>
+            <div><p className="text-gray-500 text-xs mb-0.5">City</p><InlineText value={rp.city} onSave={v=>saveR({...rp,city:v})} placeholder="Location" className="text-gray-700"/></div>
           </div>
         </SectionCard>
         <SectionCard title="Contact">
           <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2"><Mail size={12} className="text-gray-500"/><InlineText value={rp.email||user.email} onSave={v=>saveR({...rp,email:v})} className="text-gray-300"/></div>
-            <div className="flex items-center gap-2"><Phone size={12} className="text-gray-500"/><InlineText value={rp.phone||user.phone} onSave={v=>saveR({...rp,phone:v})} placeholder="Phone" className="text-gray-300"/></div>
-            {rp.website&&<a href={rp.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300"><Globe size={11}/>Website</a>}
-            <div><p className="text-gray-500 text-[10px] mb-0.5">Website</p><InlineText value={rp.website} onSave={v=>saveR({...rp,website:v})} placeholder="https://..." className="text-xs text-gray-400"/></div>
+            <div className="flex items-center gap-2"><Mail size={12} className="text-gray-500"/><InlineText value={rp.email||user.email} onSave={v=>saveR({...rp,email:v})} className="text-gray-700"/></div>
+            <div className="flex items-center gap-2"><Phone size={12} className="text-gray-500"/><InlineText value={rp.phone||user.phone} onSave={v=>saveR({...rp,phone:v})} placeholder="Phone" className="text-gray-700"/></div>
+            {rp.website&&<a href={rp.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-300"><Globe size={11}/>Website</a>}
+            <div><p className="text-gray-500 text-[10px] mb-0.5">Website</p><InlineText value={rp.website} onSave={v=>saveR({...rp,website:v})} placeholder="https://..." className="text-xs text-gray-600"/></div>
           </div>
         </SectionCard>
       </div>
@@ -1281,7 +1281,7 @@ function ProfileViewModal({ user, onClose, onBuild }: {
               <p className="text-gray-500 text-xs mb-1.5">We are looking for</p>
               <div className="flex gap-2">
                 {(["intern","fulltime","both"] as const).map(t=>(
-                  <button key={t} onClick={()=>saveR({...rp,hiring_for:t})} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${rp.hiring_for===t?"bg-blue-600 text-white":"bg-white/5 text-gray-400 hover:bg-white/10"}`}>
+                  <button key={t} onClick={()=>saveR({...rp,hiring_for:t})} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${rp.hiring_for===t?"bg-blue-600 text-gray-900":"bg-gray-50 text-gray-600 hover:bg-gray-100"}`}>
                     {t==="intern"?"Interns":t==="fulltime"?"Full-time":"Both"}
                   </button>
                 ))}
@@ -1290,9 +1290,9 @@ function ProfileViewModal({ user, onClose, onBuild }: {
             <div>
               <p className="text-gray-500 text-xs mb-1.5">Stipend / Salary range (₹/month)</p>
               <div className="flex items-center gap-2 text-sm">
-                <input type="number" value={rp.stipend_min||""} onChange={e=>saveR({...rp,stipend_min:+e.target.value})} placeholder="Min" className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"/>
+                <input type="number" value={rp.stipend_min||""} onChange={e=>saveR({...rp,stipend_min:+e.target.value})} placeholder="Min" className="w-24 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-900 text-xs focus:outline-none focus:border-blue-500"/>
                 <span className="text-gray-600">–</span>
-                <input type="number" value={rp.stipend_max||""} onChange={e=>saveR({...rp,stipend_max:+e.target.value})} placeholder="Max" className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-blue-500"/>
+                <input type="number" value={rp.stipend_max||""} onChange={e=>saveR({...rp,stipend_max:+e.target.value})} placeholder="Max" className="w-24 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-900 text-xs focus:outline-none focus:border-blue-500"/>
               </div>
             </div>
           </div>
@@ -1319,31 +1319,31 @@ function ProfileViewModal({ user, onClose, onBuild }: {
         <div className="space-y-4">
           <SectionCard title="Professional Info">
             <div className="space-y-2 text-sm">
-              <div><p className="text-gray-500 text-xs mb-0.5">Company</p><InlineText value={m.company} onSave={v=>saveM({...m,company:v})} placeholder="Your company" className="text-white font-semibold"/></div>
-              <div><p className="text-gray-500 text-xs mb-0.5">Title / Role</p><InlineText value={m.role} onSave={v=>saveM({...m,role:v})} placeholder="e.g. Senior Engineer" className="text-gray-300"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">Company</p><InlineText value={m.company} onSave={v=>saveM({...m,company:v})} placeholder="Your company" className="text-gray-900 font-semibold"/></div>
+              <div><p className="text-gray-500 text-xs mb-0.5">Title / Role</p><InlineText value={m.role} onSave={v=>saveM({...m,role:v})} placeholder="e.g. Senior Engineer" className="text-gray-700"/></div>
               <div><p className="text-gray-500 text-xs mb-0.5">Domain</p>
-                <select value={m.domain} onChange={e=>saveM({...m,domain:e.target.value})} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none w-full">
+                <select value={m.domain} onChange={e=>saveM({...m,domain:e.target.value})} className="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-800 focus:outline-none w-full">
                   {DOMAINS.filter(d=>d.id!=="all").map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </div>
               <div><p className="text-gray-500 text-xs mb-0.5">Years of Experience</p>
-                <input type="number" value={m.exp||""} onChange={e=>saveM({...m,exp:+e.target.value})} className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-amber-500"/>
+                <input type="number" value={m.exp||""} onChange={e=>saveM({...m,exp:+e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-800 focus:outline-none focus:border-amber-500"/>
               </div>
             </div>
           </SectionCard>
           <SectionCard title="Contact">
             <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2"><Mail size={12} className="text-gray-500 shrink-0"/><InlineText value={m.email||""} onSave={v=>saveM({...m,email:v})} placeholder="Email" className="text-gray-300 text-xs min-w-0"/></div>
-              <div className="flex items-center gap-2"><Phone size={12} className="text-gray-500 shrink-0"/><InlineText value={m.wa_number} onSave={v=>saveM({...m,wa_number:v.replace(/\D/g,"").replace(/^0/,"91")})} placeholder="WhatsApp number" className="text-gray-300 text-xs min-w-0"/></div>
-              {m.linkedin&&<a href={m.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-400 hover:text-amber-300 transition"><ExternalLink size={11}/>LinkedIn</a>}
-              <div><p className="text-gray-500 text-[10px] mb-0.5">LinkedIn URL</p><InlineText value={m.linkedin||""} onSave={v=>saveM({...m,linkedin:v})} placeholder="https://linkedin.com/in/..." className="text-xs text-gray-400"/></div>
+              <div className="flex items-center gap-2"><Mail size={12} className="text-gray-500 shrink-0"/><InlineText value={m.email||""} onSave={v=>saveM({...m,email:v})} placeholder="Email" className="text-gray-700 text-xs min-w-0"/></div>
+              <div className="flex items-center gap-2"><Phone size={12} className="text-gray-500 shrink-0"/><InlineText value={m.wa_number} onSave={v=>saveM({...m,wa_number:v.replace(/\D/g,"").replace(/^0/,"91")})} placeholder="WhatsApp number" className="text-gray-700 text-xs min-w-0"/></div>
+              {m.linkedin&&<a href={m.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-600 hover:text-amber-300 transition"><ExternalLink size={11}/>LinkedIn</a>}
+              <div><p className="text-gray-500 text-[10px] mb-0.5">LinkedIn URL</p><InlineText value={m.linkedin||""} onSave={v=>saveM({...m,linkedin:v})} placeholder="https://linkedin.com/in/..." className="text-xs text-gray-600"/></div>
             </div>
           </SectionCard>
           <SectionCard title="Stats">
             <div className="flex gap-4">
-              <div className="text-center"><p className="text-xl font-black text-amber-400">{m.rating>0?m.rating.toFixed(1):"–"}</p><p className="text-[10px] text-gray-500">Rating</p></div>
-              <div className="text-center"><p className="text-xl font-black text-white">{m.sessions}</p><p className="text-[10px] text-gray-500">Sessions</p></div>
-              <div className="text-center"><p className="text-xl font-black text-emerald-400">{m.exp||0}</p><p className="text-[10px] text-gray-500">Yrs exp</p></div>
+              <div className="text-center"><p className="text-xl font-black text-amber-600">{m.rating>0?m.rating.toFixed(1):"–"}</p><p className="text-[10px] text-gray-500">Rating</p></div>
+              <div className="text-center"><p className="text-xl font-black text-gray-900">{m.sessions}</p><p className="text-[10px] text-gray-500">Sessions</p></div>
+              <div className="text-center"><p className="text-xl font-black text-emerald-600">{m.exp||0}</p><p className="text-[10px] text-gray-500">Yrs exp</p></div>
             </div>
           </SectionCard>
         </div>
@@ -1364,12 +1364,12 @@ function ProfileViewModal({ user, onClose, onBuild }: {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-3 overflow-y-auto" onClick={onClose}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-3xl my-4 shadow-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-3xl my-4 shadow-2xl" onClick={e=>e.stopPropagation()}>
         {/* Banner */}
         <div className={`h-24 rounded-t-2xl bg-gradient-to-r ${gradients[role as keyof typeof gradients]||gradients.student} relative`}>
-          <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white bg-black/30 rounded-full p-1.5 transition"><X size={16}/></button>
+          <button onClick={onClose} className="absolute top-3 right-3 text-gray-600 hover:text-gray-900 bg-black/30 rounded-full p-1.5 transition"><X size={16}/></button>
           {role==="student" && (
-            <button onClick={()=>{ onClose(); onBuild(); }} className="absolute top-3 left-3 flex items-center gap-1.5 text-xs font-semibold text-violet-300 bg-violet-500/20 border border-violet-500/20 hover:bg-violet-500/30 rounded-full px-3 py-1.5 transition">
+            <button onClick={()=>{ onClose(); onBuild(); }} className="absolute top-3 left-3 flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-100 border border-violet-200 hover:bg-violet-200 rounded-full px-3 py-1.5 transition">
               <Sparkles size={11}/>AI Builder
             </button>
           )}
@@ -1377,20 +1377,20 @@ function ProfileViewModal({ user, onClose, onBuild }: {
         {/* Identity */}
         <div className="px-6 pb-2">
           <div className="flex items-end gap-4 -mt-10 mb-1">
-            <div className={`w-20 h-20 rounded-2xl ${avatarBg} flex items-center justify-center text-white text-2xl font-black shadow-xl border-4 border-gray-900 shrink-0`}>{initials}</div>
+            <div className={`w-20 h-20 rounded-2xl ${avatarBg} flex items-center justify-center text-white text-2xl font-black shadow-xl border-4 border-white shrink-0`}>{initials}</div>
             <div className="flex-1 pb-1 min-w-0">
               {role==="student"&&sp ? (
-                <InlineText value={sp.name} onSave={v=>saveS({...sp,name:v})} size="xl" className="text-white"/>
+                <InlineText value={sp.name} onSave={v=>saveS({...sp,name:v})} size="xl" className="text-gray-900"/>
               ) : role==="recruiter" ? (
-                <InlineText value={rp.designation||user.name} onSave={v=>saveR({...rp,designation:v})} placeholder="Your designation" size="xl" className="text-white"/>
+                <InlineText value={rp.designation||user.name} onSave={v=>saveR({...rp,designation:v})} placeholder="Your designation" size="xl" className="text-gray-900"/>
               ) : mp ? (
-                <InlineText value={mp.name} onSave={v=>saveM({...mp,name:v})} size="xl" className="text-white"/>
+                <InlineText value={mp.name} onSave={v=>saveM({...mp,name:v})} size="xl" className="text-gray-900"/>
               ) : (
-                <p className="text-xl font-bold text-white">{user.name}</p>
+                <p className="text-xl font-bold text-gray-900">{user.name}</p>
               )}
-              {role==="student"&&sp && <InlineText value={sp.headline} onSave={v=>saveS({...sp,headline:v})} placeholder="Add headline…" className="text-violet-400 text-sm mt-0.5"/>}
-              {role==="recruiter" && <InlineText value={rp.company} onSave={v=>saveR({...rp,company:v})} placeholder="Company name…" className="text-blue-400 text-sm mt-0.5"/>}
-              {role==="mentor"&&mp && <p className="text-amber-400 text-sm mt-0.5">{mp.role}{mp.company?` · ${mp.company}`:""}</p>}
+              {role==="student"&&sp && <InlineText value={sp.headline} onSave={v=>saveS({...sp,headline:v})} placeholder="Add headline…" className="text-violet-600 text-sm mt-0.5"/>}
+              {role==="recruiter" && <InlineText value={rp.company} onSave={v=>saveR({...rp,company:v})} placeholder="Company name…" className="text-blue-600 text-sm mt-0.5"/>}
+              {role==="mentor"&&mp && <p className="text-amber-600 text-sm mt-0.5">{mp.role}{mp.company?` · ${mp.company}`:""}</p>}
               {subline && headline && <p className="text-gray-500 text-xs mt-0.5">{subline}</p>}
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${badges[role as keyof typeof badges]||badges.student}`}>{badgeLabel}</span>
@@ -1472,34 +1472,34 @@ function InterviewQModal({ user, onClose }: { user: C360User; onClose: () => voi
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-teal-500/15 flex items-center justify-center">
-              <Brain size={16} className="text-teal-400"/>
+            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
+              <Brain size={16} className="text-teal-600"/>
             </div>
             <div>
-              <span className="font-bold text-white">Interview Question Agent</span>
-              <span className="text-xs text-teal-400 ml-2 bg-teal-500/10 px-2 py-0.5 rounded-full">AI</span>
+              <span className="font-bold text-gray-900">Interview Question Agent</span>
+              <span className="text-xs text-teal-700 ml-2 bg-teal-100 px-2 py-0.5 rounded-full">AI</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {!user.premium && (
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${remaining > 10 ? "bg-teal-500/10 text-teal-400" : remaining > 0 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"}`}>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${remaining > 10 ? "bg-teal-100 text-teal-700" : remaining > 0 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
                 {remaining === Infinity ? "Unlimited" : `${remaining} left`}
               </span>
             )}
-            <button onClick={onClose} className="text-gray-500 hover:text-white transition p-1"><X size={18}/></button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition p-1"><X size={18}/></button>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="p-5 space-y-4 flex-shrink-0 border-b border-white/5">
+        <div className="p-5 space-y-4 flex-shrink-0 border-b border-gray-100">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Technology / Stack</label>
-              <select value={tech} onChange={e => setTech(e.target.value)} className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500/50">
+              <label className="text-xs text-gray-600 mb-1.5 block font-medium">Technology / Stack</label>
+              <select value={tech} onChange={e => setTech(e.target.value)} className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-teal-400">
                 <option value="">Select technology…</option>
                 {TECH_GROUPS.map(g => (
                   <optgroup key={g.group} label={g.group}>
@@ -1509,8 +1509,8 @@ function InterviewQModal({ user, onClose }: { user: C360User; onClose: () => voi
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Target Role</label>
-              <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500/50">
+              <label className="text-xs text-gray-600 mb-1.5 block font-medium">Target Role</label>
+              <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-teal-400">
                 <option value="">Select role…</option>
                 {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -1518,17 +1518,17 @@ function InterviewQModal({ user, onClose }: { user: C360User; onClose: () => voi
           </div>
 
           <div>
-            <label className="text-xs text-gray-400 mb-1.5 block font-medium">Difficulty</label>
+            <label className="text-xs text-gray-600 mb-1.5 block font-medium">Difficulty</label>
             <div className="flex gap-2">
               {(["Easy","Medium","Hard"] as const).map(d => (
-                <button key={d} onClick={() => setDiff(d)} className={`flex-1 py-2 rounded-lg text-xs font-semibold transition border ${diff === d ? "bg-teal-500/20 border-teal-500 text-teal-300" : "border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-300"}`}>{d}</button>
+                <button key={d} onClick={() => setDiff(d)} className={`flex-1 py-2 rounded-lg text-xs font-semibold transition border ${diff === d ? "bg-teal-100 border-teal-500 text-teal-700" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-700"}`}>{d}</button>
               ))}
             </div>
           </div>
 
-          {err && <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{err}</div>}
+          {err && <div className="text-red-700 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
 
-          <button onClick={generate} disabled={loading || !tech || !role} className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition flex items-center justify-center gap-2">
+          <button onClick={generate} disabled={loading || !tech || !role} className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2">
             {loading ? <><Loader2 size={15} className="animate-spin"/>Generating 10 questions…</> : <><Brain size={15}/>Generate 10 Questions</>}
           </button>
         </div>
@@ -1538,17 +1538,17 @@ function InterviewQModal({ user, onClose }: { user: C360User; onClose: () => voi
           <div className="overflow-y-auto flex-1 p-5 space-y-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-gray-500">{tech} · {role} · {diff} — {questions.length} questions</span>
-              <button onClick={saveSession} disabled={saved} className={`text-xs px-3 py-1 rounded-lg border transition font-medium ${saved ? "border-teal-500/20 text-teal-400 bg-teal-500/10 cursor-default" : "border-white/10 text-gray-400 hover:border-white/20 hover:text-white"}`}>
+              <button onClick={saveSession} disabled={saved} className={`text-xs px-3 py-1 rounded-lg border transition font-medium ${saved ? "border-teal-200 text-teal-600 bg-teal-100 cursor-default" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"}`}>
                 {saved ? <><Check size={11} className="inline mr-1"/>Saved</> : "Save Session"}
               </button>
             </div>
             {questions.map((item, i) => (
-              <div key={i} className="bg-gray-800/50 border border-white/5 rounded-xl p-4 hover:border-white/10 transition">
-                <p className="text-sm font-semibold text-white mb-2 leading-relaxed">Q{i + 1}. {item.q}</p>
+              <div key={i} className="bg-gray-50 border border-gray-100 rounded-xl p-4 hover:border-gray-200 transition">
+                <p className="text-sm font-semibold text-gray-900 mb-2 leading-relaxed">Q{i + 1}. {item.q}</p>
                 {revealed.has(i) ? (
-                  <p className="text-sm text-gray-300 leading-relaxed border-t border-white/5 pt-2 mt-2">{item.a}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed border-t border-gray-100 pt-2 mt-2">{item.a}</p>
                 ) : (
-                  <button onClick={() => setRevealed(prev => new Set([...prev, i]))} className="text-xs text-teal-400 hover:text-teal-300 transition font-medium">
+                  <button onClick={() => setRevealed(prev => new Set([...prev, i]))} className="text-xs text-teal-600 hover:text-teal-700 transition font-medium">
                     ▶ Reveal Answer
                   </button>
                 )}
@@ -1556,9 +1556,9 @@ function InterviewQModal({ user, onClose }: { user: C360User; onClose: () => voi
             ))}
 
             {!user.premium && quotaUsed > 30 && (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center mt-4">
-                <p className="text-amber-400 text-sm font-semibold mb-1">Running low on free questions</p>
-                <p className="text-gray-400 text-xs">Used {quotaUsed} of {FREE_IQ_QUOTA} this month. Upgrade for unlimited practice sessions.</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center mt-4">
+                <p className="text-amber-600 text-sm font-semibold mb-1">Running low on free questions</p>
+                <p className="text-gray-600 text-xs">Used {quotaUsed} of {FREE_IQ_QUOTA} this month. Upgrade for unlimited practice sessions.</p>
               </div>
             )}
           </div>
@@ -1614,20 +1614,20 @@ function NotificationsPanel({ user }: { user: C360User }) {
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen(v => !v)} className="relative p-1.5 text-gray-400 hover:text-white transition">
-        {unread > 0 ? <BellDot size={18} className="text-teal-400"/> : <Bell size={18}/>}
+      <button onClick={() => setOpen(v => !v)} className="relative p-1.5 text-gray-600 hover:text-gray-900 transition">
+        {unread > 0 ? <BellDot size={18} className="text-teal-600"/> : <Bell size={18}/>}
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-teal-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-teal-500 rounded-full text-[9px] font-bold text-gray-900 flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-8 w-80 bg-gray-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-            <span className="text-sm font-semibold text-white">Notifications</span>
-            {unread > 0 && <button onClick={markAllRead} className="text-xs text-teal-400 hover:text-teal-300 transition">Mark all read</button>}
+        <div className="absolute right-0 top-8 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-900">Notifications</span>
+            {unread > 0 && <button onClick={markAllRead} className="text-xs text-teal-600 hover:text-teal-700 transition">Mark all read</button>}
           </div>
           <div className="max-h-72 overflow-y-auto">
             {notifs.length === 0 ? (
@@ -1636,20 +1636,20 @@ function NotificationsPanel({ user }: { user: C360User }) {
                 <p className="text-xs text-gray-500">No notifications yet</p>
               </div>
             ) : notifs.map(n => (
-              <div key={n.id} className={`px-4 py-3 border-b border-white/5 last:border-0 ${n.read ? "opacity-60" : ""}`}>
+              <div key={n.id} className={`px-4 py-3 border-b border-gray-100 last:border-0 ${n.read ? "opacity-60" : ""}`}>
                 <div className="flex items-start gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.read ? "bg-gray-600" : n.type === "action" ? "bg-teal-400" : n.type === "info" ? "bg-blue-400" : "bg-amber-400"}`}/>
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.read ? "bg-gray-300" : n.type === "action" ? "bg-teal-500" : n.type === "info" ? "bg-blue-500" : "bg-amber-500"}`}/>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white">{n.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{n.body}</p>
+                    <p className="text-xs font-semibold text-gray-900">{n.title}</p>
+                    <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{n.body}</p>
                     <p className="text-[10px] text-gray-600 mt-1">{timeAgo(n.time)}</p>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="px-4 py-2.5 border-t border-white/5 bg-gray-900/50">
-            <p className="text-[10px] text-gray-600 text-center">Notifications are stored on this device only</p>
+          <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
+            <p className="text-[10px] text-gray-500 text-center">Notifications are stored on this device only</p>
           </div>
         </div>
       )}
@@ -1722,37 +1722,37 @@ export default function College360Page() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-slate-50 text-gray-900">
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-gray-950/80 backdrop-blur-md border-b border-white/5">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-lg flex items-center justify-center">
               <GraduationCap size={16} className="text-white"/>
             </div>
             <div>
-              <span className="font-black text-base tracking-tight text-white">College<span className="text-violet-400">360</span></span>
+              <span className="font-black text-base tracking-tight text-gray-900">College<span className="text-violet-600">360</span></span>
               <span className="hidden sm:inline text-gray-600 text-xs ml-2">by NexusOS</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {user ? (
               <>
-                <button onClick={()=>setShowInterviewQ(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 rounded-lg text-xs font-semibold text-teal-400 transition">
+                <button onClick={()=>setShowInterviewQ(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-teal-100 hover:bg-teal-100 border border-teal-200 rounded-lg text-xs font-semibold text-teal-600 transition">
                   <Brain size={13}/>Practice
                 </button>
                 <NotificationsPanel user={user}/>
-                <button onClick={()=>setShowProfileView(true)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition">
+                <button onClick={()=>setShowProfileView(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
                   <div className={`w-5 h-5 rounded ${clr(user.name)} flex items-center justify-center text-white text-[10px] font-bold`}>{user.name[0]}</div>
-                  <span className="text-gray-300 text-xs hidden sm:block">{user.name.split(" ")[0]}</span>
+                  <span className="text-gray-700 text-xs hidden sm:block">{user.name.split(" ")[0]}</span>
                   {user.premium && <Sparkles size={12} className="text-yellow-400"/>}
                 </button>
-                {!user.premium && <button onClick={()=>setShowPremium(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-xs font-bold transition"><Sparkles size={12}/>Premium</button>}
-                <button onClick={logout} className="text-gray-500 hover:text-gray-300 transition p-1.5"><LogOut size={16}/></button>
+                {!user.premium && <button onClick={()=>setShowPremium(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-xs font-bold text-white transition"><Sparkles size={12}/>Premium</button>}
+                <button onClick={logout} className="text-gray-600 hover:text-gray-700 transition p-1.5"><LogOut size={16}/></button>
               </>
             ) : (
-              <button onClick={()=>setShowAuth(true)} className="px-4 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-sm font-semibold transition">Get Started Free</button>
+              <button onClick={()=>setShowAuth(true)} className="px-4 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-sm font-semibold text-white transition">Get Started Free</button>
             )}
           </div>
         </div>
@@ -1760,35 +1760,35 @@ export default function College360Page() {
 
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-violet-950/60 via-indigo-950/40 to-transparent"/>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-violet-600/10 blur-[100px] rounded-full pointer-events-none"/>
+        <div className="absolute inset-0 bg-gradient-to-b from-violet-100/60 via-indigo-50/30 to-transparent"/>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-violet-400/10 blur-[100px] rounded-full pointer-events-none"/>
         <div className="relative max-w-7xl mx-auto px-4 pt-20 pb-16 text-center">
-          <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-full px-4 py-1.5 mb-6">
-            <Sparkles size={13} className="text-violet-400"/>
-            <span className="text-xs text-violet-300 font-semibold">AI-powered career launch for college students</span>
+          <div className="inline-flex items-center gap-2 bg-violet-100 border border-violet-200 rounded-full px-4 py-1.5 mb-6">
+            <Sparkles size={13} className="text-violet-600"/>
+            <span className="text-xs text-violet-700 font-semibold">AI-powered career launch for college students</span>
           </div>
           <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-4 leading-tight">
             Your Career,<br/>
-            <span className="bg-gradient-to-r from-violet-400 via-indigo-400 to-blue-400 text-transparent bg-clip-text">Launched Right.</span>
+            <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 text-transparent bg-clip-text">Launched Right.</span>
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
             Find internships, campus placements, and mentors. Build an AI-powered profile. Learn in-demand skills.
             Everything a college student needs — in one place.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12">
             {user ? (
-              <button onClick={()=>setShowProfile(true)} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold transition flex items-center gap-2 justify-center">
+              <button onClick={()=>setShowProfile(true)} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition flex items-center gap-2 justify-center">
                 <Brain size={16}/>{profile ? "View My Profile" : "Build My Profile"}
               </button>
             ) : (
-              <button onClick={()=>setShowAuth(true)} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold transition flex items-center gap-2 justify-center">
+              <button onClick={()=>setShowAuth(true)} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition flex items-center gap-2 justify-center">
                 <Rocket size={16}/>Start Free — No credit card
               </button>
             )}
-            <button onClick={()=>document.getElementById("opportunities")?.scrollIntoView({behavior:"smooth"})} className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold transition flex items-center gap-2 justify-center">
+            <button onClick={()=>document.getElementById("opportunities")?.scrollIntoView({behavior:"smooth"})} className="px-8 py-3 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition flex items-center gap-2 justify-center">
               <Briefcase size={16}/>Browse Opportunities
             </button>
-            <button onClick={()=>{ if(user) setShowInterviewQ(true); else setShowAuth(true); }} className="px-8 py-3 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 rounded-xl text-sm font-semibold text-teal-400 transition flex items-center gap-2 justify-center">
+            <button onClick={()=>{ if(user) setShowInterviewQ(true); else setShowAuth(true); }} className="px-8 py-3 bg-teal-100 hover:bg-teal-100 border border-teal-200 rounded-xl text-sm font-semibold text-teal-600 transition flex items-center gap-2 justify-center">
               <Brain size={16}/>Practice Interview
             </button>
           </div>
@@ -1801,8 +1801,8 @@ export default function College360Page() {
               { n:"850+", l:"Placements" },
               { n:"48", l:"Learning Hours" },
             ].map(s => (
-              <div key={s.l} className="bg-white/5 border border-white/5 rounded-xl py-3 px-2">
-                <p className="text-2xl font-black text-white">{s.n}</p>
+              <div key={s.l} className="bg-gray-50 border border-gray-100 rounded-xl py-3 px-2">
+                <p className="text-2xl font-black text-gray-900">{s.n}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{s.l}</p>
               </div>
             ))}
@@ -1812,21 +1812,21 @@ export default function College360Page() {
 
       {/* ── MVP Free AI Banner ── */}
       {freeAI && !user?.premium && (
-        <div className="bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-b border-emerald-500/20">
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-200">
           <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2">
-            <Sparkles size={13} className="text-emerald-400 shrink-0"/>
-            <p className="text-xs text-emerald-300 font-semibold text-center">AI Profile Builder is <span className="text-white">free for everyone</span> during our MVP launch — try it now!</p>
-            <button onClick={()=>user?setShowProfile(true):setShowAuth(true)} className="shrink-0 ml-2 px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-full text-[10px] font-bold text-emerald-300 transition">Try AI →</button>
+            <Sparkles size={13} className="text-emerald-600 shrink-0"/>
+            <p className="text-xs text-emerald-800 font-semibold text-center">AI Profile Builder is <span className="font-black">free for everyone</span> during our MVP launch — try it now!</p>
+            <button onClick={()=>user?setShowProfile(true):setShowAuth(true)} className="shrink-0 ml-2 px-3 py-1 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded-full text-[10px] font-bold text-emerald-700 transition">Try AI →</button>
           </div>
         </div>
       )}
 
       {/* ── Interest / Domain Picker ── */}
-      <section className="border-y border-white/5 bg-white/2">
+      <section className="border-y border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {DOMAINS.map(d => (
-              <button key={d.id} onClick={()=>setDomain(d.id)} className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition border ${domain===d.id?"bg-violet-600 border-violet-600 text-white":"bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20"}`}>{d.label}</button>
+              <button key={d.id} onClick={()=>setDomain(d.id)} className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition border ${domain===d.id?"bg-violet-600 border-violet-600 text-white":"bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300"}`}>{d.label}</button>
             ))}
           </div>
         </div>
@@ -1834,9 +1834,9 @@ export default function College360Page() {
 
       {/* ── Mode Toggle ── */}
       <div className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="flex bg-white/5 border border-white/8 rounded-xl p-1 w-fit">
-          <button onClick={()=>setMode("student")} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${mode==="student"?"bg-violet-600 text-white":"text-gray-400 hover:text-white"}`}><GraduationCap size={15}/>I am a Student</button>
-          <button onClick={()=>setMode("recruiter")} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${mode==="recruiter"?"bg-indigo-600 text-white":"text-gray-400 hover:text-white"}`}><Building2 size={15}/>I am a Recruiter</button>
+        <div className="flex bg-gray-100 border border-gray-200 rounded-xl p-1 w-fit">
+          <button onClick={()=>setMode("student")} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${mode==="student"?"bg-violet-600 text-white":"text-gray-600 hover:text-gray-900"}`}><GraduationCap size={15}/>I am a Student</button>
+          <button onClick={()=>setMode("recruiter")} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition ${mode==="recruiter"?"bg-indigo-600 text-white":"text-gray-600 hover:text-gray-900"}`}><Building2 size={15}/>I am a Recruiter</button>
         </div>
       </div>
 
@@ -1849,13 +1849,13 @@ export default function College360Page() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Type</p>
                 {[["all","All Types"],["internship","Internship"],["placement","Placement"],["job","Job"],["freelance","Freelance"]].map(([v,l])=>(
-                  <button key={v} onClick={()=>setTypeFilter(v)} className={`block w-full text-left text-xs px-2 py-1.5 rounded-lg transition ${typeFilter===v?"bg-violet-600/20 text-violet-300":"text-gray-400 hover:text-white"}`}>{l}</button>
+                  <button key={v} onClick={()=>setTypeFilter(v)} className={`block w-full text-left text-xs px-2 py-1.5 rounded-lg transition ${typeFilter===v?"bg-violet-100 text-violet-700":"text-gray-600 hover:text-gray-900"}`}>{l}</button>
                 ))}
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">City</p>
                 {CITIES.map(c=>(
-                  <button key={c} onClick={()=>setCity(c)} className={`block w-full text-left text-xs px-2 py-1.5 rounded-lg transition ${city===c?"bg-violet-600/20 text-violet-300":"text-gray-400 hover:text-white"}`}>{c}</button>
+                  <button key={c} onClick={()=>setCity(c)} className={`block w-full text-left text-xs px-2 py-1.5 rounded-lg transition ${city===c?"bg-violet-100 text-violet-700":"text-gray-600 hover:text-gray-900"}`}>{c}</button>
                 ))}
               </div>
             </aside>
@@ -1866,23 +1866,23 @@ export default function College360Page() {
               <div className="flex gap-3 mb-4">
                 <div className="relative flex-1">
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
-                  <input className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500" placeholder="Search opportunities, companies..." value={search} onChange={e=>setSearch(e.target.value)}/>
+                  <input className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-violet-500" placeholder="Search opportunities, companies..." value={search} onChange={e=>setSearch(e.target.value)}/>
                 </div>
                 {user && !profile && (
-                  <button onClick={()=>setShowProfile(true)} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 rounded-xl text-sm font-semibold text-violet-300 transition">
+                  <button onClick={()=>setShowProfile(true)} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-violet-100 hover:bg-violet-200 border border-violet-200 rounded-xl text-sm font-semibold text-violet-700 transition">
                     <Plus size={15}/>Build Profile
                   </button>
                 )}
               </div>
 
               {profile && (
-                <div className="mb-4 bg-gradient-to-r from-violet-900/30 to-indigo-900/30 border border-violet-500/20 rounded-xl p-4 flex items-center gap-4">
+                <div className="mb-4 bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-xl p-4 flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-xl ${clr(profile.name)} flex items-center justify-center text-white font-black shrink-0`}>{profile.name[0]}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white">{profile.name}</p>
-                    <p className="text-xs text-gray-400">{profile.headline || `${profile.college} · ${profile.year}`}</p>
+                    <p className="text-sm font-bold text-gray-900">{profile.name}</p>
+                    <p className="text-xs text-gray-600">{profile.headline || `${profile.college} · ${profile.year}`}</p>
                   </div>
-                  <button onClick={()=>setShowProfile(true)} className="text-xs text-violet-400 hover:text-violet-300 shrink-0">Edit</button>
+                  <button onClick={()=>setShowProfile(true)} className="text-xs text-violet-600 hover:text-violet-700 shrink-0">Edit</button>
                 </div>
               )}
 
@@ -1890,7 +1890,7 @@ export default function College360Page() {
                 <p className="text-xs text-gray-500">{filteredOpps.length} opportunities {domain!=="all"?`in ${DOMAINS.find(d=>d.id===domain)?.label}`:""}</p>
                 <div className="flex lg:hidden gap-1">
                   {[["internship","Int."],["placement","Plmt"],["job","Job"],["freelance","Free"]].map(([v,l])=>(
-                    <button key={v} onClick={()=>setTypeFilter(typeFilter===v?"all":v)} className={`text-[10px] px-2 py-1 rounded ${typeFilter===v?"bg-violet-600 text-white":"bg-white/5 text-gray-400"}`}>{l}</button>
+                    <button key={v} onClick={()=>setTypeFilter(typeFilter===v?"all":v)} className={`text-[10px] px-2 py-1 rounded ${typeFilter===v?"bg-violet-600 text-white":"bg-gray-50 text-gray-600"}`}>{l}</button>
                   ))}
                 </div>
               </div>
@@ -1911,42 +1911,42 @@ export default function College360Page() {
           <div className="mt-14">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-black text-white">Industry Mentors</h2>
+                <h2 className="text-xl font-black text-gray-900">Industry Mentors</h2>
                 <p className="text-xs text-gray-500 mt-0.5">1-on-1 sessions with professionals from top companies</p>
               </div>
               <div className="flex items-center gap-2">
-                {!user?.premium && <button onClick={()=>setShowPremium(true)} className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"><Lock size={11}/>Unlock all</button>}
-                <button onClick={()=>setShowMentorForm(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 rounded-lg text-xs font-semibold text-violet-300 transition"><Plus size={12}/>Become a Mentor</button>
+                {!user?.premium && <button onClick={()=>setShowPremium(true)} className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1"><Lock size={11}/>Unlock all</button>}
+                <button onClick={()=>setShowMentorForm(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 hover:bg-violet-200 border border-violet-200 rounded-lg text-xs font-semibold text-violet-700 transition"><Plus size={12}/>Become a Mentor</button>
               </div>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {allMentors.filter(m => domain === "all" || m.domain === domain).map(mentor => (
-                <div key={mentor.id} className="bg-white/5 border border-white/8 rounded-xl p-4 hover:border-violet-500/30 transition">
+                <div key={mentor.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:border-violet-200 transition">
                   <div className="flex gap-3 mb-3">
                     <div className={`w-12 h-12 rounded-2xl ${mentor.avatar_color} flex items-center justify-center text-white font-black text-lg shrink-0`}>{mentor.name[0]}</div>
                     <div>
-                      <p className="text-sm font-bold text-white">{mentor.name}</p>
-                      <p className="text-xs text-gray-400">{mentor.role} · {mentor.company}</p>
+                      <p className="text-sm font-bold text-gray-900">{mentor.name}</p>
+                      <p className="text-xs text-gray-600">{mentor.role} · {mentor.company}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <Star size={11} className="text-yellow-400 fill-yellow-400"/>
-                        <span className="text-xs text-gray-400">{mentor.rating} · {mentor.sessions} sessions</span>
+                        <span className="text-xs text-gray-600">{mentor.rating} · {mentor.sessions} sessions</span>
                       </div>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mb-3 line-clamp-2">{mentor.bio}</p>
-                  <div className="flex flex-wrap gap-1 mb-3">{mentor.skills.slice(0,3).map(s=><span key={s} className="text-[10px] bg-white/5 text-gray-500 rounded px-1.5 py-0.5">{s}</span>)}</div>
-                  {mentor.is_community && <span className="text-[10px] text-violet-400 bg-violet-500/10 border border-violet-500/20 rounded px-1.5 py-0.5 mb-2 inline-block">Community Expert</span>}
+                  <div className="flex flex-wrap gap-1 mb-3">{mentor.skills.slice(0,3).map(s=><span key={s} className="text-[10px] bg-gray-50 text-gray-500 rounded px-1.5 py-0.5">{s}</span>)}</div>
+                  {mentor.is_community && <span className="text-[10px] text-violet-700 bg-violet-100 border border-violet-200 rounded px-1.5 py-0.5 mb-2 inline-block">Community Expert</span>}
                   {mentor.is_premium && !user?.premium ? (
-                    <button onClick={()=>setShowPremium(true)} className="w-full py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-lg text-xs text-violet-400 font-semibold flex items-center justify-center gap-1 transition"><Lock size={11}/>Book Session (Premium)</button>
+                    <button onClick={()=>setShowPremium(true)} className="w-full py-1.5 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg text-xs text-violet-700 font-semibold flex items-center justify-center gap-1 transition"><Lock size={11}/>Book Session (Premium)</button>
                   ) : mentor.email && !mentor.wa_number ? (
                     <a href={user ? `mailto:${mentor.email}?subject=Mentorship Request via College360&body=Hi ${mentor.name},%0A%0AI found your profile on College360 and would love a mentorship session.%0A%0ARegards,%0A${user?.name || "Student"}` : "#"}
                        onClick={!user ? ()=>setShowAuth(true) : undefined}
-                       className="block w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-xs text-indigo-400 font-semibold text-center transition">Connect via Email</a>
+                       className="block w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-xs text-indigo-700 font-semibold text-center transition">Connect via Email</a>
                   ) : (
                     <a href={user ? `https://wa.me/${mentor.wa_number}?text=Hi+${encodeURIComponent(mentor.name)}!+I+found+you+on+College360+and+would+love+a+mentorship+session.+I+am+a+${encodeURIComponent(user?.college||"college")}+student.` : "#"}
                        onClick={!user ? ()=>setShowAuth(true) : undefined}
                        target="_blank" rel="noopener noreferrer"
-                       className="block w-full py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg text-xs text-emerald-400 font-semibold text-center transition">Book via WhatsApp</a>
+                       className="block w-full py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-xs text-emerald-600 font-semibold text-center transition">Book via WhatsApp</a>
                   )}
                 </div>
               ))}
@@ -1957,24 +1957,24 @@ export default function College360Page() {
           <div className="mt-14">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-black text-white">Learning Tracks</h2>
+                <h2 className="text-xl font-black text-gray-900">Learning Tracks</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Structured paths to job-ready skills</p>
               </div>
-              {!user?.premium && <button onClick={()=>setShowPremium(true)} className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"><Sparkles size={11}/>Premium unlocks all</button>}
+              {!user?.premium && <button onClick={()=>setShowPremium(true)} className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1"><Sparkles size={11}/>Premium unlocks all</button>}
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {LEARN_TRACKS.map(track => (
-                <div key={track.id} className={`border rounded-xl p-4 transition ${track.is_premium && !user?.premium ? "border-white/5 opacity-70" : "border-white/8 hover:border-violet-500/30"}`}>
+                <div key={track.id} className={`border rounded-xl p-4 transition ${track.is_premium && !user?.premium ? "border-gray-100 opacity-70" : "border-gray-200 hover:border-violet-200"}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className={`w-10 h-10 ${track.bg} rounded-xl flex items-center justify-center ${track.color}`}>{track.icon}</div>
                     <div className="flex items-center gap-1">
                       {track.is_premium ? (
-                        user?.premium ? <span className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 rounded px-1.5 py-0.5 flex items-center gap-1"><Sparkles size={9}/>PRO</span>
-                        : <button onClick={()=>setShowPremium(true)} className="text-[10px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded px-1.5 py-0.5 flex items-center gap-1 hover:bg-yellow-500/20 transition"><Lock size={9}/>PRO</button>
-                      ) : <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.5">FREE</span>}
+                        user?.premium ? <span className="text-[10px] bg-yellow-100 text-yellow-700 border border-yellow-200 rounded px-1.5 py-0.5 flex items-center gap-1"><Sparkles size={9}/>PRO</span>
+                        : <button onClick={()=>setShowPremium(true)} className="text-[10px] bg-yellow-50 text-yellow-700 border border-yellow-200 rounded px-1.5 py-0.5 flex items-center gap-1 hover:bg-yellow-200 transition"><Lock size={9}/>PRO</button>
+                      ) : <span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5">FREE</span>}
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-white mb-1">{track.title}</p>
+                  <p className="text-sm font-bold text-gray-900 mb-1">{track.title}</p>
                   <p className="text-xs text-gray-500 mb-3 line-clamp-2">{track.desc}</p>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     <span className="flex items-center gap-1"><BookOpen size={11}/>{track.modules} modules</span>
@@ -1988,18 +1988,18 @@ export default function College360Page() {
 
           {/* ── Premium CTA Banner ── */}
           {!user?.premium && (
-            <div className="mt-14 relative overflow-hidden bg-gradient-to-r from-violet-900/60 to-indigo-900/60 border border-violet-500/20 rounded-2xl p-8 text-center">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-violet-500/10 blur-[60px] rounded-full pointer-events-none"/>
+            <div className="mt-14 relative overflow-hidden bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-8 text-center">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-white/10 blur-[60px] rounded-full pointer-events-none"/>
               <div className="relative">
-                <Sparkles className="text-yellow-400 mx-auto mb-3" size={32}/>
+                <Sparkles className="text-yellow-300 mx-auto mb-3" size={32}/>
                 <h2 className="text-2xl font-black text-white mb-2">Unlock Your Full Potential</h2>
-                <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">Get AI resume building, premium internships, mentor sessions, and all learning tracks for just <span className="text-white font-bold">₹500/year</span> — less than a pizza.</p>
+                <p className="text-violet-100 text-sm max-w-md mx-auto mb-6">Get AI resume building, premium internships, mentor sessions, and all learning tracks for just <span className="text-white font-bold">₹500/year</span> — less than a pizza.</p>
                 <div className="flex flex-wrap gap-3 justify-center mb-6">
                   {["AI Profile Builder","Premium Opportunities","1-on-1 Mentors","All Learning Tracks","Priority Visibility","ATS Resume"].map(f=>(
-                    <span key={f} className="flex items-center gap-1 text-xs text-gray-300 bg-white/5 border border-white/10 rounded-full px-3 py-1"><CheckCircle size={11} className="text-violet-400"/>{f}</span>
+                    <span key={f} className="flex items-center gap-1 text-xs text-white bg-white/15 border border-white/20 rounded-full px-3 py-1"><CheckCircle size={11} className="text-violet-200"/>{f}</span>
                   ))}
                 </div>
-                <button onClick={()=>user?setShowPremium(true):setShowAuth(true)} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl font-bold transition flex items-center gap-2 mx-auto">
+                <button onClick={()=>user?setShowPremium(true):setShowAuth(true)} className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl font-bold text-white transition flex items-center gap-2 mx-auto">
                   <Sparkles size={16}/>Upgrade to Premium — ₹500/year
                 </button>
               </div>
@@ -2014,44 +2014,44 @@ export default function College360Page() {
           <div className="mb-6 flex items-center gap-3">
             <div className="flex-1 relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
-              <input className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500" placeholder="Search students by skill, college, domain..."/>
+              <input className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500" placeholder="Search students by skill, college, domain..."/>
             </div>
-            <button onClick={()=>user?setShowProfile(true):setShowAuth(true)} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition">
+            <button onClick={()=>user?setShowProfile(true):setShowAuth(true)} className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold text-white transition">
               <Plus size={15}/>Post Opportunity
             </button>
           </div>
           <div className="mb-4">
-            <h2 className="text-lg font-bold text-white mb-1">Available Talent</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Available Talent</h2>
             <p className="text-xs text-gray-500">Verified college students actively seeking opportunities</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {MOCK_STUDENTS.map(st => (
-              <div key={st.id} className="bg-white/5 border border-white/8 hover:border-indigo-500/30 rounded-xl p-4 transition">
+              <div key={st.id} className="bg-gray-50 border border-gray-200 hover:border-indigo-300 rounded-xl p-4 transition">
                 <div className="flex gap-3 mb-3">
                   <div className={`w-12 h-12 rounded-2xl ${st.color} flex items-center justify-center text-white font-black text-lg shrink-0`}>{st.name[0]}</div>
                   <div>
-                    <p className="text-sm font-bold text-white">{st.name}</p>
-                    <p className="text-xs text-gray-400">{st.college}</p>
+                    <p className="text-sm font-bold text-gray-900">{st.name}</p>
+                    <p className="text-xs text-gray-600">{st.college}</p>
                     <p className="text-xs text-gray-500">{st.year} · CGPA {st.cgpa}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1 mb-3">{st.skills.map(s=><span key={s} className="text-[10px] bg-white/5 text-gray-400 rounded px-1.5 py-0.5">{s}</span>)}</div>
-                <div className="flex flex-wrap gap-1 mb-3">{st.seeking.map(s=><span key={s} className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded px-1.5 py-0.5">{s}</span>)}</div>
+                <div className="flex flex-wrap gap-1 mb-3">{st.skills.map(s=><span key={s} className="text-[10px] bg-gray-50 text-gray-600 rounded px-1.5 py-0.5">{s}</span>)}</div>
+                <div className="flex flex-wrap gap-1 mb-3">{st.seeking.map(s=><span key={s} className="text-[10px] bg-indigo-100 text-indigo-700 border border-indigo-200 rounded px-1.5 py-0.5">{s}</span>)}</div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className={`flex items-center gap-1 ${st.available?"text-emerald-400":"text-gray-500"}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${st.available?"bg-emerald-400":"bg-gray-600"}`}/>
+                  <span className={`flex items-center gap-1 ${st.available?"text-emerald-600":"text-gray-500"}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${st.available?"bg-emerald-500":"bg-gray-400"}`}/>
                     {st.available ? "Available" : "Placed"}
                   </span>
-                  <button onClick={()=>user?window.open(`mailto:?subject=Opportunity from College360 for ${encodeURIComponent(st.name)}`):setShowAuth(true)} className="text-indigo-400 hover:text-indigo-300 font-semibold transition">Contact</button>
+                  <button onClick={()=>user?window.open(`mailto:?subject=Opportunity from College360 for ${encodeURIComponent(st.name)}`):setShowAuth(true)} className="text-indigo-600 hover:text-indigo-700 font-semibold transition">Contact</button>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-8 bg-white/5 border border-white/8 rounded-2xl p-6 text-center">
-            <Building2 className="text-indigo-400 mx-auto mb-3" size={28}/>
-            <h3 className="text-white font-bold mb-1">Post Your Campus Drive or Internship</h3>
-            <p className="text-gray-400 text-sm mb-4">Reach 2,400+ verified college students. Free for the first posting.</p>
-            <a href={`mailto:college360@nexusos.in?subject=Post%20Opportunity%20on%20College360&body=Company%20Name:%0AOpportunity%20Title:%0AType%20(internship/placement/job):%0AStipend/CTC:%0ALocation:%0ARequired%20Skills:%0ADeadline:%0A%0AContact%20Person:%0APhone:%0A`} className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold transition">
+          <div className="mt-8 bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center">
+            <Building2 className="text-indigo-600 mx-auto mb-3" size={28}/>
+            <h3 className="text-gray-900 font-bold mb-1">Post Your Campus Drive or Internship</h3>
+            <p className="text-gray-600 text-sm mb-4">Reach 2,400+ verified college students. Free for the first posting.</p>
+            <a href={`mailto:college360@nexusos.in?subject=Post%20Opportunity%20on%20College360&body=Company%20Name:%0AOpportunity%20Title:%0AType%20(internship/placement/job):%0AStipend/CTC:%0ALocation:%0ARequired%20Skills:%0ADeadline:%0A%0AContact%20Person:%0APhone:%0A`} className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold text-white transition">
               <Mail size={15}/>Email Us to Post
             </a>
           </div>
@@ -2059,7 +2059,7 @@ export default function College360Page() {
       )}
 
       {/* ── Footer ── */}
-      <footer className="border-t border-white/5 mt-16 py-8 text-center">
+      <footer className="border-t border-gray-100 mt-16 py-8 text-center">
         <p className="text-gray-600 text-xs">College360 by NexusOS · Built with Claude AI · <a href="mailto:college360@nexusos.in" className="text-violet-500 hover:underline">college360@nexusos.in</a></p>
       </footer>
 
