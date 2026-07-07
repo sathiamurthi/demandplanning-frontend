@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Users, Building2, Shield, Bell,
   MessageSquare, CreditCard, BarChart2, Bot, LogOut,
-  ChevronRight, Menu, X, Tag, Briefcase, Store, GraduationCap,
+  ChevronRight, Menu, X, Tag, Briefcase, Store, GraduationCap, Rocket,
 } from "lucide-react";
 
 const NAV = [
@@ -23,6 +23,7 @@ const NAV = [
   { href: "/superadmin/job-board",        label: "Job Board",        icon: Briefcase },
   { href: "/superadmin/enterprise-apps", label: "Enterprise Apps",  icon: Store },
   { href: "/superadmin/edu360",          label: "Edu360",           icon: GraduationCap },
+  { href: "/superadmin/college360",      label: "College360",       icon: Rocket },
 ];
 
 export default function SuperadminLayout({ children }: { children: React.ReactNode }) {
