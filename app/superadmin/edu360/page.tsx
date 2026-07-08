@@ -46,9 +46,10 @@ const ALL_CATEGORIES = [
   },
 ];
 
+const API = process.env.NEXT_PUBLIC_BACKEND_URL || "https://demandplanning-backend.onrender.com";
 function authHeader() {
   if (typeof window === "undefined") return {};
-  const tok = localStorage.getItem("token") || "";
+  const tok = localStorage.getItem("nexus_superadmin_token") || "";
   return { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" };
 }
 
@@ -61,7 +62,7 @@ export default function Edu360SettingsPage() {
   const [err,     setErr]     = useState("");
 
   useEffect(() => {
-    fetch("/v1/superadmin/platform-config", { headers: authHeader() as HeadersInit })
+    fetch(`${API}/v1/superadmin/platform-config`, { headers: authHeader() as HeadersInit })
       .then(r => r.json())
       .then(d => {
         const cfg = d.data?.edu360 || {};
@@ -80,7 +81,7 @@ export default function Edu360SettingsPage() {
   const save = async () => {
     setSaving(true); setErr(""); setSaved(false);
     try {
-      const r = await fetch("/v1/superadmin/platform-config", {
+      const r = await fetch(`${API}/v1/superadmin/platform-config`, {
         method: "PUT",
         headers: authHeader() as HeadersInit,
         body: JSON.stringify({

@@ -8,6 +8,7 @@
     "app/api/extract-transcript/route.ts": { "maxDuration": 60 },
     "app/api/interview-questions/route.ts": { "maxDuration": 60 },
     "app/api/study-planner/route.ts": { "maxDuration": 60 },
-    "app/api/college-enquiry/route.ts": { "maxDuration": 60 }
+    "app/api/college-enquiry/route.ts": { "maxDuration": 60 },
+    "app/api/evaluate-answer/route.ts": { "maxDuration": 60 }
   }
 }

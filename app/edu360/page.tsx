@@ -9,6 +9,7 @@ import {
   IndianRupee, Award, Microscope, Calculator, Globe, Clock, Phone,
   Bookmark, MessageCircle,
 } from "lucide-react";
+import { AdBanner } from "@/components/AdBanner";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Edu360User {
@@ -795,6 +796,8 @@ export default function Edu360Page() {
           </div>
         </div>
       </div>
+
+      <AdBanner page="edu360" />
 
       {/* ── BODY ── */}
       <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">

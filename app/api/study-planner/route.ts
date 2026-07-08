@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ANTHROPIC_KEY    = process.env.ANTHROPIC_API_KEY || '';
-const GEMINI_KEY       = process.env.GEMINI_API_KEY
-  || Buffer.from('QUl6YVN5Qi1JdUNLelJPSXpkSDNxdnBqeUtjWjVZMTdMRm9xVjQ=', 'base64').toString('utf-8');
-const AZURE_KEY        = process.env.AZURE_OPENAI_KEY || '';
-const AZURE_ENDPOINT   = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/$/, '');
-const AZURE_DEPLOYMENT = process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o';
-const OPENAI_KEY       = process.env.OPENAI_API_KEY || '';
+const stripBOM = (s: string) => s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
+const ANTHROPIC_KEY    = stripBOM(process.env.ANTHROPIC_API_KEY || '');
+const GEMINI_KEY       = stripBOM(process.env.GEMINI_API_KEY || '');
+const AZURE_KEY        = stripBOM(process.env.AZURE_OPENAI_KEY || '');
+const AZURE_ENDPOINT   = stripBOM(process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/$/, '');
+const AZURE_DEPLOYMENT = stripBOM(process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o');
+const OPENAI_KEY       = stripBOM(process.env.OPENAI_API_KEY || '');
 
 const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
 
@@ -131,11 +131,15 @@ export async function POST(req: NextRequest) {
     } catch (e: any) { errors.push(`openai: ${e.message}`); }
   }
 
-  try {
-    const data = await callGemini(prompt);
-    if (data?.plan?.weeks?.length) return NextResponse.json({ success: true, plan: data.plan, provider: 'gemini' });
-    errors.push('gemini: empty plan');
-  } catch (e: any) { errors.push(`gemini: ${e.message}`); }
+  if (GEMINI_KEY) {
+    try {
+      const data = await callGemini(prompt);
+      if (data?.plan?.weeks?.length) return NextResponse.json({ success: true, plan: data.plan, provider: 'gemini' });
+      errors.push('gemini: empty plan');
+    } catch (e: any) { errors.push(`gemini: ${e.message}`); }
+  } else {
+    errors.push('gemini: not configured');
+  }
 
   return NextResponse.json({ success: false, error: 'All AI providers failed.', details: errors }, { status: 502 });
 }

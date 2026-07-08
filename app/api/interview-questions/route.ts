@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ANTHROPIC_KEY    = process.env.ANTHROPIC_API_KEY || '';
-const GEMINI_KEY       = process.env.GEMINI_API_KEY
-  || Buffer.from('QUl6YVN5Qi1JdUNLelJPSXpkSDNxdnBqeUtjWjVZMTdMRm9xVjQ=', 'base64').toString('utf-8');
-const AZURE_KEY        = process.env.AZURE_OPENAI_KEY || '';
-const AZURE_ENDPOINT   = (process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/$/, '');
-const AZURE_DEPLOYMENT = process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o';
-const OPENAI_KEY       = process.env.OPENAI_API_KEY || '';
+const stripBOM = (s: string) => s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
+const ANTHROPIC_KEY    = stripBOM(process.env.ANTHROPIC_API_KEY || '');
+const GEMINI_KEY       = stripBOM(process.env.GEMINI_API_KEY || '');
+const AZURE_KEY        = stripBOM(process.env.AZURE_OPENAI_KEY || '');
+const AZURE_ENDPOINT   = stripBOM(process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/$/, '');
+const AZURE_DEPLOYMENT = stripBOM(process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o');
+const OPENAI_KEY       = stripBOM(process.env.OPENAI_API_KEY || '');
 
 // Most reliable models first
 const GEMINI_MODELS = [
@@ -188,14 +188,18 @@ export async function POST(req: NextRequest) {
     providerErrors.push('openai: not configured');
   }
 
-  // 4 — Gemini (has hardcoded fallback key, always tried)
-  try {
-    const data = await callGemini(prompt);
-    if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'gemini' });
-    providerErrors.push('gemini: empty questions array');
-  } catch (e: any) {
-    providerErrors.push(`gemini: ${e.message}`);
-    console.error('[interview-questions] Gemini failed:', e.message);
+  // 4 — Gemini
+  if (GEMINI_KEY) {
+    try {
+      const data = await callGemini(prompt);
+      if (data?.questions?.length) return NextResponse.json({ success: true, questions: data.questions, provider: 'gemini' });
+      providerErrors.push('gemini: empty questions array');
+    } catch (e: any) {
+      providerErrors.push(`gemini: ${e.message}`);
+      console.error('[interview-questions] Gemini failed:', e.message);
+    }
+  } else {
+    providerErrors.push('gemini: not configured (GEMINI_API_KEY missing)');
   }
 
   // 5 — Claude retry

@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 const GEMINI_MODELS = [
   'gemini-2.0-flash',
   'gemini-1.5-flash',
-  'gemini-2.5-flash',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash-8b',
 ];
 
 async function callGemini(apiKey: string, model: string, prompt: string): Promise<Record<string, any[]>> {

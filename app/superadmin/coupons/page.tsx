@@ -5,9 +5,10 @@ import {
   Building2, Store, Clock, Users, Lock, AlertTriangle, Calendar,
 } from "lucide-react";
 
+const API = process.env.NEXT_PUBLIC_BACKEND_URL || "https://demandplanning-backend.onrender.com";
 function getToken() {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("token") || "";
+  return localStorage.getItem("nexus_superadmin_token") || "";
 }
 function authHeaders(): HeadersInit {
   return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` };
@@ -83,7 +84,7 @@ export default function SuperadminCouponsPage() {
     try {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
-      const r = await fetch(`/v1/superadmin/coupons?${params}`, { headers: authHeaders() });
+      const r = await fetch(`${API}/v1/superadmin/coupons?${params}`, { headers: authHeaders() });
       const d = await r.json();
       if (d.success) setCoupons(d.data || []);
     } catch {}

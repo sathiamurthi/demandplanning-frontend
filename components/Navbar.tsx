@@ -18,6 +18,7 @@ export default function Navbar() {
         <Link href="/admin" className="hover:text-gray-200">Admin</Link>
         <Link href="/explore" className="hover:text-gray-200 border border-white/30 rounded px-2 py-0.5 text-sm">🔍 Explore</Link>
         <Link href="/tea" className="hover:text-gray-200 border border-green-400/50 rounded px-2 py-0.5 text-sm text-green-300">🍃 Tea</Link>
+        <Link href="/routeiq" className="hover:text-gray-200 border border-orange-400/50 rounded px-2 py-0.5 text-sm text-orange-300">🚛 RouteIQ</Link>
       </div>
     </nav>
   );

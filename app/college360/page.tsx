@@ -11,8 +11,9 @@ import {
   Bell, BellDot, MessageSquare, ChevronDown,
   Key, Users, Share2, Calendar, Trophy, Copy, MessageCircle,
   Bookmark, Layers, ChevronRight, FolderOpen, Link2, Megaphone,
-  Hash, Newspaper, Settings, ArrowRight, RefreshCw,
+  Hash, Newspaper, ArrowRight, RefreshCw, Mic, MicOff,
 } from "lucide-react";
+import { AdBanner } from "@/components/AdBanner";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface C360User {
@@ -2106,49 +2107,401 @@ function OutreachAgentModal({ user, onClose }: { user: C360User; onClose: () => 
   );
 }
 
-// ── Mock Interview Modal ───────────────────────────────────────────────────────
+// ── Voice Mock Interview Modal ─────────────────────────────────────────────────
+type VMIPhase = "setup"|"loading"|"speaking"|"recording"|"confirming"|"grading"|"result"|"done";
+interface VMIResult { question:string; transcript:string; relevance:number; depth:number; communication:number; overall:number; feedback:string; strengths:string[]; improvements:string[]; }
+
+const VMI_TOPICS = ["React","Python","Node.js","Java","DSA","System Design","SQL","TypeScript","Machine Learning","DevOps"];
+const VMI_ROLES  = ["Frontend Developer","Backend Developer","Full Stack Developer","Data Scientist","DevOps Engineer","Software Engineer"];
+
 function MockInterviewModal({ user, onClose, onNeedPremium }: { user: C360User; onClose: () => void; onNeedPremium: () => void }) {
-  const PLANS = [
-    { title:"1-Week Rapid Prep", daily:"2-3 hours", items:["Day 1-2: DSA fundamentals + data structures review","Day 3-4: System design basics + OOPs concepts","Day 5: 20 behavioural questions + STAR method","Day 6: Full timed mock (LeetCode Easy/Medium)","Day 7: Gap analysis + targeted revision"] },
-    { title:"2-Week Solid Prep", daily:"1.5-2 hours", items:["Week 1: DSA (arrays, trees, graphs) + SQL + OOPS fundamentals","Week 2: System design patterns + 3 full mocks + resume polish"] },
-    { title:"4-Week Full Prep", daily:"1-1.5 hours", items:["Week 1: CS fundamentals + DSA basics + problem patterns","Week 2: Advanced DSA + OOP design + SQL deep dive","Week 3: System design + company-specific past questions","Week 4: Mock sessions daily + offer negotiation prep"] },
-  ];
-  const [sel, setSel] = useState<number|null>(null);
+  const [phase, setPhase]           = useState<VMIPhase>("setup");
+  const [topic, setTopic]           = useState("React");
+  const [role, setRole]             = useState("Frontend Developer");
+  const [difficulty, setDifficulty] = useState<"Easy"|"Medium"|"Hard">("Medium");
+  const [qCount, setQCount]         = useState(5);
+  const [questions, setQuestions]   = useState<{q:string;a:string}[]>([]);
+  const [currentQ, setCurrentQ]     = useState(0);
+  const [transcript, setTranscript] = useState("");
+  const [edited, setEdited]         = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [results, setResults]       = useState<VMIResult[]>([]);
+  const [error, setError]           = useState("");
+  const [speechSupport, setSpeechSupport] = useState<"supported"|"unsupported"|"unknown">("unknown");
+  const recogRef     = useRef<any>(null);
+  const transcriptRef = useRef("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      setSpeechSupport(SR ? "supported" : "unsupported");
+    }
+    return () => {
+      try { window.speechSynthesis?.cancel(); } catch {}
+      try { recogRef.current?.stop(); } catch {}
+    };
+  }, []);
+
+  const speakText = (text: string, onEnd?: () => void) => {
+    try {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.rate = 0.9; utt.pitch = 1; utt.lang = "en-US";
+      if (onEnd) utt.onend = onEnd;
+      window.speechSynthesis.speak(utt);
+    } catch {}
+  };
+
+  const doSpeakQuestion = (qs: {q:string;a:string}[], idx: number) => {
+    setCurrentQ(idx);
+    setTranscript(""); setEdited(""); transcriptRef.current = "";
+    setPhase("speaking");
+    speakText(`Question ${idx + 1}. ${qs[idx].q}`, () => setPhase(p => p === "speaking" ? "recording" : p));
+  };
+
+  const startInterview = async () => {
+    setPhase("loading"); setError("");
+    try {
+      const resp = await fetch("/api/interview-questions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ technology: topic, role, difficulty, count: qCount }),
+      });
+      const data = await resp.json();
+      if (!data.success || !data.questions?.length) throw new Error("Failed to generate questions");
+      setQuestions(data.questions); setResults([]); setCurrentQ(0);
+      doSpeakQuestion(data.questions, 0);
+    } catch (e: any) { setError(e.message || "Failed to load questions"); setPhase("setup"); }
+  };
+
+  const startRecording = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    transcriptRef.current = ""; setTranscript(""); setIsRecording(true);
+    const recog = new SR();
+    recog.continuous = true; recog.interimResults = true; recog.lang = "en-US";
+    recog.onresult = (e: any) => {
+      let final = ""; let interim = "";
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
+      }
+      transcriptRef.current = final;
+      setTranscript(final + interim);
+    };
+    recog.onend = () => {
+      setIsRecording(false);
+      const t = transcriptRef.current.trim();
+      setEdited(t); setPhase("confirming");
+    };
+    recog.onerror = (e: any) => {
+      setIsRecording(false);
+      if (e.error !== "aborted") setError("Mic error: " + e.error);
+      setEdited(transcriptRef.current.trim()); setPhase("confirming");
+    };
+    recogRef.current = recog;
+    try { recog.start(); } catch { setIsRecording(false); }
+  };
+
+  const stopRecording = () => {
+    try { recogRef.current?.stop(); }
+    catch { setIsRecording(false); setEdited(transcriptRef.current.trim()); setPhase("confirming"); }
+  };
+
+  const submitAnswer = async () => {
+    setPhase("grading"); setError("");
+    try {
+      const resp = await fetch("/api/evaluate-answer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: questions[currentQ].q, answer: edited.trim(), technology: topic, role, difficulty }),
+      });
+      const data = await resp.json();
+      if (!data.success) throw new Error(data.error || "Evaluation failed");
+      setResults(prev => [...prev, { question: questions[currentQ].q, transcript: edited.trim(), relevance: data.relevance, depth: data.depth, communication: data.communication, overall: data.overall, feedback: data.feedback, strengths: data.strengths, improvements: data.improvements }]);
+      setPhase("result");
+    } catch (e: any) { setError(e.message); setPhase("confirming"); }
+  };
+
+  const nextQuestion = () => {
+    const next = currentQ + 1;
+    if (next >= questions.length) { setPhase("done"); return; }
+    doSpeakQuestion(questions, next);
+  };
+
+  const avgScore = results.length ? (results.reduce((s,r) => s+r.overall, 0) / results.length).toFixed(1) : "0";
+  const scoreColor = (v: number) => v >= 8 ? "text-teal-600" : v >= 6 ? "text-blue-600" : v >= 4 ? "text-amber-600" : "text-red-500";
+  const barColor   = (v: number) => v >= 8 ? "bg-teal-500" : v >= 6 ? "bg-blue-500" : v >= 4 ? "bg-amber-400" : "bg-red-400";
+
+  const ScoreBar = ({ label, value }: { label: string; value: number }) => (
+    <div>
+      <div className="flex justify-between text-xs mb-1"><span className="text-gray-500">{label}</span><span className={`font-bold ${scoreColor(value)}`}>{value}/10</span></div>
+      <div className="h-1.5 bg-gray-100 rounded-full"><div className={`h-1.5 rounded-full transition-all ${barColor(value)}`} style={{width:`${value*10}%`}}/></div>
+    </div>
+  );
+
+  const handleClose = () => {
+    try { window.speechSynthesis?.cancel(); recogRef.current?.stop(); } catch {}
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+
+        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Trophy size={15} className="text-teal-600"/>Mock Interview Plan</span>
-          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-teal-100 rounded-lg flex items-center justify-center"><Mic size={14} className="text-teal-600"/></div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Voice Mock Interview</p>
+              {phase !== "setup" && phase !== "loading" && phase !== "done" && (
+                <p className="text-[10px] text-gray-400">Q{currentQ+1} of {questions.length} · {topic} · {difficulty}</p>
+              )}
+            </div>
+          </div>
+          <button onClick={handleClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
         </div>
-        <div className="p-5 space-y-4">
-          <p className="text-xs text-gray-500">Choose a preparation plan that fits your timeline. Tap to expand the day-by-day breakdown.</p>
-          <div className="space-y-3">
-            {PLANS.map((p,i)=>(
-              <button key={i} onClick={()=>setSel(sel===i?null:i)} className={`w-full text-left border rounded-xl p-4 transition ${sel===i?"border-teal-300 bg-teal-50":"border-gray-200 bg-gray-50 hover:border-teal-200"}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-bold text-gray-900">{p.title}</p>
-                  <span className="text-[10px] font-semibold bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">{p.daily}/day</span>
+
+        <div className="p-5">
+
+          {/* Setup */}
+          {phase === "setup" && (
+            <div className="space-y-4">
+              {speechSupport === "unsupported" && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                  <AlertCircle size={13} className="text-amber-500 shrink-0 mt-0.5"/>
+                  <p className="text-xs text-amber-700">Voice recording works best in Chrome or Edge. On other browsers you can type your answers instead.</p>
                 </div>
-                {sel===i ? (
-                  <ul className="mt-2 space-y-1.5">
-                    {p.items.map((item,j)=><li key={j} className="text-xs text-gray-600 flex gap-2"><CheckCircle size={11} className="text-teal-500 shrink-0 mt-0.5"/>{item}</li>)}
-                  </ul>
-                ) : <p className="text-xs text-gray-500 line-clamp-1">{p.items[0]}{p.items.length>1?" …":""}</p>}
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Topic</label>
+                  <select value={topic} onChange={e=>setTopic(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-300">
+                    {VMI_TOPICS.map(t=><option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Role</label>
+                  <select value={role} onChange={e=>setRole(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-300">
+                    {VMI_ROLES.map(r=><option key={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">Difficulty</label>
+                <div className="flex gap-2">
+                  {(["Easy","Medium","Hard"] as const).map(d=>(
+                    <button key={d} onClick={()=>setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${difficulty===d?(d==="Easy"?"bg-teal-500 text-white border-teal-500":d==="Medium"?"bg-blue-500 text-white border-blue-500":"bg-red-500 text-white border-red-500"):"border-gray-200 text-gray-600 hover:border-gray-300"}`}>{d}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">Questions</label>
+                <div className="flex gap-2">
+                  {[3,5,7].map(n=>(
+                    <button key={n} onClick={()=>setQCount(n)} className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${qCount===n?"bg-teal-500 text-white border-teal-500":"border-gray-200 text-gray-600 hover:border-gray-300"}`}>{n} questions</button>
+                  ))}
+                </div>
+              </div>
+              {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+              <button onClick={startInterview} className="w-full py-3 bg-teal-600 hover:bg-teal-500 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2">
+                <Mic size={15}/>Start Interview
               </button>
-            ))}
-          </div>
-          <div className={`rounded-xl p-4 border ${user.premium?"bg-teal-50 border-teal-200":"bg-amber-50 border-amber-200"}`}>
-            {user.premium ? (<>
-              <p className="text-sm font-bold text-teal-800 mb-1">Book a 1-on-1 Mock Session</p>
-              <p className="text-xs text-teal-600 mb-3">Premium members can book 45-minute mock interview sessions with industry mentors — recorded, with detailed feedback.</p>
-              <a href="mailto:college360@nexusos.in?subject=Mock Interview Booking Request&body=Hi, I'd like to book a mock interview. My name is [Name], target role: [Role], preferred date: [Date]." className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded-lg text-xs font-bold text-white transition"><Mail size={12}/>Book via Email</a>
-            </>) : (<>
-              <p className="text-sm font-bold text-amber-800 mb-1">Book 1-on-1 Mock Interview</p>
-              <p className="text-xs text-amber-600 mb-3">Upgrade to Premium for live 45-minute mock sessions with industry experts — recorded, with personalised feedback report.</p>
-              <button onClick={()=>{onClose();onNeedPremium();}} className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 rounded-lg text-xs font-bold text-white transition"><Sparkles size={12}/>Upgrade to Premium</button>
-            </>)}
-          </div>
+              <p className="text-[10px] text-center text-gray-400">AI speaks each question aloud · you speak your answer · AI scores you instantly</p>
+            </div>
+          )}
+
+          {/* Loading */}
+          {phase === "loading" && (
+            <div className="py-14 text-center">
+              <Loader2 size={28} className="text-teal-500 animate-spin mx-auto mb-3"/>
+              <p className="text-sm font-semibold text-gray-700">Preparing your interview…</p>
+              <p className="text-xs text-gray-400 mt-1">Generating {qCount} {difficulty.toLowerCase()} {topic} questions</p>
+            </div>
+          )}
+
+          {/* Speaking */}
+          {phase === "speaking" && questions[currentQ] && (
+            <div className="space-y-4">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question {currentQ+1} of {questions.length}</p>
+              <div className="flex items-center justify-center gap-1 my-5">
+                {[1,2,3,4,5,6,7].map(i=>(
+                  <div key={i} className="w-1.5 bg-teal-400 rounded-full animate-pulse" style={{height:`${Math.round(Math.sin(i*0.9)*10+20)}px`,animationDelay:`${i*90}ms`}}/>
+                ))}
+                <span className="ml-3 text-xs text-teal-600 font-semibold">AI Speaking…</span>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <p className="text-sm text-gray-800 leading-relaxed font-medium">{questions[currentQ].q}</p>
+              </div>
+              <button onClick={()=>{ try{window.speechSynthesis?.cancel();}catch{} setPhase("recording"); }} className="w-full py-2.5 border border-teal-200 bg-teal-50 hover:bg-teal-100 rounded-xl text-xs font-semibold text-teal-700 transition">
+                Skip — I'm ready to answer
+              </button>
+            </div>
+          )}
+
+          {/* Recording */}
+          {phase === "recording" && questions[currentQ] && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 mb-1 font-semibold uppercase tracking-wide">Q{currentQ+1}</p>
+                <p className="text-xs text-gray-700 leading-relaxed">{questions[currentQ].q}</p>
+              </div>
+              {speechSupport === "supported" ? (
+                <>
+                  <div className="text-center py-2">
+                    {!isRecording ? (
+                      <>
+                        <button onClick={startRecording} className="w-20 h-20 mx-auto rounded-full bg-gray-100 hover:bg-red-50 border-2 border-gray-200 hover:border-red-300 flex items-center justify-center transition active:scale-95">
+                          <Mic size={28} className="text-gray-500"/>
+                        </button>
+                        <p className="text-xs text-gray-400 mt-2">Tap to start recording</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="relative w-20 h-20 mx-auto">
+                          <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20"/>
+                          <button onClick={stopRecording} className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center shadow-lg transition active:scale-95">
+                            <MicOff size={26} className="text-white"/>
+                          </button>
+                        </div>
+                        <p className="text-xs text-red-500 font-semibold mt-2 animate-pulse">Recording… tap to stop</p>
+                      </>
+                    )}
+                  </div>
+                  {transcript && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                      <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wide mb-1">Live transcript</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{transcript}</p>
+                    </div>
+                  )}
+                  {isRecording && (
+                    <button onClick={stopRecording} className="w-full py-3 bg-gray-900 hover:bg-gray-800 rounded-xl text-sm font-bold text-white transition">
+                      Done Speaking
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-400">Voice not supported in this browser — type your answer:</p>
+                  <textarea value={transcript} onChange={e=>setTranscript(e.target.value)} className="w-full border border-gray-200 rounded-xl p-3 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-teal-300 min-h-[110px]" placeholder="Type your answer here…" autoFocus/>
+                  <button onClick={()=>{setEdited(transcript);setPhase("confirming");}} className="w-full py-3 bg-gray-900 hover:bg-gray-800 rounded-xl text-sm font-bold text-white transition">
+                    Continue →
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Confirming */}
+          {phase === "confirming" && questions[currentQ] && (
+            <div className="space-y-4">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Review your answer</p>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 mb-0.5">Question:</p>
+                <p className="text-xs text-gray-600 leading-relaxed">{questions[currentQ].q}</p>
+              </div>
+              <textarea value={edited} onChange={e=>setEdited(e.target.value)} className="w-full border border-gray-200 rounded-xl p-3 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-teal-300 min-h-[120px]" placeholder="Your transcribed answer — edit if needed…"/>
+              {error && <p className="text-xs text-red-500">{error}</p>}
+              <div className="flex gap-2">
+                <button onClick={()=>{setTranscript("");setEdited("");transcriptRef.current="";setPhase("recording");}} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
+                  Re-record
+                </button>
+                <button onClick={submitAnswer} className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 rounded-xl text-xs font-bold text-white transition">
+                  Submit Answer →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Grading */}
+          {phase === "grading" && (
+            <div className="py-14 text-center">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-teal-50 flex items-center justify-center">
+                <Loader2 size={22} className="text-teal-500 animate-spin"/>
+              </div>
+              <p className="text-sm font-semibold text-gray-700">Grading your answer…</p>
+              <p className="text-xs text-gray-400 mt-1">Evaluating relevance, depth and communication</p>
+            </div>
+          )}
+
+          {/* Result — per question */}
+          {phase === "result" && results.length > 0 && (() => {
+            const r = results[results.length-1];
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Q{currentQ+1} Score</p>
+                  <span className={`text-2xl font-black ${scoreColor(r.overall)}`}>{r.overall}<span className="text-sm text-gray-400">/10</span></span>
+                </div>
+                <div className="space-y-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <ScoreBar label="Relevance" value={r.relevance}/>
+                  <ScoreBar label="Technical Depth" value={r.depth}/>
+                  <ScoreBar label="Communication" value={r.communication}/>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wide mb-1">AI Feedback</p>
+                  <p className="text-xs text-gray-700 leading-relaxed">{r.feedback}</p>
+                </div>
+                {r.strengths.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wide mb-1.5">Strengths</p>
+                    {r.strengths.map((s,i)=><div key={i} className="flex gap-2 text-xs text-gray-600 mb-1"><CheckCircle size={11} className="text-teal-500 shrink-0 mt-0.5"/>{s}</div>)}
+                  </div>
+                )}
+                {r.improvements.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wide mb-1.5">Improve On</p>
+                    {r.improvements.map((s,i)=><div key={i} className="flex gap-2 text-xs text-gray-600 mb-1"><ArrowRight size={11} className="text-amber-400 shrink-0 mt-0.5"/>{s}</div>)}
+                  </div>
+                )}
+                <button onClick={nextQuestion} className="w-full py-3 bg-teal-600 hover:bg-teal-500 rounded-xl text-sm font-bold text-white transition">
+                  {currentQ+1 < questions.length ? `Next Question →` : `View Final Report`}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Done — Report */}
+          {phase === "done" && (
+            <div className="space-y-4">
+              <div className="text-center py-4">
+                <div className="w-14 h-14 mx-auto bg-teal-100 rounded-full flex items-center justify-center mb-3">
+                  <Trophy size={24} className="text-teal-600"/>
+                </div>
+                <p className="text-base font-black text-gray-900">Interview Complete!</p>
+                <div className={`text-3xl font-black mt-1 ${scoreColor(parseFloat(avgScore))}`}>
+                  {avgScore}<span className="text-base text-gray-400">/10</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">Average · {results.length} questions answered</p>
+              </div>
+              <div className="space-y-2">
+                {results.map((r,i)=>(
+                  <div key={i} className="flex items-start gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <span className={`text-sm font-black shrink-0 w-7 text-center ${scoreColor(r.overall)}`}>{r.overall}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-700 line-clamp-2">{r.question}</p>
+                      {r.transcript && <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">You: {r.transcript}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className={`rounded-xl p-4 border ${user.premium?"bg-teal-50 border-teal-200":"bg-amber-50 border-amber-200"}`}>
+                {user.premium ? (<>
+                  <p className="text-xs font-bold text-teal-800 mb-1">Book a 1-on-1 Session with a Mentor</p>
+                  <p className="text-[10px] text-teal-600 mb-2">Premium members can book 45-min recorded sessions with industry experts.</p>
+                  <a href="mailto:college360@nexusos.in?subject=Mock Interview Booking Request" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 rounded-lg text-[10px] font-bold text-white transition"><Mail size={10}/>Book Session</a>
+                </>) : (<>
+                  <p className="text-xs font-bold text-amber-800 mb-1">Go deeper with a real expert</p>
+                  <p className="text-[10px] text-amber-600 mb-2">Upgrade to book live 45-min mock sessions with detailed written feedback.</p>
+                  <button onClick={()=>{handleClose();onNeedPremium();}} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 rounded-lg text-[10px] font-bold text-white transition"><Sparkles size={10}/>Upgrade to Premium</button>
+                </>)}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={()=>{setPhase("setup");setResults([]);setQuestions([]);}} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">New Interview</button>
+                <button onClick={handleClose} className="flex-1 py-2.5 bg-gray-900 hover:bg-gray-800 rounded-xl text-xs font-bold text-white transition">Close</button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
@@ -2469,29 +2822,7 @@ function StudyPlanTab({ user, onOpenPlanner }: { user: C360User|null; onOpenPlan
   );
 }
 
-// ── Advertisement Banner ───────────────────────────────────────────────────────
-function AdvertisementBanner() {
-  const [visible, setVisible] = useState(true);
-  const ad: { title:string; body:string; cta:string; ctaUrl:string; color:string } | null = (() => {
-    try {
-      if (!localStorage.getItem("c360_ads_enabled")) return null;
-      const d = localStorage.getItem("c360_ad_data");
-      return d ? JSON.parse(d) : null;
-    } catch { return null; }
-  })();
-  if (!ad || !visible) return null;
-  return (
-    <div className={`relative rounded-xl border px-5 py-4 flex items-center gap-4 mb-6 ${ad.color||"bg-amber-50 border-amber-200"}`}>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-gray-900">{ad.title}</p>
-        <p className="text-xs text-gray-600 mt-0.5">{ad.body}</p>
-      </div>
-      {ad.cta && ad.ctaUrl && <a href={ad.ctaUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 rounded-lg text-xs font-bold text-white transition">{ad.cta}</a>}
-      <button onClick={()=>setVisible(false)} className="shrink-0 text-gray-400 hover:text-gray-600 transition"><X size={14}/></button>
-      <span className="absolute top-1 right-8 text-[9px] text-gray-400 uppercase tracking-wider">Sponsored</span>
-    </div>
-  );
-}
+// ── Advertisement Banner replaced by shared AdBanner component ────────────────
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function College360Page() {
@@ -2740,7 +3071,7 @@ export default function College360Page() {
               </button>
             ))}
           </div>
-          <AdvertisementBanner/>
+          <AdBanner page="college360"/>
 
           {activeTab === "discover" && <>
           <div id="opportunities" className="flex gap-6">

@@ -18,6 +18,7 @@ import {
   Settings, Mail, PhoneCall, ShieldCheck, BadgeCheck, HelpCircle, BookOpen,
   Mic, MicOff, Volume2, ArrowLeftRight, StopCircle, Languages,
 } from "lucide-react";
+import { AdBanner } from "@/components/AdBanner";
 import { getGuest, createGuest, clearGuest, guestKey, GuestIdentity } from "@/lib/guest-store";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -2105,6 +2106,7 @@ export default function DemandGeniusApp() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <AdBanner page="explore" />
           {section === "assistant"      && <PersonalAssistantPanel guest={guest} setSection={setSection} onOpenWhatsApp={() => setShowSubscribeModal(true)} />}
           {section === "dashboard"      && <DashboardPanel guest={guest} gk={gk} setSection={setSection} userLoc={userLoc} />}
           {section === "search"         && <StoreSearchPanel />}
@@ -12849,15 +12851,13 @@ function VoiceTranslatePanel() {
     rec.lang = fromLang.speech;
     rec.continuous = true;
     rec.interimResults = true;
-    let finalText = "";
     rec.onresult = (e: any) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) finalText += r[0].transcript + " ";
-        else interim += r[0].transcript;
+      let finalText = ""; let interim = "";
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
       }
-      setTranscript(finalText);
+      setTranscript(finalText.trim());
       setInterimText(interim);
     };
     rec.onerror = (e: any) => {

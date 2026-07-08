@@ -8,6 +8,7 @@ import {
   Plus, Loader2, Upload, FileText, Printer, LogOut, Eye,
   AlertCircle, Lock, UserCheck, ChevronDown,
 } from "lucide-react";
+import { AdBanner } from "@/components/AdBanner";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NexusUser {
@@ -1069,6 +1070,8 @@ export default function JobsPage() {
           <span className="flex items-center gap-1.5 shrink-0 text-green-600 font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block"/>Live Platform</span>
         </div>
       </div>
+
+      <AdBanner page="jobs" />
 
       {/* ── Content ── */}
       <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
