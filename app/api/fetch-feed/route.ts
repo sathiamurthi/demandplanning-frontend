@@ -49,8 +49,9 @@ function parseBlocks(xml: string, tag: "item" | "entry"): FeedItem[] {
 }
 
 function parseFeedTitle(xml: string): string {
+  const cdataRe = new RegExp('<channel>[\\s\\S]*?<title[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/title>');
   const m =
-    /<channel>[\s\S]*?<title[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\/title>/.exec(xml) ||
+    cdataRe.exec(xml) ||
     /<channel>[\s\S]*?<title[^>]*>([^<]*)<\/title>/i.exec(xml) ||
     /<feed[^>]*>[\s\S]*?<title[^>]*>([^<]*)<\/title>/i.exec(xml);
   return m ? stripHtml(m[1]) : "";
