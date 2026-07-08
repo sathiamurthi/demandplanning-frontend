@@ -9,6 +9,9 @@ import {
   GraduationCap, Rocket, Brain, Clock, Target, Heart,
   Check, Pencil, ExternalLink, Phone, Globe,
   Bell, BellDot, MessageSquare, ChevronDown,
+  Key, Users, Share2, Calendar, Trophy, Copy, MessageCircle,
+  Bookmark, Layers, ChevronRight, FolderOpen, Link2, Megaphone,
+  Hash, Newspaper, Settings, ArrowRight, RefreshCw,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -47,12 +50,31 @@ interface LearningTrack {
   color: string; bg: string; is_premium: boolean;
 }
 type Mode = "student" | "recruiter";
+type StudentTab = "discover" | "studyplan" | "projects" | "community" | "books";
 interface RecruiterProfile {
   company: string; designation: string; industry: string;
   hiring_for: "intern" | "fulltime" | "both";
   skills_needed: string[]; open_positions: string[];
   stipend_min: number; stipend_max: number;
   city: string; email: string; phone: string; website: string; bio: string;
+}
+interface C360Thread {
+  id: string; type: "enquiry" | "outreach"; subject: string;
+  to: string; body: string; status: "sent" | "replied" | "closed";
+  createdAt: string; replies: { from: string; body: string; at: string }[];
+}
+interface C360Project {
+  id: string; title: string; tech: string; desc: string;
+  status: "idea" | "building" | "done"; github?: string;
+  public: boolean; createdAt: string;
+}
+interface C360StudyPlan {
+  id: string; goal: string; tech: string; generatedAt: string;
+  weeks: Array<{ week: number; focus: string; days: Array<{ day: string; topic: string; tasks: string[]; resource: string }> }>;
+}
+interface C360Book {
+  id: string; title: string; author: string; domain: string;
+  desc: string; color: string; tags: string[]; url: string;
 }
 
 // ── Auth (localStorage) ────────────────────────────────────────────────────────
@@ -203,6 +225,34 @@ const ROLE_OPTIONS = [
 
 // Flat list used by MultiSelectDropdown
 const ALL_SKILLS = TECH_GROUPS.flatMap(g => g.items);
+
+// ── Books Feed data ────────────────────────────────────────────────────────────
+const C360_BOOKS: C360Book[] = [
+  { id:"b1", title:"Clean Code", author:"Robert C. Martin", domain:"programming", desc:"A handbook of agile software craftsmanship — essential reading for every developer.", color:"bg-blue-500", tags:["Best Practices","Engineering"], url:"https://www.goodreads.com/book/show/3735293" },
+  { id:"b2", title:"The Pragmatic Programmer", author:"Hunt & Thomas", domain:"programming", desc:"Timeless advice from veteran programmers for your journey to mastery.", color:"bg-purple-500", tags:["Career","Software Craft"], url:"https://www.goodreads.com/book/show/4099" },
+  { id:"b3", title:"Cracking the Coding Interview", author:"Gayle McDowell", domain:"programming", desc:"189 programming questions with solutions — the definitive interview prep book.", color:"bg-emerald-500", tags:["Interview Prep","Algorithms"], url:"https://www.goodreads.com/book/show/12544648" },
+  { id:"b4", title:"Hands-On Machine Learning", author:"Aurélien Géron", domain:"ai", desc:"Practical ML with Scikit-Learn, Keras & TensorFlow — learn by building real projects.", color:"bg-orange-500", tags:["Machine Learning","Python"], url:"https://www.goodreads.com/book/show/32899495" },
+  { id:"b5", title:"Python Data Science Handbook", author:"Jake VanderPlas", domain:"ai", desc:"Essential tools for working with data: NumPy, Pandas, Matplotlib, Scikit-Learn.", color:"bg-yellow-500", tags:["Python","Data Analysis"], url:"https://jakevdp.github.io/PythonDataScienceHandbook/" },
+  { id:"b6", title:"Designing Data-Intensive Applications", author:"Martin Kleppmann", domain:"data", desc:"The definitive guide to reliable, scalable, and maintainable systems at scale.", color:"bg-red-500", tags:["Databases","System Design"], url:"https://www.goodreads.com/book/show/23463279" },
+  { id:"b7", title:"The Design of Everyday Things", author:"Don Norman", domain:"design", desc:"Understand why designs succeed or fail — a must-read for every UX practitioner.", color:"bg-pink-500", tags:["UX Design","Design Thinking"], url:"https://www.goodreads.com/book/show/840" },
+  { id:"b8", title:"Kubernetes in Action", author:"Marko Luksa", domain:"cloud", desc:"Step-by-step guide to deploying and managing containerised applications at scale.", color:"bg-sky-500", tags:["Kubernetes","DevOps"], url:"https://www.goodreads.com/book/show/34013922" },
+  { id:"b9", title:"Thinking in Systems", author:"Donella Meadows", domain:"all", desc:"A primer on systems thinking — see the world in feedback loops and leverage points.", color:"bg-teal-500", tags:["Problem Solving","Systems"], url:"https://www.goodreads.com/book/show/3828902" },
+  { id:"b10", title:"Zero to One", author:"Peter Thiel", domain:"all", desc:"Notes on startups and building the future — for students who want to create, not compete.", color:"bg-indigo-500", tags:["Startup","Innovation"], url:"https://www.goodreads.com/book/show/18050143" },
+  { id:"b11", title:"Agile Testing", author:"Lisa Crispin", domain:"testing", desc:"A practical guide for whole-team approaches to quality in agile environments.", color:"bg-lime-500", tags:["QA","Testing"], url:"https://www.goodreads.com/book/show/5341009" },
+  { id:"b12", title:"The Linux Command Line", author:"William Shotts", domain:"programming", desc:"Complete introduction to the Linux command line — freely available online.", color:"bg-gray-600", tags:["Linux","CLI"], url:"https://linuxcommand.org/tlcl.php" },
+];
+
+// ── localStorage key helpers (new features) ────────────────────────────────────
+const TK  = (id: string) => `c360_threads_${id}`;
+const PJK = (id: string) => `c360_projects_${id}`;
+const SPK = (id: string) => `c360_study_plan_${id}`;
+const BSK = (id: string) => `c360_books_saved_${id}`;
+const ICK = (id: string) => `c360_invite_count_${id}`;
+const loadThreads  = (id: string): C360Thread[]  => { try { return JSON.parse(localStorage.getItem(TK(id))  || "[]"); } catch { return []; } };
+const saveThreads  = (id: string, t: C360Thread[])  => localStorage.setItem(TK(id),  JSON.stringify(t));
+const loadProjects = (id: string): C360Project[] => { try { return JSON.parse(localStorage.getItem(PJK(id)) || "[]"); } catch { return []; } };
+const saveProjects = (id: string, p: C360Project[]) => localStorage.setItem(PJK(id), JSON.stringify(p));
+const loadSavedBooks = (id: string): string[] => { try { return JSON.parse(localStorage.getItem(BSK(id)) || "[]"); } catch { return []; } };
 
 // ── Client-side resume text parser (AI-free fallback) ─────────────────────────
 function parseResumeTextLocally(text: string): StudentProfile {
@@ -1657,6 +1707,792 @@ function NotificationsPanel({ user }: { user: C360User }) {
   );
 }
 
+// ── Change Password Modal ──────────────────────────────────────────────────────
+function ChangePasswordModal({ user, onClose }: { user: C360User; onClose: () => void }) {
+  const [cur, setCur] = useState(""); const [next, setNext] = useState(""); const [conf, setConf] = useState("");
+  const [err, setErr] = useState(""); const [ok, setOk] = useState(false);
+  function submit() {
+    setErr("");
+    if (!cur || !next || !conf) { setErr("All fields are required."); return; }
+    if (next.length < 6) { setErr("New password must be at least 6 characters."); return; }
+    if (next !== conf) { setErr("Passwords do not match."); return; }
+    try {
+      const users: (C360User & { pw: string })[] = JSON.parse(localStorage.getItem(UK) || "[]");
+      const idx = users.findIndex(u => u.id === user.id);
+      if (idx === -1 || users[idx].pw !== cur) { setErr("Current password is incorrect."); return; }
+      users[idx].pw = next;
+      localStorage.setItem(UK, JSON.stringify(users));
+      setOk(true); setTimeout(onClose, 1500);
+    } catch { setErr("Failed to update password."); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Key size={15} className="text-teal-600"/>Change Password</span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {ok ? <div className="text-center py-4"><CheckCircle size={32} className="text-emerald-500 mx-auto mb-2"/><p className="text-sm font-semibold text-gray-900">Password updated!</p></div> : <>
+            {err && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">{err}</div>}
+            {[["Current Password", cur, setCur], ["New Password (min 6 chars)", next, setNext], ["Confirm New Password", conf, setConf]].map(([lbl, val, set]: any) => (
+              <div key={lbl}><label className="text-xs font-semibold text-gray-600 mb-1 block">{lbl}</label>
+                <input type="password" value={val} onChange={e=>set(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder="••••••••"/>
+              </div>
+            ))}
+            <button onClick={submit} className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition mt-1">Update Password</button>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Account Settings Modal ─────────────────────────────────────────────────────
+function AccountSettingsModal({ user, onClose, onUpdate }: { user: C360User; onClose: () => void; onUpdate: (u: C360User) => void }) {
+  const [name, setName] = useState(user.name); const [email, setEmail] = useState(user.email);
+  const [phone, setPhone] = useState(user.phone || ""); const [college, setCollege] = useState(user.college || "");
+  const [year, setYear] = useState(user.year || ""); const [err, setErr] = useState(""); const [ok, setOk] = useState(false);
+  function save() {
+    setErr(""); if (!name.trim() || !email.trim()) { setErr("Name and email are required."); return; }
+    try {
+      const users: (C360User & { pw: string })[] = JSON.parse(localStorage.getItem(UK) || "[]");
+      const updated = { ...user, name: name.trim(), email: email.trim(), phone: phone.trim(), college: college.trim(), year: year.trim() };
+      const idx = users.findIndex(u => u.id === user.id);
+      if (idx !== -1) { users[idx] = { ...users[idx], ...updated }; localStorage.setItem(UK, JSON.stringify(users)); }
+      saveSess(updated); onUpdate(updated); setOk(true); setTimeout(onClose, 1200);
+    } catch { setErr("Failed to save."); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Users size={15} className="text-teal-600"/>Personal Information</span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {ok && <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700 text-center font-semibold">Saved!</div>}
+          {err && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">{err}</div>}
+          {([["Full Name", name, setName, "text", "Your full name"], ["Email", email, setEmail, "email", "your@email.com"], ["Phone", phone, setPhone, "tel", "+91 9999999999"], ["College / University", college, setCollege, "text", "Your institution"], ["Year / Batch", year, setYear, "text", "e.g. 3rd Year, 2025"]] as const).map(([lbl, val, set, type, ph]: any) => (
+            <div key={lbl}><label className="text-xs font-semibold text-gray-600 mb-1 block">{lbl}</label>
+              <input type={type} value={val} onChange={(e: React.ChangeEvent<HTMLInputElement>) => set(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder={ph}/>
+            </div>
+          ))}
+          <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+            <p className="text-xs text-gray-500">Role: <span className="font-semibold text-gray-700 capitalize">{user.role}</span> · Since {new Date(user.createdAt).toLocaleDateString("en-IN",{month:"short",year:"numeric"})}</p>
+          </div>
+          <button onClick={save} className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Invite Friends Modal ───────────────────────────────────────────────────────
+function InviteFriendsModal({ user, onClose }: { user: C360User; onClose: () => void }) {
+  const [copied, setCopied] = useState(false); const [emailTo, setEmailTo] = useState(""); const [emailSent, setEmailSent] = useState(false);
+  const refLink = `https://dplan-ebon.vercel.app/college360?ref=${user.id}`;
+  const inviteCount = (() => { try { return parseInt(localStorage.getItem(ICK(user.id)) || "0"); } catch { return 0; } })();
+  function copyLink() {
+    navigator.clipboard.writeText(refLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+    try { localStorage.setItem(ICK(user.id), String(inviteCount + 1)); } catch {}
+    pushNotif(user.id, { type:"info", title:"Invite link copied", body:"Share it with friends to earn credit when they join College360." });
+  }
+  function shareWhatsApp() {
+    const msg = encodeURIComponent(`Hey! I've been using College360 — an AI-powered career platform for college students. Find internships, prep for interviews, connect with mentors. Join free: ${refLink}`);
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  }
+  function sendEmail() {
+    if (!emailTo.trim()) return;
+    const s = encodeURIComponent("Join me on College360 — AI Career Platform for Students");
+    const b = encodeURIComponent(`Hi!\n\nI've been using College360 — it's an AI-powered platform for college students to find internships, practice interviews with AI, and connect with industry mentors.\n\nJoin free using my link: ${refLink}\n\nSee you there!\n${user.name}`);
+    window.open(`mailto:${emailTo}?subject=${s}&body=${b}`, "_blank");
+    setEmailSent(true); setTimeout(() => { setEmailSent(false); setEmailTo(""); }, 2000);
+    pushNotif(user.id, { type:"info", title:"Invite sent", body:`Invite emailed to ${emailTo}.` });
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Share2 size={15} className="text-teal-600"/>Invite Friends</span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-xl p-4 text-center">
+            <p className="text-2xl font-black text-teal-600">{inviteCount}</p>
+            <p className="text-xs text-teal-700 mt-0.5">Friends invited so far</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-600 mb-2">Your invite link</p>
+            <div className="flex gap-2">
+              <input value={refLink} readOnly className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500 focus:outline-none"/>
+              <button onClick={copyLink} className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${copied?"bg-emerald-100 border-emerald-200 text-emerald-600 border":"bg-gray-100 border-gray-200 text-gray-700 border hover:bg-gray-200"}`}>
+                {copied ? <><CheckCircle size={12}/>Copied!</> : <><Copy size={12}/>Copy</>}
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={shareWhatsApp} className="flex items-center justify-center gap-2 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-sm font-semibold text-emerald-700 transition">
+              <MessageCircle size={15}/>WhatsApp
+            </button>
+            <button onClick={copyLink} className="flex items-center justify-center gap-2 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition">
+              <Link2 size={15}/>Copy Link
+            </button>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-600 mb-2">Invite by email</p>
+            <div className="flex gap-2">
+              <input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} placeholder="friend@email.com" onKeyDown={e=>e.key==="Enter"&&sendEmail()} className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500"/>
+              <button onClick={sendEmail} className="shrink-0 px-3 py-2 bg-teal-100 hover:bg-teal-200 border border-teal-200 rounded-lg text-xs font-semibold text-teal-700 transition flex items-center gap-1">
+                {emailSent ? <CheckCircle size={12}/> : <Mail size={12}/>}{emailSent ? "Sent!" : "Send"}
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-400 text-center">All invites and referrals are tracked on this device only for MVP.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Study Planner Modal ────────────────────────────────────────────────────────
+function StudyPlannerModal({ user, onClose }: { user: C360User; onClose: () => void }) {
+  const [savedPlan, setSavedPlan] = useState<C360StudyPlan|null>(() => { try { const s=localStorage.getItem(SPK(user.id)); return s?JSON.parse(s):null; } catch { return null; } });
+  const [goal, setGoal] = useState(""); const [tech, setTech] = useState(""); const [level, setLevel] = useState("beginner");
+  const [hpw, setHpw] = useState("10"); const [weeks, setWeeks] = useState("4");
+  const [loading, setLoading] = useState(false); const [err, setErr] = useState("");
+  const [expandedWeek, setExpandedWeek] = useState<number|null>(0);
+  async function generate() {
+    if (!goal.trim() || !tech.trim()) { setErr("Please fill in your goal and technology."); return; }
+    setLoading(true); setErr("");
+    try {
+      const res = await fetch("/api/study-planner", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ goal, technology:tech, currentLevel:level, hoursPerWeek:parseInt(hpw)||10, weeks:parseInt(weeks)||4 }) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error||"AI failed");
+      const plan: C360StudyPlan = { id:`sp${Date.now()}`, goal, tech, weeks:data.plan.weeks, generatedAt:new Date().toISOString() };
+      localStorage.setItem(SPK(user.id), JSON.stringify(plan));
+      setSavedPlan(plan); setExpandedWeek(0);
+      pushNotif(user.id, { type:"action", title:"Study Plan Ready!", body:`Your ${weeks}-week ${tech} plan is saved.` });
+    } catch (e: any) { setErr(e.message||"Failed to generate. Try again."); }
+    finally { setLoading(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Calendar size={15} className="text-teal-600"/>AI Study Planner</span>
+          <div className="flex items-center gap-2">
+            {savedPlan && <button onClick={()=>{localStorage.removeItem(SPK(user.id));setSavedPlan(null);}} className="text-xs text-red-400 hover:text-red-600">Reset Plan</button>}
+            <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+          </div>
+        </div>
+        <div className="p-5">
+          {!savedPlan ? (
+            <div className="space-y-4">
+              <div className="bg-teal-50 border border-teal-200 rounded-xl p-3"><p className="text-xs text-teal-700">Tell the AI your goal and it creates a personalised week-by-week plan with daily topics and resources.</p></div>
+              {err && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">{err}</div>}
+              <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Your Goal *</label>
+                <input value={goal} onChange={e=>setGoal(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder="e.g. Land a backend developer internship at a startup"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Technology / Domain *</label>
+                <input value={tech} onChange={e=>setTech(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder="e.g. Python, React, Machine Learning, AWS, Java Spring Boot"/></div>
+              <div className="grid grid-cols-3 gap-3">
+                {([["Current Level", level, setLevel, [["beginner","Beginner"],["intermediate","Intermediate"],["advanced","Advanced"]]], ["Hours/Week", hpw, setHpw, [["5","5h"],["10","10h"],["15","15h"],["20","20h"],["25","25h"],["30","30h"]]], ["Duration", weeks, setWeeks, [["2","2 weeks"],["4","4 weeks"],["6","6 weeks"],["8","8 weeks"],["12","12 weeks"]]]] as any[]).map(([lbl, val, set, opts]: any) => (
+                  <div key={lbl}><label className="text-xs font-semibold text-gray-600 mb-1 block">{lbl}</label>
+                    <select value={val} onChange={(e: any)=>set(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 bg-white">
+                      {opts.map(([v,l]: any) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <button onClick={generate} disabled={loading} className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 disabled:opacity-50 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2">
+                {loading ? <><Loader2 size={15} className="animate-spin"/>Generating Plan...</> : <><Sparkles size={15}/>Generate My Study Plan</>}
+              </button>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-bold text-gray-700 mb-2">Enhancement Roadmap</p>
+                <div className="space-y-1.5">
+                  {[["v1 — Now","AI-generated week-by-week plan with daily topics"],["v2 — Next","Progress tracking with checkboxes + streak counter"],["v3 — Premium","Adaptive plan that adjusts based on your pace"],["v4 — Future","Peer accountability groups + mentor check-ins"]].map(([ver,desc]) => (
+                    <div key={ver} className="flex gap-2 text-xs"><span className="font-semibold text-teal-600 shrink-0 w-24">{ver}</span><span className="text-gray-500">{desc}</span></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-xl p-4">
+                <p className="text-sm font-bold text-teal-800">{savedPlan.goal}</p>
+                <p className="text-xs text-teal-600 mt-0.5">{savedPlan.tech} · {savedPlan.weeks.length} weeks · Generated {new Date(savedPlan.generatedAt).toLocaleDateString()}</p>
+              </div>
+              {savedPlan.weeks.map((w, wi) => (
+                <div key={w.week} className="border border-gray-200 rounded-xl overflow-hidden">
+                  <button onClick={()=>setExpandedWeek(expandedWeek===wi?null:wi)} className="w-full flex items-center justify-between bg-gray-50 px-4 py-3 border-b border-gray-200 hover:bg-gray-100 transition">
+                    <p className="text-xs font-bold text-gray-900">Week {w.week}: {w.focus}</p>
+                    <ChevronRight size={14} className={`text-gray-400 transition-transform ${expandedWeek===wi?"rotate-90":""}`}/>
+                  </button>
+                  {expandedWeek===wi && (
+                    <div className="divide-y divide-gray-100">
+                      {w.days.map(d => (
+                        <div key={d.day} className="px-4 py-2.5 flex gap-3">
+                          <span className="text-[10px] font-bold text-teal-600 w-8 shrink-0 pt-0.5">{d.day.slice(0,3).toUpperCase()}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900">{d.topic}</p>
+                            <ul className="mt-1 space-y-0.5">{d.tasks.slice(0,3).map((t,i)=><li key={i} className="text-[11px] text-gray-500 flex gap-1"><span className="text-teal-400 shrink-0">·</span>{t}</li>)}</ul>
+                            {d.resource && <p className="text-[10px] text-gray-400 mt-1 italic">{d.resource}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <button onClick={()=>setSavedPlan(null)} className="w-full py-2 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm text-gray-600 font-semibold transition flex items-center justify-center gap-1">
+                <RefreshCw size={13}/>Regenerate Plan
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── College Enquiry Modal ──────────────────────────────────────────────────────
+function CollegeEnquiryModal({ user, onClose }: { user: C360User; onClose: () => void }) {
+  const [college, setCollege] = useState(""); const [program, setProgram] = useState(""); const [queries, setQueries] = useState("");
+  const [loading, setLoading] = useState(false); const [err, setErr] = useState("");
+  const [draft, setDraft] = useState<{subject:string;email:string;tips:string[]}|null>(null);
+  const [threadCreated, setThreadCreated] = useState(false);
+  async function generate() {
+    if (!college.trim()||!queries.trim()) { setErr("College name and your queries are required."); return; }
+    setLoading(true); setErr("");
+    try {
+      const res = await fetch("/api/college-enquiry", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ type:"enquiry", collegeName:college, program, queries, userName:user.name, userEmail:user.email }) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error||"AI failed");
+      setDraft({ subject:data.subject, email:data.draftEmail, tips:data.tips||[] });
+    } catch (e: any) { setErr(e.message||"Failed to draft. Try again."); }
+    finally { setLoading(false); }
+  }
+  function createThread() {
+    if (!draft) return;
+    const threads = loadThreads(user.id);
+    threads.unshift({ id:`th${Date.now()}`, type:"enquiry", subject:draft.subject, to:college, body:draft.email, status:"sent", createdAt:new Date().toISOString(), replies:[] });
+    saveThreads(user.id, threads);
+    pushNotif(user.id, { type:"action", title:"Thread created", body:`Enquiry to ${college} saved to Threads.` });
+    setThreadCreated(true); setTimeout(onClose, 1500);
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><MessageCircle size={15} className="text-teal-600"/>College Enquiry Agent</span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {threadCreated ? (
+            <div className="text-center py-8"><CheckCircle size={36} className="text-emerald-500 mx-auto mb-2"/><p className="text-sm font-semibold">Thread created! Track it in Community → Threads.</p></div>
+          ) : !draft ? (<>
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-3"><p className="text-xs text-teal-700">AI will draft a professional enquiry email to your target college. Review and send it yourself.</p></div>
+            {err && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">{err}</div>}
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">College / University *</label><input value={college} onChange={e=>setCollege(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder="e.g. IIT Madras, VIT Vellore, Anna University"/></div>
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Program / Course</label><input value={program} onChange={e=>setProgram(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder="e.g. M.Tech CSE, MBA, B.Arch"/></div>
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Your Questions / Queries *</label>
+              <textarea value={queries} onChange={e=>setQueries(e.target.value)} rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 resize-none" placeholder="e.g. Scholarship availability, hostel facilities, placement statistics, lateral entry procedure"/></div>
+            <button onClick={generate} disabled={loading} className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 disabled:opacity-50 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={15} className="animate-spin"/>Drafting Email...</> : <><Sparkles size={15}/>Draft My Enquiry Email</>}
+            </button>
+          </>) : (<>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+              <p className="text-xs font-semibold text-emerald-700 mb-0.5">Subject: {draft.subject}</p>
+              <p className="text-[10px] text-emerald-600">Review the draft below. Edit it as needed before sending to the college's admissions email.</p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4"><pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{draft.email}</pre></div>
+            {draft.tips.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-amber-700 mb-2">Tips from AI</p>
+                <ul className="space-y-1">{draft.tips.map((t,i)=><li key={i} className="text-xs text-amber-600 flex gap-1.5"><Zap size={10} className="mt-0.5 shrink-0"/>{t}</li>)}</ul>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button onClick={()=>setDraft(null)} className="flex-1 py-2.5 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm text-gray-600 font-semibold transition">Regenerate</button>
+              <button onClick={()=>navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.email}`)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition flex items-center justify-center gap-1">
+                <Copy size={13}/>Copy
+              </button>
+              <button onClick={createThread} className="flex-1 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-1">
+                <Hash size={13}/>Save Thread
+              </button>
+            </div>
+          </>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Outreach Agent Modal ───────────────────────────────────────────────────────
+function OutreachAgentModal({ user, onClose }: { user: C360User; onClose: () => void }) {
+  const TEMPLATES = [
+    { id:"recruiter", label:"Recruiter Outreach", ph:"Role you're targeting, company name, why you're a great fit" },
+    { id:"mentor", label:"Mentor Request", ph:"What you want to learn, why this mentor, your background" },
+    { id:"collab", label:"Collaboration Ask", ph:"Project idea, what you need, your contribution to the project" },
+  ];
+  const [tplId, setTplId] = useState("recruiter"); const [recipient, setRecipient] = useState(""); const [context, setContext] = useState("");
+  const [loading, setLoading] = useState(false); const [draft, setDraft] = useState(""); const [subject, setSubject] = useState("");
+  const [err, setErr] = useState(""); const [copied, setCopied] = useState(false);
+  const tpl = TEMPLATES.find(t=>t.id===tplId)!;
+  async function generate() {
+    if (!context.trim()) { setErr("Please provide context for the outreach."); return; }
+    setLoading(true); setErr("");
+    try {
+      const res = await fetch("/api/college-enquiry", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ type:"outreach", program:tplId, queries:context, userName:user.name, userEmail:user.email, recipientName:recipient, context }) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error||"AI failed");
+      setDraft(data.draft||""); setSubject(data.subject||"");
+      try {
+        const log: any[] = JSON.parse(localStorage.getItem(`c360_outreach_log_${user.id}`)||"[]");
+        log.unshift({ id:`ou${Date.now()}`, type:tplId, to:recipient, draft:data.draft, createdAt:new Date().toISOString() });
+        localStorage.setItem(`c360_outreach_log_${user.id}`, JSON.stringify(log.slice(0,20)));
+        // Save to threads too
+        const threads = loadThreads(user.id);
+        threads.unshift({ id:`th${Date.now()}`, type:"outreach", subject:data.subject||`Outreach to ${recipient}`, to:recipient||"Recipient", body:data.draft, status:"sent", createdAt:new Date().toISOString(), replies:[] });
+        saveThreads(user.id, threads);
+      } catch {}
+    } catch (e: any) { setErr(e.message||"Failed to draft. Try again."); }
+    finally { setLoading(false); }
+  }
+  function copy() { navigator.clipboard.writeText(draft); setCopied(true); setTimeout(()=>setCopied(false),2000); }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Megaphone size={15} className="text-teal-600"/>Outreach Agent</span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex gap-2">
+            {TEMPLATES.map(t=>(
+              <button key={t.id} onClick={()=>{setTplId(t.id);setDraft("");}} className={`flex-1 py-2 rounded-lg text-xs font-semibold transition border ${tplId===t.id?"bg-teal-100 border-teal-300 text-teal-700":"bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"}`}>{t.label}</button>
+            ))}
+          </div>
+          {err && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600">{err}</div>}
+          <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Recipient Name / Company</label>
+            <input value={recipient} onChange={e=>setRecipient(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500" placeholder="e.g. Priya Sharma at Zoho Corp"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Context — {tpl.ph}</label>
+            <textarea value={context} onChange={e=>setContext(e.target.value)} rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500 resize-none" placeholder={tpl.ph}/></div>
+          {!draft ? (
+            <button onClick={generate} disabled={loading} className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 disabled:opacity-50 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={15} className="animate-spin"/>Drafting...</> : <><Sparkles size={15}/>Draft Message</>}
+            </button>
+          ) : (
+            <div className="space-y-3">
+              {subject && <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2"><p className="text-xs text-gray-500">Suggested subject: <span className="font-semibold text-gray-700">{subject}</span></p></div>}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4"><pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{draft}</pre></div>
+              <div className="flex gap-2">
+                <button onClick={()=>setDraft("")} className="flex-1 py-2.5 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm text-gray-600 font-semibold transition"><RefreshCw size={12} className="inline mr-1"/>Regenerate</button>
+                <button onClick={copy} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-1 border ${copied?"bg-emerald-100 border-emerald-200 text-emerald-600":"bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"}`}>
+                  {copied?<><CheckCircle size={13}/>Copied!</>:<><Copy size={13}/>Copy</>}
+                </button>
+                <a href={`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`} className="flex-1 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-1">
+                  <Mail size={13}/>Email
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mock Interview Modal ───────────────────────────────────────────────────────
+function MockInterviewModal({ user, onClose, onNeedPremium }: { user: C360User; onClose: () => void; onNeedPremium: () => void }) {
+  const PLANS = [
+    { title:"1-Week Rapid Prep", daily:"2-3 hours", items:["Day 1-2: DSA fundamentals + data structures review","Day 3-4: System design basics + OOPs concepts","Day 5: 20 behavioural questions + STAR method","Day 6: Full timed mock (LeetCode Easy/Medium)","Day 7: Gap analysis + targeted revision"] },
+    { title:"2-Week Solid Prep", daily:"1.5-2 hours", items:["Week 1: DSA (arrays, trees, graphs) + SQL + OOPS fundamentals","Week 2: System design patterns + 3 full mocks + resume polish"] },
+    { title:"4-Week Full Prep", daily:"1-1.5 hours", items:["Week 1: CS fundamentals + DSA basics + problem patterns","Week 2: Advanced DSA + OOP design + SQL deep dive","Week 3: System design + company-specific past questions","Week 4: Mock sessions daily + offer negotiation prep"] },
+  ];
+  const [sel, setSel] = useState<number|null>(null);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Trophy size={15} className="text-teal-600"/>Mock Interview Plan</span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-gray-500">Choose a preparation plan that fits your timeline. Tap to expand the day-by-day breakdown.</p>
+          <div className="space-y-3">
+            {PLANS.map((p,i)=>(
+              <button key={i} onClick={()=>setSel(sel===i?null:i)} className={`w-full text-left border rounded-xl p-4 transition ${sel===i?"border-teal-300 bg-teal-50":"border-gray-200 bg-gray-50 hover:border-teal-200"}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-bold text-gray-900">{p.title}</p>
+                  <span className="text-[10px] font-semibold bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">{p.daily}/day</span>
+                </div>
+                {sel===i ? (
+                  <ul className="mt-2 space-y-1.5">
+                    {p.items.map((item,j)=><li key={j} className="text-xs text-gray-600 flex gap-2"><CheckCircle size={11} className="text-teal-500 shrink-0 mt-0.5"/>{item}</li>)}
+                  </ul>
+                ) : <p className="text-xs text-gray-500 line-clamp-1">{p.items[0]}{p.items.length>1?" …":""}</p>}
+              </button>
+            ))}
+          </div>
+          <div className={`rounded-xl p-4 border ${user.premium?"bg-teal-50 border-teal-200":"bg-amber-50 border-amber-200"}`}>
+            {user.premium ? (<>
+              <p className="text-sm font-bold text-teal-800 mb-1">Book a 1-on-1 Mock Session</p>
+              <p className="text-xs text-teal-600 mb-3">Premium members can book 45-minute mock interview sessions with industry mentors — recorded, with detailed feedback.</p>
+              <a href="mailto:college360@nexusos.in?subject=Mock Interview Booking Request&body=Hi, I'd like to book a mock interview. My name is [Name], target role: [Role], preferred date: [Date]." className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded-lg text-xs font-bold text-white transition"><Mail size={12}/>Book via Email</a>
+            </>) : (<>
+              <p className="text-sm font-bold text-amber-800 mb-1">Book 1-on-1 Mock Interview</p>
+              <p className="text-xs text-amber-600 mb-3">Upgrade to Premium for live 45-minute mock sessions with industry experts — recorded, with personalised feedback report.</p>
+              <button onClick={()=>{onClose();onNeedPremium();}} className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 rounded-lg text-xs font-bold text-white transition"><Sparkles size={12}/>Upgrade to Premium</button>
+            </>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Technical Help Modal ───────────────────────────────────────────────────────
+function TechnicalHelpModal({ user, onClose, onNeedPremium }: { user: C360User; onClose: () => void; onNeedPremium: () => void }) {
+  const EXPERTS = [
+    { id:"e1", name:"Arjun Mehta", role:"Senior Backend Engineer", domain:"Backend · Node.js · Python", email:"arjun.help@nexusos.in" },
+    { id:"e2", name:"Priya Raghavan", role:"ML Engineer", domain:"AI · ML · Data Science", email:"priya.help@nexusos.in" },
+    { id:"e3", name:"Karthik Sundaram", role:"DevOps Lead", domain:"DevOps · Cloud · Kubernetes", email:"karthik.help@nexusos.in" },
+    { id:"e4", name:"Divya Krishnan", role:"UI/UX Designer", domain:"Design · Figma · UX Research", email:"divya.help@nexusos.in" },
+  ];
+  const [expert, setExpert] = useState<typeof EXPERTS[0]|null>(null);
+  const [problem, setProblem] = useState(""); const [sent, setSent] = useState(false);
+  if (!user.premium) return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-sm p-6 text-center">
+        <Sparkles size={32} className="text-amber-500 mx-auto mb-3"/>
+        <h3 className="text-sm font-bold text-gray-900 mb-2">Premium Feature</h3>
+        <p className="text-xs text-gray-500 mb-4">Technical Help connects you to domain experts for paid consultations. Upgrade to unlock.</p>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={()=>{onClose();onNeedPremium();}} className="flex-1 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition">Upgrade Now</button>
+        </div>
+      </div>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md max-h-[88vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Zap size={15} className="text-amber-500"/>Technical Help <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded font-semibold ml-1">Premium</span></span>
+          <button onClick={onClose}><X size={18} className="text-gray-400 hover:text-gray-600"/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {sent ? (
+            <div className="text-center py-8"><CheckCircle size={36} className="text-emerald-500 mx-auto mb-2"/><p className="text-sm font-semibold text-gray-900">Request sent!</p><p className="text-xs text-gray-500 mt-1">The expert will respond within 24h to your email.</p></div>
+          ) : (<>
+            <p className="text-xs text-gray-500">Select a domain expert and describe your problem. They respond to your email within 24 hours.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {EXPERTS.map(e=>(
+                <button key={e.id} onClick={()=>setExpert(expert?.id===e.id?null:e)} className={`text-left p-3 rounded-xl border transition ${expert?.id===e.id?"border-amber-300 bg-amber-50":"border-gray-200 bg-gray-50 hover:border-amber-200"}`}>
+                  <p className="text-xs font-bold text-gray-900">{e.name}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{e.role}</p>
+                  <p className="text-[10px] text-amber-600 mt-1">{e.domain}</p>
+                </button>
+              ))}
+            </div>
+            {expert && (<>
+              <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Describe Your Problem</label>
+                <textarea value={problem} onChange={e=>setProblem(e.target.value)} rows={4} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 resize-none" placeholder="Explain the issue, what you've already tried, and what outcome you need..."/></div>
+              <a href={`mailto:${expert.email}?cc=${user.email}&subject=Technical Help via College360&body=${encodeURIComponent(`Hi ${expert.name},\n\nI need help with:\n\n${problem}\n\nMy details:\nName: ${user.name}\nEmail: ${user.email}\n\nThank you!`)}`}
+                onClick={()=>{ if(problem.trim()) setSent(true); }}
+                className={`flex w-full py-2.5 rounded-xl text-sm font-bold text-white items-center justify-center gap-2 transition ${problem.trim()?"bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90":"bg-gray-200 text-gray-400 pointer-events-none"}`}>
+                <Mail size={14}/>Send to Expert
+              </a>
+            </>)}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3"><p className="text-[10px] text-amber-600">Premium feature · Expert responds within 24h · Billed via your Premium subscription</p></div>
+          </>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Books Feed Section ─────────────────────────────────────────────────────────
+function BooksFeedSection({ user }: { user: C360User | null }) {
+  const [filter, setFilter] = useState("all");
+  const [saved, setSaved] = useState<string[]>(() => user ? loadSavedBooks(user.id) : []);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const domains = ["all","programming","ai","data","design","cloud","testing"];
+  const filtered = C360_BOOKS.filter(b => (filter==="all"||b.domain===filter||b.domain==="all") && (!showSavedOnly||saved.includes(b.id)));
+  function toggleSave(bookId: string) {
+    if (!user) return;
+    const next = saved.includes(bookId) ? saved.filter(id=>id!==bookId) : [...saved, bookId];
+    setSaved(next);
+    try { localStorage.setItem(BSK(user.id), JSON.stringify(next)); } catch {}
+  }
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div><h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Newspaper size={20} className="text-violet-600"/>Books & Resources</h2><p className="text-xs text-gray-500 mt-0.5">Curated reading list to accelerate your career</p></div>
+        {user && <button onClick={()=>setShowSavedOnly(v=>!v)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${showSavedOnly?"bg-violet-100 border-violet-200 text-violet-700":"bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"}`}>
+          <Bookmark size={11} className="inline mr-1"/>{showSavedOnly?"All Books":"Saved Only"}
+        </button>}
+      </div>
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        {domains.map(d=>(
+          <button key={d} onClick={()=>setFilter(d)} className={`shrink-0 capitalize px-3 py-1.5 rounded-full text-xs font-semibold border transition ${filter===d?"bg-violet-600 border-violet-600 text-white":"bg-white border-gray-200 text-gray-600 hover:border-gray-300"}`}>{d}</button>
+        ))}
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filtered.map(b=>(
+          <div key={b.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-violet-200 transition">
+            <div className={`${b.color} h-2`}/>
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p className="text-sm font-bold text-gray-900 leading-tight">{b.title}</p>
+                {user && <button onClick={()=>toggleSave(b.id)} className={`shrink-0 p-1 rounded transition ${saved.includes(b.id)?"text-violet-600":"text-gray-300 hover:text-gray-400"}`}><Bookmark size={14} className={saved.includes(b.id)?"fill-violet-600":""}/></button>}
+              </div>
+              <p className="text-xs text-gray-500 mb-2">{b.author}</p>
+              <p className="text-xs text-gray-600 mb-3 line-clamp-2">{b.desc}</p>
+              <div className="flex flex-wrap gap-1 mb-3">{b.tags.map(t=><span key={t} className="text-[10px] bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">{t}</span>)}</div>
+              <a href={b.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 font-semibold transition">
+                <ExternalLink size={11}/>View / Read
+              </a>
+            </div>
+          </div>
+        ))}
+        {filtered.length===0 && <div className="col-span-3 text-center py-12 text-gray-400"><Bookmark size={32} className="mx-auto mb-2 opacity-40"/><p className="text-sm">No books in this category yet.</p></div>}
+      </div>
+    </div>
+  );
+}
+
+// ── Projects Board Section ─────────────────────────────────────────────────────
+function ProjectsBoardSection({ user }: { user: C360User | null }) {
+  const [projects, setProjects] = useState<C360Project[]>(() => user ? loadProjects(user.id) : []);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title:"", tech:"", desc:"", github:"", status:"idea" as C360Project["status"], public:false });
+  const [statusFilter, setStatusFilter] = useState<"all"|C360Project["status"]>("all");
+  function save() {
+    if (!form.title.trim()||!user) return;
+    const proj: C360Project = { id:`pj${Date.now()}`, ...form, createdAt:new Date().toISOString() };
+    const next = [proj, ...projects];
+    setProjects(next); saveProjects(user.id, next); setAdding(false);
+    setForm({ title:"", tech:"", desc:"", github:"", status:"idea", public:false });
+  }
+  function removeProject(id: string) {
+    if (!user) return;
+    const next = projects.filter(p=>p.id!==id);
+    setProjects(next); saveProjects(user.id, next);
+  }
+  const STATUS_LABELS: Record<C360Project["status"],string> = { idea:"💡 Idea", building:"🔨 Building", done:"✅ Done" };
+  const STATUS_COLORS: Record<C360Project["status"],string> = { idea:"bg-yellow-100 text-yellow-700 border-yellow-200", building:"bg-blue-100 text-blue-700 border-blue-200", done:"bg-emerald-100 text-emerald-700 border-emerald-200" };
+  const filtered = projects.filter(p=>statusFilter==="all"||p.status===statusFilter);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div><h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Layers size={20} className="text-violet-600"/>Project Board</h2><p className="text-xs text-gray-500 mt-0.5">Track your side projects and share them with the community</p></div>
+        {user && <button onClick={()=>setAdding(v=>!v)} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 hover:bg-violet-200 border border-violet-200 rounded-lg text-xs font-semibold text-violet-700 transition"><Plus size={12}/>Add Project</button>}
+      </div>
+      {adding && user && (
+        <div className="mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Project Title *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500" placeholder="My awesome project"/></div>
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Tech Stack</label><input value={form.tech} onChange={e=>setForm(f=>({...f,tech:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500" placeholder="React, Node.js, PostgreSQL"/></div>
+          </div>
+          <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Description</label><textarea value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 resize-none" placeholder="What does this project do?"/></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">GitHub URL</label><input value={form.github} onChange={e=>setForm(f=>({...f,github:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500" placeholder="https://github.com/..."/></div>
+            <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Status</label>
+              <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value as C360Project["status"]}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 bg-white">
+                <option value="idea">💡 Idea</option><option value="building">🔨 Building</option><option value="done">✅ Done</option>
+              </select>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer"><input type="checkbox" checked={form.public} onChange={e=>setForm(f=>({...f,public:e.target.checked}))} className="rounded"/><span>Share to Community Board</span></label>
+          <div className="flex gap-2">
+            <button onClick={()=>setAdding(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition">Cancel</button>
+            <button onClick={save} disabled={!form.title.trim()} className="flex-1 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-lg text-sm font-bold text-white transition">Save Project</button>
+          </div>
+        </div>
+      )}
+      <div className="flex gap-2 mb-4">
+        {(["all","idea","building","done"] as const).map(s=>(
+          <button key={s} onClick={()=>setStatusFilter(s)} className={`capitalize px-3 py-1.5 rounded-full text-xs font-semibold border transition ${statusFilter===s?"bg-violet-600 border-violet-600 text-white":"bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+            {s==="all"?"All":STATUS_LABELS[s as C360Project["status"]]}
+          </button>
+        ))}
+      </div>
+      {!user ? (
+        <div className="text-center py-12 text-gray-400"><FolderOpen size={32} className="mx-auto mb-2 opacity-40"/><p className="text-sm">Sign in to track your projects</p></div>
+      ) : filtered.length===0 ? (
+        <div className="text-center py-12 text-gray-400"><FolderOpen size={32} className="mx-auto mb-2 opacity-40"/><p className="text-sm">No projects yet. Add your first one!</p></div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(p=>(
+            <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-violet-200 transition">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="text-sm font-bold text-gray-900">{p.title}</p>
+                <span className={`text-[10px] font-semibold border rounded-full px-2 py-0.5 shrink-0 ${STATUS_COLORS[p.status]}`}>{STATUS_LABELS[p.status]}</span>
+              </div>
+              {p.tech && <p className="text-xs text-gray-500 mb-2 font-mono">{p.tech}</p>}
+              {p.desc && <p className="text-xs text-gray-600 mb-3 line-clamp-2">{p.desc}</p>}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {p.github && <a href={p.github} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1 font-semibold"><ExternalLink size={11}/>GitHub</a>}
+                  {p.public && <span className="text-[10px] text-teal-600 bg-teal-50 border border-teal-200 rounded px-1.5 py-0.5">Public</span>}
+                </div>
+                <button onClick={()=>removeProject(p.id)} className="text-xs text-red-400 hover:text-red-600 transition">Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Community & Threads Section ────────────────────────────────────────────────
+function CommunitySection({ user, onEnquiry, onOutreach, onMockInterview }: { user: C360User|null; onEnquiry: ()=>void; onOutreach: ()=>void; onMockInterview: ()=>void }) {
+  const [threads, setThreads] = useState<C360Thread[]>(() => user ? loadThreads(user.id) : []);
+  const STATUS_COLORS = { sent:"bg-blue-100 text-blue-700", replied:"bg-emerald-100 text-emerald-700", closed:"bg-gray-100 text-gray-500" };
+  const TYPE_ICONS = { enquiry:<MessageCircle size={12}/>, outreach:<Megaphone size={12}/> };
+  function closeThread(id: string) {
+    if (!user) return;
+    const next = threads.map(t=>t.id===id?{...t,status:"closed" as const}:t);
+    setThreads(next); saveThreads(user.id, next);
+  }
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-black text-gray-900 mb-1 flex items-center gap-2"><MessageCircle size={20} className="text-violet-600"/>Community Hub</h2>
+        <p className="text-xs text-gray-500 mb-4">Draft outreach, enquire to colleges, and track your communication threads</p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            { label:"College Enquiry", desc:"AI drafts a professional enquiry email to any college's admissions team", icon:<MessageCircle size={20} className="text-teal-600"/>, color:"border-teal-200 bg-teal-50", action: onEnquiry, cta:"Start Enquiry" },
+            { label:"Outreach Agent", desc:"AI writes recruiter outreach, mentor request, or collaboration messages", icon:<Megaphone size={20} className="text-indigo-600"/>, color:"border-indigo-200 bg-indigo-50", action: onOutreach, cta:"Draft Message" },
+            { label:"Mock Interview Plan", desc:"Pick a 1/2/4-week prep plan and optionally book a 1-on-1 session", icon:<Trophy size={20} className="text-amber-600"/>, color:"border-amber-200 bg-amber-50", action: onMockInterview, cta:"View Plans" },
+          ].map(c=>(
+            <div key={c.label} className={`border rounded-xl p-4 ${c.color}`}>
+              <div className="mb-3">{c.icon}</div>
+              <p className="text-sm font-bold text-gray-900 mb-1">{c.label}</p>
+              <p className="text-xs text-gray-600 mb-3">{c.desc}</p>
+              <button onClick={user?c.action:()=>{}} className="text-xs font-semibold text-gray-700 flex items-center gap-1 hover:gap-2 transition-all">
+                {c.cta}<ArrowRight size={11}/>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><Hash size={14} className="text-gray-400"/>Threads</h3>
+          <span className="text-xs text-gray-400">{threads.filter(t=>t.status!=="closed").length} active</span>
+        </div>
+        {!user ? (
+          <div className="text-center py-8 text-gray-400"><Hash size={28} className="mx-auto mb-2 opacity-40"/><p className="text-sm">Sign in to view your threads</p></div>
+        ) : threads.length===0 ? (
+          <div className="text-center py-8 bg-gray-50 border border-gray-200 rounded-xl text-gray-400"><Hash size={28} className="mx-auto mb-2 opacity-40"/><p className="text-sm">No threads yet. Start an enquiry or outreach above.</p></div>
+        ) : (
+          <div className="space-y-2">
+            {threads.map(t=>(
+              <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition">
+                <div className="flex items-start gap-3">
+                  <div className={`p-1.5 rounded-lg ${t.type==="enquiry"?"bg-teal-100 text-teal-600":"bg-indigo-100 text-indigo-600"}`}>{TYPE_ICONS[t.type]}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-xs font-bold text-gray-900 truncate">{t.subject}</p>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_COLORS[t.status]}`}>{t.status}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">To: {t.to} · {new Date(t.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-600 mt-1 line-clamp-1">{t.body.slice(0,100)}…</p>
+                  </div>
+                  {t.status!=="closed" && <button onClick={()=>closeThread(t.id)} className="text-[10px] text-gray-400 hover:text-gray-600 shrink-0">Close</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Study Plan Tab Section ─────────────────────────────────────────────────────
+function StudyPlanTab({ user, onOpenPlanner }: { user: C360User|null; onOpenPlanner: ()=>void }) {
+  const savedPlan: C360StudyPlan|null = (() => { try { if(!user) return null; const s=localStorage.getItem(SPK(user.id)); return s?JSON.parse(s):null; } catch { return null; } })();
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div><h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Calendar size={20} className="text-violet-600"/>Study Planner</h2><p className="text-xs text-gray-500 mt-0.5">AI-generated personalised learning plans</p></div>
+        <button onClick={user?onOpenPlanner:()=>{}} className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 rounded-xl text-xs font-bold text-white transition">
+          <Sparkles size={12}/>{savedPlan?"Regenerate Plan":"Create My Plan"}
+        </button>
+      </div>
+      {!user ? (
+        <div className="text-center py-16 bg-gray-50 border border-gray-200 rounded-2xl"><Calendar size={40} className="mx-auto mb-3 text-gray-300"/><p className="text-sm text-gray-500 mb-3">Sign in to create your personalised study plan</p></div>
+      ) : !savedPlan ? (
+        <div className="text-center py-16 bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200 rounded-2xl">
+          <Calendar size={40} className="mx-auto mb-3 text-teal-500"/>
+          <p className="text-sm font-semibold text-teal-800 mb-1">No study plan yet</p>
+          <p className="text-xs text-teal-600 mb-4 max-w-xs mx-auto">Tell AI your goal and it will create a personalised week-by-week plan with daily topics, tasks, and resources.</p>
+          <button onClick={onOpenPlanner} className="px-6 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:opacity-90 rounded-xl text-sm font-bold text-white transition flex items-center gap-2 mx-auto">
+            <Sparkles size={14}/>Generate My Study Plan
+          </button>
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto px-4">
+            {["Set your goal","Choose tech & level","Pick duration","Get AI plan"].map((s,i)=>(
+              <div key={s} className="text-center"><div className="w-7 h-7 bg-teal-100 text-teal-700 rounded-full text-xs font-bold flex items-center justify-center mx-auto mb-1">{i+1}</div><p className="text-[10px] text-teal-700">{s}</p></div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-xl p-4 flex items-center justify-between">
+            <div><p className="text-sm font-bold text-teal-800">{savedPlan.goal}</p><p className="text-xs text-teal-600 mt-0.5">{savedPlan.tech} · {savedPlan.weeks.length} weeks · Created {new Date(savedPlan.generatedAt).toLocaleDateString()}</p></div>
+            <button onClick={onOpenPlanner} className="shrink-0 text-xs text-teal-600 hover:text-teal-700 font-semibold flex items-center gap-1"><Pencil size={11}/>Edit</button>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {savedPlan.weeks.map(w=>(
+              <div key={w.week} className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 bg-teal-100 text-teal-700 rounded-full text-xs font-bold flex items-center justify-center shrink-0">{w.week}</div>
+                  <p className="text-xs font-bold text-gray-900">{w.focus}</p>
+                </div>
+                <ul className="space-y-1">{w.days.slice(0,3).map(d=><li key={d.day} className="text-[11px] text-gray-500 flex gap-1.5"><span className="text-teal-400 shrink-0">·</span>{d.topic}</li>)}</ul>
+                {w.days.length>3 && <p className="text-[10px] text-gray-400 mt-1">+{w.days.length-3} more days</p>}
+              </div>
+            ))}
+          </div>
+          <button onClick={onOpenPlanner} className="w-full py-2 border border-gray-200 hover:bg-gray-50 rounded-xl text-sm text-gray-600 font-semibold transition flex items-center justify-center gap-1"><Sparkles size={12}/>Open Full Plan</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Advertisement Banner ───────────────────────────────────────────────────────
+function AdvertisementBanner() {
+  const [visible, setVisible] = useState(true);
+  const ad: { title:string; body:string; cta:string; ctaUrl:string; color:string } | null = (() => {
+    try {
+      if (!localStorage.getItem("c360_ads_enabled")) return null;
+      const d = localStorage.getItem("c360_ad_data");
+      return d ? JSON.parse(d) : null;
+    } catch { return null; }
+  })();
+  if (!ad || !visible) return null;
+  return (
+    <div className={`relative rounded-xl border px-5 py-4 flex items-center gap-4 mb-6 ${ad.color||"bg-amber-50 border-amber-200"}`}>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-bold text-gray-900">{ad.title}</p>
+        <p className="text-xs text-gray-600 mt-0.5">{ad.body}</p>
+      </div>
+      {ad.cta && ad.ctaUrl && <a href={ad.ctaUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 rounded-lg text-xs font-bold text-white transition">{ad.cta}</a>}
+      <button onClick={()=>setVisible(false)} className="shrink-0 text-gray-400 hover:text-gray-600 transition"><X size={14}/></button>
+      <span className="absolute top-1 right-8 text-[9px] text-gray-400 uppercase tracking-wider">Sponsored</span>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function College360Page() {
   const [user, setUser] = useState<C360User|null>(null);
@@ -1676,6 +2512,18 @@ export default function College360Page() {
   const [communityMentors, setCommunityMentors] = useState<Mentor[]>([]);
   const [freeAI, setFreeAI] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // New feature state
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [showStudyPlanner, setShowStudyPlanner] = useState(false);
+  const [showEnquiry, setShowEnquiry] = useState(false);
+  const [showOutreach, setShowOutreach] = useState(false);
+  const [showMockInterview, setShowMockInterview] = useState(false);
+  const [showTechHelp, setShowTechHelp] = useState(false);
+  const [activeTab, setActiveTab] = useState<StudentTab>("discover");
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const acctMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -1692,6 +2540,14 @@ export default function College360Page() {
       .then(r => r.json())
       .then(d => { if (d?.data?.college360?.free_ai_enabled) setFreeAI(true); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (acctMenuRef.current && !acctMenuRef.current.contains(e.target as Node)) setShowAccountMenu(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
   }, []);
 
   const allMentors = [...MOCK_MENTORS, ...communityMentors];
@@ -1739,17 +2595,45 @@ export default function College360Page() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
-                <button onClick={()=>setShowInterviewQ(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-teal-100 hover:bg-teal-100 border border-teal-200 rounded-lg text-xs font-semibold text-teal-600 transition">
+                <button onClick={()=>setShowInterviewQ(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-teal-100 hover:bg-teal-200 border border-teal-200 rounded-lg text-xs font-semibold text-teal-600 transition">
                   <Brain size={13}/>Practice
                 </button>
                 <NotificationsPanel user={user}/>
-                <button onClick={()=>setShowProfileView(true)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
-                  <div className={`w-5 h-5 rounded ${clr(user.name)} flex items-center justify-center text-white text-[10px] font-bold`}>{user.name[0]}</div>
-                  <span className="text-gray-700 text-xs hidden sm:block">{user.name.split(" ")[0]}</span>
-                  {user.premium && <Sparkles size={12} className="text-yellow-400"/>}
-                </button>
-                {!user.premium && <button onClick={()=>setShowPremium(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-xs font-bold text-white transition"><Sparkles size={12}/>Premium</button>}
-                <button onClick={logout} className="text-gray-600 hover:text-gray-700 transition p-1.5"><LogOut size={16}/></button>
+                {!user.premium && <button onClick={()=>setShowPremium(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-xs font-bold text-white transition"><Sparkles size={12}/>Premium</button>}
+                {/* Account menu */}
+                <div ref={acctMenuRef} className="relative">
+                  <button onClick={()=>setShowAccountMenu(v=>!v)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
+                    <div className={`w-5 h-5 rounded ${clr(user.name)} flex items-center justify-center text-white text-[10px] font-bold`}>{user.name[0]}</div>
+                    <span className="text-gray-700 text-xs hidden sm:block">{user.name.split(" ")[0]}</span>
+                    {user.premium && <Sparkles size={12} className="text-yellow-400"/>}
+                    <ChevronDown size={12} className="text-gray-400"/>
+                  </button>
+                  {showAccountMenu && (
+                    <div className="absolute right-0 top-10 w-52 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+                      {[
+                        { label:"View Profile",    icon:<Search size={13}/>,        action:()=>{ setShowProfileView(true); setShowAccountMenu(false); } },
+                        { label:"Edit Profile",    icon:<Pencil size={13}/>,        action:()=>{ setShowProfile(true);     setShowAccountMenu(false); } },
+                        { label:"Personal Info",   icon:<Users size={13}/>,         action:()=>{ setShowAccountSettings(true); setShowAccountMenu(false); } },
+                        { label:"Change Password", icon:<Key size={13}/>,           action:()=>{ setShowChangePw(true);    setShowAccountMenu(false); } },
+                        { label:"Invite Friends",  icon:<Share2 size={13}/>,        action:()=>{ setShowInvite(true);      setShowAccountMenu(false); } },
+                        { label:"Study Planner",   icon:<Calendar size={13}/>,      action:()=>{ setShowStudyPlanner(true);setShowAccountMenu(false); } },
+                        { label:"Outreach Agent",  icon:<Megaphone size={13}/>,     action:()=>{ setShowOutreach(true);    setShowAccountMenu(false); } },
+                        { label:"Mock Interview",  icon:<Trophy size={13}/>,        action:()=>{ setShowMockInterview(true);setShowAccountMenu(false); } },
+                        { label:"Technical Help",  icon:<Zap size={13}/>,           action:()=>{ setShowTechHelp(true);    setShowAccountMenu(false); }, premium:true },
+                      ].map(item => (
+                        <button key={item.label} onClick={item.action} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                          <span className="text-gray-400">{item.icon}</span>{item.label}
+                          {item.premium && <span className="ml-auto text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold">PRO</span>}
+                        </button>
+                      ))}
+                      <div className="border-t border-gray-100 mt-1 pt-1">
+                        <button onClick={()=>{ logout(); setShowAccountMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-500 hover:bg-red-50 transition">
+                          <LogOut size={13}/>Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <button onClick={()=>setShowAuth(true)} className="px-4 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 rounded-lg text-sm font-semibold text-white transition">Get Started Free</button>
@@ -1842,7 +2726,23 @@ export default function College360Page() {
 
       {mode === "student" && (
         <div className="max-w-7xl mx-auto px-4 py-6">
-          {/* ── Opportunities Browser ── */}
+          {/* ── Student Tab Bar ── */}
+          <div className="flex gap-1 mb-6 bg-gray-100 border border-gray-200 rounded-xl p-1 overflow-x-auto scrollbar-hide">
+            {([
+              ["discover",  "Discover",    <Search size={13}/>],
+              ["studyplan", "Study Plan",  <Calendar size={13}/>],
+              ["projects",  "Projects",    <Layers size={13}/>],
+              ["community", "Community",   <MessageCircle size={13}/>],
+              ["books",     "Books",       <Newspaper size={13}/>],
+            ] as [StudentTab, string, React.ReactNode][]).map(([id, label, icon]) => (
+              <button key={id} onClick={()=>setActiveTab(id)} className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition ${activeTab===id?"bg-white text-gray-900 shadow-sm border border-gray-200":"text-gray-500 hover:text-gray-700"}`}>
+                {icon}{label}
+              </button>
+            ))}
+          </div>
+          <AdvertisementBanner/>
+
+          {activeTab === "discover" && <>
           <div id="opportunities" className="flex gap-6">
             {/* Sidebar */}
             <aside className="hidden lg:block w-52 shrink-0 space-y-5">
@@ -2005,6 +2905,20 @@ export default function College360Page() {
               </div>
             </div>
           )}
+          </>}
+
+          {activeTab === "studyplan" && (
+            <StudyPlanTab user={user} onOpenPlanner={()=>setShowStudyPlanner(true)}/>
+          )}
+          {activeTab === "projects" && (
+            <ProjectsBoardSection user={user}/>
+          )}
+          {activeTab === "community" && (
+            <CommunitySection user={user} onEnquiry={()=>setShowEnquiry(true)} onOutreach={()=>setShowOutreach(true)} onMockInterview={()=>setShowMockInterview(true)}/>
+          )}
+          {activeTab === "books" && (
+            <BooksFeedSection user={user}/>
+          )}
         </div>
       )}
 
@@ -2071,6 +2985,14 @@ export default function College360Page() {
       {showMentorForm && <BecomeMentorModal user={user} onClose={()=>setShowMentorForm(false)} onSaved={m=>{setCommunityMentors(prev=>[...prev.filter(x=>x.id!==m.id),m]);}}/>}
       {applyOpp && <ApplyModal opp={applyOpp} user={user} onClose={()=>setApplyOpp(null)} onNeedAuth={()=>setShowAuth(true)} onNeedPremium={()=>setShowPremium(true)}/>}
       {showInterviewQ && user && <InterviewQModal user={user} onClose={()=>setShowInterviewQ(false)}/>}
+      {showChangePw && user && <ChangePasswordModal user={user} onClose={()=>setShowChangePw(false)}/>}
+      {showAccountSettings && user && <AccountSettingsModal user={user} onClose={()=>setShowAccountSettings(false)} onUpdate={setUser}/>}
+      {showInvite && user && <InviteFriendsModal user={user} onClose={()=>setShowInvite(false)}/>}
+      {showStudyPlanner && user && <StudyPlannerModal user={user} onClose={()=>setShowStudyPlanner(false)}/>}
+      {showEnquiry && user && <CollegeEnquiryModal user={user} onClose={()=>setShowEnquiry(false)}/>}
+      {showOutreach && user && <OutreachAgentModal user={user} onClose={()=>setShowOutreach(false)}/>}
+      {showMockInterview && user && <MockInterviewModal user={user} onClose={()=>setShowMockInterview(false)} onNeedPremium={()=>setShowPremium(true)}/>}
+      {showTechHelp && user && <TechnicalHelpModal user={user} onClose={()=>setShowTechHelp(false)} onNeedPremium={()=>setShowPremium(true)}/>}
     </div>
   );
 }
