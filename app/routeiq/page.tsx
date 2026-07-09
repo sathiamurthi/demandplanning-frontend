@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Script from "next/script";
+import { ROUTEIQ_CSS } from "./styles";
 
 declare global {
   interface Window {
@@ -28,20 +29,15 @@ declare global {
 export default function RouteIQPage() {
   useEffect(() => {
     document.title = "RouteIQ — Collaborative Logistics Platform";
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "/routeiq/style.css";
-    link.id = "routeiq-styles";
-    document.head.appendChild(link);
-    return () => {
-      document.title = "NexusOS";
-      const el = document.getElementById("routeiq-styles");
-      if (el) el.remove();
-    };
+    return () => { document.title = "NexusOS"; };
   }, []);
 
   return (
     <>
+      {/* Inline CSS — bypasses CDN cache completely */}
+      {/* eslint-disable-next-line react/no-danger */}
+      <style dangerouslySetInnerHTML={{ __html: ROUTEIQ_CSS }} />
+
       {/* ── Top Nav ── */}
       <nav id="topnav">
         <div className="nav-brand">
