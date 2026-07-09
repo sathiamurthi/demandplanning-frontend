@@ -46,7 +46,7 @@ export default function RouteIQPage() {
       <nav id="topnav">
         <div className="nav-brand">
           <span className="logo-icon">🚛</span>
-          RouteIQ
+          <span className="brand-name">RouteIQ</span>
         </div>
         <div className="nav-links" id="nav-links" style={{ display: "none" }}>
           <button onClick={() => (window as any).showView("dashboard")} data-view="dashboard">Dashboard</button>
@@ -122,11 +122,11 @@ export default function RouteIQPage() {
           </div>
 
           <div style={{ padding: "40px 20px 20px", textAlign: "center" }}>
-            <p style={{ fontSize: ".78rem", fontWeight: 700, color: "var(--muted)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: "20px" }}>
+            <p style={{ fontSize: ".72rem", fontWeight: 700, color: "var(--muted)", letterSpacing: ".10em", textTransform: "uppercase" as const, marginBottom: "24px" }}>
               Choose Your Role
             </p>
           </div>
-          <div className="persona-row">
+          <div className="persona-row" style={{ padding: "0 20px 64px" }}>
             <div className="persona-card driver" onClick={() => (window as any).openAuth("register", "driver")}>
               <div className="persona-icon">🚛</div>
               <div className="persona-title">Independent Driver</div>
@@ -443,6 +443,26 @@ export default function RouteIQPage() {
           </div>
         </section>
 
+      </div>
+
+      {/* ── Mobile Bottom Nav ── */}
+      <div id="mobile-bottom-nav" className="mobile-bottom-nav">
+        <button className="mbn-btn" data-view="dashboard" onClick={() => (window as any).showView('dashboard')}>
+          <span className="mbn-icon">📊</span>
+          <span className="mbn-label">Dashboard</span>
+        </button>
+        <button className="mbn-btn" data-view="matchboard" onClick={() => (window as any).showView('matchboard')}>
+          <span className="mbn-icon">🔁</span>
+          <span className="mbn-label">Matches</span>
+        </button>
+        <button className="mbn-btn" data-view="ai" onClick={() => (window as any).showView('ai')}>
+          <span className="mbn-icon">🤖</span>
+          <span className="mbn-label">AI</span>
+        </button>
+        <button className="mbn-btn" data-view="settings" onClick={() => (window as any).showView('settings')}>
+          <span className="mbn-icon">⚙️</span>
+          <span className="mbn-label">Settings</span>
+        </button>
       </div>
 
       {/* ── Modal: Add Vehicle ── */}

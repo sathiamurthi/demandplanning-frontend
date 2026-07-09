@@ -152,6 +152,9 @@ function showView(name) {
   document.querySelectorAll('#nav-links button').forEach(b => {
     b.classList.toggle('active', b.dataset.view === name);
   });
+  document.querySelectorAll('.mbn-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === name);
+  });
   if (name === 'dashboard') renderDash();
   if (name === 'matchboard') { populateCityFilters(); refreshMatchBoard(); }
   if (name === 'ai') initAIView();
@@ -171,18 +174,21 @@ function updateNav() {
   const avatarBtn = document.getElementById('nav-avatar');
   const roleEl = document.getElementById('nav-role-badge');
   const nameEl = document.getElementById('nav-user-info');
+  const mbn = document.getElementById('mobile-bottom-nav');
   if (user) {
     links.style.display = 'flex';
     avatarBtn.textContent = user.name.charAt(0).toUpperCase();
     nameEl.textContent = user.name.split(' ')[0];
     roleEl.textContent = user.role;
     roleEl.className = `nav-role-badge badge-${user.role}`;
+    if (mbn) mbn.classList.add('visible');
   } else {
     links.style.display = 'none';
     avatarBtn.textContent = '?';
     nameEl.textContent = '';
     roleEl.textContent = '';
     roleEl.className = 'nav-role-badge';
+    if (mbn) mbn.classList.remove('visible');
   }
 }
 
