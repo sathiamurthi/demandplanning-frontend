@@ -303,9 +303,9 @@ export default function RouteIQPage() {
         {/* MATCH BOARD */}
         <section id="view-matchboard" className="view">
           <div style={{ padding: "24px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap" as const, gap: "12px" }}>
               <div>
-                <h1 style={{ fontSize: "1.4rem", fontWeight: 900, marginBottom: "4px" }}>🔁 Match Board</h1>
+                <h1 style={{ fontSize: "1.4rem", fontWeight: 900, color: "var(--text)", marginBottom: "4px" }}>Match Board</h1>
                 <p style={{ fontSize: ".82rem", color: "var(--muted)" }}>Live backhaul matching across all corridors</p>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={() => (window as any).refreshMatchBoard()}>↻ Refresh</button>
@@ -364,17 +364,17 @@ export default function RouteIQPage() {
             </div>
             <div className="ai-sidebar">
               <div className="glass" style={{ padding: "16px" }}>
-                <div className="section-title">Quick Prompts</div>
+                <p className="section-title">Quick Prompts</p>
                 <div className="quick-prompts" id="quick-prompts"></div>
               </div>
               <div className="glass" style={{ padding: "16px" }}>
-                <div className="section-title">Context</div>
+                <p className="section-title">Context</p>
                 <div style={{ fontSize: ".78rem", color: "var(--muted)", lineHeight: 1.7 }} id="ai-context-panel">
                   Sign in to personalise AI responses with your route data.
                 </div>
               </div>
               <div className="glass" style={{ padding: "16px" }}>
-                <div className="section-title">API Status</div>
+                <p className="section-title">API Status</p>
                 <div id="api-status-panel" style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: ".75rem" }}></div>
               </div>
             </div>
@@ -384,10 +384,10 @@ export default function RouteIQPage() {
         {/* SETTINGS */}
         <section id="view-settings" className="view">
           <div style={{ padding: "24px", maxWidth: "860px" }}>
-            <h1 style={{ fontSize: "1.3rem", fontWeight: 900, marginBottom: "20px" }}>⚙️ Settings</h1>
+            <h1 style={{ fontSize: "1.3rem", fontWeight: 900, color: "var(--text)", marginBottom: "20px" }}>Settings</h1>
             <div className="settings-grid">
               <div className="glass" style={{ padding: "20px" }}>
-                <div className="section-title" style={{ marginBottom: "16px" }}>🤖 AI API Keys</div>
+                <div className="section-title" style={{ marginBottom: "16px" }}>AI API Keys</div>
                 <p style={{ fontSize: ".78rem", color: "var(--muted)", marginBottom: "14px" }}>
                   Keys stored in localStorage only. Cascade: Anthropic → OpenAI → Gemini → Rule engine.
                 </p>
@@ -407,13 +407,13 @@ export default function RouteIQPage() {
               </div>
 
               <div className="glass" style={{ padding: "20px" }}>
-                <div className="section-title" style={{ marginBottom: "16px" }}>👤 Profile</div>
+                <div className="section-title" style={{ marginBottom: "16px" }}>Profile</div>
                 <div id="profile-panel" style={{ fontSize: ".85rem", lineHeight: 2, color: "var(--muted)" }}>Not signed in.</div>
                 <button className="btn btn-danger btn-sm" style={{ marginTop: "12px" }} onClick={() => (window as any).doLogout()}>Sign Out</button>
               </div>
 
               <div className="glass" style={{ padding: "20px" }}>
-                <div className="section-title" style={{ marginBottom: "16px" }}>💰 Rate Calculator</div>
+                <div className="section-title" style={{ marginBottom: "16px" }}>Rate Calculator</div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Distance (km)</label>
