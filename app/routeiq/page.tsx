@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Truck, GitMerge, Bot, Settings, MapPin, IndianRupee,
@@ -57,7 +57,7 @@ const ROLE: Record<Role, { label:string; badgeCls:string; iconCls:string }> = {
 };
 
 // ── Stat card ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon }: { label:string; value:string; sub?:string; icon:React.ReactNode }) {
+function StatCard({ label, value, sub, icon }: { label:string; value:string; sub?:string; icon:ReactNode }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
@@ -251,7 +251,7 @@ export default function RouteIQPage() {
 
   const roleCfg = user ? ROLE[user.role] : ROLE.driver;
 
-  const NAV_ITEMS: [View, string, React.ReactNode][] = [
+  const NAV_ITEMS: [View, string, ReactNode][] = [
     ["dashboard",  "Dashboard",    <TrendingUp size={15}/>],
     ["matchboard", "Match Board",  <GitMerge size={15}/>],
     ["ai",         "AI Assistant", <Bot size={15}/>],
@@ -388,7 +388,7 @@ export default function RouteIQPage() {
                 ["driver",  "Independent Driver",  "Own a vehicle? Find return loads, cut empty miles, and earn more on every trip.",            <Truck size={20}/>],
                 ["shipper", "Business Shipper",    "Move goods efficiently — access verified vehicles on-demand across major corridors.",       <Package size={20}/>],
                 ["lender",  "Fleet Lender",        "Rent out idle vehicles. Earn passive income on every booking without lifting a finger.",    <IndianRupee size={20}/>],
-              ] as [Role,string,string,React.ReactNode][]).map(([role, title, desc, icon]) => (
+              ] as [Role,string,string,ReactNode][]).map(([role, title, desc, icon]) => (
                 <button key={role} onClick={() => { setAuthRole(role); setAuthTab("register"); go("auth"); }}
                   className="bg-white border-2 border-gray-200 hover:border-teal-400 hover:shadow-lg rounded-2xl p-6 text-left transition-all group">
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${ROLE[role].iconCls}`}>
