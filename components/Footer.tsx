@@ -52,8 +52,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/routeiq" className="hover:text-white transition-colors">
-                  RouteIQ
+                <Link href="/route360" className="hover:text-white transition-colors">
+                  Route360
                 </Link>
               </li>
               <li>
@@ -64,6 +64,21 @@ export default function Footer() {
               <li>
                 <Link href="/lex360" className="hover:text-white transition-colors">
                   Lex360
+                </Link>
+              </li>
+              <li>
+                <Link href="/edu360" className="hover:text-white transition-colors">
+                  Edu360
+                </Link>
+              </li>
+              <li>
+                <Link href="/jobs" className="hover:text-white transition-colors">
+                  Nexus Talent
+                </Link>
+              </li>
+              <li>
+                <Link href="/college360" className="hover:text-white transition-colors">
+                  College360
                 </Link>
               </li>
             </ul>

@@ -1,18 +1,18 @@
 // Central SEO config — change domain by setting NEXT_PUBLIC_SITE_URL in Vercel env vars
 export const SITE = {
-  name:        'DemandGenius',
+  name:        'DemandGeniusAI',
   url:         (process.env.NEXT_PUBLIC_SITE_URL || 'https://dplan-ebon.vercel.app').replace(/\/$/, ''),
-  tagline:     'Hotel & Event Service Marketplace — India',
-  description: 'Find hotels, catering, transport, and event services across India. Create a service inquiry, send branded outreach to vendors by email or WhatsApp, and track responses in real time — no vendor login required.',
+  tagline:     'Agentic Intelligence Delivered.',
+  description: 'AI-powered multi-tenant platform for local commerce and enterprise automation — inventory & demand forecasting, PigeonSearch AI local search, and a growing suite of autonomous agent products: EnterpriseAgent360 (multi-agent workflow automation), Lex360 (legacy Excel to web app), and Route360 (logistics matching).',
   email:       'paariwalaconnect@gmail.com',
   locale:      'en_IN',
-  twitter:     '@demandgenius',
+  twitter:     '@demandgeniusai',
   keywords:    [
-    'hotel booking India', 'event catering service', 'service marketplace India',
-    'vendor outreach platform', 'hotel inquiry system', 'demand planning software',
-    'hospitality services India', 'wedding catering enquiry', 'corporate event management',
-    'WhatsApp vendor outreach', 'multi-tenant SaaS India', 'inventory management',
-    'DemandGenius', 'hotel search India',
+    'agentic AI platform', 'AI inventory management', 'demand forecasting software',
+    'multi-tenant SaaS India', 'multi-agent orchestration', 'enterprise AI automation',
+    'legacy Excel to web app', 'logistics route matching India', 'tea procurement software',
+    'local store search AI', 'DemandGeniusAI', 'EnterpriseAgent360', 'Lex360', 'Route360',
+    'college career platform', 'job search India',
   ],
 };
 

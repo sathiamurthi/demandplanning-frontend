@@ -40,11 +40,11 @@ const AI_REPLIES = [
   "Based on current corridor data, the Mumbai–Pune stretch averages ₹55–60/km for 2.5T loads. Leaving by 6 AM helps avoid Khopoli traffic.",
   "For 575 km at 12 km/L efficiency and ₹92/L diesel, your fuel cost is roughly ₹4,408. Factor that into your rate negotiation.",
   "FMCG loads on Delhi–Agra typically fetch ₹50–55/km. You can push to ₹58 if you have a refrigerated unit.",
-  "Top tip for maximising backhaul: list your empty return on RouteIQ at least 24 hrs before you leave. 87% of drivers who pre-list get a match.",
+  "Top tip for maximising backhaul: list your empty return on Route360 at least 24 hrs before you leave. 87% of drivers who pre-list get a match.",
 ];
 
 // ── Auth helpers ───────────────────────────────────────────────────────────────
-const AUTH_KEY = "routeiq_user";
+const AUTH_KEY = "route360_user";
 const getStoredUser  = (): RUser | null => { try { const s = localStorage.getItem(AUTH_KEY); return s ? JSON.parse(s) : null; } catch { return null; } };
 const storeUser      = (u: RUser) => localStorage.setItem(AUTH_KEY, JSON.stringify(u));
 const removeUser     = () => localStorage.removeItem(AUTH_KEY);
@@ -106,7 +106,7 @@ function MatchCard({ m, accepted, onAccept }: { m:typeof MOCK_MATCHES[0]; accept
 // ── AI Chat ────────────────────────────────────────────────────────────────────
 function AIChat() {
   const [msgs, setMsgs] = useState([
-    { role:"ai", text:"Hi! I'm your RouteIQ AI assistant. Ask me about routes, freight rates, fuel costs, or how to maximise your earnings." },
+    { role:"ai", text:"Hi! I'm your Route360 AI assistant. Ask me about routes, freight rates, fuel costs, or how to maximise your earnings." },
   ]);
   const [input,   setInput]   = useState("");
   const [loading, setLoading] = useState(false);
@@ -208,7 +208,7 @@ function RateCalc() {
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-export default function RouteIQPage() {
+export default function Route360Page() {
   const [view,      setView]      = useState<View>("landing");
   const [user,      setUser]      = useState<RUser | null>(null);
   const [authTab,   setAuthTab]   = useState<"login"|"register">("register");
@@ -223,7 +223,7 @@ export default function RouteIQPage() {
   const [keySaved,  setKeySaved]  = useState(false);
 
   useEffect(() => {
-    document.title = "RouteIQ — Collaborative Logistics";
+    document.title = "Route360 — Collaborative Logistics";
     const u = getStoredUser();
     if (u) { setUser(u); setView("dashboard"); }
     return () => { document.title = "NexusOS"; };
@@ -245,7 +245,7 @@ export default function RouteIQPage() {
   };
 
   const handleDemo = () => {
-    const u: RUser = { name:"Rajan Kumar", email:"demo@routeiq.in", role:"driver" };
+    const u: RUser = { name:"Rajan Kumar", email:"demo@route360.in", role:"driver" };
     storeUser(u); setUser(u); setView("dashboard");
   };
 
@@ -270,7 +270,7 @@ export default function RouteIQPage() {
               <Truck size={16} className="text-white"/>
             </div>
             <div className="text-left">
-              <p className="font-black text-gray-900 text-sm leading-none">RouteIQ</p>
+              <p className="font-black text-gray-900 text-sm leading-none">Route360</p>
               <p className="text-[9px] text-teal-600 font-semibold leading-none">Logistics Platform</p>
             </div>
           </button>
@@ -346,7 +346,7 @@ export default function RouteIQPage() {
                 Zero Empty Miles.<br/><span className="text-yellow-300">Full Earnings.</span>
               </h1>
               <p className="text-teal-100 text-sm sm:text-base max-w-xl mx-auto mb-8">
-                RouteIQ connects returning drivers with waiting cargo — real-time corridor matching for lorries, cabs &amp; rental fleets across India.
+                Route360 connects returning drivers with waiting cargo — real-time corridor matching for lorries, cabs &amp; rental fleets across India.
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 <button onClick={() => { setAuthTab("register"); go("auth"); }}
@@ -382,7 +382,7 @@ export default function RouteIQPage() {
 
           {/* Persona cards */}
           <div className="max-w-7xl mx-auto px-4 py-14">
-            <p className="text-center text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Who uses RouteIQ?</p>
+            <p className="text-center text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Who uses Route360?</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-3xl mx-auto">
               {([
                 ["driver",  "Independent Driver",  "Own a vehicle? Find return loads, cut empty miles, and earn more on every trip.",            <Truck size={20}/>],
@@ -672,13 +672,13 @@ export default function RouteIQPage() {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center"><Truck size={16} className="text-white"/></div>
               <div>
-                <p className="font-black text-sm">RouteIQ</p>
+                <p className="font-black text-sm">Route360</p>
                 <p className="text-gray-400 text-xs">Zero Empty Miles · Full Earnings</p>
               </div>
             </div>
             <Link href="/explore" className="text-teal-400 hover:text-white transition text-xs">← Back to Explore</Link>
           </div>
-          <p className="text-center text-xs text-gray-600 mt-6">© 2026 RouteIQ · Powered by Paariwala Platform</p>
+          <p className="text-center text-xs text-gray-600 mt-6">© 2026 Route360 · Powered by Paariwala Platform</p>
         </footer>
       )}
     </div>

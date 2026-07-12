@@ -1,19 +1,19 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'DemandGenius — Hotel & Event Service Marketplace India';
+export const alt = 'DemandGeniusAI — Agentic Intelligence Delivered.';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 export default function OGImage() {
   const domain = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dplan-ebon.vercel.app').replace('https://', '');
-  const features = ['🏨 Hotels', '🍽 Catering', '🚌 Transport', '🎉 Events', '✉ Email Outreach', '💬 WhatsApp API'];
+  const features = ['🤖 EnterpriseAgent360', '📊 Lex360', '🚛 Route360', '🍃 Tea Procurement', '🔍 PigeonSearch AI', '📦 Inventory & Forecasting'];
 
   return new ImageResponse(
     (
       <div
         style={{
           width: '100%', height: '100%',
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0c4a6e 100%)',
+          background: 'linear-gradient(135deg, #0f172a 0%, #0f4c4c 50%, #047857 100%)',
           display: 'flex', flexDirection: 'column',
           padding: '60px 70px', fontFamily: 'sans-serif', position: 'relative',
         }}
@@ -22,24 +22,24 @@ export default function OGImage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '48px' }}>
           <div style={{
             width: '52px', height: '52px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            background: 'linear-gradient(135deg, #0d9488, #059669)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '26px',
           }}>⚡</div>
           <span style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>
-            DemandGenius
+            DemandGeniusAI
           </span>
         </div>
 
         {/* Headline */}
         <p style={{ fontSize: '56px', fontWeight: 900, color: '#fff', lineHeight: 1.1, margin: '0 0 16px', letterSpacing: '-1px' }}>
-          Hotel & Event Services,
+          Agentic Intelligence
         </p>
-        <p style={{ fontSize: '56px', fontWeight: 900, color: '#38bdf8', lineHeight: 1.1, margin: '0 0 28px', letterSpacing: '-1px' }}>
-          Managed in One Place.
+        <p style={{ fontSize: '56px', fontWeight: 900, color: '#facc15', lineHeight: 1.1, margin: '0 0 28px', letterSpacing: '-1px' }}>
+          Delivered.
         </p>
         <p style={{ fontSize: '20px', color: 'rgba(255,255,255,0.60)', margin: '0 0 44px', maxWidth: '700px' }}>
-          Create inquiries · Send outreach via Email & WhatsApp · Track vendor responses in real time
+          AI-powered multi-tenant platform for local commerce and enterprise automation
         </p>
 
         {/* Pills */}

@@ -8,7 +8,7 @@ import {
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw, Navigation2,
-  Bot, FileSpreadsheet,
+  Bot, FileSpreadsheet, GraduationCap, Briefcase, School,
 } from "lucide-react";
 
 /* -- INDUSTRIES --------------------------------------- */
@@ -412,7 +412,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* RouteIQ */}
+            {/* Route360 */}
             <div className="bg-slate-50 border border-gray-200 hover:border-orange-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
               <div>
                 <span className="text-[10px] tracking-wider uppercase text-orange-700 font-black bg-orange-100 px-2.5 py-1 rounded-full">Logistics Matching</span>
@@ -421,7 +421,7 @@ export default function HomePage() {
                     <Truck className="text-orange-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">RouteIQ</h3>
+                    <h3 className="font-black text-base text-gray-900">Route360</h3>
                     <p className="text-[10px] text-gray-400">Zero Empty Miles. Full Earnings.</p>
                   </div>
                 </div>
@@ -430,8 +430,80 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="pt-4 border-t border-gray-200">
-                <Link href="/routeiq" className="block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
-                  Open RouteIQ
+                <Link href="/route360" className="block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open Route360
+                </Link>
+              </div>
+            </div>
+
+            {/* Edu360 */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-indigo-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-indigo-700 font-black bg-indigo-100 px-2.5 py-1 rounded-full">Admissions Discovery</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center border border-indigo-200 shrink-0">
+                    <GraduationCap className="text-indigo-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-gray-900">Edu360</h3>
+                    <p className="text-[10px] text-gray-400">Schools, Colleges & Coaching</p>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed mb-6">
+                  Connects students and parents with the right schools, colleges, universities, and coaching institutes — search by board, stream, or city, all in one place.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <Link href="/edu360" className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open Edu360
+                </Link>
+              </div>
+            </div>
+
+            {/* Jobs */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-blue-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-blue-700 font-black bg-blue-100 px-2.5 py-1 rounded-full">Careers Marketplace</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center border border-blue-200 shrink-0">
+                    <Briefcase className="text-blue-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-gray-900">Nexus Talent</h3>
+                    <p className="text-[10px] text-gray-400">Jobs &amp; Talent · India</p>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed mb-6">
+                  Post jobs or build an AI-generated resume, then search and apply across categories and cities — with direct WhatsApp and email outreach.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <Link href="/jobs" className="block text-center bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open Nexus Talent
+                </Link>
+              </div>
+            </div>
+
+            {/* College360 */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-fuchsia-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-fuchsia-700 font-black bg-fuchsia-100 px-2.5 py-1 rounded-full">Student Career AI</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-fuchsia-100 rounded-xl flex items-center justify-center border border-fuchsia-200 shrink-0">
+                    <School className="text-fuchsia-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-gray-900">College360</h3>
+                    <p className="text-[10px] text-gray-400">Internships, Mentors &amp; AI Prep</p>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed mb-6">
+                  An AI-powered career platform for college students — find internships, practice interviews with AI, and connect with industry mentors.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <Link href="/college360" className="block text-center bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open College360
                 </Link>
               </div>
             </div>
