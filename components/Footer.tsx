@@ -19,7 +19,7 @@ export default function Footer() {
                 <Zap size={13} className="text-white" />
               </div>
               <span className="font-heading text-base font-bold text-white">
-                DemandGenius
+                DemandGeniusAI
               </span>
             </Link>
             <p className="text-sm leading-relaxed">
@@ -49,6 +49,21 @@ export default function Footer() {
               <li>
                 <Link href="/reports" className="hover:text-white transition-colors">
                   Reports
+                </Link>
+              </li>
+              <li>
+                <Link href="/routeiq" className="hover:text-white transition-colors">
+                  RouteIQ
+                </Link>
+              </li>
+              <li>
+                <Link href="/enterprise360" className="hover:text-white transition-colors">
+                  EnterpriseAgent360
+                </Link>
+              </li>
+              <li>
+                <Link href="/lex360" className="hover:text-white transition-colors">
+                  Lex360
                 </Link>
               </li>
             </ul>
@@ -101,7 +116,7 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs">© 2026 DemandGenius. All rights reserved.</p>
+          <p className="text-xs">© 2026 DemandGeniusAI. All rights reserved.</p>
 
           <div className="flex items-center gap-3">
             <a

@@ -31,6 +31,11 @@ module.exports = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      boxShadow: {
+        "3xs": "0 1px 1px 0 rgb(0 0 0 / 0.03)",
+        "2xs": "0 1px 2px 0 rgb(0 0 0 / 0.04)",
+        "xs":  "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+      },
     },
   },
   plugins: [],
