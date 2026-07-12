@@ -81,6 +81,11 @@ export default function Footer() {
                   College360
                 </Link>
               </li>
+              <li>
+                <Link href="/data360" className="hover:text-white transition-colors">
+                  Data360
+                </Link>
+              </li>
             </ul>
           </div>
 

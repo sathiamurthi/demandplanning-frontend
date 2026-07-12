@@ -24,6 +24,7 @@ export default function Navbar() {
         <Link href="/college360" className="hover:text-gray-200 border border-violet-400/50 rounded px-2 py-0.5 text-sm text-violet-300">🏫 College360</Link>
         <Link href="/enterprise360" className="hover:text-gray-200 border border-teal-400/50 rounded px-2 py-0.5 text-sm text-teal-300">🤖 Enterprise360</Link>
         <Link href="/lex360" className="hover:text-gray-200 border border-sky-400/50 rounded px-2 py-0.5 text-sm text-sky-300">📊 Lex360</Link>
+        <Link href="/data360" className="hover:text-gray-200 border border-emerald-400/50 rounded px-2 py-0.5 text-sm text-emerald-300">🗃️ Data360</Link>
       </div>
     </nav>
   );

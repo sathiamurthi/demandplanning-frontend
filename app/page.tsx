@@ -8,7 +8,7 @@ import {
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw, Navigation2,
-  Bot, FileSpreadsheet, GraduationCap, Briefcase, School,
+  Bot, FileSpreadsheet, GraduationCap, Briefcase, School, Database,
 } from "lucide-react";
 
 /* -- INDUSTRIES --------------------------------------- */
@@ -504,6 +504,30 @@ export default function HomePage() {
               <div className="pt-4 border-t border-gray-200">
                 <Link href="/college360" className="block text-center bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
                   Open College360
+                </Link>
+              </div>
+            </div>
+
+            {/* Data360 */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-emerald-700 font-black bg-emerald-100 px-2.5 py-1 rounded-full">Data Pipeline RPA</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center border border-emerald-200 shrink-0">
+                    <Database className="text-emerald-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base text-gray-900">Data360</h3>
+                    <p className="text-[10px] text-gray-400">Nexus Flow RPA Engine</p>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed mb-6">
+                  Ingest Excel, PDF, screenshots, or voice — an AI validation agent flags anomalies, a human approval gate reviews them, then verified rows distribute to a file, cloud storage, or an RPA target.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <Link href="/data360" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open Data360
                 </Link>
               </div>
             </div>
