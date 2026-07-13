@@ -8,7 +8,7 @@ import {
   Car, MapPin, Zap, PiggyBank, ArrowRight, ChevronRight, X, Loader2,
   CheckCircle, XCircle, LogOut, Package, MessageSquare, Navigation,
   Play, Square, Clock, TrendingUp, User, Phone, Mail, ShieldCheck,
-  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee, Bell, Truck, Bike, MessageCircle,
+  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee, Bell, Truck, Bike, MessageCircle, Copy, Share2,
 } from "lucide-react";
 import LocationPicker from "./components/LocationPicker";
 import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution, reverseGeocode } from "./lib/geo";
@@ -43,23 +43,21 @@ type View =
 const PROVIDER_LABEL: Record<RideProvider, string> = { self: "Self", ola: "Ola", uber: "Uber", rideconnect360: "RideConnect360" };
 
 const RIDE360_URL = "https://www.demandgeniusai.com/ride360";
-const DRIVER_INVITE_MSG =
+const buildDriverInviteMsg = (refLink: string) =>
   `🚕 *Join Ride360* — track every ride, cut empty km with AI, and auto-save into your Piggy fund!\n\n` +
   `✅ Log Self/Ola/Uber rides with live map tracking\n` +
   `✅ AI shows the real cost of every empty run — and finds nearby customers instantly\n` +
   `✅ Auto-save a % of every fare into your Piggy, hassle-free\n` +
   `✅ Free to join, takes 2 minutes — no app store needed\n\n` +
-  `👉 Start here: ${RIDE360_URL}`;
-const CUSTOMER_INVITE_MSG =
+  `👉 Join free: ${refLink}`;
+const buildCustomerInviteMsg = (refLink: string) =>
   `🚗 *Need a ride or want to send a package fast?* Try Ride360 — nearby drivers running empty reach out to YOU directly.\n\n` +
   `✅ Post what you need, nearby drivers respond\n` +
   `✅ Or browse drivers within 5km and reach out yourself\n` +
   `✅ Negotiate price directly, no surge pricing\n` +
   `✅ Works right in your browser — no app store needed\n\n` +
-  `👉 Try it now: ${RIDE360_URL}`;
-function shareOnWhatsApp(text: string) {
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-}
+  `👉 Try it free: ${refLink}`;
+const inviteCountKey = (id: string) => `ride360_invite_count_${id}`;
 
 const REQ_STATUS_STYLE: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -91,6 +89,12 @@ export default function Ride360Page() {
   // Customer-initiated outreach to a specific driver's empty run
   const [targetDriverRide, setTargetDriverRide] = useState<Ride | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<VehicleType | "all">("all");
+
+  // Invite Friends/Drivers modal
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteEmailTo, setInviteEmailTo] = useState("");
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
 
   // Price negotiation in a thread
   const [proposeAmount, setProposeAmount] = useState("");
@@ -264,6 +268,35 @@ export default function Ride360Page() {
       setCurrentLocLabel(await reverseGeocode(loc.lat, loc.lng));
       setShowLocationModal(false);
     });
+  };
+
+  // ── Invite Friends/Drivers ───────────────────────────────────────────────
+  const myId = driver?.id || customer?.id || "";
+  const inviteRefLink = `${RIDE360_URL}?ref=${myId}`;
+  const inviteCount = (() => { try { return parseInt(localStorage.getItem(inviteCountKey(myId)) || "0"); } catch { return 0; } })();
+  const bumpInviteCount = () => { try { localStorage.setItem(inviteCountKey(myId), String(inviteCount + 1)); } catch {} };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteRefLink).then(() => { setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); });
+    bumpInviteCount();
+    toast.success("Invite link copied!");
+  };
+  const shareInviteWhatsApp = () => {
+    const msg = driver ? buildDriverInviteMsg(inviteRefLink) : buildCustomerInviteMsg(inviteRefLink);
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    bumpInviteCount();
+  };
+  const sendInviteEmail = () => {
+    if (!inviteEmailTo.trim()) return;
+    const s = encodeURIComponent(`Join me on Ride360${driver ? "" : " — need a ride?"}`);
+    const b = encodeURIComponent(
+      driver
+        ? `Hi!\n\nI've been using Ride360 to track my rides, cut empty km with AI cost tips, and auto-save into a Piggy fund from every fare.\n\nJoin free using my link: ${inviteRefLink}\n\nSee you there!`
+        : `Hi!\n\nI've been using Ride360 to get rides/couriers from nearby drivers running empty, without surge pricing.\n\nTry it free using my link: ${inviteRefLink}\n\nSee you there!`
+    );
+    window.open(`mailto:${inviteEmailTo}?subject=${s}&body=${b}`, "_blank");
+    setInviteEmailSent(true); setTimeout(() => { setInviteEmailSent(false); setInviteEmailTo(""); }, 2000);
+    bumpInviteCount();
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
@@ -607,6 +640,50 @@ export default function Ride360Page() {
             <button onClick={useDeviceLocationNow} className="w-full flex items-center justify-center gap-2 border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-sm py-2.5 rounded-xl transition">
               <Navigation size={14} /> Use My Device's Current Location
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Invite Friends/Drivers modal ── */}
+      {showInviteModal && (driver || customer) && (
+        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowInviteModal(false)}>
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Share2 size={15} className="text-amber-600" /> {driver ? "Invite Drivers" : "Invite Friends"}</span>
+              <button onClick={() => setShowInviteModal(false)}><X size={18} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 text-center">
+                <p className="text-2xl font-black text-amber-600">{inviteCount}</p>
+                <p className="text-xs text-amber-700 mt-0.5">Invites sent so far</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Your invite link</p>
+                <div className="flex gap-2">
+                  <input value={inviteRefLink} readOnly className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500 focus:outline-none" />
+                  <button onClick={copyInviteLink} className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition border ${inviteCopied ? "bg-emerald-100 border-emerald-200 text-emerald-600" : "bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"}`}>
+                    {inviteCopied ? <><CheckCircle size={12} />Copied!</> : <><Copy size={12} />Copy</>}
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={shareInviteWhatsApp} className="flex items-center justify-center gap-2 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-sm font-semibold text-emerald-700 transition">
+                  <MessageCircle size={15} />WhatsApp
+                </button>
+                <button onClick={copyInviteLink} className="flex items-center justify-center gap-2 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition">
+                  <Copy size={15} />Copy Link
+                </button>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Or send by email</p>
+                <div className="flex gap-2">
+                  <input value={inviteEmailTo} onChange={e => setInviteEmailTo(e.target.value)} placeholder="friend@email.com" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-amber-400" />
+                  <button onClick={sendInviteEmail} disabled={!inviteEmailTo.trim()} className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition ${inviteEmailSent ? "bg-emerald-100 text-emerald-600" : "bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-40"}`}>
+                    {inviteEmailSent ? "Sent!" : "Send"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1061,9 +1138,9 @@ export default function Ride360Page() {
           </div>
           <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
             <h3 className="font-black text-green-900 mb-1.5 flex items-center gap-2"><MessageCircle size={16} className="text-green-600" /> Invite Other Drivers</h3>
-            <p className="text-xs text-green-700 mb-3">Know another auto/cab/transport driver? Share Ride360 with them on WhatsApp.</p>
-            <button onClick={() => shareOnWhatsApp(DRIVER_INVITE_MSG)} className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2.5 rounded-xl transition">
-              <MessageCircle size={15} /> Invite via WhatsApp
+            <p className="text-xs text-green-700 mb-3">Know another auto/cab/transport driver? Share Ride360 with them.</p>
+            <button onClick={() => setShowInviteModal(true)} className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2.5 rounded-xl transition">
+              <Share2 size={15} /> Invite Drivers
             </button>
           </div>
           <button onClick={handleLogout} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 text-sm font-bold px-4 py-2.5 rounded-xl transition">
@@ -1240,9 +1317,9 @@ export default function Ride360Page() {
           {!targetDriverRide && (
             <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
               <h3 className="font-black text-green-900 mb-1.5 flex items-center gap-2 text-sm"><MessageCircle size={15} className="text-green-600" /> Know someone who needs a ride?</h3>
-              <p className="text-xs text-green-700 mb-3">Share Ride360 with friends and family on WhatsApp.</p>
-              <button onClick={() => shareOnWhatsApp(CUSTOMER_INVITE_MSG)} className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2.5 rounded-xl transition">
-                <MessageCircle size={15} /> Invite via WhatsApp
+              <p className="text-xs text-green-700 mb-3">Share Ride360 with friends and family.</p>
+              <button onClick={() => setShowInviteModal(true)} className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2.5 rounded-xl transition">
+                <Share2 size={15} /> Invite Friends
               </button>
             </div>
           )}
