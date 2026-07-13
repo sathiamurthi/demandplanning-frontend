@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -33,6 +33,17 @@ export default function SuperadminLayout({ children }: { children: React.ReactNo
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
+
+  // Guard: without a valid token every /v1/superadmin call sends a malformed
+  // "Bearer" header (empty token) and 403s instead of prompting re-login.
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role  = localStorage.getItem("role");
+    if (!token || role !== "superadmin") {
+      const redirect = encodeURIComponent(pathname || "/superadmin");
+      router.replace(`/login?redirect=${redirect}`);
+    }
+  }, [pathname, router]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
