@@ -13,12 +13,7 @@ import {
 import LocationPicker from "./components/LocationPicker";
 import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution, reverseGeocode } from "./lib/geo";
 import { analyzeDriver } from "./lib/analytics";
-import {
-  loadDrivers, loadCustomers, loadSession, saveSession, clearSession,
-  registerDriver, loginDriver, socialLoginDriver, loginOrRegisterCustomer, updateDriver,
-  loadRides, saveRides, loadRequests, saveRequests, loadFuelLogs, saveFuelLogs,
-  loadNotifications, saveNotifications,
-} from "./lib/storage";
+import { ride360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole } from "./lib/api";
 import type {
   DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType, FuelLog, AppNotification,
 } from "./lib/types";
@@ -74,11 +69,14 @@ export default function Ride360Page() {
 
   const [driver, setDriver] = useState<DriverProfile | null>(null);
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
+  const [bootLoading, setBootLoading] = useState(true);
   const [rides, setRides] = useState<Ride[]>([]);
-  const [requests, setRequests] = useState<CustomerRequest[]>([]);
+  const [requests, setRequests] = useState<CustomerRequest[]>([]); // "mine" — claimed-by-me (driver) or submitted-by-me (customer)
+  const [requestPool, setRequestPool] = useState<(CustomerRequest & { distKm?: number })[]>([]); // open, unclaimed — browsed by a driver after an empty run
+  const [nearbyDriversRaw, setNearbyDriversRaw] = useState<{ ride: Ride; driver: { id: string; name: string; vehicleType: string; vehicleNumber: string } }[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
-  const [allDrivers, setAllDrivers] = useState<DriverProfile[]>([]);
   const [currentLoc, setCurrentLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const referredByRef = useRef<string | undefined>(undefined);
   const [currentLocLabel, setCurrentLocLabel] = useState<string>("Detecting your location…");
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationPick, setLocationPick] = useState<GeoPoint | null>(null);
@@ -88,6 +86,7 @@ export default function Ride360Page() {
 
   // Customer-initiated outreach to a specific driver's empty run
   const [targetDriverRide, setTargetDriverRide] = useState<Ride | null>(null);
+  const [targetDriverInfo, setTargetDriverInfo] = useState<{ name: string; vehicleType: string } | null>(null);
   const [vehicleFilter, setVehicleFilter] = useState<VehicleType | "all">("all");
 
   // Invite Friends/Drivers modal
@@ -142,19 +141,34 @@ export default function Ride360Page() {
 
   useEffect(() => {
     document.title = "Ride360 — Track Rides, Beat Empty Km, Grow Your Piggy";
-    setRides(loadRides());
-    setRequests(loadRequests());
-    setFuelLogs(loadFuelLogs());
-    setAllDrivers(loadDrivers());
-    setNotifications(loadNotifications());
-    const session = loadSession();
-    if (session?.type === "driver") {
-      const d = loadDrivers().find(x => x.id === session.id);
-      if (d) { setDriver(d); setView(d.profileComplete ? "driverDashboard" : "driverProfileSetup"); }
-    } else if (session?.type === "customer") {
-      const c = loadCustomers().find(x => x.id === session.id);
-      if (c) { setCustomer(c); setView("customerHome"); }
-    }
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) referredByRef.current = ref;
+
+    (async () => {
+      const token = getToken();
+      if (token) {
+        try {
+          const { role, user } = await ride360Api.me();
+          if (role === "driver") {
+            const d = user as DriverProfile;
+            setDriver(d);
+            setView(d.profileComplete ? "driverDashboard" : "driverProfileSetup");
+            const [rideList, fuelList, notifList] = await Promise.all([ride360Api.listRides(), ride360Api.listFuelLogs(), ride360Api.listNotifications()]);
+            setRides(rideList); setFuelLogs(fuelList); setNotifications(notifList);
+          } else {
+            const c = user as CustomerProfile;
+            setCustomer(c);
+            setView("customerHome");
+            const [reqList, notifList] = await Promise.all([ride360Api.listMyRequests(), ride360Api.listNotifications()]);
+            setRequests(reqList); setNotifications(notifList);
+          }
+        } catch {
+          clearToken();
+        }
+      }
+      setBootLoading(false);
+    })();
+
     let watchId: number | null = null;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -179,73 +193,47 @@ export default function Ride360Page() {
     };
   }, []);
 
-  // Sync live position onto the active empty ride so other browser tabs (e.g. a
-  // customer's session) can see an approximate distance to this driver.
+  // Sync live position onto the active empty ride so other logged-in sessions
+  // (e.g. a customer browsing Nearby Drivers) see an approximate live distance.
   useEffect(() => {
     if (!currentLoc || !activeRideId) return;
-    setRides(prev => {
-      const ride = prev.find(r => r.id === activeRideId);
-      if (!ride || ride.kind !== "empty") return prev;
-      const next = prev.map(r => (r.id === activeRideId ? { ...r, liveLat: currentLoc.lat, liveLng: currentLoc.lng, liveUpdatedAt: new Date().toISOString() } : r));
-      saveRides(next);
-      return next;
-    });
+    const ride = rides.find(r => r.id === activeRideId);
+    if (!ride || ride.kind !== "empty") return;
+    ride360Api.updateRideLive(activeRideId, currentLoc.lat, currentLoc.lng)
+      .then(updated => setRides(prev => prev.map(r => (r.id === activeRideId ? updated : r))))
+      .catch(() => {});
   }, [currentLoc, activeRideId]);
 
-  // Notification tracking: every outreach/message/status action below writes a
-  // persistent AppNotification record (not just a toast), so it's still there
-  // when the recipient next opens the app — not only if they had a tab open at
-  // that exact moment. Cross-tab toasts piggyback on the same records via the
-  // storage event, which fires only in OTHER tabs of the same browser — there's
-  // no backend/push service behind Ride360, so this can't reach a different
-  // device or a closed tab.
+  // Notification tracking: every outreach/message/status action is recorded
+  // server-side as a persistent AppNotification the moment it happens (see
+  // ride360.router.ts), so it's there whenever the recipient next opens the
+  // app. This client polls for new ones every 20s while logged in to surface
+  // a toast — there's no push service behind Ride360, so nothing reaches a
+  // closed tab or a different device instantly; polling is the honest
+  // approximation of "real-time" available here.
   const notificationsRef = useRef<AppNotification[]>([]);
   useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
 
-  const pushNotification = (forType: "driver" | "customer", forId: string, type: AppNotification["type"], text: string, requestId?: string) => {
-    const notif: AppNotification = { id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, forType, forId, type, text, requestId, read: false, createdAt: new Date().toISOString() };
-    const next = [notif, ...notificationsRef.current];
-    setNotifications(next); saveNotifications(next);
-  };
-
   useEffect(() => {
-    function handleStorage(e: StorageEvent) {
-      if (e.key === "ride360_requests" && e.newValue) {
-        try { setRequests(JSON.parse(e.newValue)); } catch {}
-      }
-      if (e.key === "ride360_notifications" && e.newValue) {
-        try {
-          const incoming: AppNotification[] = JSON.parse(e.newValue);
-          const myType = driver ? "driver" : customer ? "customer" : null;
-          const myId = driver?.id || customer?.id;
-          if (myType && myId) {
-            const prevIds = new Set(notificationsRef.current.map(n => n.id));
-            incoming
-              .filter(n => n.forType === myType && n.forId === myId && !prevIds.has(n.id))
-              .forEach(n => toast.info(n.text));
-          }
-          setNotifications(incoming);
-        } catch {}
-      }
-    }
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    if (!driver && !customer) return;
+    const poll = async () => {
+      try {
+        const incoming = await ride360Api.listNotifications();
+        const prevIds = new Set(notificationsRef.current.map(n => n.id));
+        incoming.filter(n => !prevIds.has(n.id) && !n.read).forEach(n => toast.info(n.text));
+        setNotifications(incoming);
+      } catch {}
+    };
+    const interval = setInterval(poll, 20000);
+    return () => clearInterval(interval);
   }, [driver, customer]);
 
-  const myNotifications = useMemo(() => {
-    const myType = driver ? "driver" : customer ? "customer" : null;
-    const myId = driver?.id || customer?.id;
-    if (!myType || !myId) return [];
-    return notifications.filter(n => n.forType === myType && n.forId === myId);
-  }, [notifications, driver, customer]);
-  const unreadNotifCount = myNotifications.filter(n => !n.read).length;
+  const unreadNotifCount = notifications.filter(n => !n.read).length;
 
-  const markNotificationsRead = () => {
+  const markNotificationsRead = async () => {
     if (unreadNotifCount === 0) return;
-    const myType = driver ? "driver" : "customer";
-    const myId = driver?.id || customer?.id;
-    const next = notifications.map(n => (n.forType === myType && n.forId === myId ? { ...n, read: true } : n));
-    setNotifications(next); saveNotifications(next);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try { await ride360Api.markNotificationsRead(); } catch {}
   };
 
   const go = (v: View) => setView(v);
@@ -302,27 +290,48 @@ export default function Ride360Page() {
   // ── Auth handlers ────────────────────────────────────────────────────────
   const resetAuthFields = () => { setName(""); setEmail(""); setPassword(""); setPhone(""); setOtp(""); setOtpSent(false); setAuthErr(""); };
 
-  const handleDriverRegister = () => {
+  const loadDriverData = async () => {
+    const [rideList, fuelList, notifList] = await Promise.all([ride360Api.listRides(), ride360Api.listFuelLogs(), ride360Api.listNotifications()]);
+    setRides(rideList); setFuelLogs(fuelList); setNotifications(notifList);
+  };
+  const loadCustomerData = async () => {
+    const [reqList, notifList] = await Promise.all([ride360Api.listMyRequests(), ride360Api.listNotifications()]);
+    setRequests(reqList); setNotifications(notifList);
+  };
+
+  const handleDriverRegister = async () => {
     setAuthErr("");
     if (!name.trim() || !email.trim() || !password.trim()) { setAuthErr("Name, email, and password are required."); return; }
-    const result = registerDriver({ name: name.trim(), email: email.trim(), authMethod: "email", vehicleType, vehicleNumber: "", licenseNumber: "", licenseExpiry: "", piggyPct: 10, pw: password } as any);
-    if (typeof result === "string") { setAuthErr(result); return; }
-    setDriver(result); resetAuthFields(); go("driverProfileSetup");
+    setAuthBusy(true);
+    try {
+      const { token, user } = await ride360Api.registerDriver(name.trim(), email.trim(), password, vehicleType, referredByRef.current);
+      setToken(token); setStoredRole("driver");
+      setDriver(user); resetAuthFields(); await loadDriverData(); go("driverProfileSetup");
+    } catch (e: any) { setAuthErr(e.message || "Registration failed."); } finally { setAuthBusy(false); }
   };
 
-  const handleDriverLogin = () => {
+  const handleDriverLogin = async () => {
     setAuthErr("");
     if (!email.trim() || !password.trim()) { setAuthErr("Email and password are required."); return; }
-    const result = loginDriver(email.trim(), password);
-    if (typeof result === "string") { setAuthErr(result); return; }
-    setDriver(result); resetAuthFields(); go(result.profileComplete ? "driverDashboard" : "driverProfileSetup");
+    setAuthBusy(true);
+    try {
+      const { token, user } = await ride360Api.loginDriver(email.trim(), password);
+      setToken(token); setStoredRole("driver");
+      setDriver(user); resetAuthFields(); await loadDriverData();
+      go(user.profileComplete ? "driverDashboard" : "driverProfileSetup");
+    } catch (e: any) { setAuthErr(e.message || "Login failed."); } finally { setAuthBusy(false); }
   };
 
-  const handleSocialLogin = (method: "google" | "linkedin") => {
+  const handleSocialLogin = async (method: "google" | "linkedin") => {
     const demoName = method === "google" ? "Ravi Kumar" : "Ravi Kumar (LinkedIn)";
     const demoEmail = method === "google" ? "ravi.kumar.demo@gmail.com" : "ravi.kumar.demo@linkedin.com";
-    const result = socialLoginDriver(method, demoName, demoEmail);
-    setDriver(result); resetAuthFields(); go(result.profileComplete ? "driverDashboard" : "driverProfileSetup");
+    setAuthBusy(true);
+    try {
+      const { token, user } = await ride360Api.socialLoginDriver(method, demoName, demoEmail, referredByRef.current);
+      setToken(token); setStoredRole("driver");
+      setDriver(user); resetAuthFields(); await loadDriverData();
+      go(user.profileComplete ? "driverDashboard" : "driverProfileSetup");
+    } catch (e: any) { setAuthErr(e.message || "Login failed."); } finally { setAuthBusy(false); }
   };
 
   const handleSendOtp = () => {
@@ -331,213 +340,220 @@ export default function Ride360Page() {
     setOtpSent(true);
     setOtp("1234"); // demo mode — no SMS gateway wired up, code is pre-filled
   };
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     setAuthErr("");
     if (otp.trim().length < 4) { setAuthErr("Enter the OTP sent to your phone."); return; }
-    const c = loginOrRegisterCustomer(phone.trim());
-    setCustomer(c); resetAuthFields(); go("customerHome");
+    setAuthBusy(true);
+    try {
+      const { token, user } = await ride360Api.loginCustomer(phone.trim(), referredByRef.current);
+      setToken(token); setStoredRole("customer");
+      setCustomer(user); resetAuthFields(); await loadCustomerData(); go("customerHome");
+    } catch (e: any) { setAuthErr(e.message || "Login failed."); } finally { setAuthBusy(false); }
   };
 
   const handleLogout = () => {
-    clearSession(); setDriver(null); setCustomer(null); go("landing");
+    clearToken();
+    setDriver(null); setCustomer(null);
+    setRides([]); setRequests([]); setFuelLogs([]); setNotifications([]); setRequestPool([]); setNearbyDriversRaw([]);
+    go("landing");
   };
 
   // ── Driver profile setup ─────────────────────────────────────────────────
-  const saveProfileSetup = () => {
+  const saveProfileSetup = async () => {
     if (!driver) return;
     if (!vehicleNumber.trim() || !licenseNumber.trim()) { setAuthErr("Vehicle number and license number are required."); return; }
-    const updated = updateDriver(driver.id, { vehicleNumber: vehicleNumber.trim(), licenseNumber: licenseNumber.trim(), licenseExpiry, piggyPct, profileComplete: true });
-    setDriver(updated as DriverProfile);
-    go("driverDashboard");
+    try {
+      const updated = await ride360Api.updateDriverProfile({ vehicleNumber: vehicleNumber.trim(), licenseNumber: licenseNumber.trim(), licenseExpiry, piggyPct, profileComplete: true });
+      setDriver(updated);
+      go("driverDashboard");
+    } catch (e: any) { setAuthErr(e.message || "Could not save profile."); }
   };
 
   // ── Ride lifecycle ───────────────────────────────────────────────────────
-  const startRide = () => {
+  const startRide = async () => {
     if (!driver || !source || !destination) return;
-    const id = `ride_${Date.now()}`;
     const distanceKm = haversineKm(source, destination);
-    const newRide: Ride = {
-      id, driverId: driver.id, kind: rideKind, provider: rideKind === "paid" ? provider : undefined,
-      source, destination, status: "active", fare: rideKind === "paid" ? fare : undefined,
-      distanceKm, durationMin: 0, piggyContribution: 0, startedAt: new Date().toISOString(),
-    };
-    const next = [newRide, ...rides];
-    setRides(next); saveRides(next);
-    setActiveRideId(id); setShowStartModal(false); setRideElapsedSec(0);
-    go("driverActiveRide");
-    if (tickRef.current) clearInterval(tickRef.current);
-    tickRef.current = setInterval(() => setRideElapsedSec(s => s + 1), 1000);
+    try {
+      const newRide = await ride360Api.startRide({
+        kind: rideKind, provider: rideKind === "paid" ? provider : undefined,
+        source, destination, fare: rideKind === "paid" ? fare : undefined, distanceKm,
+      });
+      setRides(prev => [newRide, ...prev]);
+      setActiveRideId(newRide.id); setShowStartModal(false); setRideElapsedSec(0);
+      go("driverActiveRide");
+      if (tickRef.current) clearInterval(tickRef.current);
+      tickRef.current = setInterval(() => setRideElapsedSec(s => s + 1), 1000);
+    } catch (e: any) { toast.error(e.message || "Could not start ride."); }
   };
 
-  const endRide = () => {
+  const endRide = async () => {
     if (!activeRideId || !driver) return;
     if (tickRef.current) clearInterval(tickRef.current);
     const ride = rides.find(r => r.id === activeRideId);
     if (!ride) return;
     const durationMin = Math.max(1, Math.round(rideElapsedSec / 60));
-    let updated: Ride = { ...ride, status: "completed", endedAt: new Date().toISOString(), durationMin };
-    if (closingOdometerKm.trim()) updated.odometerEndKm = Number(closingOdometerKm);
-    if (ride.kind === "paid") {
-      const contribution = piggyContribution(ride.fare || 0, driver.piggyPct);
-      updated.piggyContribution = contribution;
-      const d = updateDriver(driver.id, { piggyBalance: driver.piggyBalance + contribution });
-      setDriver(d as DriverProfile);
-    } else {
-      updated.costAnalysis = analyzeEmptyRide(ride.distanceKm);
-    }
-    const next = rides.map(r => (r.id === activeRideId ? updated : r));
-    // If this ride came from a matched empty-run request, mark that request completed too.
-    const matchedReq = ride.matchedRequestId ? requests.find(r => r.id === ride.matchedRequestId) : undefined;
-    const finalRequests = ride.matchedRequestId
-      ? requests.map(r => (r.id === ride.matchedRequestId ? { ...r, status: "completed" as const } : r))
-      : requests;
-    if (ride.matchedRequestId) {
-      setRequests(finalRequests); saveRequests(finalRequests);
-      if (matchedReq) pushNotification("customer", matchedReq.customerId, "completed", `✅ Your ride is complete — ₹${matchedReq.currentAmount} via RideConnect360.`, matchedReq.id);
-    }
-    setRides(next); saveRides(next);
-    setShowResultsFor(activeRideId);
-    setActiveRideId(null);
-    setClosingOdometerKm("");
+    const odometerEndKm = closingOdometerKm.trim() ? Number(closingOdometerKm) : undefined;
+    const piggyContrib = ride.kind === "paid" ? piggyContribution(ride.fare || 0, driver.piggyPct) : undefined;
+    const costAnalysis = ride.kind === "empty" ? analyzeEmptyRide(ride.distanceKm) : undefined;
+    if (ride.kind === "empty") ride360Api.logAIUsage("empty_ride_analysis");
+    try {
+      const { ride: updatedRide, driver: updatedDriver } = await ride360Api.endRide(activeRideId, {
+        durationMin, odometerEndKm, piggyContribution: piggyContrib, costAnalysis,
+      });
+      setDriver(updatedDriver);
+      setRides(prev => prev.map(r => (r.id === activeRideId ? updatedRide : r)));
+      if (ride.matchedRequestId) {
+        setRequests(prev => prev.map(r => (r.id === ride.matchedRequestId ? { ...r, status: "completed" as const } : r)));
+      }
+      setShowResultsFor(activeRideId);
+      setActiveRideId(null);
+      setClosingOdometerKm("");
+    } catch (e: any) { toast.error(e.message || "Could not end ride."); }
   };
 
-  const startRideConnectRide = (req: CustomerRequest) => {
+  const startRideConnectRide = async (req: CustomerRequest) => {
     if (!driver) return;
-    const id = `ride_${Date.now()}`;
     const distanceKm = haversineKm(req.pickup, req.drop);
-    const newRide: Ride = {
-      id, driverId: driver.id, kind: "paid", provider: "rideconnect360",
-      source: req.pickup, destination: req.drop, status: "active", fare: req.currentAmount,
-      distanceKm, durationMin: 0, piggyContribution: 0, startedAt: new Date().toISOString(),
-      matchedRequestId: req.id,
-    };
-    const next = [newRide, ...rides];
-    setRides(next); saveRides(next);
-    setActiveRideId(id); setRideElapsedSec(0);
-    setFocusedThread(null);
-    go("driverActiveRide");
-    if (tickRef.current) clearInterval(tickRef.current);
-    tickRef.current = setInterval(() => setRideElapsedSec(s => s + 1), 1000);
+    try {
+      const newRide = await ride360Api.startRide({
+        kind: "paid", provider: "rideconnect360", source: req.pickup, destination: req.drop,
+        fare: req.currentAmount, distanceKm, matchedRequestId: req.id,
+      });
+      setRides(prev => [newRide, ...prev]);
+      setActiveRideId(newRide.id); setRideElapsedSec(0);
+      setFocusedThread(null);
+      go("driverActiveRide");
+      if (tickRef.current) clearInterval(tickRef.current);
+      tickRef.current = setInterval(() => setRideElapsedSec(s => s + 1), 1000);
+    } catch (e: any) { toast.error(e.message || "Could not start ride."); }
   };
 
-  const addFuelLog = () => {
+  const addFuelLog = async () => {
     if (!driver || !fuelLiters.trim() || !fuelCost.trim() || !fuelOdometer.trim()) return;
-    const log: FuelLog = {
-      id: `fuel_${Date.now()}`, driverId: driver.id, date: fuelDate,
-      liters: Number(fuelLiters), totalCost: Number(fuelCost), odometerKm: Number(fuelOdometer),
-      createdAt: new Date().toISOString(),
-    };
-    const next = [log, ...fuelLogs];
-    setFuelLogs(next); saveFuelLogs(next);
-    setFuelLiters(""); setFuelCost(""); setFuelOdometer("");
-    setShowFuelModal(false);
+    try {
+      const log = await ride360Api.addFuelLog({ date: fuelDate, liters: Number(fuelLiters), totalCost: Number(fuelCost), odometerKm: Number(fuelOdometer) });
+      setFuelLogs(prev => [log, ...prev]);
+      setFuelLiters(""); setFuelCost(""); setFuelOdometer("");
+      setShowFuelModal(false);
+    } catch (e: any) { toast.error(e.message || "Could not save fuel log."); }
   };
 
   const activeRide = rides.find(r => r.id === activeRideId);
   const resultRide = rides.find(r => r.id === showResultsFor);
 
-  const driverFuelLogs = useMemo(() => (driver ? fuelLogs.filter(f => f.driverId === driver.id) : []), [driver, fuelLogs]);
+  const driverFuelLogs = fuelLogs; // already scoped to the logged-in driver by the backend
   const driverStats = useMemo(
-    () => (driver ? analyzeDriver(rides.filter(r => r.driverId === driver.id), driverFuelLogs, requests) : null),
+    () => (driver ? analyzeDriver(rides, driverFuelLogs, requests) : null),
     [driver, rides, driverFuelLogs, requests]
   );
 
-  const nearbyRequests = useMemo(() => {
-    if (!resultRide) return [];
-    const origin = resultRide.destination;
-    return requests
-      .filter(r => r.status === "pending")
-      .map(r => ({ ...r, distKm: haversineKm(origin, r.pickup) }))
-      .sort((a, b) => a.distKm - b.distKm)
-      .slice(0, 8);
-  }, [requests, resultRide]);
+  useEffect(() => {
+    if (driver && view === "driverAnalysis") ride360Api.logAIUsage("ai_suggestions");
+  }, [view, driver]);
 
-  const reachOut = (reqId: string, originEmptyRideId?: string) => {
+  // Open pool of pending, unclaimed requests — fetched on demand when the
+  // driver taps "Find Nearby Requests" after an empty run.
+  const loadNearbyRequestPool = async () => {
+    if (!resultRide) return;
+    try {
+      const pool = await ride360Api.listRequestPool();
+      const origin = resultRide.destination;
+      const withDist = pool
+        .map(r => ({ ...r, distKm: haversineKm(origin, r.pickup) }))
+        .sort((a, b) => (a.distKm ?? 0) - (b.distKm ?? 0))
+        .slice(0, 8);
+      setRequestPool(withDist);
+    } catch { setRequestPool([]); }
+  };
+  const nearbyRequests = requestPool;
+
+  const reachOut = async (reqId: string, originEmptyRideId?: string) => {
     if (!driver) return;
-    const next = requests.map(r => r.id === reqId
-      ? { ...r, claimedByDriverId: driver.id, originEmptyRideId, contactInitiatedBy: "driver" as const, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
-      : r);
-    setRequests(next); saveRequests(next);
-    const req = requests.find(r => r.id === reqId);
-    if (req) pushNotification("customer", req.customerId, "outreach", `🚕 ${driver.name} reached out about your ${req.type} request — ₹${req.currentAmount}`, reqId);
+    try {
+      const updated = await ride360Api.reachOut(reqId, originEmptyRideId);
+      setRequests(prev => [updated, ...prev.filter(r => r.id !== reqId)]);
+      setRequestPool(prev => prev.filter(r => r.id !== reqId));
+      toast.success("Reached out!");
+    } catch (e: any) { toast.error(e.message || "Could not reach out."); }
   };
 
-  const demoConfirm = (reqId: string, status: "confirmed" | "rejected") => {
-    const next = requests.map(r => r.id === reqId ? { ...r, status } : r);
-    setRequests(next); saveRequests(next);
-    const req = requests.find(r => r.id === reqId);
-    if (req) {
-      // Notify whoever initiated contact — they're the one waiting on this decision.
-      const notifyDriver = req.contactInitiatedBy === "driver" && req.claimedByDriverId;
-      const notifyCustomer = req.contactInitiatedBy === "customer";
-      const text = status === "confirmed" ? `✅ Request confirmed at ₹${req.currentAmount}` : `❌ Request was rejected.`;
-      if (notifyDriver && req.claimedByDriverId) pushNotification("driver", req.claimedByDriverId, "status", text, reqId);
-      if (notifyCustomer) pushNotification("customer", req.customerId, "status", text, reqId);
-    }
+  const demoConfirm = async (reqId: string, status: "confirmed" | "rejected") => {
+    try {
+      const updated = await ride360Api.setRequestStatus(reqId, status);
+      setRequests(prev => prev.map(r => (r.id === reqId ? updated : r)));
+      setFocusedThread(prev => (prev && prev.id === reqId ? updated : prev));
+    } catch (e: any) { toast.error(e.message || "Could not update status."); }
   };
 
-  const sendThreadMessage = (from: "driver" | "customer") => {
+  const sendThreadMessage = async (_from: "driver" | "customer") => {
     if (!focusedThread || !threadMsg.trim()) return;
-    const next = requests.map(r => r.id === focusedThread.id
-      ? { ...r, messages: [...r.messages, { from, text: threadMsg.trim(), at: new Date().toISOString() }] }
-      : r);
-    setRequests(next); saveRequests(next);
-    setFocusedThread(next.find(r => r.id === focusedThread.id) || null);
     const text = threadMsg.trim();
     setThreadMsg("");
-    if (from === "driver" && driver) pushNotification("customer", focusedThread.customerId, "message", `💬 ${driver.name}: ${text.slice(0, 60)}`, focusedThread.id);
-    else if (from === "customer" && focusedThread.claimedByDriverId) pushNotification("driver", focusedThread.claimedByDriverId, "message", `💬 New message: ${text.slice(0, 60)}`, focusedThread.id);
+    try {
+      const updated = await ride360Api.sendMessage(focusedThread.id, text);
+      setRequests(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      setFocusedThread(updated);
+    } catch (e: any) { toast.error(e.message || "Could not send message."); }
   };
 
-  const proposePrice = (from: "driver" | "customer") => {
+  const proposePrice = async (_from: "driver" | "customer") => {
     if (!focusedThread || !proposeAmount.trim()) return;
     const amount = Number(proposeAmount);
-    const next = requests.map(r => r.id === focusedThread.id
-      ? { ...r, currentAmount: amount, messages: [...r.messages, { from, text: `Proposed a new price: ₹${amount}`, at: new Date().toISOString(), amount }] }
-      : r);
-    setRequests(next); saveRequests(next);
-    setFocusedThread(next.find(r => r.id === focusedThread.id) || null);
     setProposeAmount("");
-    if (from === "driver" && driver) pushNotification("customer", focusedThread.customerId, "message", `💰 ${driver.name} proposed a new price: ₹${amount}`, focusedThread.id);
-    else if (from === "customer" && focusedThread.claimedByDriverId) pushNotification("driver", focusedThread.claimedByDriverId, "message", `💰 New price proposed: ₹${amount}`, focusedThread.id);
+    try {
+      const updated = await ride360Api.sendMessage(focusedThread.id, undefined, amount);
+      setRequests(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+      setFocusedThread(updated);
+    } catch (e: any) { toast.error(e.message || "Could not propose price."); }
   };
 
   // ── Customer request ─────────────────────────────────────────────────────
-  const submitRequest = () => {
+  const submitRequest = async () => {
     if (!customer || !pickup || !drop || !reqDesc.trim() || !reqAmount) return;
     const amount = Number(reqAmount);
-    const req: CustomerRequest = {
-      id: `req_${Date.now()}`, customerId: customer.id, customerPhone: customer.phone, type: reqType,
-      pickup, drop, description: reqDesc.trim(), offeredAmount: amount, currentAmount: amount, status: "pending",
-      messages: targetDriverRide ? [{ from: "customer" as const, text: `${customer.phone} reached out to your empty run directly — looking for a ${reqType === "parcel" ? "courier drop" : "ride"}.`, at: new Date().toISOString() }] : [],
-      createdAt: new Date().toISOString(),
-      ...(targetDriverRide ? { claimedByDriverId: targetDriverRide.driverId, originEmptyRideId: targetDriverRide.id, contactInitiatedBy: "customer" as const } : {}),
-    };
-    const next = [req, ...requests];
-    setRequests(next); saveRequests(next);
-    if (targetDriverRide) pushNotification("driver", targetDriverRide.driverId, "outreach", `📩 A nearby customer reached out — ${reqDesc.trim()} · ₹${amount}`, req.id);
-    setPickup(null); setDrop(null); setReqDesc(""); setReqAmount(""); setTargetDriverRide(null);
-    go("customerMyRequests");
+    try {
+      const req = await ride360Api.createRequest({
+        type: reqType, pickup, drop, description: reqDesc.trim(), offeredAmount: amount,
+        targetDriverId: targetDriverRide?.driverId, originEmptyRideId: targetDriverRide?.id,
+      });
+      setRequests(prev => [req, ...prev]);
+      setPickup(null); setDrop(null); setReqDesc(""); setReqAmount(""); setTargetDriverRide(null); setTargetDriverInfo(null);
+      go("customerMyRequests");
+    } catch (e: any) { toast.error(e.message || "Could not submit request."); }
   };
 
-  const myRequests = customer ? requests.filter(r => r.customerId === customer.id) : [];
-  const driverThreads = driver ? requests.filter(r => r.claimedByDriverId === driver.id) : [];
+  const myRequests = requests;
+  const driverThreads = requests;
+
+  // Drivers currently running empty, fetched on demand when a customer opens Nearby Drivers.
+  const loadNearbyDrivers = async () => {
+    try { setNearbyDriversRaw(await ride360Api.listNearbyDrivers()); } catch { setNearbyDriversRaw([]); }
+  };
+  useEffect(() => {
+    if (view === "customerNearbyDrivers" && customer) loadNearbyDrivers();
+  }, [view, customer]);
 
   const nearbyDrivers = useMemo(() => {
     if (!currentLoc) return [];
-    return rides
-      .filter(r => r.kind === "empty" && r.status === "active")
-      .map(r => {
-        const pos = r.liveLat != null && r.liveLng != null ? { lat: r.liveLat, lng: r.liveLng } : r.source;
-        const info = allDrivers.find(d => d.id === r.driverId);
-        return { ride: r, info, pos, distKm: haversineKm(currentLoc, pos) };
+    return nearbyDriversRaw
+      .map(({ ride, driver: info }) => {
+        const pos = ride.liveLat != null && ride.liveLng != null ? { lat: ride.liveLat, lng: ride.liveLng } : ride.source;
+        return { ride, info, pos, distKm: haversineKm(currentLoc, pos) };
       })
-      .filter((x): x is typeof x & { info: DriverProfile } => !!x.info && x.distKm <= NEARBY_RANGE_KM)
+      .filter(x => x.distKm <= NEARBY_RANGE_KM)
       .filter(x => vehicleFilter === "all" || x.info.vehicleType === vehicleFilter)
       .sort((a, b) => a.distKm - b.distKm);
-  }, [rides, allDrivers, currentLoc, vehicleFilter]);
+  }, [nearbyDriversRaw, currentLoc, vehicleFilter]);
 
   const fmtTime = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+
+  if (bootLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-amber-500" size={28} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
@@ -582,11 +598,11 @@ export default function Ride360Page() {
                   {showNotifPanel && (
                     <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-xl z-40">
                       <div className="p-3 border-b border-gray-100 font-black text-gray-900 text-sm">Notifications</div>
-                      {myNotifications.length === 0 ? (
+                      {notifications.length === 0 ? (
                         <p className="text-xs text-gray-400 text-center py-8">No notifications yet.</p>
                       ) : (
                         <div className="divide-y divide-gray-50">
-                          {myNotifications.slice(0, 20).map(n => (
+                          {notifications.slice(0, 20).map(n => (
                             <button
                               key={n.id}
                               onClick={() => {
@@ -1054,7 +1070,7 @@ export default function Ride360Page() {
                   </div>
                   <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-800">{resultRide.costAnalysis?.tip}</div>
                   {!nearbyOpen ? (
-                    <button onClick={() => setNearbyOpen(true)} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition">Find Nearby Requests</button>
+                    <button onClick={() => { setNearbyOpen(true); loadNearbyRequestPool(); }} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition">Find Nearby Requests</button>
                   ) : (
                     <div className="space-y-2">
                       <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Nearby Requests</p>
@@ -1288,9 +1304,9 @@ export default function Ride360Page() {
             <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-sky-800">
                 <Radar size={15} className="text-sky-600 shrink-0" />
-                <span>Reaching out to <b>{allDrivers.find(d => d.id === targetDriverRide.driverId)?.name || "this driver"}</b> ({allDrivers.find(d => d.id === targetDriverRide.driverId)?.vehicleType})</span>
+                <span>Reaching out to <b>{targetDriverInfo?.name || "this driver"}</b> ({targetDriverInfo?.vehicleType})</span>
               </div>
-              <button onClick={() => setTargetDriverRide(null)} className="text-xs font-bold text-sky-700 hover:underline shrink-0">Cancel</button>
+              <button onClick={() => { setTargetDriverRide(null); setTargetDriverInfo(null); }} className="text-xs font-bold text-sky-700 hover:underline shrink-0">Cancel</button>
             </div>
           )}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
@@ -1366,7 +1382,7 @@ export default function Ride360Page() {
                       <p className="text-xs text-gray-400 mt-0.5">{distKm.toFixed(1)} km away · {info.vehicleNumber || "no vehicle number"}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setTargetDriverRide(ride); go("customerNewRequest"); }} className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded-xl transition">Reach Out</button>
+                  <button onClick={() => { setTargetDriverRide(ride); setTargetDriverInfo({ name: info.name, vehicleType: info.vehicleType }); go("customerNewRequest"); }} className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded-xl transition">Reach Out</button>
                 </div>
               ))}
             </div>
