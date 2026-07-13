@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { toast } from "react-toastify";
 import {
   Car, MapPin, Zap, PiggyBank, ArrowRight, ChevronRight, X, Loader2,
   CheckCircle, XCircle, LogOut, Package, MessageSquare, Navigation,
   Play, Square, Clock, TrendingUp, User, Phone, Mail, ShieldCheck,
-  Fuel, Gauge, Sparkles, Plus,
+  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee,
 } from "lucide-react";
 import LocationPicker from "./components/LocationPicker";
 import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution } from "./lib/geo";
@@ -33,7 +34,7 @@ const ONBOARDING = [
 type View =
   | "landing" | "onboarding" | "auth"
   | "driverProfileSetup" | "driverDashboard" | "driverActiveRide" | "driverRequests" | "driverProfile" | "driverAnalysis"
-  | "customerHome" | "customerNewRequest" | "customerMyRequests";
+  | "customerHome" | "customerNewRequest" | "customerMyRequests" | "customerNearbyDrivers";
 
 const PROVIDER_LABEL: Record<RideProvider, string> = { self: "Self", ola: "Ola", uber: "Uber", rideconnect360: "RideConnect360" };
 
@@ -55,7 +56,14 @@ export default function Ride360Page() {
   const [rides, setRides] = useState<Ride[]>([]);
   const [requests, setRequests] = useState<CustomerRequest[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
+  const [allDrivers, setAllDrivers] = useState<DriverProfile[]>([]);
   const [currentLoc, setCurrentLoc] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Customer-initiated outreach to a specific driver's empty run
+  const [targetDriverRide, setTargetDriverRide] = useState<Ride | null>(null);
+
+  // Price negotiation in a thread
+  const [proposeAmount, setProposeAmount] = useState("");
 
   // Fuel log form
   const [showFuelModal, setShowFuelModal] = useState(false);
@@ -103,6 +111,7 @@ export default function Ride360Page() {
     setRides(loadRides());
     setRequests(loadRequests());
     setFuelLogs(loadFuelLogs());
+    setAllDrivers(loadDrivers());
     const session = loadSession();
     if (session?.type === "driver") {
       const d = loadDrivers().find(x => x.id === session.id);
@@ -111,14 +120,70 @@ export default function Ride360Page() {
       const c = loadCustomers().find(x => x.id === session.id);
       if (c) { setCustomer(c); setView("customerHome"); }
     }
+    let watchId: number | null = null;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         pos => setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
         () => setCurrentLoc({ lat: 12.9716, lng: 77.5946 })
       );
+      watchId = navigator.geolocation.watchPosition(
+        pos => setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 10000 }
+      );
     }
-    return () => { document.title = "NexusOS"; };
+    return () => {
+      document.title = "NexusOS";
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    };
   }, []);
+
+  // Sync live position onto the active empty ride so other browser tabs (e.g. a
+  // customer's session) can see an approximate distance to this driver.
+  useEffect(() => {
+    if (!currentLoc || !activeRideId) return;
+    setRides(prev => {
+      const ride = prev.find(r => r.id === activeRideId);
+      if (!ride || ride.kind !== "empty") return prev;
+      const next = prev.map(r => (r.id === activeRideId ? { ...r, liveLat: currentLoc.lat, liveLng: currentLoc.lng, liveUpdatedAt: new Date().toISOString() } : r));
+      saveRides(next);
+      return next;
+    });
+  }, [currentLoc, activeRideId]);
+
+  // Cross-tab outreach/message/status notifications. Fires only in OTHER tabs of the
+  // same browser when localStorage changes — there's no backend/push service behind
+  // Ride360, so this can't reach a different device or a closed tab.
+  const requestsRef = useRef<CustomerRequest[]>([]);
+  useEffect(() => { requestsRef.current = requests; }, [requests]);
+
+  useEffect(() => {
+    function handleStorage(e: StorageEvent) {
+      if (e.key !== "ride360_requests" || !e.newValue) return;
+      let incoming: CustomerRequest[];
+      try { incoming = JSON.parse(e.newValue); } catch { return; }
+      const prevById = new Map(requestsRef.current.map(r => [r.id, r]));
+      for (const req of incoming) {
+        const before = prevById.get(req.id);
+        const mine = (driver && req.claimedByDriverId === driver.id) || (customer && req.customerId === customer.id);
+        if (!before && driver && req.claimedByDriverId === driver.id && req.contactInitiatedBy === "customer") {
+          toast.info(`📩 A nearby customer reached out — ${req.description} · ₹${req.currentAmount}`);
+        } else if (before && !before.claimedByDriverId && req.claimedByDriverId && customer && req.customerId === customer.id) {
+          toast.info(`🚕 A driver reached out to your request — ${req.pickup.address.split(",")[0]} → ${req.drop.address.split(",")[0]}`);
+        } else if (before && mine && req.messages.length > before.messages.length) {
+          const lastMsg = req.messages[req.messages.length - 1];
+          const fromOther = driver ? lastMsg.from !== "driver" : lastMsg.from !== "customer";
+          if (fromOther) toast.info(`💬 New message: ${lastMsg.text.slice(0, 60)}`);
+        } else if (before && mine && before.status !== req.status) {
+          if (req.status === "confirmed") toast.success(`✅ Request confirmed at ₹${req.currentAmount}`);
+          if (req.status === "rejected") toast.error("❌ Request was rejected.");
+        }
+      }
+      setRequests(incoming);
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [driver, customer]);
 
   const go = (v: View) => setView(v);
 
@@ -226,7 +291,7 @@ export default function Ride360Page() {
     const distanceKm = haversineKm(req.pickup, req.drop);
     const newRide: Ride = {
       id, driverId: driver.id, kind: "paid", provider: "rideconnect360",
-      source: req.pickup, destination: req.drop, status: "active", fare: req.offeredAmount,
+      source: req.pickup, destination: req.drop, status: "active", fare: req.currentAmount,
       distanceKm, durationMin: 0, piggyContribution: 0, startedAt: new Date().toISOString(),
       matchedRequestId: req.id,
     };
@@ -274,7 +339,7 @@ export default function Ride360Page() {
   const reachOut = (reqId: string, originEmptyRideId?: string) => {
     if (!driver) return;
     const next = requests.map(r => r.id === reqId
-      ? { ...r, claimedByDriverId: driver.id, originEmptyRideId, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
+      ? { ...r, claimedByDriverId: driver.id, originEmptyRideId, contactInitiatedBy: "driver" as const, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
       : r);
     setRequests(next); saveRequests(next);
   };
@@ -294,22 +359,50 @@ export default function Ride360Page() {
     setThreadMsg("");
   };
 
+  const proposePrice = (from: "driver" | "customer") => {
+    if (!focusedThread || !proposeAmount.trim()) return;
+    const amount = Number(proposeAmount);
+    const next = requests.map(r => r.id === focusedThread.id
+      ? { ...r, currentAmount: amount, messages: [...r.messages, { from, text: `Proposed a new price: ₹${amount}`, at: new Date().toISOString(), amount }] }
+      : r);
+    setRequests(next); saveRequests(next);
+    setFocusedThread(next.find(r => r.id === focusedThread.id) || null);
+    setProposeAmount("");
+  };
+
   // ── Customer request ─────────────────────────────────────────────────────
   const submitRequest = () => {
     if (!customer || !pickup || !drop || !reqDesc.trim() || !reqAmount) return;
+    const amount = Number(reqAmount);
     const req: CustomerRequest = {
       id: `req_${Date.now()}`, customerId: customer.id, customerPhone: customer.phone, type: reqType,
-      pickup, drop, description: reqDesc.trim(), offeredAmount: Number(reqAmount), status: "pending",
-      messages: [], createdAt: new Date().toISOString(),
+      pickup, drop, description: reqDesc.trim(), offeredAmount: amount, currentAmount: amount, status: "pending",
+      messages: targetDriverRide ? [{ from: "customer" as const, text: `${customer.phone} reached out to your empty run directly — looking for a ${reqType === "parcel" ? "courier drop" : "ride"}.`, at: new Date().toISOString() }] : [],
+      createdAt: new Date().toISOString(),
+      ...(targetDriverRide ? { claimedByDriverId: targetDriverRide.driverId, originEmptyRideId: targetDriverRide.id, contactInitiatedBy: "customer" as const } : {}),
     };
     const next = [req, ...requests];
     setRequests(next); saveRequests(next);
-    setPickup(null); setDrop(null); setReqDesc(""); setReqAmount("");
+    setPickup(null); setDrop(null); setReqDesc(""); setReqAmount(""); setTargetDriverRide(null);
     go("customerMyRequests");
   };
 
   const myRequests = customer ? requests.filter(r => r.customerId === customer.id) : [];
   const driverThreads = driver ? requests.filter(r => r.claimedByDriverId === driver.id) : [];
+
+  const nearbyDrivers = useMemo(() => {
+    if (!currentLoc) return [];
+    return rides
+      .filter(r => r.kind === "empty" && r.status === "active")
+      .map(r => {
+        const pos = r.liveLat != null && r.liveLng != null ? { lat: r.liveLat, lng: r.liveLng } : r.source;
+        const info = allDrivers.find(d => d.id === r.driverId);
+        return { ride: r, info, distKm: haversineKm(currentLoc, pos) };
+      })
+      .filter(x => !!x.info)
+      .sort((a, b) => a.distKm - b.distKm)
+      .slice(0, 12);
+  }, [rides, allDrivers, currentLoc]);
 
   const fmtTime = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 
@@ -336,6 +429,7 @@ export default function Ride360Page() {
           {customer && (
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               <button onClick={() => go("customerHome")} className={`hover:text-amber-600 transition ${view === "customerHome" || view === "customerNewRequest" ? "text-amber-600 font-bold" : ""}`}>New Request</button>
+              <button onClick={() => go("customerNearbyDrivers")} className={`hover:text-amber-600 transition ${view === "customerNearbyDrivers" ? "text-amber-600 font-bold" : ""}`}>Nearby Drivers</button>
               <button onClick={() => go("customerMyRequests")} className={`hover:text-amber-600 transition ${view === "customerMyRequests" ? "text-amber-600 font-bold" : ""}`}>My Requests</button>
             </div>
           )}
@@ -761,11 +855,12 @@ export default function Ride360Page() {
                 <button key={r.id} onClick={() => setFocusedThread(r)} className="w-full text-left bg-white border border-gray-200 hover:border-amber-300 rounded-2xl p-4 transition">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {r.type === "parcel" ? <Package size={13} className="text-gray-400" /> : <Car size={13} className="text-gray-400" />}
                         <p className="text-sm font-bold text-gray-900 truncate">{r.pickup.address.split(",")[0]} → {r.drop.address.split(",")[0]}</p>
+                        {r.contactInitiatedBy === "customer" && <span className="text-[9px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full shrink-0">Customer reached out</span>}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">{r.description} · ₹{r.offeredAmount}</p>
+                      <p className="text-xs text-gray-400 mt-1">{r.description} · ₹{r.currentAmount}{r.currentAmount !== r.offeredAmount ? ` (was ₹${r.offeredAmount})` : ""}</p>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${REQ_STATUS_STYLE[r.status]}`}>{r.status}</span>
                   </div>
@@ -935,9 +1030,18 @@ export default function Ride360Page() {
       {(view === "customerHome" || view === "customerNewRequest") && customer && (
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
           <div>
-            <h2 className="text-xl font-black text-gray-900">Need a ride or send a package?</h2>
-            <p className="text-sm text-gray-500">Describe what you need — nearby drivers running empty will reach out.</p>
+            <h2 className="text-xl font-black text-gray-900">{targetDriverRide ? "Reach out to this driver" : "Need a ride or send a package?"}</h2>
+            <p className="text-sm text-gray-500">{targetDriverRide ? "This goes straight to the driver you picked — they'll see it as a direct outreach." : "Describe what you need — nearby drivers running empty will reach out."}</p>
           </div>
+          {targetDriverRide && (
+            <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-sky-800">
+                <Radar size={15} className="text-sky-600 shrink-0" />
+                <span>Reaching out to <b>{allDrivers.find(d => d.id === targetDriverRide.driverId)?.name || "this driver"}</b> ({allDrivers.find(d => d.id === targetDriverRide.driverId)?.vehicleType})</span>
+              </div>
+              <button onClick={() => setTargetDriverRide(null)} className="text-xs font-bold text-sky-700 hover:underline shrink-0">Cancel</button>
+            </div>
+          )}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
             <div className="flex bg-gray-100 rounded-xl p-1">
               {(["ride", "parcel"] as const).map(t => (
@@ -962,6 +1066,34 @@ export default function Ride360Page() {
         </div>
       )}
 
+      {/* ══════════════════════ CUSTOMER NEARBY DRIVERS ══════════════════════ */}
+      {view === "customerNearbyDrivers" && customer && (
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+          <div>
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Radar size={18} className="text-amber-500" /> Nearby Drivers</h2>
+            <p className="text-sm text-gray-500 mt-1">Drivers currently running empty near you — reach out directly instead of waiting.</p>
+          </div>
+          {nearbyDrivers.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No drivers running empty nearby right now. Post a request instead and one will find you.</div>
+          ) : (
+            <div className="space-y-2">
+              {nearbyDrivers.map(({ ride, info, distKm }) => (
+                <div key={ride.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-black shrink-0">{info!.name[0]}</div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{info!.name} · <span className="capitalize text-gray-500 font-medium">{info!.vehicleType}</span></p>
+                      <p className="text-xs text-gray-400 mt-0.5">{distKm.toFixed(1)} km away · {info!.vehicleNumber || "no vehicle number"}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setTargetDriverRide(ride); go("customerNewRequest"); }} className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded-xl transition">Reach Out</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ══════════════════════ CUSTOMER MY REQUESTS ══════════════════════ */}
       {view === "customerMyRequests" && customer && (
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
@@ -976,8 +1108,11 @@ export default function Ride360Page() {
                 <button key={r.id} onClick={() => setFocusedThread(r)} className="w-full text-left bg-white border border-gray-200 hover:border-amber-300 rounded-2xl p-4 transition">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{r.pickup.address.split(",")[0]} → {r.drop.address.split(",")[0]}</p>
-                      <p className="text-xs text-gray-400 mt-1">{r.description} · ₹{r.offeredAmount}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-bold text-gray-900 truncate">{r.pickup.address.split(",")[0]} → {r.drop.address.split(",")[0]}</p>
+                        {r.contactInitiatedBy === "customer" && <span className="text-[9px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full shrink-0">You reached out</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{r.description} · ₹{r.currentAmount}{r.currentAmount !== r.offeredAmount ? ` (was ₹${r.offeredAmount})` : ""}</p>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${REQ_STATUS_STYLE[r.status]}`}>{r.status}</span>
                   </div>
@@ -989,35 +1124,56 @@ export default function Ride360Page() {
       )}
 
       {/* ── Thread modal (shared driver/customer) ── */}
-      {focusedThread && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setFocusedThread(null)}>
+      {focusedThread && (() => {
+        const canDecide = focusedThread.contactInitiatedBy === "driver" ? !!customer : !!driver;
+        const closeThread = () => { setFocusedThread(null); setProposeAmount(""); setThreadMsg(""); };
+        return (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={closeThread}>
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="font-black text-gray-900 text-sm">{focusedThread.pickup.address.split(",")[0]} → {focusedThread.drop.address.split(",")[0]}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{focusedThread.description} · ₹{focusedThread.offeredAmount}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {focusedThread.description} · <span className="font-bold text-gray-600">₹{focusedThread.currentAmount}</span>
+                  {focusedThread.currentAmount !== focusedThread.offeredAmount && <span className="line-through ml-1">₹{focusedThread.offeredAmount}</span>}
+                </p>
               </div>
-              <button onClick={() => setFocusedThread(null)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0"><X size={16} /></button>
+              <button onClick={closeThread} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0"><X size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50">
               {focusedThread.messages.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No messages yet.</p>}
               {focusedThread.messages.map((m, i) => (
                 <div key={i} className={`flex ${m.from === "driver" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.from === "driver" ? "bg-white border border-gray-200 text-gray-800 rounded-bl-sm" : "bg-amber-500 text-white rounded-br-sm"}`}>{m.text}</div>
+                  <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.from === "driver" ? "bg-white border border-gray-200 text-gray-800 rounded-bl-sm" : "bg-amber-500 text-white rounded-br-sm"}`}>
+                    {m.amount != null && <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide opacity-70 mb-0.5"><IndianRupee size={9} /> Price Proposal</span>}
+                    {m.text}
+                  </div>
                 </div>
               ))}
             </div>
             <div className="p-4 border-t border-gray-100 space-y-3">
-              {focusedThread.status === "pending" && (
+              {focusedThread.status === "pending" && canDecide && (
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => { demoConfirm(focusedThread.id, "rejected"); setFocusedThread({ ...focusedThread, status: "rejected" }); }} className="flex items-center justify-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs py-2 rounded-xl transition"><XCircle size={13} /> Reject</button>
                   <button onClick={() => { demoConfirm(focusedThread.id, "confirmed"); setFocusedThread({ ...focusedThread, status: "confirmed" }); }} className="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs py-2 rounded-xl transition"><CheckCircle size={13} /> Confirm</button>
                 </div>
               )}
-              {focusedThread.status === "confirmed" && (
+              {focusedThread.status === "pending" && !canDecide && (
+                <p className="text-center text-[11px] text-gray-400">Waiting for {focusedThread.contactInitiatedBy === "driver" ? "the customer" : "the driver"} to respond…</p>
+              )}
+              {focusedThread.status === "confirmed" && driver && (
                 <button onClick={() => startRideConnectRide(focusedThread)} className="w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2.5 rounded-xl transition">
-                  <Play size={13} /> Start RideConnect360 Ride · ₹{focusedThread.offeredAmount}
+                  <Play size={13} /> Start RideConnect360 Ride · ₹{focusedThread.currentAmount}
                 </button>
+              )}
+              {focusedThread.status !== "rejected" && focusedThread.status !== "completed" && (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <IndianRupee size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="number" value={proposeAmount} onChange={e => setProposeAmount(e.target.value)} placeholder="Propose new price" className="w-full border border-gray-200 rounded-xl pl-7 pr-2 py-2 text-sm focus:outline-none focus:border-amber-400" />
+                  </div>
+                  <button onClick={() => proposePrice(driver ? "driver" : "customer")} disabled={!proposeAmount.trim()} className="bg-gray-900 hover:bg-gray-800 disabled:opacity-40 text-white text-xs font-bold px-3 rounded-xl transition shrink-0">Propose</button>
+                </div>
               )}
               <div className="flex gap-2">
                 <input value={threadMsg} onChange={e => setThreadMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendThreadMessage(driver ? "driver" : "customer")} placeholder="Add a comment…" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
@@ -1026,7 +1182,8 @@ export default function Ride360Page() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

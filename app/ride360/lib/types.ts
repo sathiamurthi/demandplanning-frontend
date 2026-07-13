@@ -50,6 +50,9 @@ export interface Ride {
   odometerStartKm?: number;
   odometerEndKm?: number; // driver-entered actual odometer reading when closing the ride — more accurate than GPS distance
   matchedRequestId?: string; // set when this ride came from a successful empty-run outreach (provider "rideconnect360")
+  liveLat?: number;
+  liveLng?: number; // periodically-synced live position while an empty ride is active, so other sessions can see approximate distance
+  liveUpdatedAt?: string;
 }
 
 export interface FuelLog {
@@ -76,6 +79,7 @@ export interface ThreadMessage {
   from: "driver" | "customer";
   text: string;
   at: string;
+  amount?: number; // set when this message is a price proposal
 }
 
 export interface CustomerRequest {
@@ -87,9 +91,11 @@ export interface CustomerRequest {
   drop: GeoPoint;
   description: string;
   offeredAmount: number;
+  currentAmount: number; // tracked/negotiable price — starts at offeredAmount, updates as either side proposes a new figure
   status: RequestStatus;
   claimedByDriverId?: string;
   originEmptyRideId?: string; // the empty ride whose "Reach Out" created this claim, for conversion tracking
+  contactInitiatedBy?: "driver" | "customer"; // who reached out first — decides who sees the accept/reject decision
   messages: ThreadMessage[];
   createdAt: string;
 }
