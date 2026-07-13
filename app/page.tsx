@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Footer from "../components/Footer";
+import { InstallAppBadge } from "../components/InstallApp";
 import {
   BarChart3, Package, Shield, ArrowRight, Star,
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
@@ -282,7 +283,7 @@ export default function HomePage() {
                     <BarChart3 className="text-indigo-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">DemandGeniusAI Business</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">DemandGeniusAI Business</h3><InstallAppBadge label="DemandGeniusAI" /></div>
                     <p className="text-[10px] text-gray-400">Inventory & forecasting suite</p>
                   </div>
                 </div>
@@ -309,7 +310,7 @@ export default function HomePage() {
                     <School className="text-fuchsia-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">College360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">College360</h3><InstallAppBadge label="College360" /></div>
                     <p className="text-[10px] text-gray-400">Internships, Mentors &amp; AI Prep</p>
                   </div>
                 </div>
@@ -333,7 +334,7 @@ export default function HomePage() {
                     <Database className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">Data360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Data360</h3><InstallAppBadge label="Data360" /></div>
                     <p className="text-[10px] text-gray-400">Nexus Flow RPA Engine</p>
                   </div>
                 </div>
@@ -373,7 +374,7 @@ export default function HomePage() {
                     <Bot className="text-violet-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">EnterpriseAgent360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">EnterpriseAgent360</h3><InstallAppBadge label="EnterpriseAgent360" /></div>
                     <p className="text-[10px] text-gray-400">Agentic Intelligence Delivered.</p>
                   </div>
                 </div>
@@ -397,7 +398,7 @@ export default function HomePage() {
                     <FileSpreadsheet className="text-sky-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">Lex360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Lex360</h3><InstallAppBadge label="Lex360" /></div>
                     <p className="text-[10px] text-gray-400">Legacy Excel &rarr; Web App</p>
                   </div>
                 </div>
@@ -421,7 +422,7 @@ export default function HomePage() {
                     <Truck className="text-orange-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">Route360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Route360</h3><InstallAppBadge label="Route360" /></div>
                     <p className="text-[10px] text-gray-400">Zero Empty Miles. Full Earnings.</p>
                   </div>
                 </div>
@@ -445,7 +446,7 @@ export default function HomePage() {
                     <GraduationCap className="text-indigo-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">Edu360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Edu360</h3><InstallAppBadge label="Edu360" /></div>
                     <p className="text-[10px] text-gray-400">Schools, Colleges & Coaching</p>
                   </div>
                 </div>
@@ -469,7 +470,7 @@ export default function HomePage() {
                     <Briefcase className="text-blue-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">Nexus Talent</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Nexus Talent</h3><InstallAppBadge label="Nexus Talent" /></div>
                     <p className="text-[10px] text-gray-400">Jobs &amp; Talent · India</p>
                   </div>
                 </div>
@@ -493,7 +494,7 @@ export default function HomePage() {
                     <Car className="text-amber-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">RideConnect360</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">RideConnect360</h3><InstallAppBadge label="RideConnect360" /></div>
                     <p className="text-[10px] text-gray-400">Track. Match. Save.</p>
                   </div>
                 </div>
@@ -517,7 +518,7 @@ export default function HomePage() {
                     <Leaf className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">TeaLeaf Collect</h3>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">TeaLeaf Collect</h3><InstallAppBadge label="TeaLeaf Collect" /></div>
                     <p className="text-[10px] text-gray-400">Supply-chain &amp; settlements</p>
                   </div>
                 </div>

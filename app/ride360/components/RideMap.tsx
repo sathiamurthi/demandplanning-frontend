@@ -49,7 +49,7 @@ export default function RideMap({
   const center: [number, number] = points[0] || [12.9716, 77.5946]; // Bengaluru fallback
 
   return (
-    <div style={{ height }} className="rounded-xl overflow-hidden border border-gray-200">
+    <div style={{ height }} className="relative z-0 rounded-xl overflow-hidden border border-gray-200">
       <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
         <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {current && <Marker position={[current.lat, current.lng]} icon={dotIcon} />}

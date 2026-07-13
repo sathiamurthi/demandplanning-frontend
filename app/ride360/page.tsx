@@ -138,6 +138,7 @@ export default function Ride360Page() {
     setAuthErr("");
     if (phone.trim().length < 10) { setAuthErr("Enter a valid 10-digit phone number."); return; }
     setOtpSent(true);
+    setOtp("1234"); // demo mode — no SMS gateway wired up, code is pre-filled
   };
   const handleVerifyOtp = () => {
     setAuthErr("");
@@ -433,7 +434,12 @@ export default function Ride360Page() {
                   <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit mobile number" className="flex-1 text-sm outline-none" disabled={otpSent} />
                 </div>
                 {otpSent && (
-                  <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter OTP" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                  <>
+                    <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Demo mode — no SMS is sent. Your code is pre-filled below; just tap Verify.
+                    </p>
+                    <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter OTP" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                  </>
                 )}
                 {authErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{authErr}</p>}
                 {!otpSent ? (
@@ -441,7 +447,6 @@ export default function Ride360Page() {
                 ) : (
                   <button onClick={handleVerifyOtp} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition">Verify &amp; Continue</button>
                 )}
-                <p className="text-center text-[10px] text-gray-400">OTP is simulated in this preview — any code will work.</p>
               </div>
             )}
           </div>

@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/global.css';
 import { buildMeta, SITE_JSON_LD } from '../lib/seo';
+import { InstallAppBar } from '../components/InstallApp';
 
 export const metadata = buildMeta();
 
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Theme radius="large" scaling="100%">
+          <InstallAppBar />
           {children}
           <ToastContainer position="top-right" autoClose={3000} newestOnTop closeOnClick pauseOnHover />
         </Theme>
