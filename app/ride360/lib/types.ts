@@ -29,7 +29,7 @@ export interface GeoPoint {
   address: string;
 }
 
-export type RideProvider = "self" | "ola" | "uber";
+export type RideProvider = "self" | "ola" | "uber" | "rideconnect360";
 export type RideStatus = "active" | "completed" | "cancelled";
 
 export interface Ride {
@@ -47,6 +47,19 @@ export interface Ride {
   startedAt: string;
   endedAt?: string;
   costAnalysis?: EmptyRideAnalysis; // only for empty
+  odometerStartKm?: number;
+  odometerEndKm?: number; // driver-entered actual odometer reading when closing the ride — more accurate than GPS distance
+  matchedRequestId?: string; // set when this ride came from a successful empty-run outreach (provider "rideconnect360")
+}
+
+export interface FuelLog {
+  id: string;
+  driverId: string;
+  date: string; // yyyy-mm-dd
+  liters: number;
+  totalCost: number;
+  odometerKm: number; // odometer reading at the time of this fill-up
+  createdAt: string;
 }
 
 export interface EmptyRideAnalysis {
@@ -76,6 +89,7 @@ export interface CustomerRequest {
   offeredAmount: number;
   status: RequestStatus;
   claimedByDriverId?: string;
+  originEmptyRideId?: string; // the empty ride whose "Reach Out" created this claim, for conversion tracking
   messages: ThreadMessage[];
   createdAt: string;
 }

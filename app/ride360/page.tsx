@@ -7,16 +7,18 @@ import {
   Car, MapPin, Zap, PiggyBank, ArrowRight, ChevronRight, X, Loader2,
   CheckCircle, XCircle, LogOut, Package, MessageSquare, Navigation,
   Play, Square, Clock, TrendingUp, User, Phone, Mail, ShieldCheck,
+  Fuel, Gauge, Sparkles, Plus,
 } from "lucide-react";
 import LocationPicker from "./components/LocationPicker";
 import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution } from "./lib/geo";
+import { analyzeDriver } from "./lib/analytics";
 import {
   loadDrivers, loadCustomers, loadSession, saveSession, clearSession,
   registerDriver, loginDriver, socialLoginDriver, loginOrRegisterCustomer, updateDriver,
-  loadRides, saveRides, loadRequests, saveRequests,
+  loadRides, saveRides, loadRequests, saveRequests, loadFuelLogs, saveFuelLogs,
 } from "./lib/storage";
 import type {
-  DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType,
+  DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType, FuelLog,
 } from "./lib/types";
 
 const RideMap = dynamic(() => import("./components/RideMap"), { ssr: false, loading: () => <div className="h-[260px] bg-slate-100 rounded-xl animate-pulse" /> });
@@ -30,8 +32,10 @@ const ONBOARDING = [
 
 type View =
   | "landing" | "onboarding" | "auth"
-  | "driverProfileSetup" | "driverDashboard" | "driverActiveRide" | "driverRequests" | "driverProfile"
+  | "driverProfileSetup" | "driverDashboard" | "driverActiveRide" | "driverRequests" | "driverProfile" | "driverAnalysis"
   | "customerHome" | "customerNewRequest" | "customerMyRequests";
+
+const PROVIDER_LABEL: Record<RideProvider, string> = { self: "Self", ola: "Ola", uber: "Uber", rideconnect360: "RideConnect360" };
 
 const REQ_STATUS_STYLE: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -50,7 +54,16 @@ export default function Ride360Page() {
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
   const [rides, setRides] = useState<Ride[]>([]);
   const [requests, setRequests] = useState<CustomerRequest[]>([]);
+  const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [currentLoc, setCurrentLoc] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Fuel log form
+  const [showFuelModal, setShowFuelModal] = useState(false);
+  const [fuelDate, setFuelDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fuelLiters, setFuelLiters] = useState(""); const [fuelCost, setFuelCost] = useState(""); const [fuelOdometer, setFuelOdometer] = useState("");
+
+  // Odometer at ride close
+  const [closingOdometerKm, setClosingOdometerKm] = useState("");
 
   // Auth form state
   const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
@@ -89,6 +102,7 @@ export default function Ride360Page() {
     document.title = "Ride360 — Track Rides, Beat Empty Km, Grow Your Piggy";
     setRides(loadRides());
     setRequests(loadRequests());
+    setFuelLogs(loadFuelLogs());
     const session = loadSession();
     if (session?.type === "driver") {
       const d = loadDrivers().find(x => x.id === session.id);
@@ -185,6 +199,7 @@ export default function Ride360Page() {
     if (!ride) return;
     const durationMin = Math.max(1, Math.round(rideElapsedSec / 60));
     let updated: Ride = { ...ride, status: "completed", endedAt: new Date().toISOString(), durationMin };
+    if (closingOdometerKm.trim()) updated.odometerEndKm = Number(closingOdometerKm);
     if (ride.kind === "paid") {
       const contribution = piggyContribution(ride.fare || 0, driver.piggyPct);
       updated.piggyContribution = contribution;
@@ -194,13 +209,57 @@ export default function Ride360Page() {
       updated.costAnalysis = analyzeEmptyRide(ride.distanceKm);
     }
     const next = rides.map(r => (r.id === activeRideId ? updated : r));
+    // If this ride came from a matched empty-run request, mark that request completed too.
+    const finalRequests = ride.matchedRequestId
+      ? requests.map(r => (r.id === ride.matchedRequestId ? { ...r, status: "completed" as const } : r))
+      : requests;
+    if (ride.matchedRequestId) { setRequests(finalRequests); saveRequests(finalRequests); }
     setRides(next); saveRides(next);
     setShowResultsFor(activeRideId);
     setActiveRideId(null);
+    setClosingOdometerKm("");
+  };
+
+  const startRideConnectRide = (req: CustomerRequest) => {
+    if (!driver) return;
+    const id = `ride_${Date.now()}`;
+    const distanceKm = haversineKm(req.pickup, req.drop);
+    const newRide: Ride = {
+      id, driverId: driver.id, kind: "paid", provider: "rideconnect360",
+      source: req.pickup, destination: req.drop, status: "active", fare: req.offeredAmount,
+      distanceKm, durationMin: 0, piggyContribution: 0, startedAt: new Date().toISOString(),
+      matchedRequestId: req.id,
+    };
+    const next = [newRide, ...rides];
+    setRides(next); saveRides(next);
+    setActiveRideId(id); setRideElapsedSec(0);
+    setFocusedThread(null);
+    go("driverActiveRide");
+    if (tickRef.current) clearInterval(tickRef.current);
+    tickRef.current = setInterval(() => setRideElapsedSec(s => s + 1), 1000);
+  };
+
+  const addFuelLog = () => {
+    if (!driver || !fuelLiters.trim() || !fuelCost.trim() || !fuelOdometer.trim()) return;
+    const log: FuelLog = {
+      id: `fuel_${Date.now()}`, driverId: driver.id, date: fuelDate,
+      liters: Number(fuelLiters), totalCost: Number(fuelCost), odometerKm: Number(fuelOdometer),
+      createdAt: new Date().toISOString(),
+    };
+    const next = [log, ...fuelLogs];
+    setFuelLogs(next); saveFuelLogs(next);
+    setFuelLiters(""); setFuelCost(""); setFuelOdometer("");
+    setShowFuelModal(false);
   };
 
   const activeRide = rides.find(r => r.id === activeRideId);
   const resultRide = rides.find(r => r.id === showResultsFor);
+
+  const driverFuelLogs = useMemo(() => (driver ? fuelLogs.filter(f => f.driverId === driver.id) : []), [driver, fuelLogs]);
+  const driverStats = useMemo(
+    () => (driver ? analyzeDriver(rides.filter(r => r.driverId === driver.id), driverFuelLogs, requests) : null),
+    [driver, rides, driverFuelLogs, requests]
+  );
 
   const nearbyRequests = useMemo(() => {
     if (!resultRide) return [];
@@ -212,10 +271,10 @@ export default function Ride360Page() {
       .slice(0, 8);
   }, [requests, resultRide]);
 
-  const reachOut = (reqId: string) => {
+  const reachOut = (reqId: string, originEmptyRideId?: string) => {
     if (!driver) return;
     const next = requests.map(r => r.id === reqId
-      ? { ...r, claimedByDriverId: driver.id, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
+      ? { ...r, claimedByDriverId: driver.id, originEmptyRideId, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
       : r);
     setRequests(next); saveRequests(next);
   };
@@ -270,6 +329,7 @@ export default function Ride360Page() {
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               <button onClick={() => go("driverDashboard")} className={`hover:text-amber-600 transition ${view === "driverDashboard" || view === "driverActiveRide" ? "text-amber-600 font-bold" : ""}`}>Dashboard</button>
               <button onClick={() => go("driverRequests")} className={`hover:text-amber-600 transition ${view === "driverRequests" ? "text-amber-600 font-bold" : ""}`}>Requests</button>
+              <button onClick={() => go("driverAnalysis")} className={`hover:text-amber-600 transition ${view === "driverAnalysis" ? "text-amber-600 font-bold" : ""}`}>Fuel &amp; AI</button>
               <button onClick={() => go("driverProfile")} className={`hover:text-amber-600 transition ${view === "driverProfile" ? "text-amber-600 font-bold" : ""}`}>Profile</button>
             </div>
           )}
@@ -491,9 +551,14 @@ export default function Ride360Page() {
               <h2 className="text-xl font-black text-gray-900">Welcome back, {driver.name.split(" ")[0]}</h2>
               <p className="text-sm text-gray-500">{driver.vehicleType} · {driver.vehicleNumber || "no vehicle number set"}</p>
             </div>
-            <button onClick={() => setShowStartModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
-              <Play size={15} /> Start a Ride
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={() => setShowFuelModal(true)} className="flex items-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition">
+                <Fuel size={15} className="text-amber-500" /> Log Fuel
+              </button>
+              <button onClick={() => setShowStartModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
+                <Play size={15} /> Start a Ride
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -512,6 +577,11 @@ export default function Ride360Page() {
             </div>
           </div>
 
+          <button onClick={() => go("driverAnalysis")} className="w-full bg-white border border-gray-200 hover:border-amber-300 hover:shadow-sm rounded-2xl p-4 flex items-center justify-between transition-all">
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-900"><Sparkles size={16} className="text-amber-500" /> AI Analysis — fuel, mileage &amp; empty-run performance</span>
+            <ChevronRight size={16} className="text-gray-400" />
+          </button>
+
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Navigation size={14} className="text-amber-500" /> Your Location</h3>
             <RideMap current={currentLoc} height="240px" />
@@ -527,7 +597,7 @@ export default function Ride360Page() {
                   <div key={r.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{r.source.address.split(",")[0]} → {r.destination.address.split(",")[0]}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{r.kind === "paid" ? `${r.provider} · ₹${r.fare}` : "Empty run"} · {r.distanceKm.toFixed(1)} km</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{r.kind === "paid" ? `${PROVIDER_LABEL[r.provider || "self"]} · ₹${r.fare}` : "Empty run"} · {r.distanceKm.toFixed(1)} km{r.odometerEndKm ? ` · odo ${r.odometerEndKm.toLocaleString("en-IN")} km` : ""}</p>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${r.status === "active" ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>{r.status}</span>
                   </div>
@@ -593,7 +663,7 @@ export default function Ride360Page() {
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <div>
                 <span className={`text-xs font-bold px-3 py-1 rounded-full border ${activeRide.kind === "paid" ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-orange-50 text-orange-700 border-orange-200"}`}>
-                  {activeRide.kind === "paid" ? `Paid Ride · ${activeRide.provider}` : "Empty Run"}
+                  {activeRide.kind === "paid" ? `Paid Ride · ${PROVIDER_LABEL[activeRide.provider || "self"]}` : "Empty Run"}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-2xl font-black text-gray-900"><Clock size={20} className="text-amber-500" />{fmtTime(rideElapsedSec)}</div>
@@ -605,6 +675,11 @@ export default function Ride360Page() {
               <div><p className="text-[10px] font-black text-gray-400 uppercase">Distance</p><p className="text-gray-900 font-bold">{activeRide.distanceKm.toFixed(1)} km</p></div>
               {activeRide.kind === "paid" && <div><p className="text-[10px] font-black text-gray-400 uppercase">Fare</p><p className="text-gray-900 font-bold">₹{activeRide.fare}</p></div>}
             </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide flex items-center gap-1.5"><Gauge size={13} className="text-amber-500" /> Closing Odometer (km) — optional</label>
+            <p className="text-[11px] text-gray-400 mt-0.5 mb-2">Mark your actual odometer reading for accurate mileage tracking — the distance above is a GPS estimate, not the real road distance.</p>
+            <input type="number" value={closingOdometerKm} onChange={e => setClosingOdometerKm(e.target.value)} placeholder="e.g. 48213" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
           </div>
           <button onClick={endRide} className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl text-sm transition">
             <Square size={15} /> End Ride
@@ -661,7 +736,7 @@ export default function Ride360Page() {
                             </div>
                             <span className="text-sm font-black text-amber-600 shrink-0">₹{r.offeredAmount}</span>
                           </div>
-                          <button onClick={() => reachOut(r.id)} className="mt-2 w-full text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 py-2 rounded-lg transition">Reach Out to Customer</button>
+                          <button onClick={() => reachOut(r.id, resultRide?.id)} className="mt-2 w-full text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 py-2 rounded-lg transition">Reach Out to Customer</button>
                         </div>
                       ))}
                     </div>
@@ -725,6 +800,134 @@ export default function Ride360Page() {
           <button onClick={handleLogout} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 text-sm font-bold px-4 py-2.5 rounded-xl transition">
             <LogOut size={14} /> Sign Out
           </button>
+        </div>
+      )}
+
+      {/* ══════════════════════ FUEL & AI ANALYSIS ══════════════════════ */}
+      {view === "driverAnalysis" && driver && driverStats && (
+        <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Sparkles size={18} className="text-amber-500" /> Fuel &amp; AI Analysis</h2>
+            <button onClick={() => setShowFuelModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
+              <Plus size={14} /> Log Fuel Fill-up
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Paid Rides</p>
+              <p className="text-xl font-black text-gray-900 mt-1">{driverStats.ridesPaidCount}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Empty Runs</p>
+              <p className="text-xl font-black text-gray-900 mt-1">{driverStats.ridesEmptyCount}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Fare Earned</p>
+              <p className="text-xl font-black text-gray-900 mt-1">₹{driverStats.totalFareEarned.toLocaleString("en-IN")}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Piggy Saved</p>
+              <p className="text-xl font-black text-gray-900 mt-1">₹{driverStats.totalPiggySaved.toLocaleString("en-IN")}</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <h3 className="font-black text-gray-900 text-sm mb-4 flex items-center gap-2"><Gauge size={14} className="text-amber-500" /> Mileage</h3>
+            {driverStats.avgMileageKmPerL !== null ? (
+              <>
+                <p className="text-2xl font-black text-gray-900">{driverStats.avgMileageKmPerL.toFixed(1)} km/L</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {driverStats.mileageSource === "odometer"
+                    ? "Calculated from odometer readings between fuel fill-ups — the real figure."
+                    : "Estimated from GPS ride distance ÷ fuel logged — log two fill-ups with odometer readings for the real figure."}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">Log at least one fuel fill-up to see mileage here.</p>
+            )}
+            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100 text-sm">
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">Fuel Logged</p><p className="text-gray-900 font-bold">{driverStats.totalFuelLiters.toFixed(1)} L</p></div>
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">Fuel Cost</p><p className="text-gray-900 font-bold">₹{driverStats.totalFuelCost.toLocaleString("en-IN")}</p></div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <h3 className="font-black text-gray-900 text-sm mb-4 flex items-center gap-2"><Zap size={14} className="text-amber-500" /> Empty-Run Conversion (RideConnect360)</h3>
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-2xl font-black text-gray-900">{driverStats.conversionRatePct}%</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{driverStats.emptyRidesConverted} of {driverStats.emptyRidesTotal} empty runs encashed</p>
+              </div>
+              <div className="h-10 border-l border-gray-100" />
+              <div>
+                <p className="text-2xl font-black text-gray-900">₹{driverStats.rideConnectEarnings.toLocaleString("en-IN")}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Earned via matched RideConnect360 rides</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+            <h3 className="font-black text-amber-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={14} /> AI Suggestions</h3>
+            <ul className="space-y-2">
+              {driverStats.suggestions.map((s, i) => (
+                <li key={i} className="text-xs text-amber-800 flex items-start gap-2"><ChevronRight size={13} className="shrink-0 mt-0.5" /><span>{s}</span></li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2"><Fuel size={15} className="text-amber-500" /> Fuel Log</h3>
+            {driverFuelLogs.length === 0 ? (
+              <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No fuel fill-ups logged yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {driverFuelLogs.slice(0, 10).map(f => (
+                  <div key={f.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{f.liters.toFixed(1)} L · ₹{f.totalCost.toLocaleString("en-IN")}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{f.date} · odo {f.odometerKm.toLocaleString("en-IN")} km</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Log Fuel modal ── */}
+      {showFuelModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setShowFuelModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-gray-900 text-lg flex items-center gap-2"><Fuel size={16} className="text-amber-500" /> Log Fuel Fill-up</h3>
+              <button onClick={() => setShowFuelModal(false)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Date</label>
+              <input type="date" value={fuelDate} onChange={e => setFuelDate(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Liters</label>
+                <input type="number" value={fuelLiters} onChange={e => setFuelLiters(e.target.value)} placeholder="e.g. 4.5" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Cost (₹)</label>
+                <input type="number" value={fuelCost} onChange={e => setFuelCost(e.target.value)} placeholder="e.g. 432" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide flex items-center gap-1.5"><Gauge size={13} className="text-amber-500" /> Odometer Reading (km)</label>
+              <input type="number" value={fuelOdometer} onChange={e => setFuelOdometer(e.target.value)} placeholder="e.g. 48213" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              <p className="text-[11px] text-gray-400 mt-1">Used to calculate real mileage between fill-ups — more accurate than GPS distance.</p>
+            </div>
+            <button onClick={addFuelLog} disabled={!fuelLiters.trim() || !fuelCost.trim() || !fuelOdometer.trim()}
+              className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition">
+              Save Fill-up
+            </button>
+          </div>
         </div>
       )}
 
@@ -810,6 +1013,11 @@ export default function Ride360Page() {
                   <button onClick={() => { demoConfirm(focusedThread.id, "rejected"); setFocusedThread({ ...focusedThread, status: "rejected" }); }} className="flex items-center justify-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs py-2 rounded-xl transition"><XCircle size={13} /> Reject</button>
                   <button onClick={() => { demoConfirm(focusedThread.id, "confirmed"); setFocusedThread({ ...focusedThread, status: "confirmed" }); }} className="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs py-2 rounded-xl transition"><CheckCircle size={13} /> Confirm</button>
                 </div>
+              )}
+              {focusedThread.status === "confirmed" && (
+                <button onClick={() => startRideConnectRide(focusedThread)} className="w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2.5 rounded-xl transition">
+                  <Play size={13} /> Start RideConnect360 Ride · ₹{focusedThread.offeredAmount}
+                </button>
               )}
               <div className="flex gap-2">
                 <input value={threadMsg} onChange={e => setThreadMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendThreadMessage(driver ? "driver" : "customer")} placeholder="Add a comment…" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
