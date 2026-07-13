@@ -508,26 +508,26 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* College360 */}
-            <div className="bg-slate-50 border border-gray-200 hover:border-fuchsia-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+            {/* Tea Procurement */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
               <div>
-                <span className="text-[10px] tracking-wider uppercase text-fuchsia-700 font-black bg-fuchsia-100 px-2.5 py-1 rounded-full">Student Career AI</span>
+                <span className="text-[10px] tracking-wider uppercase text-emerald-700 font-black bg-emerald-100 px-2.5 py-1 rounded-full">Supply Chain Automation</span>
                 <div className="my-5 flex items-center gap-3">
-                  <div className="w-12 h-12 bg-fuchsia-100 rounded-xl flex items-center justify-center border border-fuchsia-200 shrink-0">
-                    <School className="text-fuchsia-600" size={24} />
+                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center border border-emerald-200 shrink-0">
+                    <Leaf className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">College360</h3>
-                    <p className="text-[10px] text-gray-400">Internships, Mentors &amp; AI Prep</p>
+                    <h3 className="font-black text-base text-gray-900">TeaLeaf Collect</h3>
+                    <p className="text-[10px] text-gray-400">Supply-chain &amp; settlements</p>
                   </div>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed mb-6">
-                  An AI-powered career platform for college students — find internships, practice interviews with AI, and connect with industry mentors.
+                  Record daily batch collections from tea growers, manage dispatcher logistics, generate factory invoices, track settlements, and initiate secure weekly grower payments.
                 </p>
               </div>
               <div className="pt-4 border-t border-gray-200">
-                <Link href="/college360" className="block text-center bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
-                  Open College360
+                <Link href="/tea" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open Tea Hub
                 </Link>
               </div>
             </div>
