@@ -8,10 +8,10 @@ import {
   Car, MapPin, Zap, PiggyBank, ArrowRight, ChevronRight, X, Loader2,
   CheckCircle, XCircle, LogOut, Package, MessageSquare, Navigation,
   Play, Square, Clock, TrendingUp, User, Phone, Mail, ShieldCheck,
-  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee, Bell, Truck, Bike,
+  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee, Bell, Truck, Bike, MessageCircle,
 } from "lucide-react";
 import LocationPicker from "./components/LocationPicker";
-import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution } from "./lib/geo";
+import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution, reverseGeocode } from "./lib/geo";
 import { analyzeDriver } from "./lib/analytics";
 import {
   loadDrivers, loadCustomers, loadSession, saveSession, clearSession,
@@ -42,6 +42,25 @@ type View =
 
 const PROVIDER_LABEL: Record<RideProvider, string> = { self: "Self", ola: "Ola", uber: "Uber", rideconnect360: "RideConnect360" };
 
+const RIDE360_URL = "https://www.demandgeniusai.com/ride360";
+const DRIVER_INVITE_MSG =
+  `🚕 *Join Ride360* — track every ride, cut empty km with AI, and auto-save into your Piggy fund!\n\n` +
+  `✅ Log Self/Ola/Uber rides with live map tracking\n` +
+  `✅ AI shows the real cost of every empty run — and finds nearby customers instantly\n` +
+  `✅ Auto-save a % of every fare into your Piggy, hassle-free\n` +
+  `✅ Free to join, takes 2 minutes — no app store needed\n\n` +
+  `👉 Start here: ${RIDE360_URL}`;
+const CUSTOMER_INVITE_MSG =
+  `🚗 *Need a ride or want to send a package fast?* Try Ride360 — nearby drivers running empty reach out to YOU directly.\n\n` +
+  `✅ Post what you need, nearby drivers respond\n` +
+  `✅ Or browse drivers within 5km and reach out yourself\n` +
+  `✅ Negotiate price directly, no surge pricing\n` +
+  `✅ Works right in your browser — no app store needed\n\n` +
+  `👉 Try it now: ${RIDE360_URL}`;
+function shareOnWhatsApp(text: string) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+}
+
 const REQ_STATUS_STYLE: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   confirmed: "bg-green-50 text-green-700 border-green-200",
@@ -62,6 +81,10 @@ export default function Ride360Page() {
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [allDrivers, setAllDrivers] = useState<DriverProfile[]>([]);
   const [currentLoc, setCurrentLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentLocLabel, setCurrentLocLabel] = useState<string>("Detecting your location…");
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [locationPick, setLocationPick] = useState<GeoPoint | null>(null);
+  const locationOverriddenRef = useRef(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
 
@@ -131,14 +154,20 @@ export default function Ride360Page() {
     let watchId: number | null = null;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        pos => setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setCurrentLoc({ lat: 12.9716, lng: 77.5946 })
+        async pos => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setCurrentLoc(loc);
+          setCurrentLocLabel(await reverseGeocode(loc.lat, loc.lng));
+        },
+        () => setCurrentLocLabel("Location unavailable — tap Change to set it")
       );
       watchId = navigator.geolocation.watchPosition(
-        pos => setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        pos => { if (!locationOverriddenRef.current) setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
         () => {},
         { enableHighAccuracy: true, maximumAge: 10000 }
       );
+    } else {
+      setCurrentLocLabel("Location unavailable — tap Change to set it");
     }
     return () => {
       document.title = "NexusOS";
@@ -216,6 +245,26 @@ export default function Ride360Page() {
   };
 
   const go = (v: View) => setView(v);
+
+  // ── Location ─────────────────────────────────────────────────────────────
+  const applyLocationPick = (p: GeoPoint) => {
+    locationOverriddenRef.current = true;
+    setCurrentLoc({ lat: p.lat, lng: p.lng });
+    setCurrentLocLabel(p.address);
+    setLocationPick(null);
+    setShowLocationModal(false);
+  };
+
+  const useDeviceLocationNow = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      locationOverriddenRef.current = false;
+      setCurrentLoc(loc);
+      setCurrentLocLabel(await reverseGeocode(loc.lat, loc.lng));
+      setShowLocationModal(false);
+    });
+  };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
   const resetAuthFields = () => { setName(""); setEmail(""); setPassword(""); setPhone(""); setOtp(""); setOtpSent(false); setAuthErr(""); };
@@ -537,6 +586,31 @@ export default function Ride360Page() {
         </div>
       </nav>
 
+      {/* ── Location bar ── */}
+      {(driver || customer) && (
+        <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center justify-center gap-2 text-xs">
+          <MapPin size={13} className="text-amber-600 shrink-0" />
+          <span className="text-amber-900 font-medium truncate max-w-xs sm:max-w-md">{currentLocLabel}</span>
+          <button onClick={() => { setLocationPick(currentLoc ? { ...currentLoc, address: currentLocLabel } : null); setShowLocationModal(true); }} className="text-amber-700 font-bold hover:underline shrink-0">Change</button>
+        </div>
+      )}
+
+      {/* ── Change location modal ── */}
+      {showLocationModal && (
+        <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setShowLocationModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-gray-900 text-base">Set Your Location</h3>
+              <button onClick={() => setShowLocationModal(false)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <LocationPicker label="Search for your location" placeholder="Area, street, landmark…" value={locationPick} onChange={applyLocationPick} allowCurrentLocation />
+            <button onClick={useDeviceLocationNow} className="w-full flex items-center justify-center gap-2 border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-sm py-2.5 rounded-xl transition">
+              <Navigation size={14} /> Use My Device's Current Location
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════════════ LANDING ══════════════════════ */}
       {view === "landing" && (
         <>
@@ -766,7 +840,11 @@ export default function Ride360Page() {
           </button>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
-            <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Navigation size={14} className="text-amber-500" /> Your Location</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Navigation size={14} className="text-amber-500" /> Your Location</h3>
+              <button onClick={() => { setLocationPick(currentLoc ? { ...currentLoc, address: currentLocLabel } : null); setShowLocationModal(true); }} className="text-xs font-bold text-amber-600 hover:underline">Change</button>
+            </div>
+            <p className="text-xs text-gray-500 mb-2 truncate">{currentLocLabel}</p>
             <RideMap current={currentLoc} height="240px" />
           </div>
 
@@ -981,6 +1059,13 @@ export default function Ride360Page() {
             <p className="text-3xl font-black text-gray-900">₹{driver.piggyBalance.toLocaleString("en-IN")}</p>
             <p className="text-xs text-gray-400 mt-1">{driver.piggyPct}% auto-saved from every paid fare</p>
           </div>
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+            <h3 className="font-black text-green-900 mb-1.5 flex items-center gap-2"><MessageCircle size={16} className="text-green-600" /> Invite Other Drivers</h3>
+            <p className="text-xs text-green-700 mb-3">Know another auto/cab/transport driver? Share Ride360 with them on WhatsApp.</p>
+            <button onClick={() => shareOnWhatsApp(DRIVER_INVITE_MSG)} className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2.5 rounded-xl transition">
+              <MessageCircle size={15} /> Invite via WhatsApp
+            </button>
+          </div>
           <button onClick={handleLogout} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 text-sm font-bold px-4 py-2.5 rounded-xl transition">
             <LogOut size={14} /> Sign Out
           </button>
@@ -1152,6 +1237,15 @@ export default function Ride360Page() {
               Post Request
             </button>
           </div>
+          {!targetDriverRide && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
+              <h3 className="font-black text-green-900 mb-1.5 flex items-center gap-2 text-sm"><MessageCircle size={15} className="text-green-600" /> Know someone who needs a ride?</h3>
+              <p className="text-xs text-green-700 mb-3">Share Ride360 with friends and family on WhatsApp.</p>
+              <button onClick={() => shareOnWhatsApp(CUSTOMER_INVITE_MSG)} className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-2.5 rounded-xl transition">
+                <MessageCircle size={15} /> Invite via WhatsApp
+              </button>
+            </div>
+          )}
         </div>
       )}
 
