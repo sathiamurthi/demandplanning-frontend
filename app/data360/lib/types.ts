@@ -37,11 +37,12 @@ export interface D360Batch {
   status: BatchStatus;
   total_rows: number;
   flagged_rows: number;
+  field_mapping: Record<string, string>;
   created_at: string;
   updated_at: string;
 }
 
-export type TargetType = "file_export" | "cloud_storage" | "rpa_portal";
+export type TargetType = "file_export" | "cloud_storage" | "database" | "api" | "rpa_portal";
 export type JobStatus = "pending" | "completed" | "failed";
 
 export interface D360Job {

@@ -8,7 +8,7 @@ import {
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw,
-  Bot, FileSpreadsheet, GraduationCap, Briefcase, School, Database,
+  Bot, FileSpreadsheet, GraduationCap, Briefcase, School, Database, Car,
 } from "lucide-react";
 
 /* -- INDUSTRIES --------------------------------------- */
@@ -484,26 +484,26 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Data360 */}
-            <div className="bg-slate-50 border border-gray-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+            {/* RideConnect360 */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-amber-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
               <div>
-                <span className="text-[10px] tracking-wider uppercase text-emerald-700 font-black bg-emerald-100 px-2.5 py-1 rounded-full">Data Pipeline RPA</span>
+                <span className="text-[10px] tracking-wider uppercase text-amber-700 font-black bg-amber-100 px-2.5 py-1 rounded-full">Driver Ride Matching</span>
                 <div className="my-5 flex items-center gap-3">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center border border-emerald-200 shrink-0">
-                    <Database className="text-emerald-600" size={24} />
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center border border-amber-200 shrink-0">
+                    <Car className="text-amber-600" size={24} />
                   </div>
                   <div>
-                    <h3 className="font-black text-base text-gray-900">Data360</h3>
-                    <p className="text-[10px] text-gray-400">Nexus Flow RPA Engine</p>
+                    <h3 className="font-black text-base text-gray-900">RideConnect360</h3>
+                    <p className="text-[10px] text-gray-400">Track. Match. Save.</p>
                   </div>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed mb-6">
-                  Ingest Excel, PDF, screenshots, or voice — an AI validation agent flags anomalies, a human approval gate reviews them, then verified rows distribute to a file, cloud storage, or an RPA target.
+                  Auto and cab drivers track every paid ride on a live map, get AI cost tips on empty runs, match with nearby ride or parcel requests, and auto-save a slice of every fare.
                 </p>
               </div>
               <div className="pt-4 border-t border-gray-200">
-                <Link href="/data360" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
-                  Open Data360
+                <Link href="/ride360" className="block text-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open RideConnect360
                 </Link>
               </div>
             </div>

@@ -1,0 +1,819 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import {
+  Car, MapPin, Zap, PiggyBank, ArrowRight, ChevronRight, X, Loader2,
+  CheckCircle, XCircle, LogOut, Package, MessageSquare, Navigation,
+  Play, Square, Clock, TrendingUp, User, Phone, Mail, ShieldCheck,
+} from "lucide-react";
+import LocationPicker from "./components/LocationPicker";
+import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution } from "./lib/geo";
+import {
+  loadDrivers, loadCustomers, loadSession, saveSession, clearSession,
+  registerDriver, loginDriver, socialLoginDriver, loginOrRegisterCustomer, updateDriver,
+  loadRides, saveRides, loadRequests, saveRequests,
+} from "./lib/storage";
+import type {
+  DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType,
+} from "./lib/types";
+
+const RideMap = dynamic(() => import("./components/RideMap"), { ssr: false, loading: () => <div className="h-[260px] bg-slate-100 rounded-xl animate-pulse" /> });
+
+// ── Onboarding copy (matches the validated reference design) ────────────────
+const ONBOARDING = [
+  { title: "Track every ride", desc: "Log your Self, Ola & Uber rides with live map tracking from source to destination.", icon: Car },
+  { title: "AI on empty rides", desc: "Get smart tips to reduce empty km, save fuel, and find nearby ride or parcel requests.", icon: Zap },
+  { title: "Grow your Piggy", desc: "Auto-save a slice of every fare. Watch your savings grow ride by ride.", icon: PiggyBank },
+];
+
+type View =
+  | "landing" | "onboarding" | "auth"
+  | "driverProfileSetup" | "driverDashboard" | "driverActiveRide" | "driverRequests" | "driverProfile"
+  | "customerHome" | "customerNewRequest" | "customerMyRequests";
+
+const REQ_STATUS_STYLE: Record<string, string> = {
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+  confirmed: "bg-green-50 text-green-700 border-green-200",
+  rejected: "bg-red-50 text-red-700 border-red-200",
+  completed: "bg-gray-100 text-gray-500 border-gray-200",
+};
+
+export default function Ride360Page() {
+  const [view, setView] = useState<View>("landing");
+  const [role, setRole] = useState<"driver" | "customer">("driver");
+  const [authTab, setAuthTab] = useState<"login" | "register">("register");
+  const [onboardStep, setOnboardStep] = useState(0);
+
+  const [driver, setDriver] = useState<DriverProfile | null>(null);
+  const [customer, setCustomer] = useState<CustomerProfile | null>(null);
+  const [rides, setRides] = useState<Ride[]>([]);
+  const [requests, setRequests] = useState<CustomerRequest[]>([]);
+  const [currentLoc, setCurrentLoc] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Auth form state
+  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
+  const [vehicleType, setVehicleType] = useState<VehicleType>("auto");
+  const [phone, setPhone] = useState(""); const [otp, setOtp] = useState(""); const [otpSent, setOtpSent] = useState(false);
+  const [authErr, setAuthErr] = useState(""); const [authBusy, setAuthBusy] = useState(false);
+
+  // Profile setup
+  const [vehicleNumber, setVehicleNumber] = useState(""); const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseExpiry, setLicenseExpiry] = useState(""); const [piggyPct, setPiggyPct] = useState(10);
+
+  // Active ride
+  const [rideKind, setRideKind] = useState<"paid" | "empty">("paid");
+  const [provider, setProvider] = useState<RideProvider>("self");
+  const [source, setSource] = useState<GeoPoint | null>(null);
+  const [destination, setDestination] = useState<GeoPoint | null>(null);
+  const [fare, setFare] = useState<number>(0);
+  const [showStartModal, setShowStartModal] = useState(false);
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
+  const [rideElapsedSec, setRideElapsedSec] = useState(0);
+  const [showResultsFor, setShowResultsFor] = useState<string | null>(null);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
+
+  // Customer request form
+  const [reqType, setReqType] = useState<"ride" | "parcel">("ride");
+  const [pickup, setPickup] = useState<GeoPoint | null>(null);
+  const [drop, setDrop] = useState<GeoPoint | null>(null);
+  const [reqDesc, setReqDesc] = useState(""); const [reqAmount, setReqAmount] = useState("");
+
+  const [focusedThread, setFocusedThread] = useState<CustomerRequest | null>(null);
+  const [threadMsg, setThreadMsg] = useState("");
+
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    document.title = "Ride360 — Track Rides, Beat Empty Km, Grow Your Piggy";
+    setRides(loadRides());
+    setRequests(loadRequests());
+    const session = loadSession();
+    if (session?.type === "driver") {
+      const d = loadDrivers().find(x => x.id === session.id);
+      if (d) { setDriver(d); setView(d.profileComplete ? "driverDashboard" : "driverProfileSetup"); }
+    } else if (session?.type === "customer") {
+      const c = loadCustomers().find(x => x.id === session.id);
+      if (c) { setCustomer(c); setView("customerHome"); }
+    }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => setCurrentLoc({ lat: 12.9716, lng: 77.5946 })
+      );
+    }
+    return () => { document.title = "NexusOS"; };
+  }, []);
+
+  const go = (v: View) => setView(v);
+
+  // ── Auth handlers ────────────────────────────────────────────────────────
+  const resetAuthFields = () => { setName(""); setEmail(""); setPassword(""); setPhone(""); setOtp(""); setOtpSent(false); setAuthErr(""); };
+
+  const handleDriverRegister = () => {
+    setAuthErr("");
+    if (!name.trim() || !email.trim() || !password.trim()) { setAuthErr("Name, email, and password are required."); return; }
+    const result = registerDriver({ name: name.trim(), email: email.trim(), authMethod: "email", vehicleType, vehicleNumber: "", licenseNumber: "", licenseExpiry: "", piggyPct: 10, pw: password } as any);
+    if (typeof result === "string") { setAuthErr(result); return; }
+    setDriver(result); resetAuthFields(); go("driverProfileSetup");
+  };
+
+  const handleDriverLogin = () => {
+    setAuthErr("");
+    if (!email.trim() || !password.trim()) { setAuthErr("Email and password are required."); return; }
+    const result = loginDriver(email.trim(), password);
+    if (typeof result === "string") { setAuthErr(result); return; }
+    setDriver(result); resetAuthFields(); go(result.profileComplete ? "driverDashboard" : "driverProfileSetup");
+  };
+
+  const handleSocialLogin = (method: "google" | "linkedin") => {
+    const demoName = method === "google" ? "Ravi Kumar" : "Ravi Kumar (LinkedIn)";
+    const demoEmail = method === "google" ? "ravi.kumar.demo@gmail.com" : "ravi.kumar.demo@linkedin.com";
+    const result = socialLoginDriver(method, demoName, demoEmail);
+    setDriver(result); resetAuthFields(); go(result.profileComplete ? "driverDashboard" : "driverProfileSetup");
+  };
+
+  const handleSendOtp = () => {
+    setAuthErr("");
+    if (phone.trim().length < 10) { setAuthErr("Enter a valid 10-digit phone number."); return; }
+    setOtpSent(true);
+  };
+  const handleVerifyOtp = () => {
+    setAuthErr("");
+    if (otp.trim().length < 4) { setAuthErr("Enter the OTP sent to your phone."); return; }
+    const c = loginOrRegisterCustomer(phone.trim());
+    setCustomer(c); resetAuthFields(); go("customerHome");
+  };
+
+  const handleLogout = () => {
+    clearSession(); setDriver(null); setCustomer(null); go("landing");
+  };
+
+  // ── Driver profile setup ─────────────────────────────────────────────────
+  const saveProfileSetup = () => {
+    if (!driver) return;
+    if (!vehicleNumber.trim() || !licenseNumber.trim()) { setAuthErr("Vehicle number and license number are required."); return; }
+    const updated = updateDriver(driver.id, { vehicleNumber: vehicleNumber.trim(), licenseNumber: licenseNumber.trim(), licenseExpiry, piggyPct, profileComplete: true });
+    setDriver(updated as DriverProfile);
+    go("driverDashboard");
+  };
+
+  // ── Ride lifecycle ───────────────────────────────────────────────────────
+  const startRide = () => {
+    if (!driver || !source || !destination) return;
+    const id = `ride_${Date.now()}`;
+    const distanceKm = haversineKm(source, destination);
+    const newRide: Ride = {
+      id, driverId: driver.id, kind: rideKind, provider: rideKind === "paid" ? provider : undefined,
+      source, destination, status: "active", fare: rideKind === "paid" ? fare : undefined,
+      distanceKm, durationMin: 0, piggyContribution: 0, startedAt: new Date().toISOString(),
+    };
+    const next = [newRide, ...rides];
+    setRides(next); saveRides(next);
+    setActiveRideId(id); setShowStartModal(false); setRideElapsedSec(0);
+    go("driverActiveRide");
+    if (tickRef.current) clearInterval(tickRef.current);
+    tickRef.current = setInterval(() => setRideElapsedSec(s => s + 1), 1000);
+  };
+
+  const endRide = () => {
+    if (!activeRideId || !driver) return;
+    if (tickRef.current) clearInterval(tickRef.current);
+    const ride = rides.find(r => r.id === activeRideId);
+    if (!ride) return;
+    const durationMin = Math.max(1, Math.round(rideElapsedSec / 60));
+    let updated: Ride = { ...ride, status: "completed", endedAt: new Date().toISOString(), durationMin };
+    if (ride.kind === "paid") {
+      const contribution = piggyContribution(ride.fare || 0, driver.piggyPct);
+      updated.piggyContribution = contribution;
+      const d = updateDriver(driver.id, { piggyBalance: driver.piggyBalance + contribution });
+      setDriver(d as DriverProfile);
+    } else {
+      updated.costAnalysis = analyzeEmptyRide(ride.distanceKm);
+    }
+    const next = rides.map(r => (r.id === activeRideId ? updated : r));
+    setRides(next); saveRides(next);
+    setShowResultsFor(activeRideId);
+    setActiveRideId(null);
+  };
+
+  const activeRide = rides.find(r => r.id === activeRideId);
+  const resultRide = rides.find(r => r.id === showResultsFor);
+
+  const nearbyRequests = useMemo(() => {
+    if (!resultRide) return [];
+    const origin = resultRide.destination;
+    return requests
+      .filter(r => r.status === "pending")
+      .map(r => ({ ...r, distKm: haversineKm(origin, r.pickup) }))
+      .sort((a, b) => a.distKm - b.distKm)
+      .slice(0, 8);
+  }, [requests, resultRide]);
+
+  const reachOut = (reqId: string) => {
+    if (!driver) return;
+    const next = requests.map(r => r.id === reqId
+      ? { ...r, claimedByDriverId: driver.id, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
+      : r);
+    setRequests(next); saveRequests(next);
+  };
+
+  const demoConfirm = (reqId: string, status: "confirmed" | "rejected") => {
+    const next = requests.map(r => r.id === reqId ? { ...r, status } : r);
+    setRequests(next); saveRequests(next);
+  };
+
+  const sendThreadMessage = (from: "driver" | "customer") => {
+    if (!focusedThread || !threadMsg.trim()) return;
+    const next = requests.map(r => r.id === focusedThread.id
+      ? { ...r, messages: [...r.messages, { from, text: threadMsg.trim(), at: new Date().toISOString() }] }
+      : r);
+    setRequests(next); saveRequests(next);
+    setFocusedThread(next.find(r => r.id === focusedThread.id) || null);
+    setThreadMsg("");
+  };
+
+  // ── Customer request ─────────────────────────────────────────────────────
+  const submitRequest = () => {
+    if (!customer || !pickup || !drop || !reqDesc.trim() || !reqAmount) return;
+    const req: CustomerRequest = {
+      id: `req_${Date.now()}`, customerId: customer.id, customerPhone: customer.phone, type: reqType,
+      pickup, drop, description: reqDesc.trim(), offeredAmount: Number(reqAmount), status: "pending",
+      messages: [], createdAt: new Date().toISOString(),
+    };
+    const next = [req, ...requests];
+    setRequests(next); saveRequests(next);
+    setPickup(null); setDrop(null); setReqDesc(""); setReqAmount("");
+    go("customerMyRequests");
+  };
+
+  const myRequests = customer ? requests.filter(r => r.customerId === customer.id) : [];
+  const driverThreads = driver ? requests.filter(r => r.claimedByDriverId === driver.id) : [];
+
+  const fmtTime = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* ── Navbar ── */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <button onClick={() => go(driver ? "driverDashboard" : customer ? "customerHome" : "landing")} className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center"><Car size={16} className="text-white" /></div>
+            <div className="text-left">
+              <p className="font-black text-gray-900 text-sm leading-none">Ride360</p>
+              <p className="text-[9px] text-amber-600 font-semibold leading-none mt-1">Track. Match. Save.</p>
+            </div>
+          </button>
+          {driver && (
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+              <button onClick={() => go("driverDashboard")} className={`hover:text-amber-600 transition ${view === "driverDashboard" || view === "driverActiveRide" ? "text-amber-600 font-bold" : ""}`}>Dashboard</button>
+              <button onClick={() => go("driverRequests")} className={`hover:text-amber-600 transition ${view === "driverRequests" ? "text-amber-600 font-bold" : ""}`}>Requests</button>
+              <button onClick={() => go("driverProfile")} className={`hover:text-amber-600 transition ${view === "driverProfile" ? "text-amber-600 font-bold" : ""}`}>Profile</button>
+            </div>
+          )}
+          {customer && (
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+              <button onClick={() => go("customerHome")} className={`hover:text-amber-600 transition ${view === "customerHome" || view === "customerNewRequest" ? "text-amber-600 font-bold" : ""}`}>New Request</button>
+              <button onClick={() => go("customerMyRequests")} className={`hover:text-amber-600 transition ${view === "customerMyRequests" ? "text-amber-600 font-bold" : ""}`}>My Requests</button>
+            </div>
+          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {(driver || customer) ? (
+              <>
+                <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-black text-sm">
+                  {driver ? driver.name[0] : customer?.phone.slice(-2)}
+                </div>
+                <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition"><LogOut size={16} /></button>
+              </>
+            ) : (
+              <button onClick={() => go("onboarding")} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-4 py-2 rounded-lg transition">Get Started</button>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* ══════════════════════ LANDING ══════════════════════ */}
+      {view === "landing" && (
+        <>
+          <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 text-white">
+            <div className="max-w-5xl mx-auto px-4 py-14 sm:py-20 text-center">
+              <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur px-3 py-1.5 rounded-full text-xs font-bold mb-5 border border-white/20">
+                <Zap size={12} className="text-yellow-200" /> For Auto, Cab & Transport Drivers
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black leading-tight mb-4">
+                Track Every Ride.<br /><span className="text-yellow-200">Beat Every Empty Km.</span>
+              </h1>
+              <p className="text-amber-50 text-sm sm:text-base max-w-xl mx-auto mb-8">
+                Log Self, Ola & Uber rides with live map tracking, get AI cost tips on empty runs, match with nearby ride or parcel requests, and auto-save a slice of every fare.
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <button onClick={() => { setRole("driver"); go("onboarding"); }} className="bg-white text-amber-700 hover:bg-amber-50 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 transition">
+                  I'm a Driver <ArrowRight size={16} />
+                </button>
+                <button onClick={() => { setRole("customer"); go("auth"); }} className="border border-white/40 bg-white/10 hover:bg-white/20 text-white font-bold text-sm px-6 py-3 rounded-xl transition">
+                  I Need a Ride / Courier
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto px-4 py-16">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {ONBOARDING.map(o => {
+                const Icon = o.icon;
+                return (
+                  <div key={o.title} className="bg-white border border-gray-200 rounded-2xl p-6">
+                    <div className="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center mb-4 text-amber-600"><Icon size={20} /></div>
+                    <h3 className="font-black text-gray-900 text-sm mb-1.5">{o.title}</h3>
+                    <p className="text-gray-500 text-xs leading-relaxed">{o.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <footer className="bg-gray-900 text-white py-10">
+            <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center"><Car size={16} className="text-white" /></div>
+                <div><p className="font-black text-sm">Ride360</p><p className="text-gray-400 text-xs">Track. Match. Save.</p></div>
+              </div>
+              <Link href="/" className="text-amber-400 hover:text-white transition text-xs">← Back to DemandGeniusAI</Link>
+            </div>
+          </footer>
+        </>
+      )}
+
+      {/* ══════════════════════ ONBOARDING ══════════════════════ */}
+      {view === "onboarding" && (
+        <div className="min-h-[calc(100vh-61px)] bg-gray-900 text-white flex items-end sm:items-center justify-center">
+          <div className="w-full max-w-md p-8">
+            <div className="flex gap-1.5 mb-8">
+              {ONBOARDING.map((_, i) => <div key={i} className={`h-1 flex-1 rounded-full ${i === onboardStep ? "bg-amber-400" : "bg-white/20"}`} />)}
+            </div>
+            {(() => { const Icon = ONBOARDING[onboardStep].icon; return <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-6 text-amber-300"><Icon size={30} /></div>; })()}
+            <h2 className="text-2xl font-black mb-3">{ONBOARDING[onboardStep].title}</h2>
+            <p className="text-white/60 text-sm mb-10">{ONBOARDING[onboardStep].desc}</p>
+            <button onClick={() => { if (onboardStep < 2) setOnboardStep(s => s + 1); else { setRole("driver"); go("auth"); } }}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl text-sm transition">
+              {onboardStep < 2 ? "Next" : "Get Started"}
+            </button>
+            <button onClick={() => { setRole("driver"); go("auth"); }} className="w-full text-center text-white/40 hover:text-white/70 text-xs mt-4 transition">Skip</button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ AUTH ══════════════════════ */}
+      {view === "auth" && (
+        <div className="min-h-[calc(100vh-61px)] bg-slate-50 flex items-center justify-center px-4 py-12">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-gray-900 text-lg">Welcome to Ride360</h2>
+              <button onClick={() => go("landing")} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <div className="flex bg-gray-100 rounded-xl p-1">
+              {(["driver", "customer"] as const).map(r => (
+                <button key={r} onClick={() => { setRole(r); setAuthErr(""); }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${role === r ? "bg-white text-amber-700 shadow" : "text-gray-500"}`}>
+                  {r === "driver" ? "Driver" : "Customer"}
+                </button>
+              ))}
+            </div>
+
+            {role === "driver" && (
+              <>
+                <div className="flex bg-gray-50 rounded-xl p-1">
+                  {(["register", "login"] as const).map(t => (
+                    <button key={t} onClick={() => { setAuthTab(t); setAuthErr(""); }}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${authTab === t ? "bg-white text-amber-700 shadow" : "text-gray-400"}`}>
+                      {t === "register" ? "Create Account" : "Sign In"}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  {authTab === "register" && (
+                    <>
+                      <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                      <select value={vehicleType} onChange={e => setVehicleType(e.target.value as VehicleType)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400">
+                        <option value="auto">Auto Rickshaw</option>
+                        <option value="cab">Cab</option>
+                        <option value="transport">Transport / Goods Vehicle</option>
+                        <option value="bike">Bike / Two-Wheeler</option>
+                      </select>
+                    </>
+                  )}
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                  {authTab === "login" && <button className="text-xs text-amber-600 font-bold hover:underline">Forgot password?</button>}
+                </div>
+                {authErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{authErr}</p>}
+                <button onClick={authTab === "register" ? handleDriverRegister : handleDriverLogin}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                  <CheckCircle size={15} /> {authTab === "register" ? "Create Account" : "Sign In"}
+                </button>
+                <div className="flex items-center gap-3"><div className="h-px flex-1 bg-gray-200" /><span className="text-[10px] text-gray-400">OR CONTINUE WITH</span><div className="h-px flex-1 bg-gray-200" /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => handleSocialLogin("google")} className="flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-xs py-2.5 rounded-xl transition">
+                    <span className="text-red-500 font-black">G</span> Google
+                  </button>
+                  <button onClick={() => handleSocialLogin("linkedin")} className="flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-xs py-2.5 rounded-xl transition">
+                    <span className="text-blue-600 font-black">in</span> LinkedIn
+                  </button>
+                </div>
+                <p className="text-center text-[10px] text-gray-400">Social login is simulated in this preview — no real Google/LinkedIn account is used.</p>
+              </>
+            )}
+
+            {role === "customer" && (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500">No profile needed — just verify your number and start requesting a ride or courier.</p>
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-amber-400">
+                  <Phone size={14} className="text-gray-400" />
+                  <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit mobile number" className="flex-1 text-sm outline-none" disabled={otpSent} />
+                </div>
+                {otpSent && (
+                  <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter OTP" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                )}
+                {authErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{authErr}</p>}
+                {!otpSent ? (
+                  <button onClick={handleSendOtp} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition">Send OTP</button>
+                ) : (
+                  <button onClick={handleVerifyOtp} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition">Verify &amp; Continue</button>
+                )}
+                <p className="text-center text-[10px] text-gray-400">OTP is simulated in this preview — any code will work.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ DRIVER PROFILE SETUP ══════════════════════ */}
+      {view === "driverProfileSetup" && driver && (
+        <div className="min-h-[calc(100vh-61px)] bg-slate-50 flex items-center justify-center px-4 py-12">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-6 space-y-4">
+            <div>
+              <h2 className="font-black text-gray-900 text-lg">Complete Your Driver Profile</h2>
+              <p className="text-xs text-gray-500 mt-1">Vehicle and license details are required before you can start tracking rides.</p>
+            </div>
+            <div className="space-y-3">
+              <input value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value.toUpperCase())} placeholder="Vehicle / Auto Number (e.g. KA05 AB 1234)" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              <input value={licenseNumber} onChange={e => setLicenseNumber(e.target.value.toUpperCase())} placeholder="Driving License Number" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">License Expiry</label>
+                <input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide flex items-center justify-between">
+                  <span>Auto-save into Piggy</span><span className="text-amber-600">{piggyPct}% of every fare</span>
+                </label>
+                <input type="range" min={0} max={30} value={piggyPct} onChange={e => setPiggyPct(Number(e.target.value))} className="w-full mt-2 accent-amber-500" />
+              </div>
+            </div>
+            {authErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{authErr}</p>}
+            <button onClick={saveProfileSetup} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2">
+              <ShieldCheck size={15} /> Save &amp; Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ DRIVER DASHBOARD ══════════════════════ */}
+      {view === "driverDashboard" && driver && (
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-xl font-black text-gray-900">Welcome back, {driver.name.split(" ")[0]}</h2>
+              <p className="text-sm text-gray-500">{driver.vehicleType} · {driver.vehicleNumber || "no vehicle number set"}</p>
+            </div>
+            <button onClick={() => setShowStartModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
+              <Play size={15} /> Start a Ride
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Piggy Balance</span><PiggyBank size={16} className="text-amber-500" /></div>
+              <p className="text-2xl font-black text-gray-900">₹{driver.piggyBalance.toLocaleString("en-IN")}</p>
+              <p className="text-xs text-gray-400 mt-1">{driver.piggyPct}% auto-saved per fare</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rides Logged</span><Car size={16} className="text-amber-500" /></div>
+              <p className="text-2xl font-black text-gray-900">{rides.filter(r => r.driverId === driver.id).length}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Open Requests</span><MessageSquare size={16} className="text-amber-500" /></div>
+              <p className="text-2xl font-black text-gray-900">{driverThreads.filter(r => r.status === "pending").length}</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-5">
+            <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Navigation size={14} className="text-amber-500" /> Your Location</h3>
+            <RideMap current={currentLoc} height="240px" />
+          </div>
+
+          <div>
+            <h3 className="font-black text-gray-900 mb-3">Recent Rides</h3>
+            {rides.filter(r => r.driverId === driver.id).length === 0 ? (
+              <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No rides logged yet. Tap "Start a Ride" above.</div>
+            ) : (
+              <div className="space-y-2">
+                {rides.filter(r => r.driverId === driver.id).slice(0, 6).map(r => (
+                  <div key={r.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{r.source.address.split(",")[0]} → {r.destination.address.split(",")[0]}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{r.kind === "paid" ? `${r.provider} · ₹${r.fare}` : "Empty run"} · {r.distanceKm.toFixed(1)} km</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${r.status === "active" ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>{r.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Start Ride modal ── */}
+      {showStartModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setShowStartModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-black text-gray-900 text-lg">Start a Ride</h3>
+                <button onClick={() => setShowStartModal(false)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><X size={16} /></button>
+              </div>
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                {(["paid", "empty"] as const).map(k => (
+                  <button key={k} onClick={() => setRideKind(k)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${rideKind === k ? "bg-white text-amber-700 shadow" : "text-gray-500"}`}>
+                    {k === "paid" ? "Paid Ride" : "Empty Run"}
+                  </button>
+                ))}
+              </div>
+              {rideKind === "paid" && (
+                <div>
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Provider</label>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    {(["self", "ola", "uber"] as RideProvider[]).map(p => (
+                      <button key={p} onClick={() => setProvider(p)} className={`py-2 rounded-lg text-xs font-bold border-2 capitalize transition ${provider === p ? "border-amber-500 bg-amber-50 text-amber-700" : "border-gray-200 text-gray-500"}`}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <LocationPicker label="Source" placeholder="Pickup location" value={source} onChange={p => { setSource(p); if (destination && rideKind === "paid") setFare(estimateFare(haversineKm(p, destination))); }} allowCurrentLocation />
+              <LocationPicker label="Destination" placeholder="Where are you headed" value={destination} onChange={p => { setDestination(p); if (source && rideKind === "paid") setFare(estimateFare(haversineKm(source, p))); }} />
+              {rideKind === "paid" && (
+                <div>
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Fare (₹)</label>
+                  <input type="number" value={fare} onChange={e => setFare(Number(e.target.value))} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                </div>
+              )}
+              {source && destination && (
+                <div className="bg-slate-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-500 flex items-center justify-between">
+                  <span>Estimated distance</span><span className="font-bold text-gray-900">{haversineKm(source, destination).toFixed(1)} km</span>
+                </div>
+              )}
+              <button onClick={startRide} disabled={!source || !destination}
+                className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                <Play size={15} /> Start Ride
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ ACTIVE RIDE ══════════════════════ */}
+      {view === "driverActiveRide" && activeRide && (
+        <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <div>
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${activeRide.kind === "paid" ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-orange-50 text-orange-700 border-orange-200"}`}>
+                  {activeRide.kind === "paid" ? `Paid Ride · ${activeRide.provider}` : "Empty Run"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-2xl font-black text-gray-900"><Clock size={20} className="text-amber-500" />{fmtTime(rideElapsedSec)}</div>
+            </div>
+            <RideMap current={currentLoc} source={activeRide.source} destination={activeRide.destination} height="280px" />
+            <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">From</p><p className="text-gray-900 font-medium truncate">{activeRide.source.address.split(",")[0]}</p></div>
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">To</p><p className="text-gray-900 font-medium truncate">{activeRide.destination.address.split(",")[0]}</p></div>
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">Distance</p><p className="text-gray-900 font-bold">{activeRide.distanceKm.toFixed(1)} km</p></div>
+              {activeRide.kind === "paid" && <div><p className="text-[10px] font-black text-gray-400 uppercase">Fare</p><p className="text-gray-900 font-bold">₹{activeRide.fare}</p></div>}
+            </div>
+          </div>
+          <button onClick={endRide} className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-2xl text-sm transition">
+            <Square size={15} /> End Ride
+          </button>
+        </div>
+      )}
+
+      {/* ── Ride result modal ── */}
+      {resultRide && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => { setShowResultsFor(null); setNearbyOpen(false); go("driverDashboard"); }}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              {resultRide.kind === "paid" ? (
+                <>
+                  <div className="text-center">
+                    <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                    <h3 className="font-black text-gray-900 text-lg">Ride Complete</h3>
+                    <p className="text-sm text-gray-500 mt-1">{resultRide.distanceKm.toFixed(1)} km · {resultRide.durationMin} min · ₹{resultRide.fare}</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2"><PiggyBank size={18} className="text-amber-600" /><span className="text-sm font-bold text-amber-800">Added to Piggy</span></div>
+                    <span className="text-lg font-black text-amber-700">+₹{resultRide.piggyContribution}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <Zap size={40} className="text-orange-500 mx-auto mb-3" />
+                    <h3 className="font-black text-gray-900 text-lg">Empty Run — AI Cost Analysis</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] font-black text-gray-400 uppercase">Fuel Cost</p><p className="text-lg font-black text-gray-900">₹{resultRide.costAnalysis?.fuelCost}</p></div>
+                    <div className="bg-slate-50 rounded-xl p-3"><p className="text-[10px] font-black text-gray-400 uppercase">Lost Fare Potential</p><p className="text-lg font-black text-gray-900">₹{resultRide.costAnalysis?.opportunityCost}</p></div>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-800">{resultRide.costAnalysis?.tip}</div>
+                  {!nearbyOpen ? (
+                    <button onClick={() => setNearbyOpen(true)} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition">Find Nearby Requests</button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Nearby Requests</p>
+                      {nearbyRequests.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-6">No pending requests near your route right now.</p>
+                      ) : nearbyRequests.map((r: any) => (
+                        <div key={r.id} className="border border-gray-200 rounded-xl p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {r.type === "parcel" ? <Package size={12} className="text-gray-400" /> : <Car size={12} className="text-gray-400" />}
+                                <span className="text-xs font-bold text-gray-900 capitalize">{r.type}</span>
+                                <span className="text-[10px] text-gray-400">· {r.distKm.toFixed(1)} km away</span>
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1 truncate">{r.pickup.address.split(",")[0]} → {r.drop.address.split(",")[0]}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{r.description}</p>
+                            </div>
+                            <span className="text-sm font-black text-amber-600 shrink-0">₹{r.offeredAmount}</span>
+                          </div>
+                          <button onClick={() => reachOut(r.id)} className="mt-2 w-full text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 py-2 rounded-lg transition">Reach Out to Customer</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              <button onClick={() => { setShowResultsFor(null); setNearbyOpen(false); go("driverDashboard"); }} className="w-full text-center text-xs text-gray-400 hover:text-gray-600">Back to Dashboard</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ DRIVER REQUESTS ══════════════════════ */}
+      {view === "driverRequests" && driver && (
+        <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
+          <h2 className="text-xl font-black text-gray-900">Your Requests</h2>
+          {driverThreads.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">You haven't reached out to any requests yet — find them from an empty run summary.</div>
+          ) : (
+            <div className="space-y-2">
+              {driverThreads.map(r => (
+                <button key={r.id} onClick={() => setFocusedThread(r)} className="w-full text-left bg-white border border-gray-200 hover:border-amber-300 rounded-2xl p-4 transition">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {r.type === "parcel" ? <Package size={13} className="text-gray-400" /> : <Car size={13} className="text-gray-400" />}
+                        <p className="text-sm font-bold text-gray-900 truncate">{r.pickup.address.split(",")[0]} → {r.drop.address.split(",")[0]}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{r.description} · ₹{r.offeredAmount}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${REQ_STATUS_STYLE[r.status]}`}>{r.status}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════ DRIVER PROFILE ══════════════════════ */}
+      {view === "driverProfile" && driver && (
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+          <h2 className="text-xl font-black text-gray-900">Profile</h2>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 bg-amber-500 rounded-2xl flex items-center justify-center text-white font-black text-xl">{driver.name[0]}</div>
+              <div><p className="font-black text-gray-900">{driver.name}</p><p className="text-sm text-gray-500">{driver.email}</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">Vehicle Type</p><p className="text-gray-900 font-medium capitalize">{driver.vehicleType}</p></div>
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">Vehicle Number</p><p className="text-gray-900 font-medium">{driver.vehicleNumber || "—"}</p></div>
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">License Number</p><p className="text-gray-900 font-medium">{driver.licenseNumber || "—"}</p></div>
+              <div><p className="text-[10px] font-black text-gray-400 uppercase">License Expiry</p><p className="text-gray-900 font-medium">{driver.licenseExpiry || "—"}</p></div>
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <h3 className="font-black text-gray-900 mb-4 flex items-center gap-2"><PiggyBank size={16} className="text-amber-500" /> Piggy Savings</h3>
+            <p className="text-3xl font-black text-gray-900">₹{driver.piggyBalance.toLocaleString("en-IN")}</p>
+            <p className="text-xs text-gray-400 mt-1">{driver.piggyPct}% auto-saved from every paid fare</p>
+          </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 text-sm font-bold px-4 py-2.5 rounded-xl transition">
+            <LogOut size={14} /> Sign Out
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════════════ CUSTOMER HOME / NEW REQUEST ══════════════════════ */}
+      {(view === "customerHome" || view === "customerNewRequest") && customer && (
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+          <div>
+            <h2 className="text-xl font-black text-gray-900">Need a ride or send a package?</h2>
+            <p className="text-sm text-gray-500">Describe what you need — nearby drivers running empty will reach out.</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            <div className="flex bg-gray-100 rounded-xl p-1">
+              {(["ride", "parcel"] as const).map(t => (
+                <button key={t} onClick={() => setReqType(t)} className={`flex-1 py-2 rounded-lg text-sm font-bold capitalize transition ${reqType === t ? "bg-white text-amber-700 shadow" : "text-gray-500"}`}>{t}</button>
+              ))}
+            </div>
+            <LocationPicker label="Pickup" placeholder="Where should the driver pick up from" value={pickup} onChange={setPickup} allowCurrentLocation />
+            <LocationPicker label="Drop" placeholder="Destination" value={drop} onChange={setDrop} />
+            <div>
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Description</label>
+              <textarea value={reqDesc} onChange={e => setReqDesc(e.target.value)} rows={3} placeholder={reqType === "ride" ? "e.g. 2 passengers, need AC cab" : "e.g. small box, fragile, needs care"} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400 resize-none" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Offered Amount (₹)</label>
+              <input type="number" value={reqAmount} onChange={e => setReqAmount(e.target.value)} placeholder="150" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+            </div>
+            <button onClick={submitRequest} disabled={!pickup || !drop || !reqDesc.trim() || !reqAmount}
+              className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition">
+              Post Request
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ CUSTOMER MY REQUESTS ══════════════════════ */}
+      {view === "customerMyRequests" && customer && (
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+          <h2 className="text-xl font-black text-gray-900">My Requests</h2>
+          {myRequests.length === 0 ? (
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">
+              No requests yet. <button onClick={() => go("customerHome")} className="text-amber-600 font-bold hover:underline">Post one now →</button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {myRequests.map(r => (
+                <button key={r.id} onClick={() => setFocusedThread(r)} className="w-full text-left bg-white border border-gray-200 hover:border-amber-300 rounded-2xl p-4 transition">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{r.pickup.address.split(",")[0]} → {r.drop.address.split(",")[0]}</p>
+                      <p className="text-xs text-gray-400 mt-1">{r.description} · ₹{r.offeredAmount}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${REQ_STATUS_STYLE[r.status]}`}>{r.status}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Thread modal (shared driver/customer) ── */}
+      {focusedThread && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setFocusedThread(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-gray-900 text-sm">{focusedThread.pickup.address.split(",")[0]} → {focusedThread.drop.address.split(",")[0]}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{focusedThread.description} · ₹{focusedThread.offeredAmount}</p>
+              </div>
+              <button onClick={() => setFocusedThread(null)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50">
+              {focusedThread.messages.length === 0 && <p className="text-xs text-gray-400 text-center py-6">No messages yet.</p>}
+              {focusedThread.messages.map((m, i) => (
+                <div key={i} className={`flex ${m.from === "driver" ? "justify-start" : "justify-end"}`}>
+                  <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.from === "driver" ? "bg-white border border-gray-200 text-gray-800 rounded-bl-sm" : "bg-amber-500 text-white rounded-br-sm"}`}>{m.text}</div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-gray-100 space-y-3">
+              {focusedThread.status === "pending" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => { demoConfirm(focusedThread.id, "rejected"); setFocusedThread({ ...focusedThread, status: "rejected" }); }} className="flex items-center justify-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs py-2 rounded-xl transition"><XCircle size={13} /> Reject</button>
+                  <button onClick={() => { demoConfirm(focusedThread.id, "confirmed"); setFocusedThread({ ...focusedThread, status: "confirmed" }); }} className="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs py-2 rounded-xl transition"><CheckCircle size={13} /> Confirm</button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input value={threadMsg} onChange={e => setThreadMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendThreadMessage(driver ? "driver" : "customer")} placeholder="Add a comment…" className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
+                <button onClick={() => sendThreadMessage(driver ? "driver" : "customer")} className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 rounded-xl transition">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -6,7 +6,7 @@ import {
   Database, Upload, FileText, Camera, Mic, MicOff, CheckCircle, XCircle,
   AlertTriangle, ChevronRight, X, Loader2, Plus, LogOut, ArrowRight,
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
-  Cpu, ClipboardCheck, Workflow,
+  Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft,
 } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
@@ -24,14 +24,15 @@ const CHANNELS = [
 ];
 
 const STAGES = [
-  { icon: Upload,        label: "Ingest",   desc: "Four channels feed a single unified row format." },
-  { icon: ShieldCheck,   label: "Validate", desc: "An agent flags malformed emails and anomalous amounts." },
+  { icon: Upload,        label: "Ingest",    desc: "Four channels feed a single unified row format." },
+  { icon: ShieldCheck,   label: "Validate",  desc: "An agent flags malformed emails and anomalous amounts." },
   { icon: ClipboardCheck, label: "Approve",  desc: "A human reviews and corrects every flagged row before it moves on." },
-  { icon: Workflow,      label: "Distribute", desc: "Send verified rows to a file, cloud storage, or an RPA target." },
+  { icon: ArrowRightLeft, label: "Map",      desc: "An agent maps source fields onto the exact schema your destination expects." },
+  { icon: Workflow,      label: "Distribute", desc: "Send mapped rows to a database, an API, cloud storage, or a file." },
 ];
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "distribute";
+type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "distribute";
 type Channel = "excel" | "pdf" | "screenshot" | "voice";
 
 const VERDICT_STYLE: Record<string, { badge: string; dot: string }> = {
@@ -78,9 +79,17 @@ export default function Data360Page() {
   const [overrideB, setOverrideB] = useState("");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
 
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [mappingBusy, setMappingBusy] = useState(false);
+
   const [targetType, setTargetType] = useState<TargetType>("file_export");
   const [cloudProvider, setCloudProvider] = useState<"s3" | "azure" | "local">("s3");
   const [bucketName, setBucketName] = useState("");
+  const [dbConnectionString, setDbConnectionString] = useState("");
+  const [dbTableName, setDbTableName] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
+  const [apiMethod, setApiMethod] = useState<"POST" | "PUT">("POST");
+  const [apiAuthToken, setApiAuthToken] = useState("");
   const [rpaUrl, setRpaUrl] = useState("");
   const [rpaProfile, setRpaProfile] = useState("");
   const [rpaToken, setRpaToken] = useState("");
@@ -207,12 +216,26 @@ export default function Data360Page() {
   };
 
   // ── Review / approval ──────────────────────────────────────────────────
+  const DEFAULT_MAPPING: Record<string, string> = { extracted_entity: "entity_name", target_field_a: "amount", target_field_b: "email", source_type: "source_type" };
+
   const openReview = async (batchId: string) => {
     setActiveBatchId(batchId); setReviewLoading(true); setView("review");
     try {
       const { batch, rows, jobs } = await data360Api.getBatch(batchId);
       setActiveBatch(batch); setActiveRows(rows); setActiveJobs(jobs);
+      setMapping(Object.keys(batch.field_mapping || {}).length ? batch.field_mapping : DEFAULT_MAPPING);
     } finally { setReviewLoading(false); }
+  };
+
+  const saveMappingAndContinue = async () => {
+    if (!activeBatchId) return;
+    setMappingBusy(true);
+    try {
+      const batch = await data360Api.saveMapping(activeBatchId, mapping);
+      setActiveBatch(batch);
+      setDistributeResult(null);
+      go("distribute");
+    } finally { setMappingBusy(false); }
   };
 
   const refreshReview = async () => {
@@ -264,6 +287,8 @@ export default function Data360Page() {
     try {
       let config: Record<string, any> = {};
       if (targetType === "cloud_storage") config = { provider: cloudProvider, bucket_name: bucketName };
+      if (targetType === "database") config = { connection_string: dbConnectionString, table_name: dbTableName };
+      if (targetType === "api") config = { url: apiUrl, method: apiMethod, auth_token: apiAuthToken || undefined };
       if (targetType === "rpa_portal") config = { target_url: rpaUrl, auth_profile: rpaProfile, secret_password_token: rpaToken };
       const job = await data360Api.distribute(activeBatchId, targetType, config);
       setDistributeResult(job);
@@ -381,7 +406,7 @@ export default function Data360Page() {
               <div className="text-center mb-12">
                 <h2 className="text-2xl sm:text-3xl font-black text-gray-900">The pipeline, stage by stage</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {STAGES.map((s, i) => {
                   const Icon = s.icon;
                   return (
@@ -691,10 +716,10 @@ export default function Data360Page() {
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
                     <CheckCircle size={20} className="text-green-600" />
-                    <p className="text-sm text-green-700 font-bold">All rows resolved — ready to distribute.</p>
+                    <p className="text-sm text-green-700 font-bold">All rows resolved — ready to map onto your destination schema.</p>
                   </div>
-                  <button onClick={() => { setDistributeResult(null); go("distribute"); }} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
-                    Proceed to Distribution <ArrowRight size={14} />
+                  <button onClick={() => go("mapping")} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
+                    Proceed to Mapping <ArrowRight size={14} />
                   </button>
                 </div>
               )}
@@ -744,10 +769,43 @@ export default function Data360Page() {
         </div>
       )}
 
+      {/* ══════════════════════ MAPPING ══════════════════════ */}
+      {view === "mapping" && user && activeBatch && (
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+          <button onClick={() => go("review")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Review</button>
+          <div>
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><ArrowRightLeft size={18} className="text-teal-600" /> Mapping Agent</h2>
+            <p className="text-sm text-gray-500 mt-1">Map each ingested field onto the exact column or property name your destination expects. This is what makes the export actually usable by a real database or API — not just a dump of internal field names.</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
+              <span>Source Field (ingested)</span><span>Maps To (destination field)</span>
+            </div>
+            {Object.keys(mapping).map(sourceField => (
+              <div key={sourceField} className="grid grid-cols-2 gap-3 items-center">
+                <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                  <span className="text-xs font-mono text-gray-600 truncate">{sourceField}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ArrowRight size={12} className="text-gray-300 shrink-0" />
+                  <input value={mapping[sourceField]} onChange={e => setMapping(m => ({ ...m, [sourceField]: e.target.value }))}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-teal-400" />
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] text-gray-400 pt-2 border-t border-gray-100">Destination field names must be plain identifiers (letters, numbers, underscore) if you're mapping onto a database table.</p>
+          </div>
+          <button onClick={saveMappingAndContinue} disabled={mappingBusy}
+            className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-sm transition">
+            {mappingBusy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />} Save Mapping &amp; Continue to Distribution
+          </button>
+        </div>
+      )}
+
       {/* ══════════════════════ DISTRIBUTE ══════════════════════ */}
       {view === "distribute" && user && activeBatch && (
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-          <button onClick={() => go("review")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Review</button>
+          <button onClick={() => go("mapping")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Mapping</button>
           <div>
             <h2 className="text-xl font-black text-gray-900">Target Agent Configuration</h2>
             <p className="text-sm text-gray-500">Choose where {approvedCount} approved rows from "{activeBatch.name}" should go.</p>
@@ -795,6 +853,48 @@ export default function Data360Page() {
               )}
             </label>
 
+            {/* Option: Database */}
+            <label className={`block border-2 rounded-2xl p-5 cursor-pointer transition ${targetType === "database" ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <input type="radio" checked={targetType === "database"} onChange={() => setTargetType("database")} className="accent-teal-600" />
+                <HardDrive size={18} className="text-teal-600" />
+                <div>
+                  <p className="font-black text-gray-900 text-sm">Database</p>
+                  <p className="text-xs text-gray-500">Real INSERT into a Postgres table you own — columns come straight from your mapping above.</p>
+                </div>
+              </div>
+              {targetType === "database" && (
+                <div className="pl-8 space-y-2">
+                  <input type="password" value={dbConnectionString} onChange={e => setDbConnectionString(e.target.value)} placeholder="postgresql://user:pass@host:5432/dbname" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                  <input value={dbTableName} onChange={e => setDbTableName(e.target.value)} placeholder="target_table_name" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                  <p className="text-[11px] text-gray-400">The table must already exist with columns matching your mapped field names.</p>
+                </div>
+              )}
+            </label>
+
+            {/* Option: API / Webhook */}
+            <label className={`block border-2 rounded-2xl p-5 cursor-pointer transition ${targetType === "api" ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <input type="radio" checked={targetType === "api"} onChange={() => setTargetType("api")} className="accent-teal-600" />
+                <Globe size={18} className="text-teal-600" />
+                <div>
+                  <p className="font-black text-gray-900 text-sm">API / Webhook</p>
+                  <p className="text-xs text-gray-500">Real HTTP request with the mapped rows as JSON — works with any REST API or webhook.</p>
+                </div>
+              </div>
+              {targetType === "api" && (
+                <div className="pl-8 space-y-2">
+                  <div className="flex gap-2">
+                    <select value={apiMethod} onChange={e => setApiMethod(e.target.value as "POST" | "PUT")} className="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-teal-400 bg-white">
+                      <option>POST</option><option>PUT</option>
+                    </select>
+                    <input value={apiUrl} onChange={e => setApiUrl(e.target.value)} placeholder="https://your-system.com/api/ingest" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                  </div>
+                  <input type="password" value={apiAuthToken} onChange={e => setApiAuthToken(e.target.value)} placeholder="Bearer token (optional)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                </div>
+              )}
+            </label>
+
             {/* Option C */}
             <label className={`block border-2 rounded-2xl p-5 cursor-pointer transition ${targetType === "rpa_portal" ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
               <div className="flex items-center gap-3 mb-3">
@@ -833,6 +933,9 @@ export default function Data360Page() {
               {distributeResult.result?.error && <p className="text-xs text-gray-600 mt-1">{distributeResult.result.error}</p>}
               {distributeResult.result?.bucket && <p className="text-xs text-gray-600 mt-1 font-mono">s3://{distributeResult.result.bucket}/{distributeResult.result.key}</p>}
               {distributeResult.result?.file_name && <p className="text-xs text-gray-600 mt-1">Downloaded {distributeResult.result.file_name} ({distributeResult.result.row_count} rows).</p>}
+              {distributeResult.result?.table && <p className="text-xs text-gray-600 mt-1 font-mono">Inserted {distributeResult.result.row_count} rows into "{distributeResult.result.table}"</p>}
+              {distributeResult.result?.status_code && <p className="text-xs text-gray-600 mt-1">API responded {distributeResult.result.status_code} · {distributeResult.result.row_count} rows sent</p>}
+              {distributeResult.result?.response_snippet && <p className="text-[11px] text-gray-400 mt-1 font-mono break-all">{distributeResult.result.response_snippet}</p>}
             </div>
           )}
         </div>

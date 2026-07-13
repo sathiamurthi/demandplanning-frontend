@@ -32,6 +32,9 @@ export const data360Api = {
   updateRow: (batchId: string, rowId: string, body: { status?: "approved" | "rejected"; manual_override?: { target_field_a?: string; target_field_b?: string } }) =>
     req<D360Row>(`/batches/${batchId}/rows/${rowId}`, { method: "PATCH", body: JSON.stringify(body) }),
 
+  saveMapping: (batchId: string, field_mapping: Record<string, string>) =>
+    req<D360Batch>(`/batches/${batchId}/mapping`, { method: "PATCH", body: JSON.stringify({ field_mapping }) }),
+
   distribute: (batchId: string, target_type: TargetType, config: Record<string, any>) =>
     req<D360Job>(`/batches/${batchId}/distribute`, { method: "POST", body: JSON.stringify({ target_type, config }) }),
 };
