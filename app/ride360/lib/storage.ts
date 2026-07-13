@@ -1,4 +1,4 @@
-import type { CustomerProfile, CustomerRequest, DriverProfile, FuelLog, Ride } from "./types";
+import type { AppNotification, CustomerProfile, CustomerRequest, DriverProfile, FuelLog, Ride } from "./types";
 
 const DRIVERS_KEY = "ride360_drivers";
 const CUSTOMERS_KEY = "ride360_customers";
@@ -6,6 +6,7 @@ const SESSION_KEY = "ride360_session";
 const RIDES_KEY = "ride360_rides";
 const REQUESTS_KEY = "ride360_requests";
 const FUEL_KEY = "ride360_fuel_logs";
+const NOTIFICATIONS_KEY = "ride360_notifications";
 
 function load<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -43,6 +44,9 @@ export const saveRequests = (r: CustomerRequest[]) => save(REQUESTS_KEY, r);
 
 export const loadFuelLogs = (): FuelLog[] => load(FUEL_KEY, []);
 export const saveFuelLogs = (f: FuelLog[]) => save(FUEL_KEY, f);
+
+export const loadNotifications = (): AppNotification[] => load(NOTIFICATIONS_KEY, []);
+export const saveNotifications = (n: AppNotification[]) => save(NOTIFICATIONS_KEY, n);
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 export function registerDriver(input: Omit<StoredDriver, "id" | "piggyBalance" | "createdAt" | "profileComplete">): StoredDriver | string {

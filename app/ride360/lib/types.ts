@@ -99,3 +99,16 @@ export interface CustomerRequest {
   messages: ThreadMessage[];
   createdAt: string;
 }
+
+export type NotificationType = "outreach" | "message" | "status" | "completed";
+
+export interface AppNotification {
+  id: string;
+  forType: "driver" | "customer";
+  forId: string;
+  type: NotificationType;
+  text: string;
+  requestId?: string;
+  read: boolean;
+  createdAt: string;
+}

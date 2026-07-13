@@ -8,7 +8,7 @@ import {
   Car, MapPin, Zap, PiggyBank, ArrowRight, ChevronRight, X, Loader2,
   CheckCircle, XCircle, LogOut, Package, MessageSquare, Navigation,
   Play, Square, Clock, TrendingUp, User, Phone, Mail, ShieldCheck,
-  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee,
+  Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee, Bell, Truck, Bike,
 } from "lucide-react";
 import LocationPicker from "./components/LocationPicker";
 import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution } from "./lib/geo";
@@ -17,10 +17,14 @@ import {
   loadDrivers, loadCustomers, loadSession, saveSession, clearSession,
   registerDriver, loginDriver, socialLoginDriver, loginOrRegisterCustomer, updateDriver,
   loadRides, saveRides, loadRequests, saveRequests, loadFuelLogs, saveFuelLogs,
+  loadNotifications, saveNotifications,
 } from "./lib/storage";
 import type {
-  DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType, FuelLog,
+  DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType, FuelLog, AppNotification,
 } from "./lib/types";
+
+const NEARBY_RANGE_KM = 5;
+const VEHICLE_FILTER_ICON: Record<VehicleType, any> = { auto: Car, cab: Car, transport: Truck, bike: Bike };
 
 const RideMap = dynamic(() => import("./components/RideMap"), { ssr: false, loading: () => <div className="h-[260px] bg-slate-100 rounded-xl animate-pulse" /> });
 
@@ -58,9 +62,12 @@ export default function Ride360Page() {
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [allDrivers, setAllDrivers] = useState<DriverProfile[]>([]);
   const [currentLoc, setCurrentLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
 
   // Customer-initiated outreach to a specific driver's empty run
   const [targetDriverRide, setTargetDriverRide] = useState<Ride | null>(null);
+  const [vehicleFilter, setVehicleFilter] = useState<VehicleType | "all">("all");
 
   // Price negotiation in a thread
   const [proposeAmount, setProposeAmount] = useState("");
@@ -112,6 +119,7 @@ export default function Ride360Page() {
     setRequests(loadRequests());
     setFuelLogs(loadFuelLogs());
     setAllDrivers(loadDrivers());
+    setNotifications(loadNotifications());
     const session = loadSession();
     if (session?.type === "driver") {
       const d = loadDrivers().find(x => x.id === session.id);
@@ -151,39 +159,61 @@ export default function Ride360Page() {
     });
   }, [currentLoc, activeRideId]);
 
-  // Cross-tab outreach/message/status notifications. Fires only in OTHER tabs of the
-  // same browser when localStorage changes — there's no backend/push service behind
-  // Ride360, so this can't reach a different device or a closed tab.
-  const requestsRef = useRef<CustomerRequest[]>([]);
-  useEffect(() => { requestsRef.current = requests; }, [requests]);
+  // Notification tracking: every outreach/message/status action below writes a
+  // persistent AppNotification record (not just a toast), so it's still there
+  // when the recipient next opens the app — not only if they had a tab open at
+  // that exact moment. Cross-tab toasts piggyback on the same records via the
+  // storage event, which fires only in OTHER tabs of the same browser — there's
+  // no backend/push service behind Ride360, so this can't reach a different
+  // device or a closed tab.
+  const notificationsRef = useRef<AppNotification[]>([]);
+  useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
+
+  const pushNotification = (forType: "driver" | "customer", forId: string, type: AppNotification["type"], text: string, requestId?: string) => {
+    const notif: AppNotification = { id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, forType, forId, type, text, requestId, read: false, createdAt: new Date().toISOString() };
+    const next = [notif, ...notificationsRef.current];
+    setNotifications(next); saveNotifications(next);
+  };
 
   useEffect(() => {
     function handleStorage(e: StorageEvent) {
-      if (e.key !== "ride360_requests" || !e.newValue) return;
-      let incoming: CustomerRequest[];
-      try { incoming = JSON.parse(e.newValue); } catch { return; }
-      const prevById = new Map(requestsRef.current.map(r => [r.id, r]));
-      for (const req of incoming) {
-        const before = prevById.get(req.id);
-        const mine = (driver && req.claimedByDriverId === driver.id) || (customer && req.customerId === customer.id);
-        if (!before && driver && req.claimedByDriverId === driver.id && req.contactInitiatedBy === "customer") {
-          toast.info(`📩 A nearby customer reached out — ${req.description} · ₹${req.currentAmount}`);
-        } else if (before && !before.claimedByDriverId && req.claimedByDriverId && customer && req.customerId === customer.id) {
-          toast.info(`🚕 A driver reached out to your request — ${req.pickup.address.split(",")[0]} → ${req.drop.address.split(",")[0]}`);
-        } else if (before && mine && req.messages.length > before.messages.length) {
-          const lastMsg = req.messages[req.messages.length - 1];
-          const fromOther = driver ? lastMsg.from !== "driver" : lastMsg.from !== "customer";
-          if (fromOther) toast.info(`💬 New message: ${lastMsg.text.slice(0, 60)}`);
-        } else if (before && mine && before.status !== req.status) {
-          if (req.status === "confirmed") toast.success(`✅ Request confirmed at ₹${req.currentAmount}`);
-          if (req.status === "rejected") toast.error("❌ Request was rejected.");
-        }
+      if (e.key === "ride360_requests" && e.newValue) {
+        try { setRequests(JSON.parse(e.newValue)); } catch {}
       }
-      setRequests(incoming);
+      if (e.key === "ride360_notifications" && e.newValue) {
+        try {
+          const incoming: AppNotification[] = JSON.parse(e.newValue);
+          const myType = driver ? "driver" : customer ? "customer" : null;
+          const myId = driver?.id || customer?.id;
+          if (myType && myId) {
+            const prevIds = new Set(notificationsRef.current.map(n => n.id));
+            incoming
+              .filter(n => n.forType === myType && n.forId === myId && !prevIds.has(n.id))
+              .forEach(n => toast.info(n.text));
+          }
+          setNotifications(incoming);
+        } catch {}
+      }
     }
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [driver, customer]);
+
+  const myNotifications = useMemo(() => {
+    const myType = driver ? "driver" : customer ? "customer" : null;
+    const myId = driver?.id || customer?.id;
+    if (!myType || !myId) return [];
+    return notifications.filter(n => n.forType === myType && n.forId === myId);
+  }, [notifications, driver, customer]);
+  const unreadNotifCount = myNotifications.filter(n => !n.read).length;
+
+  const markNotificationsRead = () => {
+    if (unreadNotifCount === 0) return;
+    const myType = driver ? "driver" : "customer";
+    const myId = driver?.id || customer?.id;
+    const next = notifications.map(n => (n.forType === myType && n.forId === myId ? { ...n, read: true } : n));
+    setNotifications(next); saveNotifications(next);
+  };
 
   const go = (v: View) => setView(v);
 
@@ -275,10 +305,14 @@ export default function Ride360Page() {
     }
     const next = rides.map(r => (r.id === activeRideId ? updated : r));
     // If this ride came from a matched empty-run request, mark that request completed too.
+    const matchedReq = ride.matchedRequestId ? requests.find(r => r.id === ride.matchedRequestId) : undefined;
     const finalRequests = ride.matchedRequestId
       ? requests.map(r => (r.id === ride.matchedRequestId ? { ...r, status: "completed" as const } : r))
       : requests;
-    if (ride.matchedRequestId) { setRequests(finalRequests); saveRequests(finalRequests); }
+    if (ride.matchedRequestId) {
+      setRequests(finalRequests); saveRequests(finalRequests);
+      if (matchedReq) pushNotification("customer", matchedReq.customerId, "completed", `✅ Your ride is complete — ₹${matchedReq.currentAmount} via RideConnect360.`, matchedReq.id);
+    }
     setRides(next); saveRides(next);
     setShowResultsFor(activeRideId);
     setActiveRideId(null);
@@ -342,11 +376,22 @@ export default function Ride360Page() {
       ? { ...r, claimedByDriverId: driver.id, originEmptyRideId, contactInitiatedBy: "driver" as const, messages: [...r.messages, { from: "driver" as const, text: `${driver.name} (${driver.vehicleNumber || driver.vehicleType}) can pick this up. Reaching out now.`, at: new Date().toISOString() }] }
       : r);
     setRequests(next); saveRequests(next);
+    const req = requests.find(r => r.id === reqId);
+    if (req) pushNotification("customer", req.customerId, "outreach", `🚕 ${driver.name} reached out about your ${req.type} request — ₹${req.currentAmount}`, reqId);
   };
 
   const demoConfirm = (reqId: string, status: "confirmed" | "rejected") => {
     const next = requests.map(r => r.id === reqId ? { ...r, status } : r);
     setRequests(next); saveRequests(next);
+    const req = requests.find(r => r.id === reqId);
+    if (req) {
+      // Notify whoever initiated contact — they're the one waiting on this decision.
+      const notifyDriver = req.contactInitiatedBy === "driver" && req.claimedByDriverId;
+      const notifyCustomer = req.contactInitiatedBy === "customer";
+      const text = status === "confirmed" ? `✅ Request confirmed at ₹${req.currentAmount}` : `❌ Request was rejected.`;
+      if (notifyDriver && req.claimedByDriverId) pushNotification("driver", req.claimedByDriverId, "status", text, reqId);
+      if (notifyCustomer) pushNotification("customer", req.customerId, "status", text, reqId);
+    }
   };
 
   const sendThreadMessage = (from: "driver" | "customer") => {
@@ -356,7 +401,10 @@ export default function Ride360Page() {
       : r);
     setRequests(next); saveRequests(next);
     setFocusedThread(next.find(r => r.id === focusedThread.id) || null);
+    const text = threadMsg.trim();
     setThreadMsg("");
+    if (from === "driver" && driver) pushNotification("customer", focusedThread.customerId, "message", `💬 ${driver.name}: ${text.slice(0, 60)}`, focusedThread.id);
+    else if (from === "customer" && focusedThread.claimedByDriverId) pushNotification("driver", focusedThread.claimedByDriverId, "message", `💬 New message: ${text.slice(0, 60)}`, focusedThread.id);
   };
 
   const proposePrice = (from: "driver" | "customer") => {
@@ -368,6 +416,8 @@ export default function Ride360Page() {
     setRequests(next); saveRequests(next);
     setFocusedThread(next.find(r => r.id === focusedThread.id) || null);
     setProposeAmount("");
+    if (from === "driver" && driver) pushNotification("customer", focusedThread.customerId, "message", `💰 ${driver.name} proposed a new price: ₹${amount}`, focusedThread.id);
+    else if (from === "customer" && focusedThread.claimedByDriverId) pushNotification("driver", focusedThread.claimedByDriverId, "message", `💰 New price proposed: ₹${amount}`, focusedThread.id);
   };
 
   // ── Customer request ─────────────────────────────────────────────────────
@@ -383,6 +433,7 @@ export default function Ride360Page() {
     };
     const next = [req, ...requests];
     setRequests(next); saveRequests(next);
+    if (targetDriverRide) pushNotification("driver", targetDriverRide.driverId, "outreach", `📩 A nearby customer reached out — ${reqDesc.trim()} · ₹${amount}`, req.id);
     setPickup(null); setDrop(null); setReqDesc(""); setReqAmount(""); setTargetDriverRide(null);
     go("customerMyRequests");
   };
@@ -397,12 +448,12 @@ export default function Ride360Page() {
       .map(r => {
         const pos = r.liveLat != null && r.liveLng != null ? { lat: r.liveLat, lng: r.liveLng } : r.source;
         const info = allDrivers.find(d => d.id === r.driverId);
-        return { ride: r, info, distKm: haversineKm(currentLoc, pos) };
+        return { ride: r, info, pos, distKm: haversineKm(currentLoc, pos) };
       })
-      .filter(x => !!x.info)
-      .sort((a, b) => a.distKm - b.distKm)
-      .slice(0, 12);
-  }, [rides, allDrivers, currentLoc]);
+      .filter((x): x is typeof x & { info: DriverProfile } => !!x.info && x.distKm <= NEARBY_RANGE_KM)
+      .filter(x => vehicleFilter === "all" || x.info.vehicleType === vehicleFilter)
+      .sort((a, b) => a.distKm - b.distKm);
+  }, [rides, allDrivers, currentLoc, vehicleFilter]);
 
   const fmtTime = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 
@@ -436,6 +487,44 @@ export default function Ride360Page() {
           <div className="flex items-center gap-2 shrink-0">
             {(driver || customer) ? (
               <>
+                <div className="relative">
+                  <button
+                    onClick={() => { setShowNotifPanel(v => !v); if (!showNotifPanel) markNotificationsRead(); }}
+                    className="relative p-2 text-gray-400 hover:text-amber-600 transition"
+                  >
+                    <Bell size={17} />
+                    {unreadNotifCount > 0 && (
+                      <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
+                    )}
+                  </button>
+                  {showNotifPanel && (
+                    <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-xl z-40">
+                      <div className="p-3 border-b border-gray-100 font-black text-gray-900 text-sm">Notifications</div>
+                      {myNotifications.length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-8">No notifications yet.</p>
+                      ) : (
+                        <div className="divide-y divide-gray-50">
+                          {myNotifications.slice(0, 20).map(n => (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                setShowNotifPanel(false);
+                                if (n.requestId) {
+                                  const req = requests.find(r => r.id === n.requestId);
+                                  if (req) setFocusedThread(req);
+                                }
+                              }}
+                              className="w-full text-left p-3 hover:bg-gray-50 transition text-xs text-gray-700"
+                            >
+                              {n.text}
+                              <span className="block text-[10px] text-gray-400 mt-0.5">{new Date(n.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-black text-sm">
                   {driver ? driver.name[0] : customer?.phone.slice(-2)}
                 </div>
@@ -1071,19 +1160,39 @@ export default function Ride360Page() {
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Radar size={18} className="text-amber-500" /> Nearby Drivers</h2>
-            <p className="text-sm text-gray-500 mt-1">Drivers currently running empty near you — reach out directly instead of waiting.</p>
+            <p className="text-sm text-gray-500 mt-1">Drivers currently running empty within {NEARBY_RANGE_KM} km — reach out directly instead of waiting.</p>
           </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setVehicleFilter("all")} className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${vehicleFilter === "all" ? "bg-amber-500 border-amber-500 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>All</button>
+            {(["auto", "cab", "transport", "bike"] as VehicleType[]).map(vt => {
+              const Icon = VEHICLE_FILTER_ICON[vt];
+              return (
+                <button key={vt} onClick={() => setVehicleFilter(vt)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border capitalize transition ${vehicleFilter === vt ? "bg-amber-500 border-amber-500 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+                  <Icon size={12} /> {vt}
+                </button>
+              );
+            })}
+          </div>
+
+          <RideMap
+            current={currentLoc}
+            height="280px"
+            rangeKm={NEARBY_RANGE_KM}
+            markers={nearbyDrivers.map(({ ride, info, pos }) => ({ id: ride.id, lat: pos.lat, lng: pos.lng, label: `${info.name} · ${info.vehicleType} · ${info.vehicleNumber || "no vehicle number"}` }))}
+          />
+
           {nearbyDrivers.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No drivers running empty nearby right now. Post a request instead and one will find you.</div>
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No {vehicleFilter === "all" ? "" : vehicleFilter + " "}drivers running empty within {NEARBY_RANGE_KM} km right now. Post a request instead and one will find you.</div>
           ) : (
             <div className="space-y-2">
               {nearbyDrivers.map(({ ride, info, distKm }) => (
                 <div key={ride.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-black shrink-0">{info!.name[0]}</div>
+                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-black shrink-0">{info.name[0]}</div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{info!.name} · <span className="capitalize text-gray-500 font-medium">{info!.vehicleType}</span></p>
-                      <p className="text-xs text-gray-400 mt-0.5">{distKm.toFixed(1)} km away · {info!.vehicleNumber || "no vehicle number"}</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{info.name} · <span className="capitalize text-gray-500 font-medium">{info.vehicleType}</span></p>
+                      <p className="text-xs text-gray-400 mt-0.5">{distKm.toFixed(1)} km away · {info.vehicleNumber || "no vehicle number"}</p>
                     </div>
                   </div>
                   <button onClick={() => { setTargetDriverRide(ride); go("customerNewRequest"); }} className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded-xl transition">Reach Out</button>
