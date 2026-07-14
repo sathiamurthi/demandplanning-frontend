@@ -46,4 +46,9 @@ export const data360Api = {
 
   generate: (batchId: string, template_id?: string) =>
     req<D360GenerationJob>(`/batches/${batchId}/generate`, { method: "POST", body: JSON.stringify({ template_id }) }),
+
+  // Runs the same raw text through Claude server-side, in parallel with the
+  // client-side regex heuristic, so the two can be compared row by row.
+  aiExtract: (raw_snippet: string, fields: string[]) =>
+    req<{ fields: Record<string, string> }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields }) }),
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Database, Upload, FileText, Camera, Mic, MicOff, CheckCircle, XCircle,
@@ -175,6 +175,26 @@ export default function Data360Page() {
   };
 
   // ── Ingestion ────────────────────────────────────────────────────────────
+  // AI comparison: for any row that carries real freeform text (PDF/OCR/
+  // voice, not structured Excel), fire a parallel call to Claude with the
+  // exact same raw text + field list the client-side heuristic just used,
+  // so the two can be shown side by side rather than trusting either blindly.
+  const [aiCompare, setAiCompare] = useState<Record<number, { busy: boolean; fields?: Record<string, string>; error?: string }>>({});
+  const [expandedCompareIdx, setExpandedCompareIdx] = useState<number | null>(null);
+  const triggerAiCompare = async (idx: number, row: IngestRow) => {
+    if (!row.raw_snippet?.trim() || extractionFields.length === 0) return;
+    setAiCompare(prev => ({ ...prev, [idx]: { busy: true } }));
+    try {
+      const { fields } = await data360Api.aiExtract(row.raw_snippet, extractionFields);
+      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, fields } }));
+    } catch (e: any) {
+      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, error: e.message || "AI comparison failed" } }));
+    }
+  };
+  const acceptAiValue = (idx: number, field: string, value: string) => {
+    setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, [field]: value } } : r));
+  };
+
   const handleExcelFile = async (file: File) => {
     if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     setIngestErr(""); setIngestBusy(true);
@@ -191,7 +211,9 @@ export default function Data360Page() {
     setIngestErr(""); setIngestBusy(true);
     try {
       const row = await parsePdfFile(file, extractionFields);
+      const idx = pendingRows.length;
       setPendingRows(prev => [...prev, row]);
+      triggerAiCompare(idx, row);
     } catch (e: any) {
       setIngestErr(e.message || "Could not read that PDF");
     } finally { setIngestBusy(false); }
@@ -202,7 +224,9 @@ export default function Data360Page() {
     setIngestErr(""); setIngestBusy(true); setOcrProgress(0);
     try {
       const row = await parseScreenshotFile(file, extractionFields, setOcrProgress);
+      const idx = pendingRows.length;
       setPendingRows(prev => [...prev, row]);
+      triggerAiCompare(idx, row);
     } catch (e: any) {
       setIngestErr(e.message || "OCR failed on that image");
     } finally { setIngestBusy(false); setOcrProgress(0); }
@@ -228,7 +252,10 @@ export default function Data360Page() {
 
   const commitVoiceRow = () => {
     if (!voiceTranscript.trim()) return;
-    setPendingRows(prev => [...prev, extractFieldsFromText(voiceTranscript, "voice", extractionFields)]);
+    const row = extractFieldsFromText(voiceTranscript, "voice", extractionFields);
+    const idx = pendingRows.length;
+    setPendingRows(prev => [...prev, row]);
+    triggerAiCompare(idx, row);
     setVoiceTranscript("");
   };
 
@@ -777,7 +804,7 @@ export default function Data360Page() {
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-gray-900 text-sm">Staged Rows ({pendingRows.length})</h3>
-                <button onClick={() => setPendingRows([])} className="text-xs text-gray-400 hover:text-red-500">Clear all</button>
+                <button onClick={() => { setPendingRows([]); setAiCompare({}); setExpandedCompareIdx(null); }} className="text-xs text-gray-400 hover:text-red-500">Clear all</button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -785,15 +812,62 @@ export default function Data360Page() {
                     <tr className="text-left text-gray-400 border-b border-gray-100">
                       <th className="py-1.5 pr-3 font-bold">Source</th>
                       {extractionFields.map(f => <th key={f} className="py-1.5 pr-3 font-bold">{f}</th>)}
+                      <th className="py-1.5 pr-3 font-bold">AI check</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingRows.map((r, i) => (
-                      <tr key={i} className="border-b border-gray-50">
-                        <td className="py-1.5 pr-3 capitalize text-gray-500">{r.source_type}</td>
-                        {extractionFields.map(f => <td key={f} className="py-1.5 pr-3 text-gray-800 font-medium">{r.fields?.[f] || "—"}</td>)}
-                      </tr>
-                    ))}
+                    {pendingRows.map((r, i) => {
+                      const cmp = aiCompare[i];
+                      const hasDiff = cmp?.fields && extractionFields.some(f => (cmp.fields![f] || "") !== (r.fields?.[f] || ""));
+                      return (
+                        <Fragment key={i}>
+                          <tr className="border-b border-gray-50">
+                            <td className="py-1.5 pr-3 capitalize text-gray-500">{r.source_type}</td>
+                            {extractionFields.map(f => <td key={f} className="py-1.5 pr-3 text-gray-800 font-medium">{r.fields?.[f] || "—"}</td>)}
+                            <td className="py-1.5 pr-3">
+                              {!cmp ? <span className="text-gray-300">—</span>
+                                : cmp.busy ? <Loader2 size={12} className="animate-spin text-teal-500" />
+                                : cmp.error ? <span className="text-red-400" title={cmp.error}>failed</span>
+                                : (
+                                  <button onClick={() => setExpandedCompareIdx(expandedCompareIdx === i ? null : i)}
+                                    className={`flex items-center gap-1 font-bold ${hasDiff ? "text-amber-600" : "text-green-600"}`}>
+                                    <ChevronRight size={11} className={`transition-transform ${expandedCompareIdx === i ? "rotate-90" : ""}`} />
+                                    {hasDiff ? "differs" : "matches"}
+                                  </button>
+                                )}
+                            </td>
+                          </tr>
+                          {expandedCompareIdx === i && cmp?.fields && (
+                            <tr className="bg-slate-50">
+                              <td colSpan={extractionFields.length + 2} className="p-3">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Bot size={11} className="text-teal-600" /> Rule-based vs. Claude — pick per field</p>
+                                <div className="space-y-1.5">
+                                  {extractionFields.map(f => {
+                                    const ruleVal = r.fields?.[f] || "";
+                                    const aiVal = cmp.fields![f] || "";
+                                    const same = ruleVal === aiVal;
+                                    return (
+                                      <div key={f} className="grid grid-cols-[100px_1fr_1fr] gap-2 items-center">
+                                        <span className="text-[10px] font-bold text-gray-500 truncate">{f}</span>
+                                        <span className="text-xs text-gray-700 bg-white border border-gray-200 rounded-lg px-2 py-1 truncate" title={ruleVal}>{ruleVal || "—"}</span>
+                                        {same ? (
+                                          <span className="text-xs text-gray-400 italic px-2 py-1">same as rule</span>
+                                        ) : (
+                                          <button onClick={() => acceptAiValue(i, f, aiVal)}
+                                            className="text-left text-xs text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg px-2 py-1 truncate transition" title={`Use AI value: ${aiVal}`}>
+                                            {aiVal || "(empty)"} <span className="text-[9px] font-bold">← use this</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
