@@ -195,6 +195,29 @@ export default function Data360Page() {
     setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, [field]: value } } : r));
   };
 
+  // Screenshots get compared against Claude reading the image directly,
+  // not the OCR text — a stylized/graphic document (colored headers,
+  // decorative fonts, watermarks) can make Tesseract's OCR come back as
+  // near-total garbage, at which point there's no usable text for a
+  // text-based AI call to work from either. Vision skips that failure mode.
+  const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1] || "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+  const triggerAiCompareVision = async (idx: number, file: File) => {
+    if (extractionFields.length === 0) return;
+    setAiCompare(prev => ({ ...prev, [idx]: { busy: true } }));
+    try {
+      const image_base64 = await fileToBase64(file);
+      const { fields } = await data360Api.aiExtractImage(image_base64, file.type || "image/png", extractionFields);
+      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, fields } }));
+    } catch (e: any) {
+      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, error: e.message || "AI comparison failed" } }));
+    }
+  };
+
   const handleExcelFile = async (file: File) => {
     if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     setIngestErr(""); setIngestBusy(true);
@@ -226,7 +249,7 @@ export default function Data360Page() {
       const row = await parseScreenshotFile(file, extractionFields, setOcrProgress);
       const idx = pendingRows.length;
       setPendingRows(prev => [...prev, row]);
-      triggerAiCompare(idx, row);
+      triggerAiCompareVision(idx, file);
     } catch (e: any) {
       setIngestErr(e.message || "OCR failed on that image");
     } finally { setIngestBusy(false); setOcrProgress(0); }
@@ -840,7 +863,9 @@ export default function Data360Page() {
                           {expandedCompareIdx === i && cmp?.fields && (
                             <tr className="bg-slate-50">
                               <td colSpan={extractionFields.length + 2} className="p-3">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Bot size={11} className="text-teal-600" /> Rule-based vs. Claude — pick per field</p>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Bot size={11} className="text-teal-600" /> Rule-based vs. Claude ({r.source_type === "screenshot" ? "reading the image directly" : "reading the extracted text"}) — pick per field
+                                </p>
                                 <div className="space-y-1.5">
                                   {extractionFields.map(f => {
                                     const ruleVal = r.fields?.[f] || "";

@@ -46,8 +46,37 @@ const DECIMAL_NUM_RE = /[₹$]?\s?[0-9][0-9,]*\.[0-9]{1,2}\b/g;
 const PLAIN_NUM_RE = /[₹$]?\s?[0-9][0-9,]*\b/g;
 const cleanAmount = (m: string) => m.replace(/[₹$,\s]/g, "");
 
-function pickBestAmount(text: string): string {
+// A field literally named "Sub Total" wants the subtotal, not the grand
+// total — but the keyword scan below deliberately skips subtotal lines when
+// looking for the *final* amount (so a field like "Total" doesn't grab the
+// subtotal instead). Without knowing which field is being asked for, both
+// "Sub Total" and "Total" collapse to the exact same guess. Passing the
+// field name in lets us invert that exclusion when the field itself is
+// asking for the subtotal.
+function pickBestAmount(text: string, fieldName: string = ""): string {
+  const wantsSubtotal = /sub\s*-?\s*total/i.test(fieldName);
   const lines = text.split(/\r?\n/);
+
+  if (wantsSubtotal) {
+    // Only the subtotal line counts — don't fall through to "grand total" /
+    // "net payable" style keywords, which would silently hand back the
+    // wrong (final) amount for a field that specifically asked for the
+    // subtotal.
+    for (const line of lines) {
+      if (!/sub\s*-?total/i.test(line)) continue;
+      const decimals = line.match(DECIMAL_NUM_RE);
+      if (decimals?.length) return cleanAmount(decimals[decimals.length - 1]);
+      if (!ID_LABEL_RE.test(line)) {
+        const plain = line.match(PLAIN_NUM_RE);
+        if (plain?.length) {
+          const v = cleanAmount(plain[plain.length - 1]);
+          if (v && v.length <= 6) return v;
+        }
+      }
+    }
+    return "";
+  }
+
   for (const kw of AMOUNT_KEYWORDS) {
     for (const line of lines) {
       if (/sub\s*-?total/i.test(line)) continue;
@@ -146,7 +175,7 @@ export function extractFieldsFromText(text: string, sourceType: IngestRow["sourc
     } else if (type === "phone") {
       value = text.match(PHONE_RE)?.[0].trim() || "";
     } else if (type === "amount") {
-      value = pickBestAmount(text);
+      value = pickBestAmount(text, name);
     } else if (type === "date") {
       value = text.match(DATE_RE)?.[0] || "";
     } else if (type === "itemized") {
