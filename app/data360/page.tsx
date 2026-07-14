@@ -11,7 +11,7 @@ import {
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
   parseExcelFile, parsePdfFile, parseScreenshotFile,
-  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText,
+  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
 
@@ -75,6 +75,14 @@ export default function Data360Page() {
   const [fieldsInput, setFieldsInput] = useState(FIELD_TEMPLATES.invoice.fields.join(", "));
   const extractionFields = fieldsInput.split(",").map(s => s.trim()).filter(Boolean);
   const [ocrProgress, setOcrProgress] = useState(0);
+  const [instructionInput, setInstructionInput] = useState("");
+  const applyInstruction = () => {
+    const fields = parseFieldInstruction(instructionInput);
+    if (fields.length === 0) return;
+    setFieldsInput(fields.join(", "));
+    setFieldTemplate("custom");
+    setSelectedTemplateId("");
+  };
 
   // Reusable templates (Generate stage): a saved field list + output design.
   const [templates, setTemplates] = useState<D360Template[]>([]);
@@ -649,6 +657,20 @@ export default function Data360Page() {
             )}
 
             <div className="mt-4 pt-4 border-t border-gray-100">
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Or just describe it in plain English</label>
+              <p className="text-[11px] text-gray-400 mb-1.5">e.g. "give me amount, item, date, item wise and total amount" — we'll turn that into the field list above.</p>
+              <div className="flex items-start gap-2">
+                <textarea value={instructionInput} onChange={e => setInstructionInput(e.target.value)} rows={1}
+                  placeholder="Describe what you want extracted…"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                <button onClick={applyInstruction} disabled={!instructionInput.trim()}
+                  className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2.5 rounded-xl transition shrink-0">
+                  <Sparkles size={12} /> Convert to Fields
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-100">
               <h4 className="text-xs font-black text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5"><LayoutTemplate size={13} className="text-teal-600" /> Reusable templates</h4>
               {templates.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -887,12 +909,20 @@ export default function Data360Page() {
                 </div>
               )}
               <div className="space-y-3">
-                {Object.keys(overrideFields).map(name => (
-                  <div key={name}>
-                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">{name}</label>
-                    <input value={overrideFields[name]} onChange={e => setOverrideFields(f => ({ ...f, [name]: e.target.value }))} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
-                  </div>
-                ))}
+                {Object.keys(overrideFields).map(name => {
+                  const isLong = /item\s*-?\s*wise|itemi[sz]ed|line\s*items?|break\s*-?\s*down/i.test(name) || overrideFields[name].length > 60;
+                  return (
+                    <div key={name}>
+                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">{name}</label>
+                      {isLong ? (
+                        <textarea value={overrideFields[name]} onChange={e => setOverrideFields(f => ({ ...f, [name]: e.target.value }))} rows={3}
+                          className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                      ) : (
+                        <input value={overrideFields[name]} onChange={e => setOverrideFields(f => ({ ...f, [name]: e.target.value }))} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button onClick={() => rejectRow(focusedRow)} disabled={rowBusy === focusedRow.id}

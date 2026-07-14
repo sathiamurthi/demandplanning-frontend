@@ -2,11 +2,10 @@ import * as XLSX from "xlsx";
 import type { IngestRow } from "./types";
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-const AMOUNT_RE = /\$?\s?[0-9][0-9,]*(?:\.[0-9]{1,2})?/;
 const PHONE_RE = /(?:\+?\d{1,3}[\s-]?)?\(?\d{3,4}\)?[\s-]?\d{3}[\s-]?\d{3,4}\b/;
 const DATE_RE = /\b\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}\b/;
 
-type FieldType = "email" | "phone" | "amount" | "date" | "generic";
+type FieldType = "email" | "phone" | "amount" | "date" | "merchant" | "itemized" | "generic";
 
 /** Classifies a user-chosen field name (e.g. "Invoice Number", "Phone", "Amount Due") so the
  *  extractor knows which regex/heuristic to apply — this is what makes arbitrary, user-typed
@@ -15,16 +14,66 @@ function fieldType(name: string): FieldType {
   const n = name.toLowerCase();
   if (/e-?mail/.test(n)) return "email";
   if (/phone|mobile|contact\s*(no|number)?|cell/.test(n)) return "phone";
+  if (/item\s*-?\s*wise|itemi[sz]ed|line\s*items?|break\s*-?\s*down/.test(n)) return "itemized";
   if (/amount|total|price|value|cost|sum|balance/.test(n)) return "amount";
   if (/date/.test(n)) return "date";
+  if (/merchant|vendor|store|shop|payee|business\s*name/.test(n)) return "merchant";
   return "generic";
 }
 
-function pickBestAmount(text: string, exclude: string[] = []): string {
-  const matches = (text.match(new RegExp(AMOUNT_RE, "g")) || []).filter(m => !exclude.includes(m));
-  const withDollar = matches.find(m => m.includes("$"));
-  const best = withDollar || matches.sort((a, b) => b.replace(/[^0-9.]/g, "").length - a.replace(/[^0-9.]/g, "").length)[0];
-  return best ? best.replace(/^\$\s?/, "").trim() : "";
+// Real receipts/invoices are full of numbers bigger than the actual amount —
+// HSN codes, bill/voucher numbers, MIDs, phone numbers, GSTINs. Naively
+// picking "the biggest/longest number on the page" grabs those instead of
+// the total. Two fixes: (1) a wide set of real-world "this is the final
+// amount" phrasings (Net Payable, UPI Payment, Amount Paid...), not just
+// "Total"; (2) any fallback is restricted to decimal-formatted numbers
+// (35.00, 915.50) off lines that don't look like an ID/code, since printed
+// currency amounts are reliably decimal while codes/IDs are reliably bare
+// integers.
+const AMOUNT_KEYWORDS: RegExp[] = [
+  /net\s*payable/i,
+  /grand\s*total/i,
+  /total\s*amount/i,
+  /amount\s*paid/i,
+  /upi\s*payment/i,
+  /amount\s*received/i,
+  /bill\s*amount/i,
+  /paid\s*\(?\s*rs/i,
+  /\btotal\b/i,
+];
+const ID_LABEL_RE = /\b(no|id|gstin|hsn|phone|batch|bill|invoice|txn|voucher|mid|roc|cons|order|booking|cashier)\b\s*[:.]?/i;
+const DECIMAL_NUM_RE = /[₹$]?\s?[0-9][0-9,]*\.[0-9]{1,2}\b/g;
+const PLAIN_NUM_RE = /[₹$]?\s?[0-9][0-9,]*\b/g;
+const cleanAmount = (m: string) => m.replace(/[₹$,\s]/g, "");
+
+function pickBestAmount(text: string): string {
+  const lines = text.split(/\r?\n/);
+  for (const kw of AMOUNT_KEYWORDS) {
+    for (const line of lines) {
+      if (/sub\s*-?total/i.test(line)) continue;
+      if (!kw.test(line)) continue;
+      const decimals = line.match(DECIMAL_NUM_RE);
+      if (decimals?.length) return cleanAmount(decimals[decimals.length - 1]);
+      if (!ID_LABEL_RE.test(line)) {
+        const plain = line.match(PLAIN_NUM_RE);
+        if (plain?.length) {
+          const v = cleanAmount(plain[plain.length - 1]);
+          if (v && v.length <= 6) return v;
+        }
+      }
+    }
+  }
+  // No keyword line found — fall back to decimal-formatted numbers only,
+  // skipping any line that looks like it's labeling an ID/code.
+  const safeLines = lines.filter(l => !ID_LABEL_RE.test(l));
+  const decimalsAnywhere = safeLines.join("\n").match(DECIMAL_NUM_RE);
+  if (decimalsAnywhere?.length) return cleanAmount(decimalsAnywhere[decimalsAnywhere.length - 1]);
+  // Last resort: a bounded plain integer (≤6 digits) off a non-ID line.
+  const plainAnywhere = (safeLines.join(" ").match(PLAIN_NUM_RE) || [])
+    .map(cleanAmount)
+    .filter(n => n && !Number.isNaN(parseFloat(n)) && n.length <= 6);
+  if (plainAnywhere.length === 0) return "";
+  return plainAnywhere.reduce((max, n) => (parseFloat(n) > parseFloat(max) ? n : max), plainAnywhere[0]);
 }
 
 /** Looks for "Label: value" / "Label - value" on a line — the general-purpose fallback for any
@@ -36,15 +85,50 @@ function findLabelValue(text: string, label: string): string {
   return m ? m[1].trim() : "";
 }
 
+// Itemized receipts (e.g. a supermarket tax invoice) print each product as
+// "NAME  QTY  RATE  VALUE" — three trailing plain numbers. Detecting that
+// row shape gives real product names/lines instead of a metadata line.
+const ITEM_HEADER_SKIP_RE = /particulars|qty\s*\/?\s*kg|n\s*\/?\s*rate|^hsn\b|gst\s*breakup/i;
+function guessLineItems(text: string): { name: string; value: string }[] {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const items: { name: string; value: string }[] = [];
+  for (const line of lines) {
+    if (ITEM_HEADER_SKIP_RE.test(line)) continue;
+    const stripped = line.replace(/^\d{5,}\s*/, ""); // drop a leading glued-on HSN code
+    const m = stripped.match(/^([A-Za-z][A-Za-z0-9 .,'&-]{2,40}?)\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s*$/);
+    if (m) items.push({ name: m[1].trim(), value: m[2] });
+  }
+  return items;
+}
+
+// Metadata lines (bill/voucher/txn numbers, GSTIN, HSN, cashier, addresses…)
+// vastly outnumber the one line that's actually the merchant name on a real
+// receipt — this skip-list is built directly off what shows up on real
+// Indian retail/utility receipts, not just generic POS jargon.
+const ENTITY_SKIP_RE = /^(total|subtotal|sub-total|tax\s*invoice|bill\s*(no|dt)|vou\.?\s*no|cashier|hsn|particulars|qty|cgst|sgst|cess|gst|phone|thank you|change|receipt|invoice|order\s*type|cons\s*no|booking\s*no|landmark|category|equipment|quota|address|name\s*:|date\s*\/\s*time|mid\s*:|batch\s*id|roc\s*:|txn\s*id|upi|amount|net\s*payable|paid\s*\(|advance|price\s*\(|digital\s*incentive)/i;
+
 function guessEntity(text: string, exclude: string[]): string {
+  // Prefer an actual product line off an itemized table — more useful than
+  // just the store name for "what did I buy" style fields.
+  const items = guessLineItems(text);
+  if (items.length > 0) return items.slice(0, 3).map(i => i.name).join(", ");
+
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   for (const line of lines) {
     if (exclude.some(e => e && line.includes(e))) continue;
-    if (line.length < 2 || line.length > 80) continue;
-    if (/^[0-9\s.,$-]+$/.test(line)) continue;
+    if (line.length < 2 || line.length > 40) continue;
+    if (/^[0-9\s.,₹$()/:-]+$/.test(line)) continue;
+    if (ENTITY_SKIP_RE.test(line)) continue;
+    if (/\b\d{6,}\b/.test(line)) continue; // long ID glued into an otherwise plausible line
     return line;
   }
   return lines[0]?.slice(0, 80) || "";
+}
+
+function guessItemizedBreakdown(text: string): string {
+  const items = guessLineItems(text);
+  if (items.length === 0) return "";
+  return items.map(i => `${i.name}: ${i.value}`).join("; ");
 }
 
 /** Best-effort structured extraction from freeform text (used by PDF, OCR, and voice channels),
@@ -62,9 +146,13 @@ export function extractFieldsFromText(text: string, sourceType: IngestRow["sourc
     } else if (type === "phone") {
       value = text.match(PHONE_RE)?.[0].trim() || "";
     } else if (type === "amount") {
-      value = pickBestAmount(text, used);
+      value = pickBestAmount(text);
     } else if (type === "date") {
       value = text.match(DATE_RE)?.[0] || "";
+    } else if (type === "itemized") {
+      value = guessItemizedBreakdown(text);
+    } else if (type === "merchant") {
+      value = guessEntity(text, used);
     } else {
       value = findLabelValue(text, name);
       if (!value && !genericFilled) {
@@ -78,6 +166,31 @@ export function extractFieldsFromText(text: string, sourceType: IngestRow["sourc
   }
 
   return { source_type: sourceType, fields, raw_snippet: text.slice(0, 500) };
+}
+
+// Filler words stripped before splitting a plain-English "what to extract"
+// instruction into field names, e.g. "give me amount, item, date, item wise
+// and total amount" → ["Amount", "Item", "Date", "Item-wise Breakdown",
+// "Total Amount"]. Recognized concepts get a canonical field name so the
+// right heuristic above (amount/date/itemized/merchant) actually fires;
+// anything unrecognized is kept as typed, just title-cased.
+const INSTRUCTION_LEAD_RE = /^\s*(pls\.?|please)?\s*(give me|extract|show me|list out|list|i want|i need|need)\s*/i;
+export function parseFieldInstruction(instruction: string): string[] {
+  const stripped = instruction.replace(INSTRUCTION_LEAD_RE, "");
+  const parts = stripped.split(/\s*,\s*|\s+and\s+/i).map(p => p.trim()).filter(Boolean);
+  const canon = (p: string): string => {
+    const n = p.toLowerCase();
+    if (/total/.test(n)) return "Total Amount";
+    if (/item\s*-?\s*wise|line\s*items?|break\s*-?\s*down/.test(n)) return "Item-wise Breakdown";
+    if (/^items?$/.test(n)) return "Item";
+    if (n.startsWith("amo")) return "Amount";
+    if (n.startsWith("dat")) return "Date";
+    if (/merchant|store|vendor|shop/.test(n)) return "Merchant";
+    if (n.startsWith("emai")) return "Email";
+    if (n.startsWith("phon") || n.startsWith("mobil")) return "Phone";
+    return p.replace(/\b\w/g, c => c.toUpperCase());
+  };
+  return Array.from(new Set(parts.map(canon).filter(Boolean)));
 }
 
 /** Parse an Excel/CSV file into rows, matching each requested field name to the best-fitting
