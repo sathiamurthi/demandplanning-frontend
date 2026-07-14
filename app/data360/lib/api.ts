@@ -24,12 +24,12 @@ export const data360Api = {
     req<{ token: string; user: D360User }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => req<D360User>("/auth/me"),
 
-  createBatch: (name: string, source_channel: string, rows: IngestRow[]) =>
-    req<{ batch: D360Batch; rows: D360Row[] }>("/batches", { method: "POST", body: JSON.stringify({ name, source_channel, rows }) }),
+  createBatch: (name: string, source_channel: string, rows: IngestRow[], extraction_fields: string[]) =>
+    req<{ batch: D360Batch; rows: D360Row[] }>("/batches", { method: "POST", body: JSON.stringify({ name, source_channel, rows, extraction_fields }) }),
   listBatches: () => req<D360Batch[]>("/batches"),
   getBatch: (id: string) => req<{ batch: D360Batch; rows: D360Row[]; jobs: D360Job[] }>(`/batches/${id}`),
 
-  updateRow: (batchId: string, rowId: string, body: { status?: "approved" | "rejected"; manual_override?: { target_field_a?: string; target_field_b?: string } }) =>
+  updateRow: (batchId: string, rowId: string, body: { status?: "approved" | "rejected"; manual_override?: { fields?: Record<string, string> } }) =>
     req<D360Row>(`/batches/${batchId}/rows/${rowId}`, { method: "PATCH", body: JSON.stringify(body) }),
 
   saveMapping: (batchId: string, field_mapping: Record<string, string>) =>

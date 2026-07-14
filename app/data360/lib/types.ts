@@ -2,9 +2,7 @@ export interface D360User { id: string; name: string; email: string; role: strin
 
 export interface IngestRow {
   source_type: "excel" | "pdf" | "screenshot" | "voice";
-  extracted_entity: string;
-  target_field_a: string; // Amount
-  target_field_b: string; // Email
+  fields: Record<string, string>; // keyed by the user-chosen field names, e.g. {"Invoice Number": "INV-1024", "Phone": "9876543210"}
   raw_snippet?: string;
 }
 
@@ -16,15 +14,18 @@ export interface D360Row {
   batch_id: string;
   row_index: number;
   source_type: string;
-  extracted_entity: string | null;
-  target_field_a: string | null;
-  target_field_b: string | null;
+  fields: Record<string, string> | null;
   raw_snippet: string | null;
   agent_verdict: string | null;
   verdict_level: VerdictLevel;
   requires_manual_review: boolean;
   manual_override: Record<string, string> | null;
   status: RowStatus;
+  // Legacy fixed columns — only populated on batches ingested before dynamic
+  // field extraction existed. New rows use `fields` instead.
+  extracted_entity?: string | null;
+  target_field_a?: string | null;
+  target_field_b?: string | null;
 }
 
 export type BatchStatus = "pending_approval" | "approved" | "distributed" | "archived";
@@ -37,6 +38,7 @@ export interface D360Batch {
   status: BatchStatus;
   total_rows: number;
   flagged_rows: number;
+  extraction_fields: string[]; // the field names requested at ingest time, e.g. ["Invoice Number", "Name", "Phone"]
   field_mapping: Record<string, string>;
   created_at: string;
   updated_at: string;

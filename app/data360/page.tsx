@@ -11,9 +11,16 @@ import {
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
   parseExcelFile, parsePdfFile, parseScreenshotFile,
-  isVoiceSupported, createVoiceRecognizer, extractFromText,
+  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType } from "./lib/types";
+
+const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
+  invoice: { label: "Invoice", fields: ["Invoice Number", "Vendor Name", "Amount", "Due Date"] },
+  contact: { label: "Contact / Lead", fields: ["Name", "Phone", "Email"] },
+  receipt: { label: "Receipt", fields: ["Merchant", "Amount", "Date"] },
+  custom:  { label: "Custom", fields: [] },
+};
 
 // ── Marketing content ───────────────────────────────────────────────────────
 const CHANNELS = [
@@ -64,6 +71,9 @@ export default function Data360Page() {
   const [channel, setChannel] = useState<Channel>("excel");
   const [ingestBusy, setIngestBusy] = useState(false);
   const [ingestErr, setIngestErr] = useState("");
+  const [fieldTemplate, setFieldTemplate] = useState<keyof typeof FIELD_TEMPLATES>("invoice");
+  const [fieldsInput, setFieldsInput] = useState(FIELD_TEMPLATES.invoice.fields.join(", "));
+  const extractionFields = fieldsInput.split(",").map(s => s.trim()).filter(Boolean);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -75,8 +85,7 @@ export default function Data360Page() {
   const [activeJobs, setActiveJobs] = useState<D360Job[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [focusedRow, setFocusedRow] = useState<D360Row | null>(null);
-  const [overrideA, setOverrideA] = useState("");
-  const [overrideB, setOverrideB] = useState("");
+  const [overrideFields, setOverrideFields] = useState<Record<string, string>>({});
   const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -146,9 +155,10 @@ export default function Data360Page() {
 
   // ── Ingestion ────────────────────────────────────────────────────────────
   const handleExcelFile = async (file: File) => {
+    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     setIngestErr(""); setIngestBusy(true);
     try {
-      const rows = await parseExcelFile(file);
+      const rows = await parseExcelFile(file, extractionFields);
       setPendingRows(prev => [...prev, ...rows]);
     } catch (e: any) {
       setIngestErr(e.message || "Could not parse that file");
@@ -156,9 +166,10 @@ export default function Data360Page() {
   };
 
   const handlePdfFile = async (file: File) => {
+    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     setIngestErr(""); setIngestBusy(true);
     try {
-      const row = await parsePdfFile(file);
+      const row = await parsePdfFile(file, extractionFields);
       setPendingRows(prev => [...prev, row]);
     } catch (e: any) {
       setIngestErr(e.message || "Could not read that PDF");
@@ -166,9 +177,10 @@ export default function Data360Page() {
   };
 
   const handleScreenshotFile = async (file: File) => {
+    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     setIngestErr(""); setIngestBusy(true); setOcrProgress(0);
     try {
-      const row = await parseScreenshotFile(file, setOcrProgress);
+      const row = await parseScreenshotFile(file, extractionFields, setOcrProgress);
       setPendingRows(prev => [...prev, row]);
     } catch (e: any) {
       setIngestErr(e.message || "OCR failed on that image");
@@ -180,6 +192,7 @@ export default function Data360Page() {
       recognizerRef.current?.stop();
       return;
     }
+    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     if (!isVoiceSupported()) { setIngestErr("Voice dictation isn't supported in this browser — try Chrome or Edge."); return; }
     setIngestErr(""); setVoiceTranscript("");
     const recognizer = createVoiceRecognizer(
@@ -194,7 +207,7 @@ export default function Data360Page() {
 
   const commitVoiceRow = () => {
     if (!voiceTranscript.trim()) return;
-    setPendingRows(prev => [...prev, extractFromText(voiceTranscript, "voice")]);
+    setPendingRows(prev => [...prev, extractFieldsFromText(voiceTranscript, "voice", extractionFields)]);
     setVoiceTranscript("");
   };
 
@@ -204,7 +217,7 @@ export default function Data360Page() {
     if (!batchName.trim() || pendingRows.length === 0) return;
     setCreatingBatch(true); setIngestErr("");
     try {
-      const { batch } = await data360Api.createBatch(batchName.trim(), channel, pendingRows);
+      const { batch } = await data360Api.createBatch(batchName.trim(), channel, pendingRows, extractionFields);
       setPendingRows([]); setBatchName("");
       setActiveBatchId(batch.id);
       await openReview(batch.id);
@@ -216,6 +229,7 @@ export default function Data360Page() {
   };
 
   // ── Review / approval ──────────────────────────────────────────────────
+  // Fallback for legacy batches ingested before dynamic field extraction existed.
   const DEFAULT_MAPPING: Record<string, string> = { extracted_entity: "entity_name", target_field_a: "amount", target_field_b: "email", source_type: "source_type" };
 
   const openReview = async (batchId: string) => {
@@ -223,7 +237,12 @@ export default function Data360Page() {
     try {
       const { batch, rows, jobs } = await data360Api.getBatch(batchId);
       setActiveBatch(batch); setActiveRows(rows); setActiveJobs(jobs);
-      setMapping(Object.keys(batch.field_mapping || {}).length ? batch.field_mapping : DEFAULT_MAPPING);
+      const identityMapping = Object.fromEntries((batch.extraction_fields || []).map(f => [f, f]));
+      setMapping(
+        Object.keys(batch.field_mapping || {}).length ? batch.field_mapping
+        : Object.keys(identityMapping).length ? identityMapping
+        : DEFAULT_MAPPING
+      );
     } finally { setReviewLoading(false); }
   };
 
@@ -267,7 +286,7 @@ export default function Data360Page() {
     try {
       await data360Api.updateRow(row.batch_id, row.id, {
         status: "approved",
-        manual_override: { target_field_a: overrideA, target_field_b: overrideB },
+        manual_override: { fields: overrideFields },
       });
       await refreshReview();
       setFocusedRow(null);
@@ -276,8 +295,10 @@ export default function Data360Page() {
 
   const openFocusedRow = (row: D360Row) => {
     setFocusedRow(row);
-    setOverrideA(row.target_field_a || "");
-    setOverrideB(row.target_field_b || "");
+    const names = activeBatch?.extraction_fields?.length ? activeBatch.extraction_fields : ["Amount", "Email"];
+    const seed: Record<string, string> = {};
+    for (const name of names) seed[name] = row.fields?.[name] ?? (name === "Amount" ? row.target_field_a : name === "Email" ? row.target_field_b : "") ?? "";
+    setOverrideFields(seed);
   };
 
   // ── Distribution ────────────────────────────────────────────────────────
@@ -538,6 +559,33 @@ export default function Data360Page() {
             <p className="text-sm text-gray-500">Combine as many channels as you need — everything lands in one staging table below.</p>
           </div>
 
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Sparkles size={15} className="text-teal-600" /> What do you want to extract?</h3>
+            <p className="text-xs text-gray-400 mb-4">Pick a template, or edit the field list directly — every file/screenshot/PDF/voice note below will be parsed for exactly these fields.</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {(Object.keys(FIELD_TEMPLATES) as (keyof typeof FIELD_TEMPLATES)[]).map(key => (
+                <button key={key}
+                  onClick={() => { setFieldTemplate(key); setFieldsInput(FIELD_TEMPLATES[key].fields.join(", ")); }}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${fieldTemplate === key ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+                  {FIELD_TEMPLATES[key].label}
+                </button>
+              ))}
+            </div>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Fields to extract (comma-separated)</label>
+            <textarea
+              value={fieldsInput}
+              onChange={e => { setFieldsInput(e.target.value); setFieldTemplate("custom"); }}
+              rows={2}
+              placeholder="e.g. Invoice Number, Vendor Name, Amount, Phone"
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none"
+            />
+            {extractionFields.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {extractionFields.map(f => <span key={f} className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">{f}</span>)}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {([
               ["excel", "Excel / CSV", Upload],
@@ -557,7 +605,7 @@ export default function Data360Page() {
             {channel === "excel" && (
               <div>
                 <h3 className="font-black text-gray-900 text-sm mb-1">Excel / CSV Data Dump</h3>
-                <p className="text-xs text-gray-400 mb-4">Columns named Entity / Amount / Email are auto-detected — otherwise the first three columns are used.</p>
+                <p className="text-xs text-gray-400 mb-4">Each requested field is matched to the best-fitting column header — otherwise columns are used positionally.</p>
                 <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
                   <Upload size={22} className="text-gray-300" />
                   <span className="text-sm text-gray-600 font-bold">Drag & drop, or click to choose a file</span>
@@ -625,14 +673,17 @@ export default function Data360Page() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead><tr className="text-left text-gray-400 border-b border-gray-100"><th className="py-1.5 pr-3 font-bold">Source</th><th className="py-1.5 pr-3 font-bold">Entity</th><th className="py-1.5 pr-3 font-bold">Amount</th><th className="py-1.5 font-bold">Email</th></tr></thead>
+                  <thead>
+                    <tr className="text-left text-gray-400 border-b border-gray-100">
+                      <th className="py-1.5 pr-3 font-bold">Source</th>
+                      {extractionFields.map(f => <th key={f} className="py-1.5 pr-3 font-bold">{f}</th>)}
+                    </tr>
+                  </thead>
                   <tbody>
                     {pendingRows.map((r, i) => (
                       <tr key={i} className="border-b border-gray-50">
                         <td className="py-1.5 pr-3 capitalize text-gray-500">{r.source_type}</td>
-                        <td className="py-1.5 pr-3 text-gray-800 font-medium">{r.extracted_entity || "—"}</td>
-                        <td className="py-1.5 pr-3 text-gray-600">{r.target_field_a || "—"}</td>
-                        <td className="py-1.5 text-gray-600">{r.target_field_b || "—"}</td>
+                        {extractionFields.map(f => <td key={f} className="py-1.5 pr-3 text-gray-800 font-medium">{r.fields?.[f] || "—"}</td>)}
                       </tr>
                     ))}
                   </tbody>
@@ -678,20 +729,25 @@ export default function Data360Page() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-slate-50">
-                        <th className="py-2.5 px-4">Row</th><th className="py-2.5 px-4">Source</th><th className="py-2.5 px-4">Entity</th>
-                        <th className="py-2.5 px-4">Amount</th><th className="py-2.5 px-4">Email</th><th className="py-2.5 px-4">Verdict</th><th className="py-2.5 px-4 text-right">Action</th>
+                        <th className="py-2.5 px-4">Row</th><th className="py-2.5 px-4">Source</th>
+                        {(activeBatch.extraction_fields?.length ? activeBatch.extraction_fields : ["Entity", "Amount", "Email"]).map(f => (
+                          <th key={f} className="py-2.5 px-4">{f}</th>
+                        ))}
+                        <th className="py-2.5 px-4">Verdict</th><th className="py-2.5 px-4 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {activeRows.map(r => {
                         const vs = VERDICT_STYLE[r.verdict_level] || VERDICT_STYLE.ok;
+                        const cols = activeBatch.extraction_fields?.length ? activeBatch.extraction_fields : ["Entity", "Amount", "Email"];
+                        const legacy: Record<string, string | null> = { Entity: r.extracted_entity ?? null, Amount: r.target_field_a ?? null, Email: r.target_field_b ?? null };
                         return (
                           <tr key={r.id} className={`border-b border-gray-50 ${r.status === "rejected" ? "opacity-40" : ""}`}>
                             <td className="py-2.5 px-4 text-gray-400 font-mono text-xs">#{String(r.row_index + 1).padStart(3, "0")}</td>
                             <td className="py-2.5 px-4 text-gray-500 capitalize text-xs">{r.source_type}</td>
-                            <td className="py-2.5 px-4 text-gray-900 font-medium text-xs max-w-[160px] truncate">{r.extracted_entity || "—"}</td>
-                            <td className="py-2.5 px-4 text-gray-600 text-xs">{r.target_field_a || "—"}</td>
-                            <td className="py-2.5 px-4 text-gray-600 text-xs max-w-[180px] truncate">{r.target_field_b || "—"}</td>
+                            {cols.map(f => (
+                              <td key={f} className="py-2.5 px-4 text-gray-900 font-medium text-xs max-w-[160px] truncate">{r.fields?.[f] || legacy[f] || "—"}</td>
+                            ))}
                             <td className="py-2.5 px-4">
                               <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${vs.badge}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${vs.dot}`} />{r.agent_verdict}
@@ -745,14 +801,12 @@ export default function Data360Page() {
                 </div>
               )}
               <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Amount</label>
-                  <input value={overrideA} onChange={e => setOverrideA(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Email</label>
-                  <input value={overrideB} onChange={e => setOverrideB(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
-                </div>
+                {Object.keys(overrideFields).map(name => (
+                  <div key={name}>
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">{name}</label>
+                    <input value={overrideFields[name]} onChange={e => setOverrideFields(f => ({ ...f, [name]: e.target.value }))} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+                  </div>
+                ))}
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button onClick={() => rejectRow(focusedRow)} disabled={rowBusy === focusedRow.id}
