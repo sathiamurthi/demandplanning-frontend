@@ -1,4 +1,4 @@
-import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType } from "./types";
+import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, TemplateOutputType, D360GenerationJob } from "./types";
 
 const BASE = "/v1/data360";
 const TOKEN_KEY = "data360_token";
@@ -24,10 +24,10 @@ export const data360Api = {
     req<{ token: string; user: D360User }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => req<D360User>("/auth/me"),
 
-  createBatch: (name: string, source_channel: string, rows: IngestRow[], extraction_fields: string[]) =>
-    req<{ batch: D360Batch; rows: D360Row[] }>("/batches", { method: "POST", body: JSON.stringify({ name, source_channel, rows, extraction_fields }) }),
+  createBatch: (name: string, source_channel: string, rows: IngestRow[], extraction_fields: string[], template_id?: string) =>
+    req<{ batch: D360Batch; rows: D360Row[] }>("/batches", { method: "POST", body: JSON.stringify({ name, source_channel, rows, extraction_fields, template_id }) }),
   listBatches: () => req<D360Batch[]>("/batches"),
-  getBatch: (id: string) => req<{ batch: D360Batch; rows: D360Row[]; jobs: D360Job[] }>(`/batches/${id}`),
+  getBatch: (id: string) => req<{ batch: D360Batch; rows: D360Row[]; jobs: D360Job[]; generationJobs: D360GenerationJob[] }>(`/batches/${id}`),
 
   updateRow: (batchId: string, rowId: string, body: { status?: "approved" | "rejected"; manual_override?: { fields?: Record<string, string> } }) =>
     req<D360Row>(`/batches/${batchId}/rows/${rowId}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -37,4 +37,13 @@ export const data360Api = {
 
   distribute: (batchId: string, target_type: TargetType, config: Record<string, any>) =>
     req<D360Job>(`/batches/${batchId}/distribute`, { method: "POST", body: JSON.stringify({ target_type, config }) }),
+
+  // ── Templates (Generate stage) ──────────────────────────────────────────
+  listTemplates: () => req<D360Template[]>("/templates"),
+  createTemplate: (name: string, extraction_fields: string[], output_type: TemplateOutputType = "coordinate_layout") =>
+    req<D360Template>("/templates", { method: "POST", body: JSON.stringify({ name, extraction_fields, output_type }) }),
+  deleteTemplate: (id: string) => req<{ deleted: true }>(`/templates/${id}`, { method: "DELETE" }),
+
+  generate: (batchId: string, template_id?: string) =>
+    req<D360GenerationJob>(`/batches/${batchId}/generate`, { method: "POST", body: JSON.stringify({ template_id }) }),
 };

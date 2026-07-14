@@ -6,14 +6,14 @@ import {
   Database, Upload, FileText, Camera, Mic, MicOff, CheckCircle, XCircle,
   AlertTriangle, ChevronRight, X, Loader2, Plus, LogOut, ArrowRight,
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
-  Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft,
+  Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
 } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
   parseExcelFile, parsePdfFile, parseScreenshotFile,
   isVoiceSupported, createVoiceRecognizer, extractFieldsFromText,
 } from "./lib/parsers";
-import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType } from "./lib/types";
+import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
 
 const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
   invoice: { label: "Invoice", fields: ["Invoice Number", "Vendor Name", "Amount", "Due Date"] },
@@ -39,7 +39,7 @@ const STAGES = [
 ];
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "distribute";
+type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute";
 type Channel = "excel" | "pdf" | "screenshot" | "voice";
 
 const VERDICT_STYLE: Record<string, { badge: string; dot: string }> = {
@@ -75,6 +75,19 @@ export default function Data360Page() {
   const [fieldsInput, setFieldsInput] = useState(FIELD_TEMPLATES.invoice.fields.join(", "));
   const extractionFields = fieldsInput.split(",").map(s => s.trim()).filter(Boolean);
   const [ocrProgress, setOcrProgress] = useState(0);
+
+  // Reusable templates (Generate stage): a saved field list + output design.
+  const [templates, setTemplates] = useState<D360Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [genTemplateId, setGenTemplateId] = useState<string>("");
+  const [generateBusy, setGenerateBusy] = useState(false);
+  const [generationJob, setGenerationJob] = useState<D360GenerationJob | null>(null);
+
+  const loadTemplates = async () => {
+    try { setTemplates(await data360Api.listTemplates()); } catch { /* ignore */ }
+  };
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const recognizerRef = useRef<any>(null);
@@ -108,7 +121,7 @@ export default function Data360Page() {
   useEffect(() => {
     document.title = "Data360 — Autonomous Data Entry & Validation Pipeline";
     if (getToken()) {
-      data360Api.me().then(u => { setUser(u); setView("dashboard"); }).catch(() => clearToken());
+      data360Api.me().then(u => { setUser(u); setView("dashboard"); loadTemplates(); }).catch(() => clearToken());
     }
     return () => { document.title = "NexusOS"; };
   }, []);
@@ -128,7 +141,7 @@ export default function Data360Page() {
     try {
       const fn = authTab === "register" ? data360Api.register(name, email, password) : data360Api.login(email, password);
       const { token, user: u } = await fn;
-      setToken(token); setUser(u); setView("dashboard");
+      setToken(token); setUser(u); setView("dashboard"); loadTemplates();
     } catch (e: any) {
       setAuthErr(e.message || "Something went wrong");
     } finally {
@@ -141,7 +154,7 @@ export default function Data360Page() {
     try {
       const demoEmail = `demo+${Date.now()}@data360.ai`;
       const { token, user: u } = await data360Api.register("Demo Operator", demoEmail, "demo-pass-12345");
-      setToken(token); setUser(u); setView("dashboard");
+      setToken(token); setUser(u); setView("dashboard"); loadTemplates();
     } catch (e: any) {
       setAuthErr(e.message || "Demo login failed");
     } finally {
@@ -217,7 +230,7 @@ export default function Data360Page() {
     if (!batchName.trim() || pendingRows.length === 0) return;
     setCreatingBatch(true); setIngestErr("");
     try {
-      const { batch } = await data360Api.createBatch(batchName.trim(), channel, pendingRows, extractionFields);
+      const { batch } = await data360Api.createBatch(batchName.trim(), channel, pendingRows, extractionFields, selectedTemplateId || undefined);
       setPendingRows([]); setBatchName("");
       setActiveBatchId(batch.id);
       await openReview(batch.id);
@@ -225,6 +238,27 @@ export default function Data360Page() {
       setIngestErr(e.message || "Could not create the batch");
     } finally {
       setCreatingBatch(false);
+    }
+  };
+
+  const applyTemplate = (tpl: D360Template) => {
+    setSelectedTemplateId(tpl.id);
+    setFieldTemplate("custom");
+    setFieldsInput(tpl.extraction_fields.join(", "));
+  };
+
+  const saveCurrentAsTemplate = async () => {
+    if (!newTemplateName.trim() || extractionFields.length === 0) return;
+    setSavingTemplate(true);
+    try {
+      const tpl = await data360Api.createTemplate(newTemplateName.trim(), extractionFields, "coordinate_layout");
+      setTemplates(prev => [tpl, ...prev]);
+      setSelectedTemplateId(tpl.id);
+      setNewTemplateName("");
+    } catch (e: any) {
+      setIngestErr(e.message || "Could not save template");
+    } finally {
+      setSavingTemplate(false);
     }
   };
 
@@ -237,6 +271,7 @@ export default function Data360Page() {
     try {
       const { batch, rows, jobs } = await data360Api.getBatch(batchId);
       setActiveBatch(batch); setActiveRows(rows); setActiveJobs(jobs);
+      setGenTemplateId(batch.template_id || "");
       const identityMapping = Object.fromEntries((batch.extraction_fields || []).map(f => [f, f]));
       setMapping(
         Object.keys(batch.field_mapping || {}).length ? batch.field_mapping
@@ -253,8 +288,36 @@ export default function Data360Page() {
       const batch = await data360Api.saveMapping(activeBatchId, mapping);
       setActiveBatch(batch);
       setDistributeResult(null);
-      go("distribute");
+      setGenerationJob(null);
+      setGenTemplateId(batch.template_id || "");
+      go("generate");
     } finally { setMappingBusy(false); }
+  };
+
+  // ── Generate (row → real document, from a saved template) ────────────────
+  const downloadBase64Pdf = (file_base64: string, file_name: string) => {
+    const bytes = atob(file_base64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = file_name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const runGenerate = async () => {
+    if (!activeBatchId || !genTemplateId) return;
+    setGenerateBusy(true); setGenerationJob(null);
+    try {
+      const job = await data360Api.generate(activeBatchId, genTemplateId);
+      setGenerationJob(job);
+    } catch (e: any) {
+      setGenerationJob({ id: "", batch_id: activeBatchId, template_id: genTemplateId, status: "failed", result: { error: e.message }, created_at: "", completed_at: null });
+    } finally {
+      setGenerateBusy(false);
+    }
   };
 
   const refreshReview = async () => {
@@ -565,7 +628,7 @@ export default function Data360Page() {
             <div className="flex flex-wrap gap-2 mb-3">
               {(Object.keys(FIELD_TEMPLATES) as (keyof typeof FIELD_TEMPLATES)[]).map(key => (
                 <button key={key}
-                  onClick={() => { setFieldTemplate(key); setFieldsInput(FIELD_TEMPLATES[key].fields.join(", ")); }}
+                  onClick={() => { setFieldTemplate(key); setFieldsInput(FIELD_TEMPLATES[key].fields.join(", ")); setSelectedTemplateId(""); }}
                   className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${fieldTemplate === key ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
                   {FIELD_TEMPLATES[key].label}
                 </button>
@@ -574,7 +637,7 @@ export default function Data360Page() {
             <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Fields to extract (comma-separated)</label>
             <textarea
               value={fieldsInput}
-              onChange={e => { setFieldsInput(e.target.value); setFieldTemplate("custom"); }}
+              onChange={e => { setFieldsInput(e.target.value); setFieldTemplate("custom"); setSelectedTemplateId(""); }}
               rows={2}
               placeholder="e.g. Invoice Number, Vendor Name, Amount, Phone"
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none"
@@ -584,6 +647,29 @@ export default function Data360Page() {
                 {extractionFields.map(f => <span key={f} className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">{f}</span>)}
               </div>
             )}
+
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <h4 className="text-xs font-black text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5"><LayoutTemplate size={13} className="text-teal-600" /> Reusable templates</h4>
+              {templates.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {templates.map(tpl => (
+                    <button key={tpl.id} onClick={() => applyTemplate(tpl)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${selectedTemplateId === tpl.id ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+                      {tpl.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Name this field list to reuse it later…"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+                <button onClick={saveCurrentAsTemplate} disabled={savingTemplate || !newTemplateName.trim() || extractionFields.length === 0}
+                  className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2 rounded-lg transition shrink-0">
+                  {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <LayoutTemplate size={12} />} Save as Template
+                </button>
+              </div>
+              {selectedTemplateId && <p className="text-[11px] text-teal-600 mt-2">This batch will be linked to that template — after review you'll be able to Generate a real document from it.</p>}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -851,7 +937,63 @@ export default function Data360Page() {
           </div>
           <button onClick={saveMappingAndContinue} disabled={mappingBusy}
             className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-sm transition">
-            {mappingBusy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />} Save Mapping &amp; Continue to Distribution
+            {mappingBusy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />} Save Mapping &amp; Continue to Generate
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════════════ GENERATE ══════════════════════ */}
+      {view === "generate" && user && activeBatch && (
+        <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+          <button onClick={() => go("mapping")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Mapping</button>
+          <div>
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><FileOutput size={18} className="text-teal-600" /> Generate Agent</h2>
+            <p className="text-sm text-gray-500 mt-1">Turn {approvedCount} approved row{approvedCount === 1 ? "" : "s"} from "{activeBatch.name}" into a real document per row, using a saved template.</p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            {templates.length === 0 ? (
+              <p className="text-sm text-gray-500">You haven't saved any templates yet — go back to a New Batch screen and use "Save as Template" under the field list first.</p>
+            ) : (
+              <>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Template</label>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map(tpl => (
+                    <button key={tpl.id} onClick={() => setGenTemplateId(tpl.id)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${genTemplateId === tpl.id ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+                      {tpl.name} <span className="opacity-60 font-normal">· {tpl.output_type === "fillable_pdf" ? "fillable PDF" : "layout"}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={runGenerate} disabled={generateBusy || !genTemplateId || approvedCount === 0}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 text-white font-black text-sm py-3.5 rounded-2xl transition">
+                  {generateBusy ? <Loader2 size={16} className="animate-spin" /> : <FileOutput size={16} />} Generate Documents
+                </button>
+                {approvedCount === 0 && <p className="text-xs text-amber-600">No approved rows yet — go back and approve at least one row first.</p>}
+              </>
+            )}
+          </div>
+
+          {generationJob && (
+            <div className={`rounded-2xl border p-5 space-y-3 ${generationJob.status === "ready" ? "bg-green-50 border-green-200" : generationJob.status === "failed" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+              <div className="flex items-center gap-2">
+                {generationJob.status === "ready" ? <CheckCircle size={16} className="text-green-600" /> : generationJob.status === "failed" ? <XCircle size={16} className="text-red-600" /> : <Loader2 size={16} className="text-amber-600 animate-spin" />}
+                <p className={`font-bold text-sm ${generationJob.status === "ready" ? "text-green-700" : generationJob.status === "failed" ? "text-red-700" : "text-amber-700"}`}>
+                  {generationJob.status === "ready" ? `${generationJob.result?.row_count ?? 0} document(s) ready` : generationJob.status === "failed" ? "Generation failed" : "Generating…"}
+                </p>
+              </div>
+              {generationJob.result?.error && <p className="text-xs text-gray-600">{generationJob.result.error}</p>}
+              {generationJob.result?.documents?.map(doc => (
+                <div key={doc.row_id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2">
+                  <span className="text-xs font-mono text-gray-600">{doc.file_name}</span>
+                  <button onClick={() => downloadBase64Pdf(doc.file_base64, doc.file_name)} className="flex items-center gap-1.5 text-xs font-bold text-teal-600 hover:underline"><Download size={12} /> Download</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={() => { setDistributeResult(null); go("distribute"); }} className="w-full text-center text-xs text-gray-400 hover:text-teal-600 font-bold py-2">
+            Skip Generate — go straight to Distribution →
           </button>
         </div>
       )}
@@ -859,7 +1001,7 @@ export default function Data360Page() {
       {/* ══════════════════════ DISTRIBUTE ══════════════════════ */}
       {view === "distribute" && user && activeBatch && (
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-          <button onClick={() => go("mapping")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Mapping</button>
+          <button onClick={() => go("generate")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Generate</button>
           <div>
             <h2 className="text-xl font-black text-gray-900">Target Agent Configuration</h2>
             <p className="text-sm text-gray-500">Choose where {approvedCount} approved rows from "{activeBatch.name}" should go.</p>

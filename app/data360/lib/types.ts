@@ -40,6 +40,7 @@ export interface D360Batch {
   flagged_rows: number;
   extraction_fields: string[]; // the field names requested at ingest time, e.g. ["Invoice Number", "Name", "Phone"]
   field_mapping: Record<string, string>;
+  template_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +55,40 @@ export interface D360Job {
   config: Record<string, any>;
   status: JobStatus;
   result: Record<string, any> | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+// ── Generate stage: reusable templates (extraction fields + output design) ──
+export type TemplateOutputType = "fillable_pdf" | "coordinate_layout";
+
+export interface D360Template {
+  id: string;
+  user_id: string;
+  name: string;
+  extraction_fields: string[];
+  output_type: TemplateOutputType;
+  template_file_key: string | null;
+  layout_json: { field: string; label?: string; x?: number; y?: number; fontSize?: number }[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type GenerationStatus = "generating" | "ready" | "failed";
+
+export interface D360GeneratedDoc {
+  row_id: string;
+  row_index: number;
+  file_name: string;
+  file_base64: string;
+}
+
+export interface D360GenerationJob {
+  id: string;
+  batch_id: string;
+  template_id: string;
+  status: GenerationStatus;
+  result: { documents?: D360GeneratedDoc[]; row_count?: number; error?: string } | null;
   created_at: string;
   completed_at: string | null;
 }
