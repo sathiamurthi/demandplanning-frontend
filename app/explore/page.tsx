@@ -88,6 +88,74 @@ function logLeadInApp(seeker: string, vendor: string, cat: string, action: strin
 
 const NOTE_COLORS = ["#FEF9C3","#DCFCE7","#DBEAFE","#FCE7F3","#F3E8FF","#FFEDD5"];
 const EXPENSE_CATS = ["Groceries","Transport","Food","Health","Education","Shopping","Utilities","Entertainment","Other"];
+
+// ── Receipt OCR → expense fields (client-side, no backend) ─────
+// Runs a photographed/uploaded receipt through Tesseract.js, then applies the
+// same best-effort heuristics used for Data360's screenshot channel: pick a
+// merchant-looking first line, prefer an amount on a "total" line, and pull
+// the first date-shaped token. The result only pre-fills the existing Add
+// form — the user still reviews and submits it, same human-in-the-loop
+// pattern used everywhere else expense/data entry happens in this app.
+const EXPENSE_CAT_KEYWORDS: Record<string, RegExp> = {
+  Groceries:     /grocery|groceries|supermarket|kirana|mart\b|bigbasket|dmart/i,
+  Transport:     /uber|ola|taxi|cab\b|auto\b|fuel|petrol|diesel|parking|metro|bus\b/i,
+  Food:          /restaurant|cafe|coffee|swiggy|zomato|biryani|pizza|food\b|dine|bakery/i,
+  Health:        /pharmacy|medical|hospital|clinic|medicine|chemist|doctor/i,
+  Education:     /school|college|tuition|course|book\s?store|fee\b/i,
+  Shopping:      /mall\b|store\b|fashion|apparel|electronics|amazon|flipkart|myntra/i,
+  Utilities:     /electricity|water bill|recharge|broadband|wifi|gas\b|dth\b/i,
+  Entertainment: /movie|cinema|netflix|spotify|multiplex|pvr|inox/i,
+};
+
+function guessExpenseCategory(text: string): string {
+  for (const [cat, re] of Object.entries(EXPENSE_CAT_KEYWORDS)) if (re.test(text)) return cat;
+  return "Other";
+}
+
+function guessExpenseAmount(text: string): string {
+  const numRe = /[₹$]?\s?[0-9][0-9,]*(?:\.[0-9]{1,2})?/g;
+  const lines = text.split(/\r?\n/);
+  const totalLine = lines.find(l => /total|grand total|amount due|net\s*amt/i.test(l) && !/sub\s*-?total/i.test(l));
+  const clean = (m: string) => m.replace(/[₹$,\s]/g, "");
+  if (totalLine) {
+    const matches = totalLine.match(numRe);
+    if (matches?.length) return clean(matches[matches.length - 1]);
+  }
+  const all = (text.match(numRe) || []).map(clean).filter(n => n && !Number.isNaN(parseFloat(n)));
+  if (all.length === 0) return "";
+  return all.reduce((max, n) => (parseFloat(n) > parseFloat(max) ? n : max), all[0]);
+}
+
+function guessExpenseDate(text: string): string {
+  const m = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/);
+  if (!m) return new Date().toISOString().slice(0, 10);
+  let [, d, mo, y] = m;
+  if (y.length === 2) y = `20${y}`;
+  const dd = d.padStart(2, "0"), mm = mo.padStart(2, "0");
+  const candidate = `${y}-${mm}-${dd}`;
+  return Number.isNaN(Date.parse(candidate)) ? new Date().toISOString().slice(0, 10) : candidate;
+}
+
+function guessExpenseLabel(text: string): string {
+  const skip = /^(total|subtotal|sub-total|tax|gst|cash|change|receipt|invoice|thank you|cashier|qty|amount|balance)/i;
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (line.length < 2 || line.length > 40) continue;
+    if (/^[0-9\s.,₹$-]+$/.test(line)) continue;
+    if (skip.test(line)) continue;
+    return line;
+  }
+  return "Scanned receipt";
+}
+
+function parseReceiptText(text: string) {
+  return {
+    label: guessExpenseLabel(text),
+    amount: guessExpenseAmount(text),
+    date: guessExpenseDate(text),
+    category: guessExpenseCategory(text),
+  };
+}
 const JOB_STATUSES = ["Applied","Phone Screen","Interview","Offer","Rejected","Ghosted"];
 const LISTING_TYPES = [
   // Stay & Travel
@@ -3198,14 +3266,46 @@ function ExpensesPanel({ gk }: { gk:(s:string)=>string }) {
   const [rMode, setRMode] = useState<"weekly"|"monthly"|"range">("monthly");
   const [rFrom, setRFrom] = useState(() => { const d=new Date(); d.setDate(d.getDate()-30); return d.toISOString().slice(0,10); });
   const [rTo,   setRTo]   = useState(new Date().toISOString().slice(0,10));
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanError, setScanError] = useState("");
+  const [scanned, setScanned] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     if (!label || !amount) return;
     setExpenses(prev => [{ id: Date.now().toString(), label, category: cat, amount: parseFloat(amount), date }, ...prev]);
-    setLabel(""); setAmount("");
+    setLabel(""); setAmount(""); setScanned(false);
   };
   const del = (id: string) => setExpenses(prev => prev.filter(e => e.id !== id));
+
+  // Photograph or upload a receipt → OCR it client-side → pre-fill the Add
+  // form above so the user reviews/edits before it's actually logged.
+  const scanReceipt = async (file: File) => {
+    setScanError(""); setScanBusy(true); setScanProgress(0); setScanned(false);
+    try {
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker("eng", 1, {
+        logger: (m: any) => { if (m.status === "recognizing text") setScanProgress(Math.round((m.progress || 0) * 100)); },
+      });
+      try {
+        const { data } = await worker.recognize(file);
+        const parsed = parseReceiptText(data.text || "");
+        setLabel(parsed.label);
+        setCat(parsed.category);
+        if (parsed.amount) setAmount(parsed.amount);
+        setDate(parsed.date);
+        setScanned(true);
+      } finally {
+        await worker.terminate();
+      }
+    } catch (e: any) {
+      setScanError(e.message || "Could not read that receipt — try a clearer photo or enter it manually.");
+    } finally {
+      setScanBusy(false); setScanProgress(0);
+    }
+  };
 
   const today = new Date().toISOString().slice(0, 10);
   const month = today.slice(0, 7);
@@ -3341,6 +3441,30 @@ function ExpensesPanel({ gk }: { gk:(s:string)=>string }) {
                 style={{ width: `${Math.min(100, (monthTotal/budget)*100)}%` }} />
             </div>
             <p className="text-xs text-gray-500 mt-1">₹{monthTotal.toFixed(0)} of ₹{budget.toLocaleString("en-IN")} — {Math.round((monthTotal/budget)*100)}% used</p>
+          </div>
+
+          {/* Scan a receipt (screenshot or photo) → auto-fill the Add form below */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5"><Receipt size={14} className="text-orange-500" /> Scan a Receipt</p>
+                <p className="text-xs text-gray-500 mt-0.5">Upload a photo or screenshot — we'll read the amount, merchant, and date for you to confirm below.</p>
+              </div>
+              <button type="button" onClick={() => scanInputRef.current?.click()} disabled={scanBusy}
+                className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors shrink-0">
+                {scanBusy ? <Loader2 size={13} className="animate-spin" /> : <Receipt size={13} />} {scanBusy ? "Reading…" : "Scan Receipt"}
+              </button>
+              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) scanReceipt(f); e.target.value = ""; }} />
+            </div>
+            {scanBusy && scanProgress > 0 && (
+              <div className="mt-3">
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-orange-400 transition-all" style={{ width: `${scanProgress}%` }} /></div>
+                <p className="text-xs text-gray-400 mt-1">Recognizing text… {scanProgress}%</p>
+              </div>
+            )}
+            {scanError && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{scanError}</p>}
+            {scanned && !scanBusy && <p className="mt-3 text-xs text-orange-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">Scanned — check the description, category, amount and date below, then Add.</p>}
           </div>
 
           {/* Add form */}
