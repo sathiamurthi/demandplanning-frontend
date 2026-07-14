@@ -112,18 +112,62 @@ function guessExpenseCategory(text: string): string {
   return "Other";
 }
 
+// Real Indian retail/utility receipts are full of numbers bigger than the
+// actual amount — HSN codes, bill/voucher numbers, MIDs, phone numbers,
+// GSTINs. A naive "biggest number on the page" fallback grabs those instead
+// of the total. Two fixes: (1) a much wider set of "this is the final
+// amount" phrasings actually seen on real receipts (Net Payable, UPI
+// Payment, Amount Paid...), not just "Total"; (2) any fallback is restricted
+// to decimal-formatted numbers (35.00, 915.50) and lines that aren't
+// obviously an ID/code, since printed currency amounts on these receipts
+// are reliably decimal while codes/IDs are reliably bare integers.
+const AMOUNT_KEYWORDS: RegExp[] = [
+  /net\s*payable/i,
+  /grand\s*total/i,
+  /total\s*amount/i,
+  /amount\s*paid/i,
+  /upi\s*payment/i,
+  /amount\s*received/i,
+  /bill\s*amount/i,
+  /paid\s*\(?\s*rs/i,
+  /\btotal\b/i,
+];
+const ID_LABEL_RE = /\b(no|id|gstin|hsn|phone|batch|bill|invoice|txn|voucher|mid|roc|cons|order|booking|cashier)\b\s*[:.]?/i;
+const DECIMAL_NUM_RE = /[₹$]?\s?[0-9][0-9,]*\.[0-9]{1,2}\b/g;
+const PLAIN_NUM_RE = /[₹$]?\s?[0-9][0-9,]*\b/g;
+const cleanAmount = (m: string) => m.replace(/[₹$,\s]/g, "");
+
 function guessExpenseAmount(text: string): string {
-  const numRe = /[₹$]?\s?[0-9][0-9,]*(?:\.[0-9]{1,2})?/g;
   const lines = text.split(/\r?\n/);
-  const totalLine = lines.find(l => /total|grand total|amount due|net\s*amt/i.test(l) && !/sub\s*-?total/i.test(l));
-  const clean = (m: string) => m.replace(/[₹$,\s]/g, "");
-  if (totalLine) {
-    const matches = totalLine.match(numRe);
-    if (matches?.length) return clean(matches[matches.length - 1]);
+
+  for (const kw of AMOUNT_KEYWORDS) {
+    for (const line of lines) {
+      if (/sub\s*-?total/i.test(line)) continue;
+      if (!kw.test(line)) continue;
+      const decimals = line.match(DECIMAL_NUM_RE);
+      if (decimals?.length) return cleanAmount(decimals[decimals.length - 1]);
+      if (!ID_LABEL_RE.test(line)) {
+        const plain = line.match(PLAIN_NUM_RE);
+        if (plain?.length) {
+          const v = cleanAmount(plain[plain.length - 1]);
+          if (v && v.length <= 6) return v;
+        }
+      }
+    }
   }
-  const all = (text.match(numRe) || []).map(clean).filter(n => n && !Number.isNaN(parseFloat(n)));
-  if (all.length === 0) return "";
-  return all.reduce((max, n) => (parseFloat(n) > parseFloat(max) ? n : max), all[0]);
+
+  // No keyword line found — fall back to decimal-formatted numbers only,
+  // skipping any line that looks like it's labeling an ID/code.
+  const safeLines = lines.filter(l => !ID_LABEL_RE.test(l));
+  const decimalsAnywhere = safeLines.join("\n").match(DECIMAL_NUM_RE);
+  if (decimalsAnywhere?.length) return cleanAmount(decimalsAnywhere[decimalsAnywhere.length - 1]);
+
+  // Last resort: a bounded plain integer (≤6 digits) off a non-ID line.
+  const plainAnywhere = (safeLines.join(" ").match(PLAIN_NUM_RE) || [])
+    .map(cleanAmount)
+    .filter(n => n && !Number.isNaN(parseFloat(n)) && n.length <= 6);
+  if (plainAnywhere.length === 0) return "";
+  return plainAnywhere.reduce((max, n) => (parseFloat(n) > parseFloat(max) ? n : max), plainAnywhere[0]);
 }
 
 function guessExpenseDate(text: string): string {
@@ -136,13 +180,39 @@ function guessExpenseDate(text: string): string {
   return Number.isNaN(Date.parse(candidate)) ? new Date().toISOString().slice(0, 10) : candidate;
 }
 
+// Itemized receipts (DMart-style) print each product as "NAME  QTY  RATE
+// VALUE" — three trailing plain numbers. Detecting that row shape and using
+// the product name(s) is far more useful for a personal expense log than
+// the store name alone, and it sidesteps having to skip-list every possible
+// piece of metadata (HSN, GST breakup, etc.) to find the item.
+function guessExpenseItems(text: string): string[] {
+  const headerSkip = /particulars|qty\s*\/?\s*kg|n\s*\/?\s*rate|^hsn\b|gst\s*breakup/i;
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const items: string[] = [];
+  for (const line of lines) {
+    if (headerSkip.test(line)) continue;
+    const stripped = line.replace(/^\d{5,}\s*/, ""); // drop a leading glued-on HSN code
+    const m = stripped.match(/^([A-Za-z][A-Za-z0-9 .,'&-]{2,40}?)\s+[\d.]+\s+[\d.]+\s+[\d.]+\s*$/);
+    if (m) items.push(m[1].trim());
+  }
+  return items;
+}
+
+// Metadata lines (bill/voucher/txn numbers, GSTIN, HSN, cashier, addresses…)
+// vastly outnumber the one line that's actually the merchant name on a real
+// receipt — this list is deliberately wide, built directly off what shows
+// up on real Indian retail/utility receipts, not just generic POS jargon.
 function guessExpenseLabel(text: string): string {
-  const skip = /^(total|subtotal|sub-total|tax|gst|cash|change|receipt|invoice|thank you|cashier|qty|amount|balance)/i;
+  const items = guessExpenseItems(text);
+  if (items.length > 0) return items.slice(0, 3).join(", ");
+
+  const skip = /^(total|subtotal|sub-total|tax\s*invoice|bill\s*(no|dt)|vou\.?\s*no|cashier|hsn|particulars|qty|cgst|sgst|cess|gst|phone|thank you|change|receipt|invoice|order\s*type|cons\s*no|booking\s*no|landmark|category|equipment|quota|address|name\s*:|date\s*\/\s*time|mid\s*:|batch\s*id|roc\s*:|txn\s*id|upi|amount|net\s*payable|paid\s*\(|advance|price\s*\(|digital\s*incentive)/i;
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   for (const line of lines) {
     if (line.length < 2 || line.length > 40) continue;
-    if (/^[0-9\s.,₹$-]+$/.test(line)) continue;
+    if (/^[0-9\s.,₹$()/:-]+$/.test(line)) continue;
     if (skip.test(line)) continue;
+    if (/\b\d{6,}\b/.test(line)) continue; // long ID glued into an otherwise plausible line
     return line;
   }
   return "Scanned receipt";
