@@ -99,12 +99,13 @@ export default function Data360Page() {
   // Settings — AI cost/token usage tracking.
   const [aiUsageFiles, setAiUsageFiles] = useState<Awaited<ReturnType<typeof data360Api.getAiUsage>>["files"]>([]);
   const [aiUsageBatches, setAiUsageBatches] = useState<Awaited<ReturnType<typeof data360Api.getAiUsage>>["batches"]>([]);
+  const [aiUsageCacheStats, setAiUsageCacheStats] = useState<Awaited<ReturnType<typeof data360Api.getAiUsage>>["cacheStats"] | null>(null);
   const [aiUsageLoading, setAiUsageLoading] = useState(false);
   const loadAiUsage = async () => {
     setAiUsageLoading(true);
     try {
-      const { files, batches } = await data360Api.getAiUsage();
-      setAiUsageFiles(files); setAiUsageBatches(batches);
+      const { files, batches, cacheStats } = await data360Api.getAiUsage();
+      setAiUsageFiles(files); setAiUsageBatches(batches); setAiUsageCacheStats(cacheStats);
     } catch { /* ignore */ } finally { setAiUsageLoading(false); }
   };
   useEffect(() => { if (view === "settings") loadAiUsage(); }, [view]);
@@ -230,14 +231,14 @@ export default function Data360Page() {
   // no vision provider reliably accepts raw PDF bytes), and .zip archives
   // (unpacked client-side, each image/PDF entry inside processed the same
   // way), any number of files at once.
-  type AutoExtractItem = { label: string; busy: boolean; data?: Record<string, any>; provider?: string; error?: string };
+  type AutoExtractItem = { label: string; busy: boolean; data?: Record<string, any>; provider?: string; cached?: boolean; error?: string };
   const [autoExtractItems, setAutoExtractItems] = useState<AutoExtractItem[]>([]);
   const [autoExtractErr, setAutoExtractErr] = useState("");
 
   const runOneImage = async (label: string, base64: string, mimeType: string, idx: number) => {
     try {
-      const { data, provider } = await data360Api.aiExtractImageAuto(base64, mimeType, batchName || undefined, label);
-      setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider } : it));
+      const { data, provider, cached } = await data360Api.aiExtractImageAuto(base64, mimeType, batchName || undefined, label);
+      setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider, cached } : it));
     } catch (e: any) {
       setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, error: e.message || "Auto-extraction failed" } : it));
     }
@@ -852,6 +853,7 @@ export default function Data360Page() {
                       {item.data && (
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[10px] text-gray-400">via {item.provider}</span>
+                          {item.cached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
                           <button onClick={() => useAutoExtractResult(i)} className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-2 py-1 rounded-lg transition">
                             Use as Staged Row
                           </button>
@@ -1430,15 +1432,30 @@ export default function Data360Page() {
       {/* ══════════════════════ SETTINGS ══════════════════════ */}
       {view === "settings" && user && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-          <div>
-            <h2 className="text-xl font-black text-gray-900">AI Cost &amp; Token Usage</h2>
-            <p className="text-sm text-gray-500">Every AI extraction call (rule-vs-AI comparisons and Auto-Extract) is logged here. Costs are <strong>estimates</strong> from published per-token rates, not pulled from each provider's billing dashboard — treat them as a sanity check, not an invoice.</p>
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-xl font-black text-gray-900">AI Cost &amp; Token Usage</h2>
+              <p className="text-sm text-gray-500 max-w-2xl">Every AI extraction call (rule-vs-AI comparisons and Auto-Extract) is logged here. Costs are <strong>estimates</strong> from published per-token rates, not pulled from each provider's billing dashboard — treat them as a sanity check, not an invoice.</p>
+            </div>
+            <button onClick={async () => { if (confirm("Clear the AI result cache? Every document will need a fresh AI call next time, even if it was processed before.")) { await data360Api.clearAiCache(); loadAiUsage(); } }}
+              className="text-xs font-bold text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 px-3 py-2 rounded-xl transition shrink-0">
+              Clear Result Cache
+            </button>
           </div>
 
           {aiUsageLoading ? (
             <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin" size={24} /></div>
           ) : (
             <>
+              {aiUsageCacheStats && aiUsageCacheStats.total_calls > 0 && (
+                <div className="bg-teal-50 border border-teal-200 rounded-2xl px-5 py-3 flex items-center gap-2 text-sm">
+                  <LayoutTemplate size={15} className="text-teal-600 shrink-0" />
+                  <span className="text-teal-800">
+                    <strong>{aiUsageCacheStats.cache_hits}</strong> of <strong>{aiUsageCacheStats.total_calls}</strong> calls served from cache — an exact document + field-list/mode match skips the AI provider entirely, at zero cost.
+                  </span>
+                </div>
+              )}
+
               <div className="bg-white border border-gray-200 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-black text-gray-900 text-sm">By Batch</h3>
@@ -1453,6 +1470,7 @@ export default function Data360Page() {
                       <tr className="text-left text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100">
                         <th className="py-2 pr-3">Batch</th>
                         <th className="py-2 pr-3">Files</th>
+                        <th className="py-2 pr-3">Cache Hits</th>
                         <th className="py-2 pr-3">Total Pages</th>
                         <th className="py-2 pr-3">Input Tokens</th>
                         <th className="py-2 pr-3">Output Tokens</th>
@@ -1462,11 +1480,12 @@ export default function Data360Page() {
                     </thead>
                     <tbody>
                       {aiUsageBatches.length === 0 ? (
-                        <tr><td colSpan={7} className="py-8 text-center text-gray-400">No AI extraction calls logged yet.</td></tr>
+                        <tr><td colSpan={8} className="py-8 text-center text-gray-400">No AI extraction calls logged yet.</td></tr>
                       ) : aiUsageBatches.map(b => (
                         <tr key={b.batch_label} className="border-b border-gray-50">
                           <td className="py-2 pr-3 font-bold text-gray-800">{b.batch_label}</td>
                           <td className="py-2 pr-3 text-gray-600">{b.file_count}</td>
+                          <td className="py-2 pr-3 text-gray-600">{b.cache_hits > 0 ? <span className="text-teal-600 font-bold">{b.cache_hits}</span> : "—"}</td>
                           <td className="py-2 pr-3 text-gray-600">{b.total_pages}</td>
                           <td className="py-2 pr-3 text-gray-600 font-mono">{b.total_input_tokens.toLocaleString()}</td>
                           <td className="py-2 pr-3 text-gray-600 font-mono">{b.total_output_tokens.toLocaleString()}</td>
@@ -1500,7 +1519,10 @@ export default function Data360Page() {
                         <tr><td colSpan={8} className="py-8 text-center text-gray-400">No AI extraction calls logged yet.</td></tr>
                       ) : aiUsageFiles.map(f => (
                         <tr key={f.id} className="border-b border-gray-50">
-                          <td className="py-2 pr-3 font-medium text-gray-800 truncate max-w-[160px]">{f.file_label || "—"}</td>
+                          <td className="py-2 pr-3 font-medium text-gray-800 truncate max-w-[160px]">
+                            {f.file_label || "—"}
+                            {f.from_cache && <span className="ml-1.5 text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
+                          </td>
                           <td className="py-2 pr-3 text-gray-500 truncate max-w-[120px]">{f.batch_label || "(unassigned)"}</td>
                           <td className="py-2 pr-3 text-gray-600 capitalize">{f.provider}</td>
                           <td className="py-2 pr-3 text-gray-400 font-mono">{f.model}</td>

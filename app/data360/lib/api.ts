@@ -55,19 +55,25 @@ export const data360Api = {
   // cost/token usage tables even though no data360_batches row exists yet
   // at this point in the flow (AI calls happen during staging, before
   // "Create & Validate").
+  // `cached: true` means this exact document (same content + same field
+  // list/mode) was already processed for this user — no AI provider was
+  // called at all, so it works even while every provider is down/rate
+  // limited, and costs nothing.
   aiExtract: (raw_snippet: string, fields: string[], batch_label?: string, file_label?: string) =>
-    req<{ fields: Record<string, string>; provider: string }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields, batch_label, file_label }) }),
+    req<{ fields: Record<string, string>; provider: string; cached: boolean }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields, batch_label, file_label }) }),
 
   // Auto-extraction: no field list at all — hands back whatever key/value
   // structure the document actually has (flat fields, nested groups,
   // repeating tables as arrays), rather than requiring the caller to know
   // field names up front.
   aiExtractImageAuto: (image_base64: string, mime_type: string, batch_label?: string, file_label?: string) =>
-    req<{ data: Record<string, any>; provider: string }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type, batch_label, file_label }) }),
+    req<{ data: Record<string, any>; provider: string; cached: boolean }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type, batch_label, file_label }) }),
 
   // ── AI usage (Settings — cost/token tracking) ───────────────────────────
   getAiUsage: () => req<{
-    files: { id: string; batch_label: string | null; file_label: string | null; provider: string; model: string; input_tokens: number; output_tokens: number; pages: number; estimated_cost_usd: number; created_at: string }[];
-    batches: { batch_label: string; file_count: number; total_pages: number; total_input_tokens: number; total_output_tokens: number; total_cost_usd: number; started_at: string; last_used_at: string }[];
+    files: { id: string; batch_label: string | null; file_label: string | null; provider: string; model: string; input_tokens: number; output_tokens: number; pages: number; estimated_cost_usd: number; from_cache: boolean; created_at: string }[];
+    batches: { batch_label: string; file_count: number; cache_hits: number; total_pages: number; total_input_tokens: number; total_output_tokens: number; total_cost_usd: number; started_at: string; last_used_at: string }[];
+    cacheStats: { total_calls: number; cache_hits: number };
   }>("/ai-usage"),
+  clearAiCache: () => req<{ cleared: number }>("/ai-cache", { method: "DELETE" }),
 };
