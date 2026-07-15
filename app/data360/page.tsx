@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
-  parseExcelFile, parsePdfFile, parseScreenshotFile,
-  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction, isValidFieldValue, flattenAutoExtract,
+  parseExcelFile,
+  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction, isValidFieldValue, flattenAutoExtract, renderPdfPageImages,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
 
@@ -40,7 +40,7 @@ const STAGES = [
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute";
-type Channel = "excel" | "pdf" | "screenshot" | "voice";
+type Channel = "excel" | "voice";
 
 const VERDICT_STYLE: Record<string, { badge: string; dot: string }> = {
   ok:       { badge: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-500" },
@@ -74,7 +74,6 @@ export default function Data360Page() {
   const [fieldTemplate, setFieldTemplate] = useState<keyof typeof FIELD_TEMPLATES>("invoice");
   const [fieldsInput, setFieldsInput] = useState(FIELD_TEMPLATES.invoice.fields.join(", "));
   const extractionFields = fieldsInput.split(",").map(s => s.trim()).filter(Boolean);
-  const [ocrProgress, setOcrProgress] = useState(0);
   const [instructionInput, setInstructionInput] = useState("");
   const applyInstruction = () => {
     const fields = parseFieldInstruction(instructionInput);
@@ -210,59 +209,104 @@ export default function Data360Page() {
   };
   const [jsonViewIdx, setJsonViewIdx] = useState<number | null>(null);
 
-  // Auto-extraction: no field list at all — hand it any document image and
-  // get back whatever key/value structure it actually has (flat fields,
+  // Auto-extraction: no field list at all — hand it any document(s) and get
+  // back whatever key/value structure each one actually has (flat fields,
   // nested groups, line-item arrays), instead of first deciding field names.
-  const [autoExtractBusy, setAutoExtractBusy] = useState(false);
-  const [autoExtractResult, setAutoExtractResult] = useState<Record<string, any> | null>(null);
-  const [autoExtractProvider, setAutoExtractProvider] = useState("");
+  // Accepts images, PDFs (each page rendered to a real image client-side —
+  // no vision provider reliably accepts raw PDF bytes), and .zip archives
+  // (unpacked client-side, each image/PDF entry inside processed the same
+  // way), any number of files at once.
+  type AutoExtractItem = { label: string; busy: boolean; data?: Record<string, any>; provider?: string; error?: string };
+  const [autoExtractItems, setAutoExtractItems] = useState<AutoExtractItem[]>([]);
   const [autoExtractErr, setAutoExtractErr] = useState("");
-  const runAutoExtract = async (file: File) => {
-    setAutoExtractBusy(true); setAutoExtractErr(""); setAutoExtractResult(null);
+
+  const runOneImage = async (label: string, base64: string, mimeType: string, idx: number) => {
     try {
-      const image_base64 = await fileToBase64(file);
-      const { data, provider } = await data360Api.aiExtractImageAuto(image_base64, file.type || "image/png");
-      setAutoExtractResult(data); setAutoExtractProvider(provider);
+      const { data, provider } = await data360Api.aiExtractImageAuto(base64, mimeType);
+      setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider } : it));
     } catch (e: any) {
-      setAutoExtractErr(e.message || "Auto-extraction failed");
-    } finally {
-      setAutoExtractBusy(false);
+      setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, error: e.message || "Auto-extraction failed" } : it));
     }
   };
-  const useAutoExtractResult = () => {
-    if (!autoExtractResult) return;
-    const flat = flattenAutoExtract(autoExtractResult);
+
+  const runAutoExtractFiles = async (fileList: FileList) => {
+    setAutoExtractErr("");
+    // Build a flat queue of { label, base64, mimeType } tasks first — PDFs
+    // expand into one task per page, zips expand into one task per entry —
+    // then kick every task off in parallel against the placeholder list.
+    type Task = { label: string; base64: string; mimeType: string };
+    const tasks: Task[] = [];
+
+    for (const file of Array.from(fileList)) {
+      try {
+        if (file.type.startsWith("image/")) {
+          tasks.push({ label: file.name, base64: await fileToBase64(file), mimeType: file.type });
+        } else if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+          const pages = await renderPdfPageImages(file);
+          pages.forEach((p, i) => tasks.push({ label: pages.length > 1 ? `${file.name} (page ${i + 1})` : file.name, base64: p.base64, mimeType: p.mimeType }));
+        } else if (file.type === "application/zip" || file.name.toLowerCase().endsWith(".zip")) {
+          const JSZip = (await import("jszip")).default;
+          const zip = await JSZip.loadAsync(file);
+          for (const [entryName, entry] of Object.entries(zip.files)) {
+            if (entry.dir) continue;
+            const lower = entryName.toLowerCase();
+            if (/\.(png|jpe?g|webp|gif)$/.test(lower)) {
+              const blob = await entry.async("blob");
+              const mimeType = blob.type || (lower.endsWith(".png") ? "image/png" : "image/jpeg");
+              const base64 = await fileToBase64(new File([blob], entryName, { type: mimeType }));
+              tasks.push({ label: entryName, base64, mimeType });
+            } else if (lower.endsWith(".pdf")) {
+              const blob = await entry.async("blob");
+              const pdfFile = new File([blob], entryName, { type: "application/pdf" });
+              const pages = await renderPdfPageImages(pdfFile);
+              pages.forEach((p, i) => tasks.push({ label: pages.length > 1 ? `${entryName} (page ${i + 1})` : entryName, base64: p.base64, mimeType: p.mimeType }));
+            }
+          }
+        } else {
+          setAutoExtractErr(prev => prev ? `${prev} / "${file.name}" is an unsupported type` : `"${file.name}" is an unsupported type — use an image, PDF, or .zip of those`);
+        }
+      } catch (e: any) {
+        setAutoExtractErr(prev => prev ? `${prev} / ${file.name}: ${e.message}` : `${file.name}: ${e.message || "could not be read"}`);
+      }
+    }
+
+    if (tasks.length === 0) return;
+    const baseIdx = autoExtractItems.length;
+    setAutoExtractItems(prev => [...prev, ...tasks.map(t => ({ label: t.label, busy: true }))]);
+    tasks.forEach((t, i) => runOneImage(t.label, t.base64, t.mimeType, baseIdx + i));
+  };
+
+  const useAutoExtractResult = (idx: number) => {
+    const item = autoExtractItems[idx];
+    if (!item?.data) return;
+    const flat = flattenAutoExtract(item.data);
     const fieldNames = Object.keys(flat);
     setFieldsInput(fieldNames.join(", "));
     setFieldTemplate("custom");
     setSelectedTemplateId("");
-    setPendingRows(prev => [...prev, { source_type: "screenshot", fields: flat, raw_snippet: JSON.stringify(autoExtractResult).slice(0, 500) }]);
-    setAutoExtractResult(null);
+    setPendingRows(prev => [...prev, { source_type: "screenshot", fields: flat, raw_snippet: JSON.stringify(item.data).slice(0, 500) }]);
+  };
+  const useAllAutoExtractResults = () => {
+    const ready = autoExtractItems.filter(it => it.data);
+    if (ready.length === 0) return;
+    const allFieldNames = new Set<string>();
+    const newRows: IngestRow[] = ready.map(it => {
+      const flat = flattenAutoExtract(it.data!);
+      Object.keys(flat).forEach(k => allFieldNames.add(k));
+      return { source_type: "screenshot" as const, fields: flat, raw_snippet: JSON.stringify(it.data).slice(0, 500) };
+    });
+    setFieldsInput(Array.from(allFieldNames).join(", "));
+    setFieldTemplate("custom");
+    setSelectedTemplateId("");
+    setPendingRows(prev => [...prev, ...newRows]);
   };
 
-  // Screenshots get compared against the AI reading the image directly, not
-  // the OCR text — a stylized/graphic document (colored headers, decorative
-  // fonts, watermarks) can make Tesseract's OCR come back as near-total
-  // garbage, at which point there's no usable text for a text-based AI call
-  // to work from either. Vision skips that failure mode.
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve((reader.result as string).split(",")[1] || "");
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
-  const triggerAiCompareVision = async (idx: number, file: File, row: IngestRow) => {
-    if (extractionFields.length === 0) return;
-    setAiCompare(prev => ({ ...prev, [idx]: { busy: true } }));
-    try {
-      const image_base64 = await fileToBase64(file);
-      const { fields, provider } = await data360Api.aiExtractImage(image_base64, file.type || "image/png", extractionFields);
-      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, fields, provider } }));
-      revealIfDiffers(idx, row, fields);
-    } catch (e: any) {
-      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, error: e.message || "AI comparison failed" } }));
-    }
-  };
 
   const handleExcelFile = async (file: File) => {
     if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
@@ -273,32 +317,6 @@ export default function Data360Page() {
     } catch (e: any) {
       setIngestErr(e.message || "Could not parse that file");
     } finally { setIngestBusy(false); }
-  };
-
-  const handlePdfFile = async (file: File) => {
-    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
-    setIngestErr(""); setIngestBusy(true);
-    try {
-      const row = await parsePdfFile(file, extractionFields);
-      const idx = pendingRows.length;
-      setPendingRows(prev => [...prev, row]);
-      triggerAiCompare(idx, row);
-    } catch (e: any) {
-      setIngestErr(e.message || "Could not read that PDF");
-    } finally { setIngestBusy(false); }
-  };
-
-  const handleScreenshotFile = async (file: File) => {
-    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
-    setIngestErr(""); setIngestBusy(true); setOcrProgress(0);
-    try {
-      const row = await parseScreenshotFile(file, extractionFields, setOcrProgress);
-      const idx = pendingRows.length;
-      setPendingRows(prev => [...prev, row]);
-      triggerAiCompareVision(idx, file, row);
-    } catch (e: any) {
-      setIngestErr(e.message || "OCR failed on that image");
-    } finally { setIngestBusy(false); setOcrProgress(0); }
   };
 
   const toggleVoice = () => {
@@ -790,11 +808,57 @@ export default function Data360Page() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Sparkles size={15} className="text-teal-600" /> Auto-Extract — No Field List Needed</h3>
+              <label className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer transition shrink-0">
+                <Bot size={13} /> Upload & Auto-Extract
+                <input type="file" accept="image/*,application/pdf,.pdf,.zip,application/zip" multiple className="hidden"
+                  onChange={e => { if (e.target.files?.length) runAutoExtractFiles(e.target.files); e.target.value = ""; }} />
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">Upload any number of images, PDFs, or a .zip of them — invoices, forms, receipts, scanned pages — and get back whatever each one actually contains as JSON, no need to know field names up front. Every PDF page and zip entry is processed as its own document.</p>
+            {autoExtractErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">{autoExtractErr}</p>}
+            {autoExtractItems.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{autoExtractItems.length} document{autoExtractItems.length === 1 ? "" : "s"}</p>
+                  {autoExtractItems.some(it => it.data) && (
+                    <button onClick={useAllAutoExtractResults} className="text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-lg transition">
+                      Use All as Staged Rows
+                    </button>
+                  )}
+                </div>
+                {autoExtractItems.map((item, i) => (
+                  <div key={i} className="border border-gray-200 rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-xs font-bold text-gray-700 truncate">{item.label}</span>
+                      {item.busy && <Loader2 size={13} className="animate-spin text-teal-500 shrink-0" />}
+                      {item.data && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] text-gray-400">via {item.provider}</span>
+                          <button onClick={() => useAutoExtractResult(i)} className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-2 py-1 rounded-lg transition">
+                            Use as Staged Row
+                          </button>
+                        </div>
+                      )}
+                      {item.error && <span className="text-[10px] text-red-500 shrink-0" title={item.error}>failed</span>}
+                    </div>
+                    {item.data && (
+                      <pre className="bg-gray-900 text-teal-300 text-[11px] rounded-lg p-3 overflow-x-auto max-h-56 overflow-y-auto">
+{JSON.stringify(item.data, null, 2)}
+                      </pre>
+                    )}
+                    {item.error && <p className="text-[11px] text-red-500">{item.error}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             {([
               ["excel", "Excel / CSV", Upload],
-              ["pdf", "PDF (OCR text)", FileText],
-              ["screenshot", "Screenshot", Camera],
               ["voice", "Voice to Text", Mic],
             ] as [Channel, string, any][]).map(([key, label, Icon]) => (
               <button key={key} onClick={() => setChannel(key)}
@@ -803,32 +867,6 @@ export default function Data360Page() {
                 <span className={`text-xs font-bold ${channel === key ? "text-teal-700" : "text-gray-600"}`}>{label}</span>
               </button>
             ))}
-          </div>
-
-          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
-              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Sparkles size={15} className="text-teal-600" /> Or Auto-Extract — No Field List Needed</h3>
-              <label className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer transition shrink-0">
-                {autoExtractBusy ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} {autoExtractBusy ? "Reading…" : "Upload & Auto-Extract"}
-                <input type="file" accept="image/*" className="hidden" disabled={autoExtractBusy}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) runAutoExtract(f); e.target.value = ""; }} />
-              </label>
-            </div>
-            <p className="text-xs text-gray-400 mb-3">Upload any document image — invoice, form, receipt — and get back whatever it actually contains as JSON, no need to know field names up front.</p>
-            {autoExtractErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{autoExtractErr}</p>}
-            {autoExtractResult && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Extracted by {autoExtractProvider}</p>
-                  <button onClick={useAutoExtractResult} className="text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-lg transition">
-                    Use as Staged Row
-                  </button>
-                </div>
-                <pre className="bg-gray-900 text-teal-300 text-[11px] rounded-lg p-3 overflow-x-auto max-h-72 overflow-y-auto">
-{JSON.stringify(autoExtractResult, null, 2)}
-                </pre>
-              </div>
-            )}
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
@@ -842,34 +880,6 @@ export default function Data360Page() {
                   <span className="text-xs text-gray-400">.xlsx, .xls, .csv</span>
                   <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleExcelFile(f); e.target.value = ""; }} />
                 </label>
-              </div>
-            )}
-            {channel === "pdf" && (
-              <div>
-                <h3 className="font-black text-gray-900 text-sm mb-1">PDF Document Ingestion</h3>
-                <p className="text-xs text-gray-400 mb-4">Reads the embedded text layer of an invoice or receipt (scanned image-only PDFs won't have extractable text — use Screenshot instead).</p>
-                <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
-                  <FileText size={22} className="text-gray-300" />
-                  <span className="text-sm text-gray-600 font-bold">Choose a PDF invoice or receipt</span>
-                  <input type="file" accept=".pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfFile(f); e.target.value = ""; }} />
-                </label>
-              </div>
-            )}
-            {channel === "screenshot" && (
-              <div>
-                <h3 className="font-black text-gray-900 text-sm mb-1">Screenshot Catching Layer</h3>
-                <p className="text-xs text-gray-400 mb-4">Runs client-side OCR (Tesseract) on the image — nothing is uploaded to a server.</p>
-                <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
-                  <Camera size={22} className="text-gray-300" />
-                  <span className="text-sm text-gray-600 font-bold">Upload a screenshot (PNG / JPG)</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleScreenshotFile(f); e.target.value = ""; }} />
-                </label>
-                {ingestBusy && ocrProgress > 0 && (
-                  <div className="mt-3">
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-teal-500 transition-all" style={{ width: `${ocrProgress}%` }} /></div>
-                    <p className="text-xs text-gray-400 mt-1">Recognizing text… {ocrProgress}%</p>
-                  </div>
-                )}
               </div>
             )}
             {channel === "voice" && (
@@ -892,7 +902,7 @@ export default function Data360Page() {
               </div>
             )}
             {ingestErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{ingestErr}</p>}
-            {ingestBusy && channel !== "screenshot" && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Parsing…</p>}
+            {ingestBusy && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Parsing…</p>}
           </div>
 
           {pendingRows.length > 0 && (

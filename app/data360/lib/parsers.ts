@@ -272,6 +272,33 @@ export async function parsePdfFile(file: File, fieldNames: string[]): Promise<In
   return extractFieldsFromText(fullText || "(no extractable text found in PDF)", "pdf", fieldNames);
 }
 
+/** Renders each page of a PDF to a real PNG image (pdfjs-dist + canvas), so it can be
+ *  sent through the same vision-based auto-extract path as a photographed/scanned
+ *  document — no vision provider accepts raw PDF bytes reliably, but every one of them
+ *  handles a plain page image fine. Capped at `maxPages` to bound the number of AI calls
+ *  a single multi-page upload can trigger. */
+export async function renderPdfPageImages(file: File, maxPages = 5): Promise<{ base64: string; mimeType: string }[]> {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  const images: { base64: string; mimeType: string }[] = [];
+  const pageCount = Math.min(doc.numPages, maxPages);
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await doc.getPage(i);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d")!;
+    await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
+    const dataUrl = canvas.toDataURL("image/png");
+    images.push({ base64: dataUrl.split(",")[1] || "", mimeType: "image/png" });
+  }
+  return images;
+}
+
 /** OCR an uploaded/pasted screenshot via Tesseract.js (fully client-side, no backend). */
 export async function parseScreenshotFile(file: File, fieldNames: string[], onProgress?: (pct: number) => void): Promise<IngestRow> {
   const { createWorker } = await import("tesseract.js");
