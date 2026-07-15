@@ -11,7 +11,7 @@ import {
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
   parseExcelFile, parsePdfFile, parseScreenshotFile,
-  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction, isValidFieldValue,
+  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction, isValidFieldValue, flattenAutoExtract,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
 
@@ -209,6 +209,36 @@ export default function Data360Page() {
     setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, ...aiFields } } : r));
   };
   const [jsonViewIdx, setJsonViewIdx] = useState<number | null>(null);
+
+  // Auto-extraction: no field list at all — hand it any document image and
+  // get back whatever key/value structure it actually has (flat fields,
+  // nested groups, line-item arrays), instead of first deciding field names.
+  const [autoExtractBusy, setAutoExtractBusy] = useState(false);
+  const [autoExtractResult, setAutoExtractResult] = useState<Record<string, any> | null>(null);
+  const [autoExtractProvider, setAutoExtractProvider] = useState("");
+  const [autoExtractErr, setAutoExtractErr] = useState("");
+  const runAutoExtract = async (file: File) => {
+    setAutoExtractBusy(true); setAutoExtractErr(""); setAutoExtractResult(null);
+    try {
+      const image_base64 = await fileToBase64(file);
+      const { data, provider } = await data360Api.aiExtractImageAuto(image_base64, file.type || "image/png");
+      setAutoExtractResult(data); setAutoExtractProvider(provider);
+    } catch (e: any) {
+      setAutoExtractErr(e.message || "Auto-extraction failed");
+    } finally {
+      setAutoExtractBusy(false);
+    }
+  };
+  const useAutoExtractResult = () => {
+    if (!autoExtractResult) return;
+    const flat = flattenAutoExtract(autoExtractResult);
+    const fieldNames = Object.keys(flat);
+    setFieldsInput(fieldNames.join(", "));
+    setFieldTemplate("custom");
+    setSelectedTemplateId("");
+    setPendingRows(prev => [...prev, { source_type: "screenshot", fields: flat, raw_snippet: JSON.stringify(autoExtractResult).slice(0, 500) }]);
+    setAutoExtractResult(null);
+  };
 
   // Screenshots get compared against the AI reading the image directly, not
   // the OCR text — a stylized/graphic document (colored headers, decorative
@@ -773,6 +803,32 @@ export default function Data360Page() {
                 <span className={`text-xs font-bold ${channel === key ? "text-teal-700" : "text-gray-600"}`}>{label}</span>
               </button>
             ))}
+          </div>
+
+          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Sparkles size={15} className="text-teal-600" /> Or Auto-Extract — No Field List Needed</h3>
+              <label className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer transition shrink-0">
+                {autoExtractBusy ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} {autoExtractBusy ? "Reading…" : "Upload & Auto-Extract"}
+                <input type="file" accept="image/*" className="hidden" disabled={autoExtractBusy}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) runAutoExtract(f); e.target.value = ""; }} />
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">Upload any document image — invoice, form, receipt — and get back whatever it actually contains as JSON, no need to know field names up front.</p>
+            {autoExtractErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{autoExtractErr}</p>}
+            {autoExtractResult && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Extracted by {autoExtractProvider}</p>
+                  <button onClick={useAutoExtractResult} className="text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-lg transition">
+                    Use as Staged Row
+                  </button>
+                </div>
+                <pre className="bg-gray-900 text-teal-300 text-[11px] rounded-lg p-3 overflow-x-auto max-h-72 overflow-y-auto">
+{JSON.stringify(autoExtractResult, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">

@@ -312,6 +312,34 @@ export function createVoiceRecognizer(onResult: (transcript: string, isFinal: bo
   return recognizer;
 }
 
+const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+/** Bridges the auto-extraction endpoint's arbitrary nested JSON into the flat
+ *  Record<string,string> shape the rest of the pipeline (rows, validation,
+ *  mapping) already works with — nested groups become prefixed field names,
+ *  arrays of objects (line items, etc.) become a single "name: value; ..."
+ *  summary string, the same convention already used for itemized fields. */
+export function flattenAutoExtract(obj: Record<string, any>, prefix = ""): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const label = prefix ? `${prefix} ${titleCase(key)}` : titleCase(key);
+    if (value === null || value === undefined) {
+      out[label] = "";
+    } else if (Array.isArray(value)) {
+      out[label] = value
+        .map(item => (item && typeof item === "object"
+          ? Object.entries(item).map(([k, v]) => `${titleCase(k)}: ${v}`).join(", ")
+          : String(item)))
+        .join("; ");
+    } else if (typeof value === "object") {
+      Object.assign(out, flattenAutoExtract(value, label));
+    } else {
+      out[label] = String(value);
+    }
+  }
+  return out;
+}
+
 /** Shape-checks a single field's value against the type inferred from its name (the same
  *  inference `extractFieldsFromText` uses) — a client-side preview of what the server's
  *  `validateRow` will flag, so a value can be marked invalid before the batch is even created. */

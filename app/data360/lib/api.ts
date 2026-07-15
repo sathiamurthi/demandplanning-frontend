@@ -59,4 +59,11 @@ export const data360Api = {
   // documents where OCR itself comes back unreadable.
   aiExtractImage: (image_base64: string, mime_type: string, fields: string[]) =>
     req<{ fields: Record<string, string>; provider: string }>("/ai-extract-image", { method: "POST", body: JSON.stringify({ image_base64, mime_type, fields }) }),
+
+  // Auto-extraction: no field list at all — hands back whatever key/value
+  // structure the document actually has (flat fields, nested groups,
+  // repeating tables as arrays), rather than requiring the caller to know
+  // field names up front.
+  aiExtractImageAuto: (image_base64: string, mime_type: string) =>
+    req<{ data: Record<string, any>; provider: string }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type }) }),
 };
