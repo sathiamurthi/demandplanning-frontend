@@ -484,11 +484,17 @@ export default function Data360Page() {
   // have to recreate from scratch.
   const [genNewTemplateName, setGenNewTemplateName] = useState("");
   const [genSavingTemplate, setGenSavingTemplate] = useState(false);
+  // The generated document should only ever contain the fields actually
+  // mapped (checked) in the Mapping stage, under their destination names —
+  // not every raw extraction field, some of which may have been
+  // deliberately excluded.
+  const mappedFieldNames = Array.from(new Set(Object.values(activeBatch?.field_mapping || {}).filter((v): v is string => !!v?.trim())));
+  const templateFieldSource = mappedFieldNames.length ? mappedFieldNames : (activeBatch?.extraction_fields || []);
   const saveTemplateFromActiveBatch = async () => {
-    if (!genNewTemplateName.trim() || !activeBatch?.extraction_fields?.length) return;
+    if (!genNewTemplateName.trim() || templateFieldSource.length === 0) return;
     setGenSavingTemplate(true);
     try {
-      const tpl = await data360Api.createTemplate(genNewTemplateName.trim(), activeBatch.extraction_fields, "coordinate_layout");
+      const tpl = await data360Api.createTemplate(genNewTemplateName.trim(), templateFieldSource, "coordinate_layout");
       setTemplates(prev => [tpl, ...prev]);
       setGenTemplateId(tpl.id);
       setGenNewTemplateName("");
@@ -1263,24 +1269,30 @@ export default function Data360Page() {
           <button onClick={() => go("review")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Review</button>
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><ArrowRightLeft size={18} className="text-teal-600" /> Mapping Agent</h2>
-            <p className="text-sm text-gray-500 mt-1">Map each ingested field onto the exact column or property name your destination expects. This is what makes the export actually usable by a real database or API — not just a dump of internal field names.</p>
+            <p className="text-sm text-gray-500 mt-1">Map each ingested field onto the exact column or property name your destination expects, or uncheck a field to leave it out entirely. Only checked fields reach the generated document, database, API, or any other destination — this is what makes the export actually usable, not a dump of every internal field.</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
-              <span>Source Field (ingested)</span><span>Maps To (destination field)</span>
+            <div className="grid grid-cols-[auto_1fr_1fr] gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
+              <span></span><span>Source Field (ingested)</span><span>Maps To (destination field)</span>
             </div>
-            {Object.keys(mapping).map(sourceField => (
-              <div key={sourceField} className="grid grid-cols-2 gap-3 items-center">
-                <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-lg px-3 py-2.5">
-                  <span className="text-xs font-mono text-gray-600 truncate">{sourceField}</span>
+            {Object.keys(mapping).map(sourceField => {
+              const included = !!mapping[sourceField]?.trim();
+              return (
+                <div key={sourceField} className="grid grid-cols-[auto_1fr_1fr] gap-3 items-center">
+                  <input type="checkbox" checked={included} title="Include this field in the generated output"
+                    onChange={e => setMapping(m => ({ ...m, [sourceField]: e.target.checked ? sourceField : "" }))}
+                    className="accent-teal-600 w-4 h-4" />
+                  <div className={`flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-lg px-3 py-2.5 transition ${included ? "" : "opacity-40"}`}>
+                    <span className="text-xs font-mono text-gray-600 truncate">{sourceField}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ArrowRight size={12} className="text-gray-300 shrink-0" />
+                    <input value={mapping[sourceField]} disabled={!included} onChange={e => setMapping(m => ({ ...m, [sourceField]: e.target.value }))}
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-teal-400 disabled:opacity-50 disabled:bg-gray-50" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ArrowRight size={12} className="text-gray-300 shrink-0" />
-                  <input value={mapping[sourceField]} onChange={e => setMapping(m => ({ ...m, [sourceField]: e.target.value }))}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-teal-400" />
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <p className="text-[11px] text-gray-400 pt-2 border-t border-gray-100">Destination field names must be plain identifiers (letters, numbers, underscore) if you're mapping onto a database table.</p>
           </div>
           <button onClick={saveMappingAndContinue} disabled={mappingBusy}
@@ -1301,9 +1313,9 @@ export default function Data360Page() {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
             {templates.length === 0 ? (
-              activeBatch.extraction_fields?.length ? (
+              templateFieldSource.length > 0 ? (
                 <>
-                  <p className="text-sm text-gray-500">No saved templates yet — create one now from this batch's own fields ({activeBatch.extraction_fields.join(", ")}). It'll lay them out on a simple auto-generated page; no design tool needed.</p>
+                  <p className="text-sm text-gray-500">No saved templates yet — create one now from this batch's mapped fields ({templateFieldSource.join(", ")}). It'll lay them out on a simple auto-generated page; no design tool needed.</p>
                   <div className="flex items-center gap-2">
                     <input value={genNewTemplateName} onChange={e => setGenNewTemplateName(e.target.value)} placeholder='Name this template, e.g. "Invoice"…'
                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
