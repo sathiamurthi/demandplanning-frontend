@@ -50,14 +50,24 @@ export const data360Api = {
   // Runs the same raw text through the server's AI fallback chain
   // (Anthropic -> Gemini -> Azure OpenAI), in parallel with the client-side
   // regex heuristic, so the two can be compared row by row. `provider`
-  // tells the caller which one actually answered.
-  aiExtract: (raw_snippet: string, fields: string[]) =>
-    req<{ fields: Record<string, string>; provider: string }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields }) }),
+  // tells the caller which one actually answered. batch_label/file_label are
+  // optional — passed through so the call shows up correctly in Settings'
+  // cost/token usage tables even though no data360_batches row exists yet
+  // at this point in the flow (AI calls happen during staging, before
+  // "Create & Validate").
+  aiExtract: (raw_snippet: string, fields: string[], batch_label?: string, file_label?: string) =>
+    req<{ fields: Record<string, string>; provider: string }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields, batch_label, file_label }) }),
 
   // Auto-extraction: no field list at all — hands back whatever key/value
   // structure the document actually has (flat fields, nested groups,
   // repeating tables as arrays), rather than requiring the caller to know
   // field names up front.
-  aiExtractImageAuto: (image_base64: string, mime_type: string) =>
-    req<{ data: Record<string, any>; provider: string }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type }) }),
+  aiExtractImageAuto: (image_base64: string, mime_type: string, batch_label?: string, file_label?: string) =>
+    req<{ data: Record<string, any>; provider: string }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type, batch_label, file_label }) }),
+
+  // ── AI usage (Settings — cost/token tracking) ───────────────────────────
+  getAiUsage: () => req<{
+    files: { id: string; batch_label: string | null; file_label: string | null; provider: string; model: string; input_tokens: number; output_tokens: number; pages: number; estimated_cost_usd: number; created_at: string }[];
+    batches: { batch_label: string; file_count: number; total_pages: number; total_input_tokens: number; total_output_tokens: number; total_cost_usd: number; started_at: string; last_used_at: string }[];
+  }>("/ai-usage"),
 };

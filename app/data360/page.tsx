@@ -39,7 +39,7 @@ const STAGES = [
 ];
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute";
+type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute" | "settings";
 type Channel = "excel" | "voice";
 
 const VERDICT_STYLE: Record<string, { badge: string; dot: string }> = {
@@ -95,6 +95,20 @@ export default function Data360Page() {
   const loadTemplates = async () => {
     try { setTemplates(await data360Api.listTemplates()); } catch { /* ignore */ }
   };
+
+  // Settings — AI cost/token usage tracking.
+  const [aiUsageFiles, setAiUsageFiles] = useState<Awaited<ReturnType<typeof data360Api.getAiUsage>>["files"]>([]);
+  const [aiUsageBatches, setAiUsageBatches] = useState<Awaited<ReturnType<typeof data360Api.getAiUsage>>["batches"]>([]);
+  const [aiUsageLoading, setAiUsageLoading] = useState(false);
+  const loadAiUsage = async () => {
+    setAiUsageLoading(true);
+    try {
+      const { files, batches } = await data360Api.getAiUsage();
+      setAiUsageFiles(files); setAiUsageBatches(batches);
+    } catch { /* ignore */ } finally { setAiUsageLoading(false); }
+  };
+  useEffect(() => { if (view === "settings") loadAiUsage(); }, [view]);
+
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const recognizerRef = useRef<any>(null);
@@ -192,7 +206,7 @@ export default function Data360Page() {
     if (!row.raw_snippet?.trim() || extractionFields.length === 0) return;
     setAiCompare(prev => ({ ...prev, [idx]: { busy: true } }));
     try {
-      const { fields, provider } = await data360Api.aiExtract(row.raw_snippet, extractionFields);
+      const { fields, provider } = await data360Api.aiExtract(row.raw_snippet, extractionFields, batchName || undefined, "Voice dictation");
       setAiCompare(prev => ({ ...prev, [idx]: { busy: false, fields, provider } }));
       revealIfDiffers(idx, row, fields);
     } catch (e: any) {
@@ -222,7 +236,7 @@ export default function Data360Page() {
 
   const runOneImage = async (label: string, base64: string, mimeType: string, idx: number) => {
     try {
-      const { data, provider } = await data360Api.aiExtractImageAuto(base64, mimeType);
+      const { data, provider } = await data360Api.aiExtractImageAuto(base64, mimeType, batchName || undefined, label);
       setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider } : it));
     } catch (e: any) {
       setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, error: e.message || "Auto-extraction failed" } : it));
@@ -536,6 +550,7 @@ export default function Data360Page() {
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button>
               <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button>
+              <button onClick={() => go("settings")} className={`hover:text-teal-600 transition ${view === "settings" ? "text-teal-600 font-bold" : ""}`}>Settings</button>
             </div>
           )}
           <div className="flex items-center gap-2 shrink-0">
@@ -1408,6 +1423,98 @@ export default function Data360Page() {
               {distributeResult.result?.status_code && <p className="text-xs text-gray-600 mt-1">API responded {distributeResult.result.status_code} · {distributeResult.result.row_count} rows sent</p>}
               {distributeResult.result?.response_snippet && <p className="text-[11px] text-gray-400 mt-1 font-mono break-all">{distributeResult.result.response_snippet}</p>}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════ SETTINGS ══════════════════════ */}
+      {view === "settings" && user && (
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div>
+            <h2 className="text-xl font-black text-gray-900">AI Cost &amp; Token Usage</h2>
+            <p className="text-sm text-gray-500">Every AI extraction call (rule-vs-AI comparisons and Auto-Extract) is logged here. Costs are <strong>estimates</strong> from published per-token rates, not pulled from each provider's billing dashboard — treat them as a sanity check, not an invoice.</p>
+          </div>
+
+          {aiUsageLoading ? (
+            <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin" size={24} /></div>
+          ) : (
+            <>
+              <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-black text-gray-900 text-sm">By Batch</h3>
+                  <div className="flex gap-4 text-xs text-gray-500">
+                    <span>{aiUsageBatches.reduce((s, b) => s + b.total_pages, 0)} total pages</span>
+                    <span className="font-bold text-teal-600">${aiUsageBatches.reduce((s, b) => s + Number(b.total_cost_usd), 0).toFixed(4)} total est.</span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                        <th className="py-2 pr-3">Batch</th>
+                        <th className="py-2 pr-3">Files</th>
+                        <th className="py-2 pr-3">Total Pages</th>
+                        <th className="py-2 pr-3">Input Tokens</th>
+                        <th className="py-2 pr-3">Output Tokens</th>
+                        <th className="py-2 pr-3">Est. Cost (USD)</th>
+                        <th className="py-2 pr-3">Last Used</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aiUsageBatches.length === 0 ? (
+                        <tr><td colSpan={7} className="py-8 text-center text-gray-400">No AI extraction calls logged yet.</td></tr>
+                      ) : aiUsageBatches.map(b => (
+                        <tr key={b.batch_label} className="border-b border-gray-50">
+                          <td className="py-2 pr-3 font-bold text-gray-800">{b.batch_label}</td>
+                          <td className="py-2 pr-3 text-gray-600">{b.file_count}</td>
+                          <td className="py-2 pr-3 text-gray-600">{b.total_pages}</td>
+                          <td className="py-2 pr-3 text-gray-600 font-mono">{b.total_input_tokens.toLocaleString()}</td>
+                          <td className="py-2 pr-3 text-gray-600 font-mono">{b.total_output_tokens.toLocaleString()}</td>
+                          <td className="py-2 pr-3 font-bold text-teal-700">${Number(b.total_cost_usd).toFixed(4)}</td>
+                          <td className="py-2 pr-3 text-gray-400">{new Date(b.last_used_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                <h3 className="font-black text-gray-900 text-sm mb-4">By File</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                        <th className="py-2 pr-3">File</th>
+                        <th className="py-2 pr-3">Batch</th>
+                        <th className="py-2 pr-3">Provider</th>
+                        <th className="py-2 pr-3">Model</th>
+                        <th className="py-2 pr-3">Input Tokens</th>
+                        <th className="py-2 pr-3">Output Tokens</th>
+                        <th className="py-2 pr-3">Est. Cost (USD)</th>
+                        <th className="py-2 pr-3">When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aiUsageFiles.length === 0 ? (
+                        <tr><td colSpan={8} className="py-8 text-center text-gray-400">No AI extraction calls logged yet.</td></tr>
+                      ) : aiUsageFiles.map(f => (
+                        <tr key={f.id} className="border-b border-gray-50">
+                          <td className="py-2 pr-3 font-medium text-gray-800 truncate max-w-[160px]">{f.file_label || "—"}</td>
+                          <td className="py-2 pr-3 text-gray-500 truncate max-w-[120px]">{f.batch_label || "(unassigned)"}</td>
+                          <td className="py-2 pr-3 text-gray-600 capitalize">{f.provider}</td>
+                          <td className="py-2 pr-3 text-gray-400 font-mono">{f.model}</td>
+                          <td className="py-2 pr-3 text-gray-600 font-mono">{f.input_tokens.toLocaleString()}</td>
+                          <td className="py-2 pr-3 text-gray-600 font-mono">{f.output_tokens.toLocaleString()}</td>
+                          <td className="py-2 pr-3 font-bold text-teal-700">${Number(f.estimated_cost_usd).toFixed(5)}</td>
+                          <td className="py-2 pr-3 text-gray-400">{new Date(f.created_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
