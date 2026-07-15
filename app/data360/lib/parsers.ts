@@ -311,3 +311,16 @@ export function createVoiceRecognizer(onResult: (transcript: string, isFinal: bo
   recognizer.onend = onEnd;
   return recognizer;
 }
+
+/** Shape-checks a single field's value against the type inferred from its name (the same
+ *  inference `extractFieldsFromText` uses) — a client-side preview of what the server's
+ *  `validateRow` will flag, so a value can be marked invalid before the batch is even created. */
+export function isValidFieldValue(name: string, value: string): boolean {
+  if (!value.trim()) return true; // emptiness is a "missing" concern, not a "malformed" one
+  const type = fieldType(name);
+  if (type === "email") return EMAIL_RE.test(value);
+  if (type === "phone") return PHONE_RE.test(value.replace(/[()]/g, ""));
+  if (type === "amount") return !Number.isNaN(parseFloat(value.replace(/[^0-9.-]/g, "")));
+  if (type === "date") return DATE_RE.test(value) || !Number.isNaN(Date.parse(value));
+  return true; // generic/merchant/itemized fields have no strict shape to check
+}

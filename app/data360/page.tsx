@@ -11,7 +11,7 @@ import {
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
   parseExcelFile, parsePdfFile, parseScreenshotFile,
-  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction,
+  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction, isValidFieldValue,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
 
@@ -203,6 +203,12 @@ export default function Data360Page() {
   const acceptAiValue = (idx: number, field: string, value: string) => {
     setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, [field]: value } } : r));
   };
+  const acceptAllAiValues = (idx: number) => {
+    const aiFields = aiCompare[idx]?.fields;
+    if (!aiFields) return;
+    setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, ...aiFields } } : r));
+  };
+  const [jsonViewIdx, setJsonViewIdx] = useState<number | null>(null);
 
   // Screenshots get compared against the AI reading the image directly, not
   // the OCR text — a stylized/graphic document (colored headers, decorative
@@ -873,23 +879,42 @@ export default function Data360Page() {
                           {expandedCompareIdx === i && cmp?.fields && (
                             <tr className="bg-slate-50">
                               <td colSpan={extractionFields.length + 2} className="p-3">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Bot size={11} className="text-teal-600" /> Rule-based vs. AI ({cmp.provider || "?"}, {r.source_type === "screenshot" ? "reading the image directly" : "reading the extracted text"}) — pick per field
-                                </p>
+                                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Bot size={11} className="text-teal-600" /> Rule-based vs. AI ({cmp.provider || "?"}, {r.source_type === "screenshot" ? "reading the image directly" : "reading the extracted text"})
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <button onClick={() => acceptAllAiValues(i)}
+                                      className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-2 py-1 rounded-lg transition">
+                                      Use All AI Values
+                                    </button>
+                                    <button onClick={() => setJsonViewIdx(jsonViewIdx === i ? null : i)}
+                                      className="text-[10px] font-bold text-gray-500 hover:text-teal-600 border border-gray-200 px-2 py-1 rounded-lg transition">
+                                      {jsonViewIdx === i ? "Hide JSON" : "View JSON"}
+                                    </button>
+                                  </div>
+                                </div>
                                 <div className="space-y-1.5">
                                   {extractionFields.map(f => {
                                     const ruleVal = r.fields?.[f] || "";
                                     const aiVal = cmp.fields![f] || "";
                                     const same = ruleVal === aiVal;
+                                    const ruleOk = isValidFieldValue(f, ruleVal);
+                                    const aiOk = isValidFieldValue(f, aiVal);
                                     return (
                                       <div key={f} className="grid grid-cols-[100px_1fr_1fr] gap-2 items-center">
                                         <span className="text-[10px] font-bold text-gray-500 truncate">{f}</span>
-                                        <span className="text-xs text-gray-700 bg-white border border-gray-200 rounded-lg px-2 py-1 truncate" title={ruleVal}>{ruleVal || "—"}</span>
+                                        <span className={`flex items-center gap-1 text-xs text-gray-700 bg-white border rounded-lg px-2 py-1 truncate ${ruleOk ? "border-gray-200" : "border-red-300"}`} title={ruleVal}>
+                                          {!ruleOk && <AlertTriangle size={10} className="text-red-500 shrink-0" />}
+                                          {ruleVal || "—"}
+                                        </span>
                                         {same ? (
                                           <span className="text-xs text-gray-400 italic px-2 py-1">same as rule</span>
                                         ) : (
                                           <button onClick={() => acceptAiValue(i, f, aiVal)}
-                                            className="text-left text-xs text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg px-2 py-1 truncate transition" title={`Use AI value: ${aiVal}`}>
+                                            className={`flex items-center gap-1 text-left text-xs bg-teal-50 hover:bg-teal-100 border rounded-lg px-2 py-1 truncate transition ${aiOk ? "text-teal-700 border-teal-200" : "text-red-700 border-red-300"}`}
+                                            title={`Use AI value: ${aiVal}`}>
+                                            {!aiOk && <AlertTriangle size={10} className="text-red-500 shrink-0" />}
                                             {aiVal || "(empty)"} <span className="text-[9px] font-bold">← use this</span>
                                           </button>
                                         )}
@@ -897,6 +922,11 @@ export default function Data360Page() {
                                     );
                                   })}
                                 </div>
+                                {jsonViewIdx === i && (
+                                  <pre className="mt-3 bg-gray-900 text-teal-300 text-[11px] rounded-lg p-3 overflow-x-auto">
+{JSON.stringify(r.fields, null, 2)}
+                                  </pre>
+                                )}
                               </td>
                             </tr>
                           )}
