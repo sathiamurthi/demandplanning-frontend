@@ -1073,25 +1073,25 @@ export default function Data360Page() {
 
       {/* ── Manual review side panel ── */}
       {focusedRow && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setFocusedRow(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setFocusedRow(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-[95vw] xl:max-w-7xl h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
               <h3 className="font-black text-gray-900 text-lg flex items-center gap-2"><AlertTriangle size={16} className="text-amber-500" /> Manual Review — Row #{String(focusedRow.row_index + 1).padStart(3, "0")}</h3>
               <button onClick={() => setFocusedRow(null)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0"><X size={16} /></button>
             </div>
             <div className="p-6 space-y-4 overflow-y-auto grow">
-              <div className={`text-xs font-bold px-3 py-2 rounded-lg border ${(VERDICT_STYLE[focusedRow.verdict_level] || VERDICT_STYLE.ok).badge}`}>{focusedRow.agent_verdict}</div>
+              <div className={`text-xs font-bold px-3 py-2 rounded-lg border inline-block ${(VERDICT_STYLE[focusedRow.verdict_level] || VERDICT_STYLE.ok).badge}`}>{focusedRow.agent_verdict}</div>
               {focusedRow.raw_snippet && (
                 <div className="bg-slate-50 border border-gray-200 rounded-lg p-3">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Raw Source Snippet</p>
                   <p className="text-xs text-gray-600 font-mono leading-relaxed max-h-24 overflow-y-auto">{focusedRow.raw_snippet}</p>
                 </div>
               )}
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {Object.keys(overrideFields).map(name => {
-                  const isLong = /item\s*-?\s*wise|itemi[sz]ed|line\s*items?|break\s*-?\s*down/i.test(name) || overrideFields[name].length > 60;
+                  const isLong = /item\s*-?\s*wise|itemi[sz]ed|line\s*items?|break\s*-?\s*down|address/i.test(name) || overrideFields[name].length > 60;
                   return (
-                    <div key={name}>
+                    <div key={name} className={isLong ? "sm:col-span-2" : undefined}>
                       <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">{name}</label>
                       {isLong ? (
                         <textarea value={overrideFields[name]} onChange={e => setOverrideFields(f => ({ ...f, [name]: e.target.value }))} rows={3}
@@ -1104,7 +1104,7 @@ export default function Data360Page() {
                 })}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 p-6 pt-4 border-t border-gray-100 shrink-0">
+            <div className="grid grid-cols-2 gap-3 p-6 pt-4 border-t border-gray-100 shrink-0 max-w-md ml-auto">
               <button onClick={() => rejectRow(focusedRow)} disabled={rowBusy === focusedRow.id}
                 className="flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 font-bold text-sm py-2.5 rounded-xl transition disabled:opacity-50">
                 <XCircle size={14} /> Delete Row
