@@ -47,14 +47,16 @@ export const data360Api = {
   generate: (batchId: string, template_id?: string) =>
     req<D360GenerationJob>(`/batches/${batchId}/generate`, { method: "POST", body: JSON.stringify({ template_id }) }),
 
-  // Runs the same raw text through Claude server-side, in parallel with the
-  // client-side regex heuristic, so the two can be compared row by row.
+  // Runs the same raw text through the server's AI fallback chain
+  // (Anthropic -> Gemini -> Azure OpenAI), in parallel with the client-side
+  // regex heuristic, so the two can be compared row by row. `provider`
+  // tells the caller which one actually answered.
   aiExtract: (raw_snippet: string, fields: string[]) =>
-    req<{ fields: Record<string, string> }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields }) }),
+    req<{ fields: Record<string, string>; provider: string }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields }) }),
 
-  // For the screenshot channel: sends the actual image to Claude's vision
-  // model, bypassing Tesseract OCR entirely — the fix for stylized/graphic
+  // For the screenshot channel: sends the actual image straight to the AI's
+  // vision, bypassing Tesseract OCR entirely — the fix for stylized/graphic
   // documents where OCR itself comes back unreadable.
   aiExtractImage: (image_base64: string, mime_type: string, fields: string[]) =>
-    req<{ fields: Record<string, string> }>("/ai-extract-image", { method: "POST", body: JSON.stringify({ image_base64, mime_type, fields }) }),
+    req<{ fields: Record<string, string>; provider: string }>("/ai-extract-image", { method: "POST", body: JSON.stringify({ image_base64, mime_type, fields }) }),
 };
