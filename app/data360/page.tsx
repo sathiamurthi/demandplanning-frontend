@@ -427,10 +427,14 @@ export default function Data360Page() {
   };
 
   const saveCurrentAsTemplate = async () => {
-    if (!newTemplateName.trim() || extractionFields.length === 0) return;
+    // Uses effectiveFields (not extractionFields) so this works whether the
+    // fields came from the Custom Fields box OR were auto-discovered by
+    // Auto-Extract — otherwise there'd be no way to save a template at all
+    // in the (now-default) fully-automatic mode.
+    if (!newTemplateName.trim() || effectiveFields.length === 0) return;
     setSavingTemplate(true);
     try {
-      const tpl = await data360Api.createTemplate(newTemplateName.trim(), extractionFields, "coordinate_layout");
+      const tpl = await data360Api.createTemplate(newTemplateName.trim(), effectiveFields, "coordinate_layout");
       setTemplates(prev => [tpl, ...prev]);
       setSelectedTemplateId(tpl.id);
       setNewTemplateName("");
@@ -474,6 +478,25 @@ export default function Data360Page() {
   };
 
   // ── Generate (row → real document, from a saved template) ────────────────
+  // Lets a user create a template right from the Generate screen, using the
+  // active batch's own already-known field list — instead of sending them
+  // back to New Batch to find "Save as Template" under a field list they'd
+  // have to recreate from scratch.
+  const [genNewTemplateName, setGenNewTemplateName] = useState("");
+  const [genSavingTemplate, setGenSavingTemplate] = useState(false);
+  const saveTemplateFromActiveBatch = async () => {
+    if (!genNewTemplateName.trim() || !activeBatch?.extraction_fields?.length) return;
+    setGenSavingTemplate(true);
+    try {
+      const tpl = await data360Api.createTemplate(genNewTemplateName.trim(), activeBatch.extraction_fields, "coordinate_layout");
+      setTemplates(prev => [tpl, ...prev]);
+      setGenTemplateId(tpl.id);
+      setGenNewTemplateName("");
+    } finally {
+      setGenSavingTemplate(false);
+    }
+  };
+
   const downloadBase64Pdf = (file_base64: string, file_name: string) => {
     const bytes = atob(file_base64);
     const arr = new Uint8Array(bytes.length);
@@ -880,12 +903,13 @@ export default function Data360Page() {
                   <div className="flex items-center gap-2">
                     <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Name this field list to reuse it later…"
                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
-                    <button onClick={saveCurrentAsTemplate} disabled={savingTemplate || !newTemplateName.trim() || extractionFields.length === 0}
+                    <button onClick={saveCurrentAsTemplate} disabled={savingTemplate || !newTemplateName.trim() || effectiveFields.length === 0}
                       className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2 rounded-lg transition shrink-0">
                       {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <LayoutTemplate size={12} />} Save as Template
                     </button>
                   </div>
                   {selectedTemplateId && <p className="text-[11px] text-teal-600 mt-2">This batch will be linked to that template — after review you'll be able to Generate a real document from it.</p>}
+                  {effectiveFields.length === 0 && <p className="text-[11px] text-gray-400 mt-2">No fields yet — run Auto-Extract below first, or type a field list above.</p>}
                 </div>
               </div>
             )}
@@ -1011,7 +1035,32 @@ export default function Data360Page() {
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center gap-3 mt-5 pt-4 border-t border-gray-100">
+
+              {/* Surfaced here (not just inside the collapsed Custom Fields
+                  panel) since this is the first point in the flow where real
+                  field names definitely exist — whether typed manually or
+                  discovered by Auto-Extract — and it's what unlocks the
+                  Generate stage later (Generate needs a saved template). */}
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                {selectedTemplateId ? (
+                  <p className="text-xs text-teal-600 font-bold flex items-center gap-1.5"><LayoutTemplate size={13} /> Linked to a saved template — after review, you'll be able to Generate a real document from it.</p>
+                ) : (
+                  <>
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Want to Generate a real document later? Save these fields as a template</label>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Name this template, e.g. &quot;Invoice&quot;…"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+                      <button onClick={saveCurrentAsTemplate} disabled={savingTemplate || !newTemplateName.trim() || effectiveFields.length === 0}
+                        className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2 rounded-lg transition shrink-0">
+                        {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <LayoutTemplate size={12} />} Save as Template
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">Optional — you can always Create &amp; Validate without one and just download/distribute the raw data instead.</p>
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
                 <input value={batchName} onChange={e => setBatchName(e.target.value)} placeholder="Name this batch…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
                 <button onClick={createBatch} disabled={creatingBatch || !batchName.trim()} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
                   {creatingBatch ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Create &amp; Validate
@@ -1252,7 +1301,21 @@ export default function Data360Page() {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
             {templates.length === 0 ? (
-              <p className="text-sm text-gray-500">You haven't saved any templates yet — go back to a New Batch screen and use "Save as Template" under the field list first.</p>
+              activeBatch.extraction_fields?.length ? (
+                <>
+                  <p className="text-sm text-gray-500">No saved templates yet — create one now from this batch's own fields ({activeBatch.extraction_fields.join(", ")}). It'll lay them out on a simple auto-generated page; no design tool needed.</p>
+                  <div className="flex items-center gap-2">
+                    <input value={genNewTemplateName} onChange={e => setGenNewTemplateName(e.target.value)} placeholder='Name this template, e.g. "Invoice"…'
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                    <button onClick={saveTemplateFromActiveBatch} disabled={genSavingTemplate || !genNewTemplateName.trim()}
+                      className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-xl transition shrink-0">
+                      {genSavingTemplate ? <Loader2 size={14} className="animate-spin" /> : <LayoutTemplate size={14} />} Create Template
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">This batch has no field names to build a template from — go back to New Batch, run Auto-Extract or type a custom field list, then Save as Template before creating the batch.</p>
+              )
             ) : (
               <>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Template</label>
