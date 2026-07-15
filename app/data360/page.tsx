@@ -971,6 +971,46 @@ export default function Data360Page() {
                 </div>
               </div>
 
+              {/* Pipeline stepper — makes each stage of this batch's lifecycle
+                  explicit (ingest already happened by the time this screen
+                  loads; validate ran server-side at ingest time) instead of
+                  it being implicit in which view/button is showing. */}
+              {(() => {
+                const reviewDone = flaggedPending.length === 0;
+                const mapDone = Object.keys(activeBatch.field_mapping || {}).length > 0;
+                const outputDone = activeBatch.status === "distributed" || activeJobs.some(j => j.status === "completed");
+                const steps: { label: string; done: boolean; current: boolean }[] = [
+                  { label: "Ingest", done: true, current: false },
+                  { label: "Validate", done: true, current: false },
+                  { label: "Review", done: reviewDone, current: !reviewDone },
+                  { label: "Map", done: mapDone, current: reviewDone && !mapDone },
+                  { label: "Generate / Distribute", done: outputDone, current: reviewDone && mapDone && !outputDone },
+                ];
+                return (
+                  <div className="bg-white border border-gray-200 rounded-2xl px-6 py-4">
+                    <div className="flex items-center">
+                      {steps.map((s, i) => (
+                        <div key={s.label} className="flex items-center flex-1 last:flex-none">
+                          <div className="flex flex-col items-center gap-1.5 shrink-0">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                              s.done ? "bg-teal-600 border-teal-600 text-white"
+                              : s.current ? "border-teal-500 text-teal-600 bg-teal-50"
+                              : "border-gray-200 text-gray-300"
+                            }`}>
+                              {s.done ? <CheckCircle size={14} /> : i + 1}
+                            </div>
+                            <span className={`text-[10px] font-bold text-center whitespace-nowrap ${s.done || s.current ? "text-gray-700" : "text-gray-300"}`}>{s.label}</span>
+                          </div>
+                          {i < steps.length - 1 && (
+                            <div className={`h-0.5 flex-1 mx-1.5 rounded-full ${steps[i + 1].done || steps[i + 1].current ? "bg-teal-300" : "bg-gray-100"}`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">

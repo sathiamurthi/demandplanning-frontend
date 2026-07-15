@@ -1,5 +1,5 @@
 // DemandGenius Service Worker
-const CACHE_NAME = 'demandgenius-v1';
+const CACHE_NAME = 'demandgenius-v2';
 const SHELL_URLS = [
   '/explore',
   '/manifest.json',
@@ -32,19 +32,23 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/v1/')) return;
 
+  // Network-first: always try the live deploy first, so a new release is
+  // visible on the very next load instead of needing two reloads (or never,
+  // since the previous stale-while-revalidate strategy returned the cached
+  // copy immediately regardless of how fresh the network response was).
+  // The cache is only ever used as a fallback when the network genuinely
+  // fails (offline) — matching what this worker's own offline message says
+  // it does.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached || new Response('Offline — open DemandGenius when connected.', { status: 503 }));
-
-      // Stale-while-revalidate: return cache immediately, update in bg
-      return cached || fetchPromise;
-    })
+    fetch(event.request).then((response) => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+      }
+      return response;
+    }).catch(() =>
+      caches.match(event.request).then((cached) => cached || new Response('Offline — open DemandGenius when connected.', { status: 503 }))
+    )
   );
 });
 
