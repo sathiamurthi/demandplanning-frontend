@@ -10,8 +10,7 @@ import {
 } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
-  parseExcelFile,
-  isVoiceSupported, createVoiceRecognizer, extractFieldsFromText, parseFieldInstruction, isValidFieldValue, flattenAutoExtract, renderPdfPageImages,
+  isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
 
@@ -40,7 +39,7 @@ const STAGES = [
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute" | "settings";
-type Channel = "excel" | "voice";
+type InputMode = "upload" | "text" | "voice";
 
 const VERDICT_STYLE: Record<string, { badge: string; dot: string }> = {
   ok:       { badge: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-500" },
@@ -68,12 +67,24 @@ export default function Data360Page() {
   const [batchesLoading, setBatchesLoading] = useState(false);
 
   const [pendingRows, setPendingRows] = useState<IngestRow[]>([]);
-  const [channel, setChannel] = useState<Channel>("excel");
+  const [inputMode, setInputMode] = useState<InputMode>("upload");
+  const [pasteText, setPasteText] = useState("");
+  const [showCustomFields, setShowCustomFields] = useState(false);
   const [ingestBusy, setIngestBusy] = useState(false);
   const [ingestErr, setIngestErr] = useState("");
-  const [fieldTemplate, setFieldTemplate] = useState<keyof typeof FIELD_TEMPLATES>("invoice");
-  const [fieldsInput, setFieldsInput] = useState(FIELD_TEMPLATES.invoice.fields.join(", "));
+  const [fieldTemplate, setFieldTemplate] = useState<keyof typeof FIELD_TEMPLATES>("custom");
+  // Empty by default — this is what makes Auto-Extract the real default mode
+  // (no field list needed at all). Only set once the user opens "Custom
+  // fields" and picks a template or types field names.
+  const [fieldsInput, setFieldsInput] = useState("");
   const extractionFields = fieldsInput.split(",").map(s => s.trim()).filter(Boolean);
+  // Tracks the field names actually *discovered* by auto-extraction (for the
+  // Staged Rows table + what gets persisted as the batch's extraction_fields)
+  // — kept separate from `extractionFields` above so that "Use as Staged Row"
+  // never silently flips later uploads from auto mode into custom-fields
+  // mode.
+  const [stagedFieldNames, setStagedFieldNames] = useState<string[]>([]);
+  const effectiveFields = extractionFields.length > 0 ? extractionFields : stagedFieldNames;
   const [instructionInput, setInstructionInput] = useState("");
   const applyInstruction = () => {
     const fields = parseFieldInstruction(instructionInput);
@@ -133,6 +144,7 @@ export default function Data360Page() {
   const [dbTableName, setDbTableName] = useState("");
   const [apiUrl, setApiUrl] = useState("");
   const [apiMethod, setApiMethod] = useState<"POST" | "PUT">("POST");
+  const [apiFormat, setApiFormat] = useState<"json" | "xml">("json");
   const [apiAuthToken, setApiAuthToken] = useState("");
   const [rpaUrl, setRpaUrl] = useState("");
   const [rpaProfile, setRpaProfile] = useState("");
@@ -189,41 +201,6 @@ export default function Data360Page() {
   };
 
   // ── Ingestion ────────────────────────────────────────────────────────────
-  // AI comparison: for any row that carries real freeform text (PDF/OCR/
-  // voice, not structured Excel), fire a parallel call to Claude with the
-  // exact same raw text + field list the client-side heuristic just used,
-  // so the two can be shown side by side rather than trusting either blindly.
-  const [aiCompare, setAiCompare] = useState<Record<number, { busy: boolean; fields?: Record<string, string>; provider?: string; error?: string }>>({});
-  const [expandedCompareIdx, setExpandedCompareIdx] = useState<number | null>(null);
-  // If the AI's read differs from the rule-based one, open the comparison
-  // automatically — the visible columns can be showing dashes/garbage right
-  // when the correct value is one click away, which reads as "extraction
-  // isn't working" if it stays hidden behind a small link.
-  const revealIfDiffers = (idx: number, row: IngestRow, aiFields: Record<string, string>) => {
-    const diff = extractionFields.some(f => (aiFields[f] || "") !== (row.fields?.[f] || ""));
-    if (diff) setExpandedCompareIdx(idx);
-  };
-  const triggerAiCompare = async (idx: number, row: IngestRow) => {
-    if (!row.raw_snippet?.trim() || extractionFields.length === 0) return;
-    setAiCompare(prev => ({ ...prev, [idx]: { busy: true } }));
-    try {
-      const { fields, provider } = await data360Api.aiExtract(row.raw_snippet, extractionFields, batchName || undefined, "Voice dictation");
-      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, fields, provider } }));
-      revealIfDiffers(idx, row, fields);
-    } catch (e: any) {
-      setAiCompare(prev => ({ ...prev, [idx]: { busy: false, error: e.message || "AI comparison failed" } }));
-    }
-  };
-  const acceptAiValue = (idx: number, field: string, value: string) => {
-    setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, [field]: value } } : r));
-  };
-  const acceptAllAiValues = (idx: number) => {
-    const aiFields = aiCompare[idx]?.fields;
-    if (!aiFields) return;
-    setPendingRows(prev => prev.map((r, i) => i === idx ? { ...r, fields: { ...r.fields, ...aiFields } } : r));
-  };
-  const [jsonViewIdx, setJsonViewIdx] = useState<number | null>(null);
-
   // Auto-extraction: no field list at all — hand it any document(s) and get
   // back whatever key/value structure each one actually has (flat fields,
   // nested groups, line-item arrays), instead of first deciding field names.
@@ -235,12 +212,40 @@ export default function Data360Page() {
   const [autoExtractItems, setAutoExtractItems] = useState<AutoExtractItem[]>([]);
   const [autoExtractErr, setAutoExtractErr] = useState("");
 
+  // If a custom field list is set, use the field-list endpoints (structured,
+  // exactly those columns); otherwise use the fully-auto endpoints (no field
+  // list needed at all, arbitrary JSON shape back).
   const runOneImage = async (label: string, base64: string, mimeType: string, idx: number) => {
     try {
-      const { data, provider, cached } = await data360Api.aiExtractImageAuto(base64, mimeType, batchName || undefined, label);
-      setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider, cached } : it));
+      if (extractionFields.length > 0) {
+        const { fields, provider, cached } = await data360Api.aiExtractImage(base64, mimeType, extractionFields, batchName || undefined, label);
+        setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data: fields, provider, cached } : it));
+      } else {
+        const { data, provider, cached } = await data360Api.aiExtractImageAuto(base64, mimeType, batchName || undefined, label);
+        setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider, cached } : it));
+      }
     } catch (e: any) {
       setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, error: e.message || "Auto-extraction failed" } : it));
+    }
+  };
+
+  // Human-text and voice-transcript extraction share this path — same
+  // custom-fields-vs-auto branch as runOneImage, just against raw text
+  // instead of an image.
+  const runTextItem = async (text: string, label: string) => {
+    if (!text.trim()) return;
+    const idx = autoExtractItems.length;
+    setAutoExtractItems(prev => [...prev, { label, busy: true }]);
+    try {
+      if (extractionFields.length > 0) {
+        const { fields, provider, cached } = await data360Api.aiExtract(text, extractionFields, batchName || undefined, label);
+        setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data: fields, provider, cached } : it));
+      } else {
+        const { data, provider, cached } = await data360Api.aiExtractAuto(text, batchName || undefined, label);
+        setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, data, provider, cached } : it));
+      }
+    } catch (e: any) {
+      setAutoExtractItems(prev => prev.map((it, i) => i === idx ? { ...it, busy: false, error: e.message || "Extraction failed" } : it));
     }
   };
 
@@ -295,10 +300,7 @@ export default function Data360Page() {
     const item = autoExtractItems[idx];
     if (!item?.data) return;
     const flat = flattenAutoExtract(item.data);
-    const fieldNames = Object.keys(flat);
-    setFieldsInput(fieldNames.join(", "));
-    setFieldTemplate("custom");
-    setSelectedTemplateId("");
+    setStagedFieldNames(prev => Array.from(new Set([...prev, ...Object.keys(flat)])));
     setPendingRows(prev => [...prev, { source_type: "screenshot", fields: flat, raw_snippet: JSON.stringify(item.data).slice(0, 500) }]);
   };
   const useAllAutoExtractResults = () => {
@@ -310,9 +312,7 @@ export default function Data360Page() {
       Object.keys(flat).forEach(k => allFieldNames.add(k));
       return { source_type: "screenshot" as const, fields: flat, raw_snippet: JSON.stringify(it.data).slice(0, 500) };
     });
-    setFieldsInput(Array.from(allFieldNames).join(", "));
-    setFieldTemplate("custom");
-    setSelectedTemplateId("");
+    setStagedFieldNames(prev => Array.from(new Set([...prev, ...allFieldNames])));
     setPendingRows(prev => [...prev, ...newRows]);
   };
 
@@ -323,23 +323,11 @@ export default function Data360Page() {
     reader.readAsDataURL(file);
   });
 
-  const handleExcelFile = async (file: File) => {
-    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
-    setIngestErr(""); setIngestBusy(true);
-    try {
-      const rows = await parseExcelFile(file, extractionFields);
-      setPendingRows(prev => [...prev, ...rows]);
-    } catch (e: any) {
-      setIngestErr(e.message || "Could not parse that file");
-    } finally { setIngestBusy(false); }
-  };
-
   const toggleVoice = () => {
     if (voiceActive) {
       recognizerRef.current?.stop();
       return;
     }
-    if (extractionFields.length === 0) { setIngestErr("Choose at least one field to extract first."); return; }
     if (!isVoiceSupported()) { setIngestErr("Voice dictation isn't supported in this browser — try Chrome or Edge."); return; }
     setIngestErr(""); setVoiceTranscript("");
     const recognizer = createVoiceRecognizer(
@@ -352,12 +340,9 @@ export default function Data360Page() {
     setVoiceActive(true);
   };
 
-  const commitVoiceRow = () => {
+  const extractVoiceTranscript = () => {
     if (!voiceTranscript.trim()) return;
-    const row = extractFieldsFromText(voiceTranscript, "voice", extractionFields);
-    const idx = pendingRows.length;
-    setPendingRows(prev => [...prev, row]);
-    triggerAiCompare(idx, row);
+    runTextItem(voiceTranscript, "Voice dictation");
     setVoiceTranscript("");
   };
 
@@ -367,8 +352,8 @@ export default function Data360Page() {
     if (!batchName.trim() || pendingRows.length === 0) return;
     setCreatingBatch(true); setIngestErr("");
     try {
-      const { batch } = await data360Api.createBatch(batchName.trim(), channel, pendingRows, extractionFields, selectedTemplateId || undefined);
-      setPendingRows([]); setBatchName("");
+      const { batch } = await data360Api.createBatch(batchName.trim(), "auto_extract", pendingRows, effectiveFields, selectedTemplateId || undefined);
+      setPendingRows([]); setStagedFieldNames([]); setBatchName("");
       setActiveBatchId(batch.id);
       await openReview(batch.id);
     } catch (e: any) {
@@ -509,7 +494,7 @@ export default function Data360Page() {
       let config: Record<string, any> = {};
       if (targetType === "cloud_storage") config = { provider: cloudProvider, bucket_name: bucketName };
       if (targetType === "database") config = { connection_string: dbConnectionString, table_name: dbTableName };
-      if (targetType === "api") config = { url: apiUrl, method: apiMethod, auth_token: apiAuthToken || undefined };
+      if (targetType === "api") config = { url: apiUrl, method: apiMethod, format: apiFormat, auth_token: apiAuthToken || undefined };
       if (targetType === "rpa_portal") config = { target_url: rpaUrl, auth_profile: rpaProfile, secret_password_token: rpaToken };
       const job = await data360Api.distribute(activeBatchId, targetType, config);
       setDistributeResult(job);
@@ -756,87 +741,141 @@ export default function Data360Page() {
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <button onClick={() => go("dashboard")} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-teal-600 transition"><ArrowRight size={14} className="rotate-180" /> Back to Batches</button>
           <div>
-            <h2 className="text-xl font-black text-gray-900">Omni-Channel Ingestion Gateway</h2>
-            <p className="text-sm text-gray-500">Combine as many channels as you need — everything lands in one staging table below.</p>
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Sparkles size={18} className="text-teal-600" /> Auto-Extract — No Field List Needed</h2>
+            <p className="text-sm text-gray-500">Upload a document, paste text, or dictate a record — AI reads it and hands back structured data, no field list required. Everything lands in one staging table below.</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
-            <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Sparkles size={15} className="text-teal-600" /> What do you want to extract?</h3>
-            <p className="text-xs text-gray-400 mb-4">Pick a template, or edit the field list directly — every file/screenshot/PDF/voice note below will be parsed for exactly these fields.</p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {(Object.keys(FIELD_TEMPLATES) as (keyof typeof FIELD_TEMPLATES)[]).map(key => (
-                <button key={key}
-                  onClick={() => { setFieldTemplate(key); setFieldsInput(FIELD_TEMPLATES[key].fields.join(", ")); setSelectedTemplateId(""); }}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${fieldTemplate === key ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
-                  {FIELD_TEMPLATES[key].label}
-                </button>
-              ))}
-            </div>
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Fields to extract (comma-separated)</label>
-            <textarea
-              value={fieldsInput}
-              onChange={e => { setFieldsInput(e.target.value); setFieldTemplate("custom"); setSelectedTemplateId(""); }}
-              rows={2}
-              placeholder="e.g. Invoice Number, Vendor Name, Amount, Phone"
-              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none"
-            />
-            {extractionFields.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {extractionFields.map(f => <span key={f} className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">{f}</span>)}
-              </div>
-            )}
-
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Or just describe it in plain English</label>
-              <p className="text-[11px] text-gray-400 mb-1.5">e.g. "give me amount, item, date, item wise and total amount" — we'll turn that into the field list above.</p>
-              <div className="flex items-start gap-2">
-                <textarea value={instructionInput} onChange={e => setInstructionInput(e.target.value)} rows={1}
-                  placeholder="Describe what you want extracted…"
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
-                <button onClick={applyInstruction} disabled={!instructionInput.trim()}
-                  className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2.5 rounded-xl transition shrink-0">
-                  <Sparkles size={12} /> Convert to Fields
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <h4 className="text-xs font-black text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5"><LayoutTemplate size={13} className="text-teal-600" /> Reusable templates</h4>
-              {templates.length > 0 && (
+            <button onClick={() => setShowCustomFields(v => !v)} className="w-full flex items-center justify-between text-left">
+              <span className="font-black text-gray-900 text-sm flex items-center gap-2"><LayoutTemplate size={15} className="text-teal-600" /> Custom fields (optional)</span>
+              <ChevronRight size={14} className={`text-gray-400 transition-transform ${showCustomFields ? "rotate-90" : ""}`} />
+            </button>
+            <p className="text-xs text-gray-400 mt-1">Leave this closed for fully-automatic extraction. Open it to pin down an exact field list instead — every upload/paste/voice note below will then be parsed for exactly those fields.</p>
+            {showCustomFields && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {templates.map(tpl => (
-                    <button key={tpl.id} onClick={() => applyTemplate(tpl)}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${selectedTemplateId === tpl.id ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
-                      {tpl.name}
+                  {(Object.keys(FIELD_TEMPLATES) as (keyof typeof FIELD_TEMPLATES)[]).map(key => (
+                    <button key={key}
+                      onClick={() => { setFieldTemplate(key); setFieldsInput(FIELD_TEMPLATES[key].fields.join(", ")); setSelectedTemplateId(""); }}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${fieldTemplate === key ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+                      {FIELD_TEMPLATES[key].label}
                     </button>
                   ))}
                 </div>
-              )}
-              <div className="flex items-center gap-2">
-                <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Name this field list to reuse it later…"
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
-                <button onClick={saveCurrentAsTemplate} disabled={savingTemplate || !newTemplateName.trim() || extractionFields.length === 0}
-                  className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2 rounded-lg transition shrink-0">
-                  {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <LayoutTemplate size={12} />} Save as Template
-                </button>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Fields to extract (comma-separated)</label>
+                <textarea
+                  value={fieldsInput}
+                  onChange={e => { setFieldsInput(e.target.value); setFieldTemplate("custom"); setSelectedTemplateId(""); }}
+                  rows={2}
+                  placeholder="e.g. Invoice Number, Vendor Name, Amount, Phone"
+                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none"
+                />
+                {extractionFields.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {extractionFields.map(f => <span key={f} className="text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">{f}</span>)}
+                  </div>
+                )}
+
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Or just describe it in plain English</label>
+                  <p className="text-[11px] text-gray-400 mb-1.5">e.g. "give me amount, item, date, item wise and total amount" — we'll turn that into the field list above.</p>
+                  <div className="flex items-start gap-2">
+                    <textarea value={instructionInput} onChange={e => setInstructionInput(e.target.value)} rows={1}
+                      placeholder="Describe what you want extracted…"
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                    <button onClick={applyInstruction} disabled={!instructionInput.trim()}
+                      className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2.5 rounded-xl transition shrink-0">
+                      <Sparkles size={12} /> Convert to Fields
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <h4 className="text-xs font-black text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5"><LayoutTemplate size={13} className="text-teal-600" /> Reusable templates</h4>
+                  {templates.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {templates.map(tpl => (
+                        <button key={tpl.id} onClick={() => applyTemplate(tpl)}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${selectedTemplateId === tpl.id ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>
+                          {tpl.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Name this field list to reuse it later…"
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+                    <button onClick={saveCurrentAsTemplate} disabled={savingTemplate || !newTemplateName.trim() || extractionFields.length === 0}
+                      className="flex items-center gap-1.5 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-xs px-3 py-2 rounded-lg transition shrink-0">
+                      {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <LayoutTemplate size={12} />} Save as Template
+                    </button>
+                  </div>
+                  {selectedTemplateId && <p className="text-[11px] text-teal-600 mt-2">This batch will be linked to that template — after review you'll be able to Generate a real document from it.</p>}
+                </div>
               </div>
-              {selectedTemplateId && <p className="text-[11px] text-teal-600 mt-2">This batch will be linked to that template — after review you'll be able to Generate a real document from it.</p>}
-            </div>
+            )}
           </div>
 
           <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
-              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Sparkles size={15} className="text-teal-600" /> Auto-Extract — No Field List Needed</h3>
-              <label className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer transition shrink-0">
-                <Bot size={13} /> Upload & Auto-Extract
-                <input type="file" accept="image/*,application/pdf,.pdf,.zip,application/zip" multiple className="hidden"
-                  onChange={e => { if (e.target.files?.length) runAutoExtractFiles(e.target.files); e.target.value = ""; }} />
-              </label>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {([
+                ["upload", "Upload File", Upload],
+                ["text", "Paste Text", FileText],
+                ["voice", "Voice Dictation", Mic],
+              ] as [InputMode, string, any][]).map(([key, label, Icon]) => (
+                <button key={key} onClick={() => setInputMode(key)}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition ${inputMode === key ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                  <Icon size={18} className={inputMode === key ? "text-teal-600" : "text-gray-400"} />
+                  <span className={`text-xs font-bold ${inputMode === key ? "text-teal-700" : "text-gray-600"}`}>{label}</span>
+                </button>
+              ))}
             </div>
-            <p className="text-xs text-gray-400 mb-3">Upload any number of images, PDFs, or a .zip of them — invoices, forms, receipts, scanned pages — and get back whatever each one actually contains as JSON, no need to know field names up front. Every PDF page and zip entry is processed as its own document.</p>
-            {autoExtractErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">{autoExtractErr}</p>}
+
+            {inputMode === "upload" && (
+              <div>
+                <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
+                  <Bot size={22} className="text-gray-300" />
+                  <span className="text-sm text-gray-600 font-bold">Drag & drop, or click to choose files</span>
+                  <span className="text-xs text-gray-400">Images, PDFs, or a .zip of them — any number at once</span>
+                  <input type="file" accept="image/*,application/pdf,.pdf,.zip,application/zip" multiple className="hidden"
+                    onChange={e => { if (e.target.files?.length) runAutoExtractFiles(e.target.files); e.target.value = ""; }} />
+                </label>
+                <p className="text-xs text-gray-400 mt-3">Invoices, forms, receipts, scanned pages — every PDF page and zip entry is processed as its own document.</p>
+              </div>
+            )}
+            {inputMode === "text" && (
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Paste or type the document's text</label>
+                <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={5}
+                  placeholder="Paste an invoice, receipt, email, or any raw text here…"
+                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                <button onClick={() => { runTextItem(pasteText, "Pasted text"); setPasteText(""); }} disabled={!pasteText.trim()}
+                  className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
+                  <Bot size={13} /> Extract
+                </button>
+              </div>
+            )}
+            {inputMode === "voice" && (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <button onClick={toggleVoice}
+                  className={`w-16 h-16 rounded-full flex items-center justify-center transition ${voiceActive ? "bg-red-500 animate-pulse" : "bg-teal-600 hover:bg-teal-700"}`}>
+                  {voiceActive ? <MicOff size={24} className="text-white" /> : <Mic size={24} className="text-white" />}
+                </button>
+                <p className="text-xs text-gray-400">{voiceActive ? "Listening… tap to stop" : "Tap to speak"}</p>
+                {voiceTranscript && (
+                  <div className="w-full bg-slate-50 border border-gray-200 rounded-xl p-3">
+                    <p className="text-sm text-gray-700">{voiceTranscript}</p>
+                    <button onClick={extractVoiceTranscript} className="mt-2 flex items-center gap-1.5 text-xs text-teal-600 font-bold hover:underline"><Bot size={12} /> Extract from transcript</button>
+                  </div>
+                )}
+              </div>
+            )}
+            {ingestErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{ingestErr}</p>}
+            {ingestBusy && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Parsing…</p>}
+            {autoExtractErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{autoExtractErr}</p>}
+
             {autoExtractItems.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{autoExtractItems.length} document{autoExtractItems.length === 1 ? "" : "s"}</p>
                   {autoExtractItems.some(it => it.data) && (
@@ -873,149 +912,27 @@ export default function Data360Page() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              ["excel", "Excel / CSV", Upload],
-              ["voice", "Voice to Text", Mic],
-            ] as [Channel, string, any][]).map(([key, label, Icon]) => (
-              <button key={key} onClick={() => setChannel(key)}
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition ${channel === key ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                <Icon size={20} className={channel === key ? "text-teal-600" : "text-gray-400"} />
-                <span className={`text-xs font-bold ${channel === key ? "text-teal-700" : "text-gray-600"}`}>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-2xl p-6">
-            {channel === "excel" && (
-              <div>
-                <h3 className="font-black text-gray-900 text-sm mb-1">Excel / CSV Data Dump</h3>
-                <p className="text-xs text-gray-400 mb-4">Each requested field is matched to the best-fitting column header — otherwise columns are used positionally.</p>
-                <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
-                  <Upload size={22} className="text-gray-300" />
-                  <span className="text-sm text-gray-600 font-bold">Drag & drop, or click to choose a file</span>
-                  <span className="text-xs text-gray-400">.xlsx, .xls, .csv</span>
-                  <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleExcelFile(f); e.target.value = ""; }} />
-                </label>
-              </div>
-            )}
-            {channel === "voice" && (
-              <div>
-                <h3 className="font-black text-gray-900 text-sm mb-1">Voice-to-Text Dictation</h3>
-                <p className="text-xs text-gray-400 mb-4">Speak a record — e.g. "Acme Logistics, amount fourteen thousand, billing at acmalog dot com" — then commit it as a row.</p>
-                <div className="flex flex-col items-center gap-4 py-6">
-                  <button onClick={toggleVoice}
-                    className={`w-16 h-16 rounded-full flex items-center justify-center transition ${voiceActive ? "bg-red-500 animate-pulse" : "bg-teal-600 hover:bg-teal-700"}`}>
-                    {voiceActive ? <MicOff size={24} className="text-white" /> : <Mic size={24} className="text-white" />}
-                  </button>
-                  <p className="text-xs text-gray-400">{voiceActive ? "Listening… tap to stop" : "Tap to speak"}</p>
-                  {voiceTranscript && (
-                    <div className="w-full bg-slate-50 border border-gray-200 rounded-xl p-3">
-                      <p className="text-sm text-gray-700">{voiceTranscript}</p>
-                      <button onClick={commitVoiceRow} className="mt-2 text-xs text-teal-600 font-bold hover:underline">+ Add as row</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {ingestErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{ingestErr}</p>}
-            {ingestBusy && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Parsing…</p>}
-          </div>
-
           {pendingRows.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-gray-900 text-sm">Staged Rows ({pendingRows.length})</h3>
-                <button onClick={() => { setPendingRows([]); setAiCompare({}); setExpandedCompareIdx(null); }} className="text-xs text-gray-400 hover:text-red-500">Clear all</button>
+                <button onClick={() => { setPendingRows([]); setStagedFieldNames([]); }} className="text-xs text-gray-400 hover:text-red-500">Clear all</button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-gray-400 border-b border-gray-100">
                       <th className="py-1.5 pr-3 font-bold">Source</th>
-                      {extractionFields.map(f => <th key={f} className="py-1.5 pr-3 font-bold">{f}</th>)}
-                      <th className="py-1.5 pr-3 font-bold">AI check</th>
+                      {effectiveFields.map(f => <th key={f} className="py-1.5 pr-3 font-bold">{f}</th>)}
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingRows.map((r, i) => {
-                      const cmp = aiCompare[i];
-                      const hasDiff = cmp?.fields && extractionFields.some(f => (cmp.fields![f] || "") !== (r.fields?.[f] || ""));
-                      return (
-                        <Fragment key={i}>
-                          <tr className="border-b border-gray-50">
-                            <td className="py-1.5 pr-3 capitalize text-gray-500">{r.source_type}</td>
-                            {extractionFields.map(f => <td key={f} className="py-1.5 pr-3 text-gray-800 font-medium">{r.fields?.[f] || "—"}</td>)}
-                            <td className="py-1.5 pr-3">
-                              {!cmp ? <span className="text-gray-300">—</span>
-                                : cmp.busy ? <Loader2 size={12} className="animate-spin text-teal-500" />
-                                : cmp.error ? <span className="text-red-400" title={cmp.error}>failed</span>
-                                : (
-                                  <button onClick={() => setExpandedCompareIdx(expandedCompareIdx === i ? null : i)}
-                                    className={`flex items-center gap-1 font-bold ${hasDiff ? "text-amber-600" : "text-green-600"}`}>
-                                    <ChevronRight size={11} className={`transition-transform ${expandedCompareIdx === i ? "rotate-90" : ""}`} />
-                                    {hasDiff ? "differs" : "matches"}
-                                  </button>
-                                )}
-                            </td>
-                          </tr>
-                          {expandedCompareIdx === i && cmp?.fields && (
-                            <tr className="bg-slate-50">
-                              <td colSpan={extractionFields.length + 2} className="p-3">
-                                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Bot size={11} className="text-teal-600" /> Rule-based vs. AI ({cmp.provider || "?"}, {r.source_type === "screenshot" ? "reading the image directly" : "reading the extracted text"})
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <button onClick={() => acceptAllAiValues(i)}
-                                      className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-2 py-1 rounded-lg transition">
-                                      Use All AI Values
-                                    </button>
-                                    <button onClick={() => setJsonViewIdx(jsonViewIdx === i ? null : i)}
-                                      className="text-[10px] font-bold text-gray-500 hover:text-teal-600 border border-gray-200 px-2 py-1 rounded-lg transition">
-                                      {jsonViewIdx === i ? "Hide JSON" : "View JSON"}
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                  {extractionFields.map(f => {
-                                    const ruleVal = r.fields?.[f] || "";
-                                    const aiVal = cmp.fields![f] || "";
-                                    const same = ruleVal === aiVal;
-                                    const ruleOk = isValidFieldValue(f, ruleVal);
-                                    const aiOk = isValidFieldValue(f, aiVal);
-                                    return (
-                                      <div key={f} className="grid grid-cols-[100px_1fr_1fr] gap-2 items-center">
-                                        <span className="text-[10px] font-bold text-gray-500 truncate">{f}</span>
-                                        <span className={`flex items-center gap-1 text-xs text-gray-700 bg-white border rounded-lg px-2 py-1 truncate ${ruleOk ? "border-gray-200" : "border-red-300"}`} title={ruleVal}>
-                                          {!ruleOk && <AlertTriangle size={10} className="text-red-500 shrink-0" />}
-                                          {ruleVal || "—"}
-                                        </span>
-                                        {same ? (
-                                          <span className="text-xs text-gray-400 italic px-2 py-1">same as rule</span>
-                                        ) : (
-                                          <button onClick={() => acceptAiValue(i, f, aiVal)}
-                                            className={`flex items-center gap-1 text-left text-xs bg-teal-50 hover:bg-teal-100 border rounded-lg px-2 py-1 truncate transition ${aiOk ? "text-teal-700 border-teal-200" : "text-red-700 border-red-300"}`}
-                                            title={`Use AI value: ${aiVal}`}>
-                                            {!aiOk && <AlertTriangle size={10} className="text-red-500 shrink-0" />}
-                                            {aiVal || "(empty)"} <span className="text-[9px] font-bold">← use this</span>
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                                {jsonViewIdx === i && (
-                                  <pre className="mt-3 bg-gray-900 text-teal-300 text-[11px] rounded-lg p-3 overflow-x-auto">
-{JSON.stringify(r.fields, null, 2)}
-                                  </pre>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
+                    {pendingRows.map((r, i) => (
+                      <tr key={i} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-3 capitalize text-gray-500">{r.source_type}</td>
+                        {effectiveFields.map(f => <td key={f} className="py-1.5 pr-3 text-gray-800 font-medium">{r.fields?.[f] || "—"}</td>)}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1367,7 +1284,7 @@ export default function Data360Page() {
                 <Globe size={18} className="text-teal-600" />
                 <div>
                   <p className="font-black text-gray-900 text-sm">API / Webhook</p>
-                  <p className="text-xs text-gray-500">Real HTTP request with the mapped rows as JSON — works with any REST API or webhook.</p>
+                  <p className="text-xs text-gray-500">Real HTTP request with the mapped rows as JSON or XML — works with any REST API or webhook.</p>
                 </div>
               </div>
               {targetType === "api" && (
@@ -1377,6 +1294,14 @@ export default function Data360Page() {
                       <option>POST</option><option>PUT</option>
                     </select>
                     <input value={apiUrl} onChange={e => setApiUrl(e.target.value)} placeholder="https://your-system.com/api/ingest" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                  </div>
+                  <div className="flex gap-2">
+                    {(["json", "xml"] as const).map(f => (
+                      <button key={f} type="button" onClick={() => setApiFormat(f)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition uppercase ${apiFormat === f ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-500 border-gray-200"}`}>
+                        {f}
+                      </button>
+                    ))}
                   </div>
                   <input type="password" value={apiAuthToken} onChange={e => setApiAuthToken(e.target.value)} placeholder="Bearer token (optional)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
                 </div>

@@ -47,25 +47,27 @@ export const data360Api = {
   generate: (batchId: string, template_id?: string) =>
     req<D360GenerationJob>(`/batches/${batchId}/generate`, { method: "POST", body: JSON.stringify({ template_id }) }),
 
-  // Runs the same raw text through the server's AI fallback chain
-  // (Anthropic -> Gemini -> Azure OpenAI), in parallel with the client-side
-  // regex heuristic, so the two can be compared row by row. `provider`
-  // tells the caller which one actually answered. batch_label/file_label are
-  // optional — passed through so the call shows up correctly in Settings'
-  // cost/token usage tables even though no data360_batches row exists yet
-  // at this point in the flow (AI calls happen during staging, before
-  // "Create & Validate").
+  // Runs raw text through the server's AI fallback chain (Anthropic ->
+  // Gemini -> Azure OpenAI), constrained to an explicit field list.
+  // batch_label/file_label are optional — passed through so the call shows
+  // up correctly in Settings' cost/token usage tables even though no
+  // data360_batches row exists yet at this point in the flow (AI calls
+  // happen during staging, before "Create & Validate").
   // `cached: true` means this exact document (same content + same field
   // list/mode) was already processed for this user — no AI provider was
   // called at all, so it works even while every provider is down/rate
   // limited, and costs nothing.
   aiExtract: (raw_snippet: string, fields: string[], batch_label?: string, file_label?: string) =>
     req<{ fields: Record<string, string>; provider: string; cached: boolean }>("/ai-extract", { method: "POST", body: JSON.stringify({ raw_snippet, fields, batch_label, file_label }) }),
+  aiExtractImage: (image_base64: string, mime_type: string, fields: string[], batch_label?: string, file_label?: string) =>
+    req<{ fields: Record<string, string>; provider: string; cached: boolean }>("/ai-extract-image", { method: "POST", body: JSON.stringify({ image_base64, mime_type, fields, batch_label, file_label }) }),
 
   // Auto-extraction: no field list at all — hands back whatever key/value
   // structure the document actually has (flat fields, nested groups,
   // repeating tables as arrays), rather than requiring the caller to know
   // field names up front.
+  aiExtractAuto: (raw_snippet: string, batch_label?: string, file_label?: string) =>
+    req<{ data: Record<string, any>; provider: string; cached: boolean }>("/ai-extract-auto", { method: "POST", body: JSON.stringify({ raw_snippet, batch_label, file_label }) }),
   aiExtractImageAuto: (image_base64: string, mime_type: string, batch_label?: string, file_label?: string) =>
     req<{ data: Record<string, any>; provider: string; cached: boolean }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type, batch_label, file_label }) }),
 
