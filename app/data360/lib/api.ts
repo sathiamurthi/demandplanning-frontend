@@ -1,4 +1,4 @@
-import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, TemplateOutputType, D360GenerationJob, StudyPack } from "./types";
+import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, TemplateOutputType, D360GenerationJob, StudyPack, DataQuota } from "./types";
 
 const BASE = "/v1/data360";
 const TOKEN_KEY = "data360_token";
@@ -7,13 +7,26 @@ export const getToken = (): string | null => (typeof window !== "undefined" ? lo
 export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
+// Carries the extra fields a 402 QUOTA_EXCEEDED response includes (used,
+// limit, remaining, packages) so the caller can render the paywall with
+// real numbers/pricing instead of just a generic error string.
+export class ApiError extends Error {
+  code?: string;
+  data?: any;
+  constructor(message: string, code?: string, data?: any) {
+    super(message);
+    this.code = code;
+    this.data = data;
+  }
+}
+
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = { "Content-Type": "application/json", ...(opts.headers as any) };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...opts, headers });
   const json = await res.json().catch(() => ({ success: false, error: "Invalid server response" }));
-  if (!res.ok || !json.success) throw new Error(json.error || `Request failed (${res.status})`);
+  if (!res.ok || !json.success) throw new ApiError(json.error || `Request failed (${res.status})`, json.code, json);
   return json.data as T;
 }
 
@@ -80,6 +93,14 @@ export const data360Api = {
     req<{ data: StudyPack; provider: string; cached: boolean }>("/school/study-guide", { method: "POST", body: JSON.stringify({ raw_snippet, class_level, board, subject, file_label }) }),
   studyGuideFromImages: (images: { image_base64: string; mime_type: string }[], class_level: string, board: string, subject?: string, file_label?: string) =>
     req<{ data: StudyPack; provider: string; cached: boolean }>("/school/study-guide-image", { method: "POST", body: JSON.stringify({ images, class_level, board, subject, file_label }) }),
+
+  // ── Usage quota (free trial + paid packages) ────────────────────────────
+  getQuota: () => req<DataQuota>("/quota"),
+  // Superadmin-only (checked server-side by email) — credits a buyer's
+  // quota after a package purchase is confirmed out-of-band (no live
+  // payment gateway wired up yet).
+  grantQuota: (user_email: string, additional_documents: number) =>
+    req<{ id: string; email: string; purchased_document_quota: number }>("/admin/grant-quota", { method: "POST", body: JSON.stringify({ user_email, additional_documents }) }),
 
   // ── AI usage (Settings — cost/token tracking) ───────────────────────────
   getAiUsage: () => req<{

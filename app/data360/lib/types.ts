@@ -1,5 +1,9 @@
 export interface D360User { id: string; name: string; email: string; role: string; }
 
+// ── Usage quota (free trial + paid packages) ────────────────────────────────
+export interface DataPackage { id: string; name: string; documents: number; price_inr: number; support: boolean; }
+export interface DataQuota { unlimited: boolean; used: number; limit: number | null; remaining: number | null; packages: DataPackage[]; }
+
 export interface IngestRow {
   source_type: "excel" | "pdf" | "screenshot" | "voice";
   fields: Record<string, string>; // keyed by the user-chosen field names, e.g. {"Invoice Number": "INV-1024", "Phone": "9876543210"}

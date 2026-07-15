@@ -9,11 +9,11 @@ import {
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
   GraduationCap, BookOpen, Lightbulb, ListChecks,
 } from "lucide-react";
-import { data360Api, getToken, setToken, clearToken } from "./lib/api";
+import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
 } from "./lib/parsers";
-import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob, StudyPack } from "./lib/types";
+import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob, StudyPack, DataQuota } from "./lib/types";
 
 const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
   invoice: { label: "Invoice", fields: ["Invoice Number", "Vendor Name", "Amount", "Due Date"] },
@@ -226,6 +226,35 @@ export default function Data360Page() {
 
   useEffect(() => { if (view === "dashboard") loadBatches(); }, [view]);
 
+  // ── Usage quota (2 free documents, then a paywall) ──────────────────────
+  const [quota, setQuota] = useState<DataQuota | null>(null);
+  const loadQuota = async () => {
+    try { setQuota(await data360Api.getQuota()); } catch { /* ignore */ }
+  };
+  useEffect(() => { if (view === "dashboard" || view === "ingest") loadQuota(); }, [view]);
+
+  // Superadmin-only manual quota grant (no live payment gateway yet — a
+  // package purchase is confirmed out-of-band, then credited here).
+  const isSuperadmin = user?.email?.toLowerCase() === "superadmin@demandgeniusai.com";
+  const [grantEmail, setGrantEmail] = useState("");
+  const [grantDocs, setGrantDocs] = useState("100");
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [grantMsg, setGrantMsg] = useState("");
+  const runGrantQuota = async () => {
+    const docs = parseInt(grantDocs, 10);
+    if (!grantEmail.trim() || !docs || docs <= 0) return;
+    setGrantBusy(true); setGrantMsg("");
+    try {
+      const updated = await data360Api.grantQuota(grantEmail.trim(), docs);
+      setGrantMsg(`${updated.email} now has ${updated.purchased_document_quota} purchased documents credited.`);
+      setGrantEmail("");
+    } catch (e: any) {
+      setGrantMsg(e.message || "Could not grant quota");
+    } finally {
+      setGrantBusy(false);
+    }
+  };
+
   // ── Auth ───────────────────────────────────────────────────────────────
   const handleAuth = async () => {
     setAuthErr(""); setAuthBusy(true);
@@ -405,16 +434,21 @@ export default function Data360Page() {
 
   const [batchName, setBatchName] = useState("");
   const [creatingBatch, setCreatingBatch] = useState(false);
+  const [quotaBlock, setQuotaBlock] = useState<DataQuota & { used: number; limit: number } | null>(null);
   const createBatch = async () => {
     if (!batchName.trim() || pendingRows.length === 0) return;
-    setCreatingBatch(true); setIngestErr("");
+    setCreatingBatch(true); setIngestErr(""); setQuotaBlock(null);
     try {
       const { batch } = await data360Api.createBatch(batchName.trim(), "auto_extract", pendingRows, effectiveFields, selectedTemplateId || undefined);
       setPendingRows([]); setStagedFieldNames([]); setBatchName("");
       setActiveBatchId(batch.id);
       await openReview(batch.id);
     } catch (e: any) {
-      setIngestErr(e.message || "Could not create the batch");
+      if (e instanceof ApiError && e.code === "QUOTA_EXCEEDED") {
+        setQuotaBlock(e.data);
+      } else {
+        setIngestErr(e.message || "Could not create the batch");
+      }
     } finally {
       setCreatingBatch(false);
     }
@@ -849,6 +883,12 @@ export default function Data360Page() {
             <p className="text-sm text-gray-500">Upload a document, paste text, or dictate a record — AI reads it and hands back structured data, no field list required. Everything lands in one staging table below.</p>
           </div>
 
+          {quota && !quota.unlimited && (
+            <div className={`rounded-xl px-4 py-2.5 text-xs font-bold flex items-center justify-between gap-3 ${quota.remaining === 0 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-slate-50 text-gray-500 border border-gray-200"}`}>
+              <span>{quota.used} of {quota.limit} free documents used{quota.remaining === 0 ? " — buy a package below to continue" : ""}</span>
+            </div>
+          )}
+
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <button onClick={() => setShowCustomFields(v => !v)} className="w-full flex items-center justify-between text-left">
               <span className="font-black text-gray-900 text-sm flex items-center gap-2"><LayoutTemplate size={15} className="text-teal-600" /> Custom fields (optional)</span>
@@ -1072,6 +1112,22 @@ export default function Data360Page() {
                   {creatingBatch ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Create &amp; Validate
                 </button>
               </div>
+
+              {quotaBlock && (
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                  <p className="text-sm text-amber-800 font-bold">You've used {quotaBlock.used} of your {quotaBlock.limit}-document free quota — choose a package to keep going.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {quotaBlock.packages.map(pkg => (
+                      <div key={pkg.id} className="border border-amber-200 bg-white rounded-xl p-4">
+                        <p className="font-black text-gray-900 text-sm">{pkg.name}</p>
+                        <p className="text-2xl font-black text-teal-700 mt-1">₹{pkg.price_inr.toLocaleString("en-IN")}</p>
+                        <p className="text-xs text-gray-500">{pkg.documents} documents{pkg.support ? " · support provided" : ""}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-amber-700">Payments are handled manually for now — contact support to arrange payment; your quota is credited as soon as it's confirmed.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1697,6 +1753,21 @@ export default function Data360Page() {
               Clear Result Cache
             </button>
           </div>
+
+          {isSuperadmin && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-3">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><ShieldCheck size={15} className="text-teal-600" /> Grant Purchased Quota (superadmin)</h3>
+              <p className="text-xs text-gray-400">No live payment gateway yet — after confirming a package purchase out-of-band, credit the buyer's account here.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input value={grantEmail} onChange={e => setGrantEmail(e.target.value)} placeholder="buyer@email.com" className="flex-1 min-w-[200px] border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                <input value={grantDocs} onChange={e => setGrantDocs(e.target.value)} type="number" min={1} placeholder="100" className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                <button onClick={runGrantQuota} disabled={grantBusy || !grantEmail.trim()} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-xl transition">
+                  {grantBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Grant
+                </button>
+              </div>
+              {grantMsg && <p className="text-xs text-teal-700 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">{grantMsg}</p>}
+            </div>
+          )}
 
           {aiUsageLoading ? (
             <div className="flex items-center justify-center py-16 text-gray-400"><Loader2 className="animate-spin" size={24} /></div>
