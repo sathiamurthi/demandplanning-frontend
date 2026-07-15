@@ -133,6 +133,7 @@ export default function Data360Page() {
   const [focusedRow, setFocusedRow] = useState<D360Row | null>(null);
   const [overrideFields, setOverrideFields] = useState<Record<string, string>>({});
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [reviewErr, setReviewErr] = useState("");
 
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [mappingBusy, setMappingBusy] = useState(false);
@@ -389,7 +390,7 @@ export default function Data360Page() {
   const DEFAULT_MAPPING: Record<string, string> = { extracted_entity: "entity_name", target_field_a: "amount", target_field_b: "email", source_type: "source_type" };
 
   const openReview = async (batchId: string) => {
-    setActiveBatchId(batchId); setReviewLoading(true); setView("review");
+    setActiveBatchId(batchId); setReviewLoading(true); setReviewErr(""); setView("review");
     try {
       const { batch, rows, jobs } = await data360Api.getBatch(batchId);
       setActiveBatch(batch); setActiveRows(rows); setActiveJobs(jobs);
@@ -442,40 +443,11 @@ export default function Data360Page() {
     }
   };
 
-  const refreshReview = async () => {
-    if (!activeBatchId) return;
+  const refreshReview = async (): Promise<D360Row[]> => {
+    if (!activeBatchId) return [];
     const { batch, rows, jobs } = await data360Api.getBatch(activeBatchId);
     setActiveBatch(batch); setActiveRows(rows); setActiveJobs(jobs);
-  };
-
-  const approveRow = async (row: D360Row) => {
-    setRowBusy(row.id);
-    try {
-      await data360Api.updateRow(row.batch_id, row.id, { status: "approved" });
-      await refreshReview();
-      setFocusedRow(null);
-    } finally { setRowBusy(null); }
-  };
-
-  const rejectRow = async (row: D360Row) => {
-    setRowBusy(row.id);
-    try {
-      await data360Api.updateRow(row.batch_id, row.id, { status: "rejected" });
-      await refreshReview();
-      setFocusedRow(null);
-    } finally { setRowBusy(null); }
-  };
-
-  const applyOverride = async (row: D360Row) => {
-    setRowBusy(row.id);
-    try {
-      await data360Api.updateRow(row.batch_id, row.id, {
-        status: "approved",
-        manual_override: { fields: overrideFields },
-      });
-      await refreshReview();
-      setFocusedRow(null);
-    } finally { setRowBusy(null); }
+    return rows;
   };
 
   const openFocusedRow = (row: D360Row) => {
@@ -484,6 +456,52 @@ export default function Data360Page() {
     const seed: Record<string, string> = {};
     for (const name of names) seed[name] = row.fields?.[name] ?? (name === "Amount" ? row.target_field_a : name === "Email" ? row.target_field_b : "") ?? "";
     setOverrideFields(seed);
+  };
+
+  // After resolving one row, jump straight to the next row still awaiting
+  // review (if any) instead of just closing the modal — with several
+  // flagged rows in a batch, silently returning to the table after each one
+  // made it look like nothing was happening / progress was stuck, when
+  // really there was just another row left to handle.
+  const advanceOrClose = (rows: D360Row[], justResolvedId: string) => {
+    const next = rows.find(r => r.id !== justResolvedId && r.requires_manual_review && r.status === "pending");
+    if (next) openFocusedRow(next); else setFocusedRow(null);
+  };
+
+  const approveRow = async (row: D360Row) => {
+    setRowBusy(row.id); setReviewErr("");
+    try {
+      await data360Api.updateRow(row.batch_id, row.id, { status: "approved" });
+      const rows = await refreshReview();
+      advanceOrClose(rows, row.id);
+    } catch (e: any) {
+      setReviewErr(e.message || "Could not approve this row");
+    } finally { setRowBusy(null); }
+  };
+
+  const rejectRow = async (row: D360Row) => {
+    setRowBusy(row.id); setReviewErr("");
+    try {
+      await data360Api.updateRow(row.batch_id, row.id, { status: "rejected" });
+      const rows = await refreshReview();
+      advanceOrClose(rows, row.id);
+    } catch (e: any) {
+      setReviewErr(e.message || "Could not delete this row");
+    } finally { setRowBusy(null); }
+  };
+
+  const applyOverride = async (row: D360Row) => {
+    setRowBusy(row.id); setReviewErr("");
+    try {
+      await data360Api.updateRow(row.batch_id, row.id, {
+        status: "approved",
+        manual_override: { fields: overrideFields },
+      });
+      const rows = await refreshReview();
+      advanceOrClose(rows, row.id);
+    } catch (e: any) {
+      setReviewErr(e.message || "Could not save this override");
+    } finally { setRowBusy(null); }
   };
 
   // ── Distribution ────────────────────────────────────────────────────────
@@ -1055,6 +1073,20 @@ export default function Data360Page() {
                 </div>
               </div>
 
+              {reviewErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{reviewErr}</p>}
+
+              {flaggedPending.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle size={20} className="text-amber-500" />
+                    <p className="text-sm text-amber-700 font-bold">{flaggedPending.length} row{flaggedPending.length === 1 ? "" : "s"} still need{flaggedPending.length === 1 ? "s" : ""} review before you can proceed to Mapping.</p>
+                  </div>
+                  <button onClick={() => openFocusedRow(flaggedPending[0])} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
+                    Review Next <ArrowRight size={14} />
+                  </button>
+                </div>
+              )}
+
               {flaggedPending.length === 0 && activeBatch.status !== "distributed" && (
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
@@ -1080,6 +1112,7 @@ export default function Data360Page() {
               <button onClick={() => setFocusedRow(null)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center shrink-0"><X size={16} /></button>
             </div>
             <div className="p-6 space-y-4 overflow-y-auto grow">
+              {reviewErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{reviewErr}</p>}
               <div className={`text-xs font-bold px-3 py-2 rounded-lg border inline-block ${(VERDICT_STYLE[focusedRow.verdict_level] || VERDICT_STYLE.ok).badge}`}>{focusedRow.agent_verdict}</div>
               {focusedRow.raw_snippet && (
                 <div className="bg-slate-50 border border-gray-200 rounded-lg p-3">
