@@ -1,4 +1,4 @@
-import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, TemplateOutputType, D360GenerationJob } from "./types";
+import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, TemplateOutputType, D360GenerationJob, StudyPack } from "./types";
 
 const BASE = "/v1/data360";
 const TOKEN_KEY = "data360_token";
@@ -70,6 +70,16 @@ export const data360Api = {
     req<{ data: Record<string, any>; provider: string; cached: boolean }>("/ai-extract-auto", { method: "POST", body: JSON.stringify({ raw_snippet, batch_label, file_label }) }),
   aiExtractImageAuto: (image_base64: string, mime_type: string, batch_label?: string, file_label?: string) =>
     req<{ data: Record<string, any>; provider: string; cached: boolean }>("/ai-extract-image-auto", { method: "POST", body: JSON.stringify({ image_base64, mime_type, batch_label, file_label }) }),
+
+  // ── School: chapter -> Study Pack ───────────────────────────────────────
+  // Generative, not extractive — always goes through AI (there's no field
+  // list to fall back to a regex heuristic for). Same cache/cost-tracking
+  // shape as the extraction endpoints; `cached: true` means this exact
+  // chapter + class + board + subject combination was already prepared.
+  studyGuideFromText: (raw_snippet: string, class_level: string, board: string, subject?: string, file_label?: string) =>
+    req<{ data: StudyPack; provider: string; cached: boolean }>("/school/study-guide", { method: "POST", body: JSON.stringify({ raw_snippet, class_level, board, subject, file_label }) }),
+  studyGuideFromImages: (images: { image_base64: string; mime_type: string }[], class_level: string, board: string, subject?: string, file_label?: string) =>
+    req<{ data: StudyPack; provider: string; cached: boolean }>("/school/study-guide-image", { method: "POST", body: JSON.stringify({ images, class_level, board, subject, file_label }) }),
 
   // ── AI usage (Settings — cost/token tracking) ───────────────────────────
   getAiUsage: () => req<{

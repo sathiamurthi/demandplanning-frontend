@@ -92,3 +92,15 @@ export interface D360GenerationJob {
   created_at: string;
   completed_at: string | null;
 }
+
+// ── School: chapter -> Study Pack ───────────────────────────────────────────
+export interface StudyPack {
+  chapter_title: string;
+  subject: string;
+  core_concepts: { concept: string; simple_explanation: string; why_it_matters: string }[];
+  key_terms: { term: string; meaning: string }[];
+  study_plan: { step: number; focus: string; time_minutes: number; activity: string }[];
+  quick_reference: string[];
+  practice_questions: { question: string; hint: string; difficulty: "easy" | "medium" | "hard" }[];
+  common_mistakes: string[];
+}

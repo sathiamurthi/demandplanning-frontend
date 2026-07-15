@@ -7,12 +7,13 @@ import {
   AlertTriangle, ChevronRight, X, Loader2, Plus, LogOut, ArrowRight,
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
+  GraduationCap, BookOpen, Lightbulb, ListChecks,
 } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
 } from "./lib/parsers";
-import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob } from "./lib/types";
+import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob, StudyPack } from "./lib/types";
 
 const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
   invoice: { label: "Invoice", fields: ["Invoice Number", "Vendor Name", "Amount", "Due Date"] },
@@ -38,7 +39,7 @@ const STAGES = [
 ];
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute" | "settings";
+type View = "landing" | "auth" | "dashboard" | "ingest" | "review" | "mapping" | "generate" | "distribute" | "settings" | "school";
 type InputMode = "upload" | "text" | "voice";
 
 const VERDICT_STYLE: Record<string, { badge: string; dot: string }> = {
@@ -120,6 +121,61 @@ export default function Data360Page() {
     } catch { /* ignore */ } finally { setAiUsageLoading(false); }
   };
   useEffect(() => { if (view === "settings") loadAiUsage(); }, [view]);
+
+  // ── School: chapter -> Study Pack ───────────────────────────────────────
+  const BOARD_PRESETS = ["CBSE", "ICSE", "State Board", "IB", "Cambridge / IGCSE"];
+  const [schoolInputMode, setSchoolInputMode] = useState<"upload" | "text">("upload");
+  const [schoolClassLevel, setSchoolClassLevel] = useState("");
+  const [schoolBoard, setSchoolBoard] = useState("CBSE");
+  const [schoolSubject, setSchoolSubject] = useState("");
+  const [schoolChapterLabel, setSchoolChapterLabel] = useState("");
+  const [schoolPasteText, setSchoolPasteText] = useState("");
+  const [schoolBusy, setSchoolBusy] = useState(false);
+  const [schoolErr, setSchoolErr] = useState("");
+  const [schoolResult, setSchoolResult] = useState<StudyPack | null>(null);
+  const [schoolProvider, setSchoolProvider] = useState("");
+  const [schoolCached, setSchoolCached] = useState(false);
+
+  const runStudyGuideFromText = async () => {
+    if (!schoolPasteText.trim() || !schoolClassLevel.trim() || !schoolBoard.trim()) {
+      setSchoolErr("Class and Board are required — paste the chapter text too.");
+      return;
+    }
+    setSchoolBusy(true); setSchoolErr(""); setSchoolResult(null);
+    try {
+      const { data, provider, cached } = await data360Api.studyGuideFromText(schoolPasteText, schoolClassLevel, schoolBoard, schoolSubject || undefined, schoolChapterLabel || undefined);
+      setSchoolResult(data); setSchoolProvider(provider); setSchoolCached(cached);
+    } catch (e: any) {
+      setSchoolErr(e.message || "Could not generate the study pack");
+    } finally { setSchoolBusy(false); }
+  };
+
+  const runStudyGuideFromFiles = async (fileList: FileList) => {
+    if (!schoolClassLevel.trim() || !schoolBoard.trim()) {
+      setSchoolErr("Class and Board are required first.");
+      return;
+    }
+    setSchoolBusy(true); setSchoolErr(""); setSchoolResult(null);
+    try {
+      const images: { image_base64: string; mime_type: string }[] = [];
+      for (const file of Array.from(fileList)) {
+        if (file.type.startsWith("image/")) {
+          images.push({ image_base64: await fileToBase64(file), mime_type: file.type });
+        } else if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+          const pages = await renderPdfPageImages(file, 10);
+          pages.forEach(p => images.push({ image_base64: p.base64, mime_type: p.mimeType }));
+        } else {
+          throw new Error(`"${file.name}" is an unsupported type — use images or a PDF of the chapter pages.`);
+        }
+      }
+      if (images.length === 0) return;
+      if (images.length > 10) images.length = 10; // one chapter's worth of pages per call
+      const { data, provider, cached } = await data360Api.studyGuideFromImages(images, schoolClassLevel, schoolBoard, schoolSubject || undefined, schoolChapterLabel || undefined);
+      setSchoolResult(data); setSchoolProvider(provider); setSchoolCached(cached);
+    } catch (e: any) {
+      setSchoolErr(e.message || "Could not generate the study pack");
+    } finally { setSchoolBusy(false); }
+  };
 
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -554,6 +610,7 @@ export default function Data360Page() {
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button>
               <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button>
+              <button onClick={() => go("school")} className={`hover:text-teal-600 transition ${view === "school" ? "text-teal-600 font-bold" : ""}`}>School</button>
               <button onClick={() => go("settings")} className={`hover:text-teal-600 transition ${view === "settings" ? "text-teal-600 font-bold" : ""}`}>Settings</button>
             </div>
           )}
@@ -1382,6 +1439,171 @@ export default function Data360Page() {
               {distributeResult.result?.table && <p className="text-xs text-gray-600 mt-1 font-mono">Inserted {distributeResult.result.row_count} rows into "{distributeResult.result.table}"</p>}
               {distributeResult.result?.status_code && <p className="text-xs text-gray-600 mt-1">API responded {distributeResult.result.status_code} · {distributeResult.result.row_count} rows sent</p>}
               {distributeResult.result?.response_snippet && <p className="text-[11px] text-gray-400 mt-1 font-mono break-all">{distributeResult.result.response_snippet}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════ SCHOOL ══════════════════════ */}
+      {view === "school" && user && (
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div>
+            <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> School — Chapter to Study Pack</h2>
+            <p className="text-sm text-gray-500">Upload a chapter's pages (or paste its text), tell us the class and board, and get back simplified concepts, a study plan, and a quick-reference guide — generated by AI, not extracted from the source.</p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Class / Grade</label>
+                <input value={schoolClassLevel} onChange={e => setSchoolClassLevel(e.target.value)} placeholder="e.g. Class 8" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Board</label>
+                <input value={schoolBoard} onChange={e => setSchoolBoard(e.target.value)} placeholder="e.g. CBSE" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Subject (optional)</label>
+                <input value={schoolSubject} onChange={e => setSchoolSubject(e.target.value)} placeholder="e.g. Science" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {BOARD_PRESETS.map(b => (
+                <button key={b} onClick={() => setSchoolBoard(b)} className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${schoolBoard === b ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{b}</button>
+              ))}
+            </div>
+            <input value={schoolChapterLabel} onChange={e => setSchoolChapterLabel(e.target.value)} placeholder="Chapter title (optional, for your reference)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+          </div>
+
+          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6">
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {(["upload", "text"] as const).map(key => (
+                <button key={key} onClick={() => setSchoolInputMode(key)}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition ${schoolInputMode === key ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                  {key === "upload" ? <Upload size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} /> : <FileText size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} />}
+                  <span className={`text-xs font-bold ${schoolInputMode === key ? "text-teal-700" : "text-gray-600"}`}>{key === "upload" ? "Upload Pages" : "Paste Text"}</span>
+                </button>
+              ))}
+            </div>
+
+            {schoolInputMode === "upload" && (
+              <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
+                <BookOpen size={22} className="text-gray-300" />
+                <span className="text-sm text-gray-600 font-bold">Drag & drop, or click to choose chapter pages</span>
+                <span className="text-xs text-gray-400">Images or a PDF — up to 10 pages</span>
+                <input type="file" accept="image/*,application/pdf,.pdf" multiple className="hidden"
+                  onChange={e => { if (e.target.files?.length) runStudyGuideFromFiles(e.target.files); e.target.value = ""; }} />
+              </label>
+            )}
+            {schoolInputMode === "text" && (
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Paste the chapter's text</label>
+                <textarea value={schoolPasteText} onChange={e => setSchoolPasteText(e.target.value)} rows={8}
+                  placeholder="Paste the chapter content here…"
+                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                <button onClick={runStudyGuideFromText} disabled={schoolBusy || !schoolPasteText.trim()}
+                  className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
+                  <Sparkles size={13} /> Generate Study Pack
+                </button>
+              </div>
+            )}
+
+            {schoolBusy && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Reading the chapter and building your study pack…</p>}
+            {schoolErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{schoolErr}</p>}
+          </div>
+
+          {schoolResult && (
+            <div className="space-y-5">
+              <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="font-black text-gray-900 text-lg">{schoolResult.chapter_title}</h3>
+                    <p className="text-xs text-gray-400">{schoolResult.subject} · {schoolClassLevel} · {schoolBoard}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-400">via {schoolProvider}</span>
+                    {schoolCached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
+                  </div>
+                </div>
+              </div>
+
+              {schoolResult.quick_reference?.length > 0 && (
+                <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6">
+                  <h4 className="font-black text-teal-800 text-sm mb-3 flex items-center gap-2"><ListChecks size={16} /> Quick Reference</h4>
+                  <ul className="space-y-1.5">
+                    {schoolResult.quick_reference.map((q, i) => <li key={i} className="text-sm text-teal-900 flex gap-2"><span className="text-teal-400">•</span>{q}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {schoolResult.core_concepts?.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-amber-500" /> Core Concepts</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {schoolResult.core_concepts.map((c, i) => (
+                      <div key={i} className="border border-gray-200 rounded-xl p-4">
+                        <p className="font-bold text-gray-900 text-sm">{c.concept}</p>
+                        <p className="text-sm text-gray-600 mt-1">{c.simple_explanation}</p>
+                        <p className="text-xs text-gray-400 mt-2 italic">Why it matters: {c.why_it_matters}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult.key_terms?.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Key Terms</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {schoolResult.key_terms.map((t, i) => (
+                      <div key={i} className="text-sm"><span className="font-bold text-gray-900">{t.term}:</span> <span className="text-gray-600">{t.meaning}</span></div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult.study_plan?.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><ClipboardCheck size={16} className="text-teal-600" /> Study Plan</h4>
+                  <div className="space-y-2">
+                    {schoolResult.study_plan.map((s, i) => (
+                      <div key={i} className="flex items-start gap-3 border border-gray-100 rounded-xl p-3">
+                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{s.step}</span>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{s.focus} <span className="text-xs font-normal text-gray-400">· {s.time_minutes} min</span></p>
+                          <p className="text-xs text-gray-600 mt-0.5">{s.activity}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult.practice_questions?.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={16} className="text-teal-600" /> Practice Questions</h4>
+                  <div className="space-y-2">
+                    {schoolResult.practice_questions.map((q, i) => (
+                      <div key={i} className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-900">{i + 1}. {q.question}</p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${q.difficulty === "easy" ? "bg-green-50 text-green-700 border-green-200" : q.difficulty === "hard" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{q.difficulty}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">Hint: {q.hint}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult.common_mistakes?.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                  <h4 className="font-black text-amber-800 text-sm mb-3 flex items-center gap-2"><AlertTriangle size={16} /> Common Mistakes to Avoid</h4>
+                  <ul className="space-y-1.5">
+                    {schoolResult.common_mistakes.map((m, i) => <li key={i} className="text-sm text-amber-900 flex gap-2"><span className="text-amber-400">•</span>{m}</li>)}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
