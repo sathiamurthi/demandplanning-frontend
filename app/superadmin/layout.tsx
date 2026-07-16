@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Building2, Shield, Bell,
   MessageSquare, CreditCard, BarChart2, Bot, LogOut,
   ChevronRight, Menu, X, Tag, Briefcase, Store, GraduationCap, Rocket,
-  Rss, Megaphone, Car, ShieldCheck,
+  Rss, Megaphone, Car, ShieldCheck, Database,
 } from "lucide-react";
 
 const NAV = [
@@ -25,6 +25,7 @@ const NAV = [
   { href: "/superadmin/enterprise-apps", label: "Enterprise Apps",  icon: Store },
   { href: "/superadmin/edu360",          label: "Edu360",           icon: GraduationCap },
   { href: "/superadmin/college360",      label: "College360",       icon: Rocket },
+  { href: "/superadmin/data360",         label: "Data360",          icon: Database },
   { href: "/superadmin/ride360",         label: "Ride360",          icon: Car },
   { href: "/superadmin/saferide360",     label: "SafeRide360",      icon: ShieldCheck },
   { href: "/superadmin/feeds",          label: "Feed Subscriptions",icon: Rss },

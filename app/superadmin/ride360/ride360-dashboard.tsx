@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { Car, Users, TrendingUp, Gift, Bot, RefreshCw } from "lucide-react";
+import AccountTable, { type AccountRow } from "../components/AccountTable";
 
 interface Overview {
   users: {
@@ -15,7 +16,6 @@ interface Overview {
   invites: { total: number };
   aiUsage: { feature: string; n: number }[];
 }
-interface Ride360User { id: string; name: string | null; email: string | null; phone: string | null; type: "driver" | "customer"; vehicle_type: string | null; subscription_plan: string; created_at: string; last_login_at: string | null }
 interface Invite { id: string; referrer_type: string; referrer_name: string; invitee_type: string; invitee_name: string; created_at: string }
 
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""; }
@@ -32,7 +32,6 @@ const StatCard = ({ label, value, sub, icon: Icon }: { label: string; value: str
 export default function Ride360Dashboard() {
   const [tab, setTab] = useState<"overview" | "users" | "invites" | "ai">("overview");
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [users, setUsers] = useState<Ride360User[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [aiUsage, setAiUsage] = useState<{ feature: string; day: string; n: number }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,9 +45,6 @@ export default function Ride360Dashboard() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
-  const loadUsers = useCallback(() => {
-    fetch("/v1/superadmin/ride360/users", { headers: auth() }).then(r => r.json()).then(d => { if (d.success) setUsers(d.data); });
-  }, []);
   const loadInvites = useCallback(() => {
     fetch("/v1/superadmin/ride360/invites", { headers: auth() }).then(r => r.json()).then(d => { if (d.success) setInvites(d.data); });
   }, []);
@@ -58,7 +54,6 @@ export default function Ride360Dashboard() {
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
   useEffect(() => {
-    if (tab === "users" && users.length === 0) loadUsers();
     if (tab === "invites" && invites.length === 0) loadInvites();
     if (tab === "ai" && aiUsage.length === 0) loadAIUsage();
   }, [tab]);
@@ -126,25 +121,18 @@ export default function Ride360Dashboard() {
       )}
 
       {tab === "users" && (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Name / Contact</th><th className="text-left px-4 py-3">Plan</th><th className="text-left px-4 py-3">Registered</th><th className="text-left px-4 py-3">Last Login</th></tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={`${u.type}_${u.id}`} className="border-t border-gray-100">
-                  <td className="px-4 py-2.5"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${u.type === "driver" ? "bg-amber-50 text-amber-700" : "bg-sky-50 text-sky-700"}`}>{u.type}</span></td>
-                  <td className="px-4 py-2.5 text-gray-900 font-medium">{u.name || u.phone || u.email || "—"}{u.vehicle_type ? ` · ${u.vehicle_type}` : ""}</td>
-                  <td className="px-4 py-2.5 text-gray-500 capitalize">{u.subscription_plan}</td>
-                  <td className="px-4 py-2.5 text-gray-400">{new Date(u.created_at).toLocaleDateString("en-IN")}</td>
-                  <td className="px-4 py-2.5 text-gray-400">{u.last_login_at ? new Date(u.last_login_at).toLocaleDateString("en-IN") : "—"}</td>
-                </tr>
-              ))}
-              {users.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No users yet.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <AccountTable
+          listUrl="/v1/superadmin/ride360/users"
+          actionBase={(row) => `/v1/superadmin/ride360/${row.type === "driver" ? "drivers" : "customers"}`}
+          emptyLabel="No users yet."
+          columns={[
+            { key: "type", label: "Type", render: r => <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.type === "driver" ? "bg-amber-50 text-amber-700" : "bg-sky-50 text-sky-700"}`}>{r.type}</span> },
+            { key: "name", label: "Name / Contact", render: r => <>{r.name || r.phone || r.email || "—"}{r.vehicle_type ? ` · ${r.vehicle_type}` : ""}</> },
+            { key: "subscription_plan", label: "Plan" },
+            { key: "created_at", label: "Registered", render: r => new Date(r.created_at).toLocaleDateString("en-IN") },
+            { key: "last_login_at", label: "Last Login", render: r => r.last_login_at ? new Date(r.last_login_at).toLocaleDateString("en-IN") : "—" },
+          ]}
+        />
       )}
 
       {tab === "invites" && (

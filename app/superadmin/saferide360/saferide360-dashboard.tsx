@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, Users, Bus, MapPin, TrendingUp, Siren, RefreshCw, Building2, CreditCard, Loader2 } from "lucide-react";
+import AccountTable from "../components/AccountTable";
 
 interface Overview {
   organizations: number;
@@ -27,7 +28,7 @@ const StatCard = ({ label, value, sub, icon: Icon }: { label: string; value: str
 );
 
 export default function SafeRide360Dashboard() {
-  const [tab, setTab] = useState<"overview" | "organizations" | "trips">("overview");
+  const [tab, setTab] = useState<"overview" | "organizations" | "drivers" | "trips">("overview");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [trips, setTrips] = useState<TripRow[]>([]);
@@ -68,7 +69,7 @@ export default function SafeRide360Dashboard() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
 
       <div className="flex gap-2 border-b border-gray-200">
-        {(["overview", "organizations", "trips"] as const).map(t => (
+        {(["overview", "organizations", "drivers", "trips"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-bold capitalize border-b-2 -mb-px transition ${tab === t ? "border-teal-500 text-teal-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
             {t}
           </button>
@@ -132,6 +133,21 @@ export default function SafeRide360Dashboard() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {tab === "drivers" && (
+        <AccountTable
+          listUrl="/v1/superadmin/saferide360/drivers"
+          actionBase="/v1/superadmin/saferide360/drivers"
+          emptyLabel="No drivers yet."
+          columns={[
+            { key: "name", label: "Name" },
+            { key: "phone", label: "Phone" },
+            { key: "vehicle_number", label: "Vehicle", render: r => <>{r.vehicle_type} · {r.vehicle_number}</> },
+            { key: "organization_name", label: "Organization" },
+            { key: "created_at", label: "Registered", render: r => new Date(r.created_at).toLocaleDateString("en-IN") },
+          ]}
+        />
       )}
 
       {tab === "trips" && (
