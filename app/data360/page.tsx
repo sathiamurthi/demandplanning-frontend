@@ -1125,7 +1125,13 @@ export default function Data360Page() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] text-amber-700">Payments are handled manually for now — contact support to arrange payment; your quota is credited as soon as it's confirmed.</p>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-[11px] text-amber-700">Payments are handled manually for now — contact support to arrange payment; your quota is credited as soon as it's confirmed.</p>
+                    <a href={`mailto:paariwalaconnect@gmail.com?subject=${encodeURIComponent("Data360 package purchase")}&body=${encodeURIComponent(`Hi,\n\nI'd like to purchase a Data360 document package.\n\nAccount email: ${user?.email || ""}\nPackage: \n\nThanks!`)}`}
+                      className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded-lg transition shrink-0">
+                      <Globe size={12} /> Contact paariwalaconnect@gmail.com
+                    </a>
+                  </div>
                 </div>
               )}
             </div>
