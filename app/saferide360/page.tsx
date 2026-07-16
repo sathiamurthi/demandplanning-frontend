@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ShieldCheck, Loader2, LogOut, ArrowRight, Plus, MapPin, Users, Bus, Bell,
-  CheckCircle, XCircle, AlertTriangle, Phone, X, Navigation, Siren,
+  CheckCircle, XCircle, AlertTriangle, Phone, X, Navigation, Siren, Mic, MicOff,
+  MessageSquare, CreditCard, Pencil,
 } from "lucide-react";
-import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole } from "./lib/api";
-import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification } from "./lib/types";
+import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
+import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing } from "./lib/types";
 import LiveMap from "./components/LiveMap";
 import type { LiveStop } from "./lib/mapProvider";
 import { InstallAppBadge } from "../../components/InstallApp";
@@ -115,6 +116,30 @@ export default function SafeRide360Page() {
   };
   useEffect(() => { if (view === "driver-dashboard" || view === "driver-setup") loadDriverData(); }, [view]);
 
+  // ── Package plan: ₹100/passenger/month ──────────────────────────────
+  const [billing, setBilling] = useState<Billing | null>(null);
+  const loadBilling = async () => {
+    try { setBilling(await saferide360Api.getBilling()); } catch { /* ignore */ }
+  };
+  useEffect(() => { if (view === "driver-dashboard") loadBilling(); }, [view]);
+  const [tripStartErr, setTripStartErr] = useState<{ message: string; passengerCount: number; ratePerPassenger: number; monthlyCost: number } | null>(null);
+
+  // ── Vehicle info edit ────────────────────────────────────────────────
+  const [editingVehicle, setEditingVehicle] = useState(false);
+  const [vNumber, setVNumber] = useState(""); const [vType, setVType] = useState("van"); const [vSaving, setVSaving] = useState(false);
+  const openVehicleEdit = () => {
+    if (driver) { setVNumber(driver.vehicleNumber); setVType(driver.vehicleType); }
+    setEditingVehicle(true);
+  };
+  const saveVehicle = async () => {
+    setVSaving(true);
+    try {
+      const updated = await saferide360Api.updateVehicle(vNumber.trim() || undefined, vType || undefined);
+      setDriver(updated);
+      setEditingVehicle(false);
+    } finally { setVSaving(false); }
+  };
+
   const [newStopName, setNewStopName] = useState(""); const [newStopLat, setNewStopLat] = useState(""); const [newStopLng, setNewStopLng] = useState("");
   const addStop = async () => {
     if (!newStopName.trim() || !newStopLat || !newStopLng) return;
@@ -158,11 +183,20 @@ export default function SafeRide360Page() {
   };
 
   const startTrip = async (t: Trip) => {
-    const updated = await saferide360Api.startTrip(t.id);
-    setActiveTrip(updated);
-    setTrips(prev => prev.map(x => x.id === updated.id ? updated : x));
-    const tp = await saferide360Api.listTripPassengers(updated.id);
-    setTripPassengers(tp);
+    setTripStartErr(null);
+    try {
+      const updated = await saferide360Api.startTrip(t.id);
+      setActiveTrip(updated);
+      setTrips(prev => prev.map(x => x.id === updated.id ? updated : x));
+      const tp = await saferide360Api.listTripPassengers(updated.id);
+      setTripPassengers(tp);
+    } catch (e: any) {
+      if (e instanceof ApiError && e.code === "SUBSCRIPTION_REQUIRED") {
+        setTripStartErr({ message: e.message, passengerCount: e.data.passengerCount, ratePerPassenger: e.data.ratePerPassenger, monthlyCost: e.data.monthlyCost });
+      } else {
+        throw e;
+      }
+    }
   };
 
   // Broadcasts position every ~7s while a trip is active — matches the
@@ -206,6 +240,43 @@ export default function SafeRide360Page() {
     if (!activeTrip || !confirm("Send an emergency alert to every parent on this trip?")) return;
     setSosBusy(true);
     try { await saferide360Api.sosTrip(activeTrip.id); setSosSent(true); } finally { setSosBusy(false); }
+  };
+
+  // ── Custom update to parents (typed or voice-recorded -> transcribed) ──
+  const [showAlertComposer, setShowAlertComposer] = useState(false);
+  const [alertType, setAlertType] = useState<"delay" | "traffic" | "vehicle_issue" | "custom">("delay");
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertBusy, setAlertBusy] = useState(false); const [alertSentMsg, setAlertSentMsg] = useState("");
+  const [voiceActive, setVoiceActive] = useState(false);
+  const voiceRecognizerRef = useRef<any>(null);
+
+  const isVoiceSupported = () => typeof window !== "undefined" && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const toggleVoiceRecord = () => {
+    if (voiceActive) { voiceRecognizerRef.current?.stop(); return; }
+    if (!isVoiceSupported()) { alert("Voice recording isn't supported in this browser — try Chrome or Edge."); return; }
+    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognizer = new Ctor();
+    recognizer.continuous = true; recognizer.interimResults = true; recognizer.lang = "en-US";
+    recognizer.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) transcript += event.results[i][0].transcript;
+      setAlertMessage(transcript);
+    };
+    recognizer.onerror = () => setVoiceActive(false);
+    recognizer.onend = () => setVoiceActive(false);
+    voiceRecognizerRef.current = recognizer;
+    recognizer.start();
+    setVoiceActive(true);
+  };
+
+  const sendTripAlert = async () => {
+    if (!activeTrip || !alertMessage.trim()) return;
+    setAlertBusy(true); setAlertSentMsg("");
+    try {
+      const { alerted } = await saferide360Api.alertTrip(activeTrip.id, alertMessage.trim(), alertType);
+      setAlertSentMsg(`Sent to ${alerted} parent${alerted === 1 ? "" : "s"}.`);
+      setAlertMessage("");
+    } finally { setAlertBusy(false); }
   };
 
   // ── Guardian: dashboard ───────────────────────────────────────────────
@@ -313,9 +384,48 @@ export default function SafeRide360Page() {
       {view === "driver-dashboard" && driver && (
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
           <div className="flex items-center justify-between">
-            <div><h2 className="text-xl font-black text-gray-900">{organization?.name}</h2><p className="text-xs text-gray-400">{driver.name} · {driver.vehicleNumber || "No vehicle set"}</p></div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900">{organization?.name}</h2>
+              <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                {driver.name} · {driver.vehicleType} {driver.vehicleNumber || "(no vehicle set)"}
+                <button onClick={openVehicleEdit} className="text-teal-600 hover:underline flex items-center gap-0.5"><Pencil size={10} /> Edit</button>
+              </p>
+            </div>
             <button onClick={() => go("driver-setup")} className="flex items-center gap-1.5 text-xs font-bold text-teal-600 border border-teal-200 hover:bg-teal-50 px-3 py-2 rounded-lg transition"><Plus size={13} /> Setup</button>
           </div>
+
+          {editingVehicle && (
+            <div className="bg-white border border-teal-200 rounded-2xl p-5 space-y-3">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Bus size={14} className="text-teal-600" /> Vehicle Info</h3>
+              <div className="flex gap-2">
+                <input value={vNumber} onChange={e => setVNumber(e.target.value)} placeholder="Vehicle Number" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                <select value={vType} onChange={e => setVType(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                  <option value="van">Van</option><option value="bus">Bus</option><option value="auto">Auto</option><option value="car">Car</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveVehicle} disabled={vSaving} className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
+                  {vSaving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Save
+                </button>
+                <button onClick={() => setEditingVehicle(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {billing && (
+            <div className={`rounded-2xl p-5 border ${billing.isActive ? "bg-white border-gray-200" : "bg-amber-50 border-amber-200"}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard size={16} className={billing.isActive ? "text-teal-600" : "text-amber-600"} />
+                  <p className="text-sm font-bold text-gray-900">₹{billing.organization.planRateInrPerPassenger}/passenger/month</p>
+                </div>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${billing.isActive ? "bg-teal-50 text-teal-700" : "bg-amber-100 text-amber-700"}`}>
+                  {billing.inTrial ? `Free trial · ends ${new Date(billing.organization.trialEndsAt).toLocaleDateString("en-IN")}` : billing.isActive ? "Active" : "Expired"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">{billing.passengerCount} passenger{billing.passengerCount === 1 ? "" : "s"} × ₹{billing.organization.planRateInrPerPassenger} = <strong>₹{billing.monthlyCost}/month</strong></p>
+            </div>
+          )}
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-3">
@@ -394,7 +504,16 @@ export default function SafeRide360Page() {
             </div>
 
             {activeTrip.status === "scheduled" && (
-              <button onClick={() => startTrip(activeTrip)} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black text-sm py-3.5 rounded-2xl transition">Start Trip</button>
+              <div className="space-y-3">
+                <button onClick={() => startTrip(activeTrip)} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black text-sm py-3.5 rounded-2xl transition">Start Trip</button>
+                {tripStartErr && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
+                    <p className="text-sm text-amber-800 font-bold flex items-center gap-1.5"><CreditCard size={14} /> Subscription required</p>
+                    <p className="text-xs text-amber-700">{tripStartErr.message}</p>
+                    <p className="text-[11px] text-amber-600">Contact support to activate — payments are handled manually for now.</p>
+                  </div>
+                )}
+              </div>
             )}
 
             {activeTrip.status === "active" && (
@@ -414,6 +533,32 @@ export default function SafeRide360Page() {
                     </div>
                   ))}
                 </div>
+                <button onClick={() => setShowAlertComposer(v => !v)} className="w-full flex items-center justify-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 font-bold text-sm py-3 rounded-xl transition">
+                  <MessageSquare size={14} /> {showAlertComposer ? "Hide" : "Send Update to Parents"}
+                </button>
+
+                {showAlertComposer && (
+                  <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {([["delay", "⏰ Delay"], ["traffic", "🚦 Traffic"], ["vehicle_issue", "🔧 Vehicle Issue"], ["custom", "📢 Other"]] as const).map(([key, label]) => (
+                        <button key={key} onClick={() => setAlertType(key)} className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${alertType === key ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{label}</button>
+                      ))}
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <textarea value={alertMessage} onChange={e => setAlertMessage(e.target.value)} rows={2} placeholder="Type a message, or tap the mic to record…"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                      <button onClick={toggleVoiceRecord} className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition ${voiceActive ? "bg-red-500 animate-pulse" : "bg-gray-100 hover:bg-gray-200"}`}>
+                        {voiceActive ? <MicOff size={16} className="text-white" /> : <Mic size={16} className="text-gray-600" />}
+                      </button>
+                    </div>
+                    {voiceActive && <p className="text-[11px] text-teal-600">Listening… tap the mic to stop.</p>}
+                    <button onClick={sendTripAlert} disabled={alertBusy || !alertMessage.trim()} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-sm py-2.5 rounded-lg transition">
+                      {alertBusy ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />} Send to All Parents on This Trip
+                    </button>
+                    {alertSentMsg && <p className="text-[11px] text-teal-600 font-bold">{alertSentMsg}</p>}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <button onClick={raiseSos} disabled={sosBusy || sosSent} className="flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 font-bold text-sm py-3 rounded-xl transition"><Siren size={14} /> {sosSent ? "Alert Sent" : "SOS"}</button>
                   <button onClick={completeTrip} className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm py-3 rounded-xl transition">Complete Trip</button>

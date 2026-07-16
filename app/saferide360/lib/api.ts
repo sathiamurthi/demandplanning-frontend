@@ -1,4 +1,4 @@
-import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry } from "./types";
+import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing } from "./types";
 
 const BASE = "/v1/saferide360";
 const TOKEN_KEY = "saferide360_token";
@@ -10,13 +10,27 @@ export const clearToken = () => { localStorage.removeItem(TOKEN_KEY); localStora
 export const getStoredRole = (): "driver" | "guardian" | null => (typeof window !== "undefined" ? (localStorage.getItem(ROLE_KEY) as any) : null);
 export const setStoredRole = (r: "driver" | "guardian") => localStorage.setItem(ROLE_KEY, r);
 
+// Carries the extra fields a 402 SUBSCRIPTION_REQUIRED response includes
+// (passengerCount, ratePerPassenger, monthlyCost) so the caller can render
+// a real paywall with numbers instead of a generic error string — same
+// pattern as Data360's quota ApiError.
+export class ApiError extends Error {
+  code?: string;
+  data?: any;
+  constructor(message: string, code?: string, data?: any) {
+    super(message);
+    this.code = code;
+    this.data = data;
+  }
+}
+
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = { "Content-Type": "application/json", ...(opts.headers as any) };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...opts, headers });
   const json = await res.json().catch(() => ({ success: false, error: "Invalid server response" }));
-  if (!res.ok || !json.success) throw new Error(json.error || `Request failed (${res.status})`);
+  if (!res.ok || !json.success) throw new ApiError(json.error || `Request failed (${res.status})`, json.code, json);
   return json.data as T;
 }
 
@@ -55,6 +69,13 @@ export const saferide360Api = {
     req<TripPassenger>(`/trip-passengers/${tripPassengerId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
   completeTrip: (id: string) => req<Trip>(`/trips/${id}/complete`, { method: "POST" }),
   sosTrip: (id: string) => req<{ alerted: number }>(`/trips/${id}/sos`, { method: "POST" }),
+  alertTrip: (id: string, message: string, alert_type?: "delay" | "traffic" | "vehicle_issue" | "custom") =>
+    req<{ alerted: number }>(`/trips/${id}/alert`, { method: "POST", body: JSON.stringify({ message, alert_type }) }),
+
+  // ── Driver: vehicle + billing ────────────────────────────────────────
+  updateVehicle: (vehicle_number?: string, vehicle_type?: string) =>
+    req<Driver>("/auth/driver/vehicle", { method: "PATCH", body: JSON.stringify({ vehicle_number, vehicle_type }) }),
+  getBilling: () => req<Billing>("/organization/billing"),
 
   // ── Guardian views ───────────────────────────────────────────────────
   myChildren: () => req<Passenger[]>("/guardian/children"),

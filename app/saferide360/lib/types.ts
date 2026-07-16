@@ -1,4 +1,10 @@
-export interface Organization { id: string; name: string; orgType: string; createdAt: string; }
+export interface Organization {
+  id: string; name: string; orgType: string; createdAt: string;
+  trialEndsAt: string; subscriptionActiveUntil?: string; planRateInrPerPassenger: number;
+}
+export interface Billing {
+  organization: Organization; passengerCount: number; monthlyCost: number; isActive: boolean; inTrial: boolean;
+}
 export interface Driver {
   id: string; organizationId: string; name: string; phone: string;
   vehicleNumber: string; vehicleType: string; createdAt: string;

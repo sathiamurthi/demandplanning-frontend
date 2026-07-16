@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, Users, Bus, MapPin, TrendingUp, Siren, RefreshCw, Building2 } from "lucide-react";
+import { ShieldCheck, Users, Bus, MapPin, TrendingUp, Siren, RefreshCw, Building2, CreditCard, Loader2 } from "lucide-react";
 
 interface Overview {
   organizations: number;
@@ -12,6 +12,7 @@ interface Overview {
   sos7d: number;
 }
 interface Org { id: string; name: string; org_type: string; driver_count: number; passenger_count: number; created_at: string }
+interface ActivateResult { id: string; name: string; subscription_active_until: string }
 interface TripRow { id: string; name: string; direction: string; status: string; driver_name: string; vehicle_number: string; organization_name: string; created_at: string }
 
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("token") || "" : ""; }
@@ -109,9 +110,12 @@ export default function SafeRide360Dashboard() {
 
       {tab === "organizations" && (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 text-xs text-amber-800 flex items-center gap-2">
+            <CreditCard size={13} className="shrink-0" /> No live payment gateway yet — after confirming a package purchase (₹100/passenger/month) out-of-band, extend the org's paid-up-until date here.
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr><th className="text-left px-4 py-3">Name</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Drivers</th><th className="text-left px-4 py-3">Passengers</th><th className="text-left px-4 py-3">Created</th></tr>
+              <tr><th className="text-left px-4 py-3">Name</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Drivers</th><th className="text-left px-4 py-3">Passengers</th><th className="text-left px-4 py-3">Created</th><th className="text-left px-4 py-3">Extend Subscription</th></tr>
             </thead>
             <tbody>
               {orgs.map(o => (
@@ -121,9 +125,10 @@ export default function SafeRide360Dashboard() {
                   <td className="px-4 py-2.5 text-gray-900">{o.driver_count}</td>
                   <td className="px-4 py-2.5 text-gray-900">{o.passenger_count}</td>
                   <td className="px-4 py-2.5 text-gray-400">{new Date(o.created_at).toLocaleDateString("en-IN")}</td>
+                  <td className="px-4 py-2.5"><ExtendSubscription orgId={o.id} /></td>
                 </tr>
               ))}
-              {orgs.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No organizations yet.</td></tr>}
+              {orgs.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No organizations yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -150,6 +155,39 @@ export default function SafeRide360Dashboard() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function ExtendSubscription({ orgId }: { orgId: string }) {
+  const [months, setMonths] = useState("1");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const activate = () => {
+    const m = parseInt(months, 10);
+    if (!m || m <= 0) return;
+    setBusy(true); setMsg("");
+    fetch("/v1/superadmin/saferide360/activate-subscription", {
+      method: "POST", headers: auth(), body: JSON.stringify({ organization_id: orgId, months: m }),
+    })
+      .then(r => r.json())
+      .then((d: { success: boolean; data?: ActivateResult; error?: string }) => {
+        if (d.success && d.data) setMsg(`Active until ${new Date(d.data.subscription_active_until).toLocaleDateString("en-IN")}`);
+        else setMsg(d.error || "Failed");
+      })
+      .catch(e => setMsg(e.message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input value={months} onChange={e => setMonths(e.target.value)} type="number" min={1} className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-xs" />
+      <span className="text-[10px] text-gray-400">mo</span>
+      <button onClick={activate} disabled={busy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition">
+        {busy ? <Loader2 size={11} className="animate-spin" /> : <CreditCard size={11} />} Activate
+      </button>
+      {msg && <span className="text-[10px] text-teal-600 font-bold">{msg}</span>}
     </div>
   );
 }
