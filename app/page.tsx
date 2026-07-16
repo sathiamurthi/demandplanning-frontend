@@ -9,7 +9,7 @@ import {
   Zap, Globe, Users, Truck, Leaf, Pill, Wrench, ShoppingCart, Store,
   CheckCircle, ChevronRight, LayoutDashboard, Bell, Search,
   MapPin, Phone, CreditCard, FileText, Brain, RefreshCw,
-  Bot, FileSpreadsheet, GraduationCap, Briefcase, School, Database, Car,
+  Bot, FileSpreadsheet, GraduationCap, Briefcase, School, Database, Car, ShieldCheck,
 } from "lucide-react";
 
 /* -- INDUSTRIES --------------------------------------- */
@@ -505,6 +505,30 @@ export default function HomePage() {
               <div className="pt-4 border-t border-gray-200">
                 <Link href="/ride360" className="block text-center bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
                   Open RideConnect360
+                </Link>
+              </div>
+            </div>
+
+            {/* SafeRide360 */}
+            <div className="bg-slate-50 border border-gray-200 hover:border-teal-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
+              <div>
+                <span className="text-[10px] tracking-wider uppercase text-teal-700 font-black bg-teal-100 px-2.5 py-1 rounded-full">Child Safety Transport</span>
+                <div className="my-5 flex items-center gap-3">
+                  <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center border border-teal-200 shrink-0">
+                    <ShieldCheck className="text-teal-600" size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">SafeRide360</h3><InstallAppBadge label="SafeRide360" /></div>
+                    <p className="text-[10px] text-gray-400">Where is my child?</p>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed mb-6">
+                  Live school pickup/drop tracking for parents and drivers — real-time vehicle location, pickup/absent status per child, and instant WhatsApp alerts for delays or emergencies.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <Link href="/saferide360" className="block text-center bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open SafeRide360
                 </Link>
               </div>
             </div>
