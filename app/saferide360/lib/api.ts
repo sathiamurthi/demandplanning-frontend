@@ -1,4 +1,4 @@
-import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing } from "./types";
+import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult } from "./types";
 
 const BASE = "/v1/saferide360";
 const TOKEN_KEY = "saferide360_token";
@@ -42,7 +42,10 @@ export const saferide360Api = {
     req<{ token: string; driver: Driver; organization: Organization | null }>("/auth/driver/login", { method: "POST", body: JSON.stringify({ phone, password }) }),
   meDriver: () => req<{ driver: Driver; organization: Organization | null }>("/auth/driver/me"),
 
-  // ── Guardian auth (WhatsApp OTP) ─────────────────────────────────────
+  // ── Guardian auth ─────────────────────────────────────────────────────
+  // Phone-only login (no OTP) — see backend comment on /auth/guardian/login
+  // for why: WhatsApp Cloud API sandbox blocks OTP delivery to real numbers.
+  loginGuardian: (phone: string) => req<{ token: string; phone: string }>("/auth/guardian/login", { method: "POST", body: JSON.stringify({ phone }) }),
   sendGuardianOtp: (phone: string) => req<{ sent: boolean; skipped: boolean; hint?: string }>("/auth/guardian/send-otp", { method: "POST", body: JSON.stringify({ phone }) }),
   verifyGuardianOtp: (phone: string, otp: string) => req<{ token: string; phone: string }>("/auth/guardian/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp }) }),
 
@@ -51,11 +54,14 @@ export const saferide360Api = {
   createStop: (name: string, lat: number, lng: number, sequence: number) =>
     req<Stop>("/stops", { method: "POST", body: JSON.stringify({ name, lat, lng, sequence }) }),
   deleteStop: (id: string) => req<{ deleted: true }>(`/stops/${id}`, { method: "DELETE" }),
+  geocodeSearch: (q: string) => req<GeocodeResult[]>(`/geocode/search?q=${encodeURIComponent(q)}`),
 
   // ── Driver: passengers ───────────────────────────────────────────────
   listPassengers: () => req<Passenger[]>("/passengers"),
-  createPassenger: (body: { name: string; guardian_name: string; guardian_phone: string; pickup_stop_id?: string; drop_stop_id?: string }) =>
+  createPassenger: (body: { name: string; guardian_name: string; guardian_phone: string; pickup_stop_id?: string; drop_stop_id?: string; school_name?: string }) =>
     req<Passenger>("/passengers", { method: "POST", body: JSON.stringify(body) }),
+  updatePassenger: (id: string, body: { name?: string; guardian_name?: string; guardian_phone?: string; pickup_stop_id?: string; drop_stop_id?: string; school_name?: string }) =>
+    req<Passenger>(`/passengers/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deletePassenger: (id: string) => req<{ deleted: true }>(`/passengers/${id}`, { method: "DELETE" }),
 
   // ── Driver: trips ────────────────────────────────────────────────────
@@ -67,7 +73,8 @@ export const saferide360Api = {
   listTripPassengers: (id: string) => req<(TripPassenger & { passengerName: string })[]>(`/trips/${id}/passengers`),
   markTripPassenger: (tripPassengerId: string, status: "picked" | "absent") =>
     req<TripPassenger>(`/trip-passengers/${tripPassengerId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  completeTrip: (id: string) => req<Trip>(`/trips/${id}/complete`, { method: "POST" }),
+  completeTrip: (id: string, confirmed_in_vehicle: number) =>
+    req<Trip>(`/trips/${id}/complete`, { method: "POST", body: JSON.stringify({ confirmed_in_vehicle }) }),
   sosTrip: (id: string) => req<{ alerted: number }>(`/trips/${id}/sos`, { method: "POST" }),
   alertTrip: (id: string, message: string, alert_type?: "delay" | "traffic" | "vehicle_issue" | "custom") =>
     req<{ alerted: number }>(`/trips/${id}/alert`, { method: "POST", body: JSON.stringify({ message, alert_type }) }),

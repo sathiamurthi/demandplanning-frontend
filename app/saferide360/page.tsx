@@ -7,7 +7,7 @@ import {
   MessageSquare, CreditCard, Pencil,
 } from "lucide-react";
 import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
-import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing } from "./lib/types";
+import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult } from "./lib/types";
 import LiveMap from "./components/LiveMap";
 import type { LiveStop } from "./lib/mapProvider";
 import { InstallAppBadge } from "../../components/InstallApp";
@@ -48,33 +48,20 @@ export default function SafeRide360Page() {
     }
   };
 
-  // ── Guardian auth (WhatsApp OTP) ─────────────────────────────────────
-  const [gPhone, setGPhone] = useState(""); const [gOtp, setGOtp] = useState("");
-  const [gOtpSent, setGOtpSent] = useState(false); const [gAuthErr, setGAuthErr] = useState(""); const [gAuthBusy, setGAuthBusy] = useState(false);
-  const [gHint, setGHint] = useState("");
+  // ── Guardian auth (phone-only, no OTP — see backend /auth/guardian/login
+  // comment: WhatsApp Cloud API sandbox blocks OTP delivery to real numbers) ──
+  const [gPhone, setGPhone] = useState("");
+  const [gAuthErr, setGAuthErr] = useState(""); const [gAuthBusy, setGAuthBusy] = useState(false);
 
-  const sendGuardianOtp = async () => {
+  const loginGuardian = async () => {
     if (!gPhone.trim()) return;
     setGAuthErr(""); setGAuthBusy(true);
     try {
-      const res = await saferide360Api.sendGuardianOtp(gPhone);
-      setGOtpSent(true);
-      setGHint(res.hint || "");
-    } catch (e: any) {
-      setGAuthErr(e.message || "Could not send the code");
-    } finally {
-      setGAuthBusy(false);
-    }
-  };
-  const verifyGuardianOtp = async () => {
-    if (!gOtp.trim()) return;
-    setGAuthErr(""); setGAuthBusy(true);
-    try {
-      const { token } = await saferide360Api.verifyGuardianOtp(gPhone, gOtp);
+      const { token } = await saferide360Api.loginGuardian(gPhone);
       setToken(token); setStoredRole("guardian"); setRole("guardian");
       go("guardian-dashboard");
     } catch (e: any) {
-      setGAuthErr(e.message || "Incorrect or expired code");
+      setGAuthErr(e.message || "Could not log in");
     } finally {
       setGAuthBusy(false);
     }
@@ -123,6 +110,7 @@ export default function SafeRide360Page() {
   };
   useEffect(() => { if (view === "driver-dashboard") loadBilling(); }, [view]);
   const [tripStartErr, setTripStartErr] = useState<{ message: string; passengerCount: number; ratePerPassenger: number; monthlyCost: number } | null>(null);
+  const [tripStartGenericErr, setTripStartGenericErr] = useState("");
 
   // ── Vehicle info edit ────────────────────────────────────────────────
   const [editingVehicle, setEditingVehicle] = useState(false);
@@ -141,23 +129,77 @@ export default function SafeRide360Page() {
   };
 
   const [newStopName, setNewStopName] = useState(""); const [newStopLat, setNewStopLat] = useState(""); const [newStopLng, setNewStopLng] = useState("");
+  const [stopErr, setStopErr] = useState(""); const [stopBusy, setStopBusy] = useState(false); const [locatingStop, setLocatingStop] = useState(false);
+  const [stopSuggestions, setStopSuggestions] = useState<GeocodeResult[]>([]); const [stopSuggestBusy, setStopSuggestBusy] = useState(false);
+  const stopSuggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onStopNameChange = (val: string) => {
+    setNewStopName(val); setStopErr("");
+    if (stopSuggestTimer.current) clearTimeout(stopSuggestTimer.current);
+    if (val.trim().length < 3) { setStopSuggestions([]); return; }
+    stopSuggestTimer.current = setTimeout(async () => {
+      setStopSuggestBusy(true);
+      try { setStopSuggestions(await saferide360Api.geocodeSearch(val.trim())); }
+      catch { setStopSuggestions([]); }
+      finally { setStopSuggestBusy(false); }
+    }, 400);
+  };
+  const pickStopSuggestion = (r: GeocodeResult) => {
+    setNewStopName(r.label.split(",").slice(0, 2).join(",").trim());
+    setNewStopLat(String(r.lat)); setNewStopLng(String(r.lng));
+    setStopSuggestions([]);
+  };
+
   const addStop = async () => {
-    if (!newStopName.trim() || !newStopLat || !newStopLng) return;
-    const s = await saferide360Api.createStop(newStopName.trim(), parseFloat(newStopLat), parseFloat(newStopLng), stops.length);
-    setStops(prev => [...prev, s]); setNewStopName(""); setNewStopLat(""); setNewStopLng("");
+    setStopErr("");
+    if (!newStopName.trim()) { setStopErr("Enter a stop name."); return; }
+    if (!newStopLat || !newStopLng) { setStopErr("Pick a location suggestion or use \"Use my location\" to set coordinates."); return; }
+    setStopBusy(true);
+    try {
+      const s = await saferide360Api.createStop(newStopName.trim(), parseFloat(newStopLat), parseFloat(newStopLng), stops.length);
+      setStops(prev => [...prev, s]); setNewStopName(""); setNewStopLat(""); setNewStopLng(""); setStopSuggestions([]);
+    } catch (e: any) {
+      setStopErr(e.message || "Could not add this stop.");
+    } finally {
+      setStopBusy(false);
+    }
   };
   const useMyLocationForStop = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => { setNewStopLat(String(pos.coords.latitude)); setNewStopLng(String(pos.coords.longitude)); });
+    setStopErr("");
+    if (!navigator.geolocation) { setStopErr("Location isn't supported in this browser."); return; }
+    setLocatingStop(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => { setNewStopLat(String(pos.coords.latitude)); setNewStopLng(String(pos.coords.longitude)); setLocatingStop(false); },
+      err => { setStopErr(err.code === err.PERMISSION_DENIED ? "Location permission denied — allow location access in your browser settings, or search for the stop above." : "Could not get your location — try again or search for the stop above."); setLocatingStop(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const [newPName, setNewPName] = useState(""); const [newPGuardianName, setNewPGuardianName] = useState("");
   const [newPGuardianPhone, setNewPGuardianPhone] = useState(""); const [newPPickup, setNewPPickup] = useState(""); const [newPDrop, setNewPDrop] = useState("");
+  const [newPSchool, setNewPSchool] = useState(""); const [passengerErr, setPassengerErr] = useState(""); const [passengerBusy, setPassengerBusy] = useState(false);
   const addPassenger = async () => {
-    if (!newPName.trim() || !newPGuardianName.trim() || !newPGuardianPhone.trim()) return;
-    const p = await saferide360Api.createPassenger({ name: newPName.trim(), guardian_name: newPGuardianName.trim(), guardian_phone: newPGuardianPhone.trim(), pickup_stop_id: newPPickup || undefined, drop_stop_id: newPDrop || undefined });
-    setPassengers(prev => [...prev, p]); setNewPName(""); setNewPGuardianName(""); setNewPGuardianPhone(""); setNewPPickup(""); setNewPDrop("");
+    setPassengerErr("");
+    if (!newPName.trim() || !newPGuardianName.trim() || !newPGuardianPhone.trim()) {
+      setPassengerErr("Student name, parent name and parent mobile are required.");
+      return;
+    }
+    setPassengerBusy(true);
+    try {
+      const p = await saferide360Api.createPassenger({
+        name: newPName.trim(), guardian_name: newPGuardianName.trim(), guardian_phone: newPGuardianPhone.trim(),
+        pickup_stop_id: newPPickup || undefined, drop_stop_id: newPDrop || undefined, school_name: newPSchool.trim() || undefined,
+      });
+      setPassengers(prev => [...prev, p]); setNewPName(""); setNewPGuardianName(""); setNewPGuardianPhone(""); setNewPPickup(""); setNewPDrop(""); setNewPSchool("");
+    } catch (e: any) {
+      setPassengerErr(e.message || "Could not add this passenger.");
+    } finally {
+      setPassengerBusy(false);
+    }
   };
+  // Default the per-passenger school field to the org's own name — still
+  // editable per student (e.g. a shared van serving more than one school).
+  useEffect(() => { if (view === "driver-setup" && organization && !newPSchool) setNewPSchool(organization.name); }, [view, organization]);
 
   const [newTName, setNewTName] = useState(""); const [newTDirection, setNewTDirection] = useState<"pickup" | "drop">("pickup");
   const [newTStart, setNewTStart] = useState("07:00"); const [newTEnd, setNewTEnd] = useState("08:00");
@@ -183,7 +225,7 @@ export default function SafeRide360Page() {
   };
 
   const startTrip = async (t: Trip) => {
-    setTripStartErr(null);
+    setTripStartErr(null); setTripStartGenericErr("");
     try {
       const updated = await saferide360Api.startTrip(t.id);
       setActiveTrip(updated);
@@ -194,7 +236,7 @@ export default function SafeRide360Page() {
       if (e instanceof ApiError && e.code === "SUBSCRIPTION_REQUIRED") {
         setTripStartErr({ message: e.message, passengerCount: e.data.passengerCount, ratePerPassenger: e.data.ratePerPassenger, monthlyCost: e.data.monthlyCost });
       } else {
-        throw e;
+        setTripStartGenericErr(e.message || "Could not start this trip.");
       }
     }
   };
@@ -227,12 +269,35 @@ export default function SafeRide360Page() {
     setTripPassengers(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
   };
 
-  const completeTrip = async () => {
+  // Safety gate: driver confirms the actual headcount in the vehicle before
+  // the trip can complete — must match the number marked "picked" in the
+  // app, or the backend rejects with HEADCOUNT_MISMATCH so the driver can
+  // recheck/correct each student's status first.
+  const [showHeadcountConfirm, setShowHeadcountConfirm] = useState(false);
+  const [headcountInput, setHeadcountInput] = useState("");
+  const [headcountErr, setHeadcountErr] = useState("");
+  const [completeBusy, setCompleteBusy] = useState(false);
+  const pickedCount = tripPassengers.filter(tp => tp.status === "picked").length;
+
+  const openCompleteTrip = () => {
+    setHeadcountInput(String(pickedCount)); setHeadcountErr(""); setShowHeadcountConfirm(true);
+  };
+  const confirmCompleteTrip = async () => {
     if (!activeTrip) return;
-    const updated = await saferide360Api.completeTrip(activeTrip.id);
-    setActiveTrip(updated);
-    setTrips(prev => prev.map(x => x.id === updated.id ? updated : x));
-    go("driver-dashboard");
+    const n = parseInt(headcountInput, 10);
+    if (isNaN(n) || n < 0) { setHeadcountErr("Enter a valid number."); return; }
+    setCompleteBusy(true); setHeadcountErr("");
+    try {
+      const updated = await saferide360Api.completeTrip(activeTrip.id, n);
+      setActiveTrip(updated);
+      setTrips(prev => prev.map(x => x.id === updated.id ? updated : x));
+      setShowHeadcountConfirm(false);
+      go("driver-dashboard");
+    } catch (e: any) {
+      setHeadcountErr(e.message || "Could not complete this trip.");
+    } finally {
+      setCompleteBusy(false);
+    }
   };
 
   const [sosBusy, setSosBusy] = useState(false); const [sosSent, setSosSent] = useState(false);
@@ -462,14 +527,33 @@ export default function SafeRide360Page() {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><MapPin size={15} className="text-teal-600" /> Pickup / Drop Points</h3>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <input value={newStopName} onChange={e => setNewStopName(e.target.value)} placeholder="Stop name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs flex-1 min-w-[120px]" />
+            <p className="text-[11px] text-gray-400 mb-3">One-time setup — order stops in pickup/drop sequence; a trip defaults students to this order.</p>
+            <div className="flex flex-wrap items-start gap-2 mb-1">
+              <div className="relative flex-1 min-w-[160px]">
+                <input value={newStopName} onChange={e => onStopNameChange(e.target.value)} placeholder="Search for a place…" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                {(stopSuggestBusy || stopSuggestions.length > 0) && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {stopSuggestBusy && <div className="px-3 py-2 text-[11px] text-gray-400">Searching…</div>}
+                    {stopSuggestions.map((r, i) => (
+                      <button key={i} type="button" onClick={() => pickStopSuggestion(r)} className="w-full text-left px-3 py-2 text-[11px] text-gray-700 hover:bg-teal-50 border-b border-gray-50 last:border-0">
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <input value={newStopLat} onChange={e => setNewStopLat(e.target.value)} placeholder="Lat" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-24" />
               <input value={newStopLng} onChange={e => setNewStopLng(e.target.value)} placeholder="Lng" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-24" />
-              <button onClick={useMyLocationForStop} className="text-xs font-bold text-teal-600 border border-teal-200 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition"><Navigation size={12} className="inline mr-1" />Use my location</button>
-              <button onClick={addStop} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">Add</button>
+              <button onClick={useMyLocationForStop} disabled={locatingStop} className="flex items-center gap-1 text-xs font-bold text-teal-600 border border-teal-200 hover:bg-teal-50 disabled:opacity-50 px-2 py-1.5 rounded-lg transition">
+                {locatingStop ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />} Use my location
+              </button>
+              <button onClick={addStop} disabled={stopBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                {stopBusy && <Loader2 size={12} className="animate-spin" />} Add
+              </button>
             </div>
-            <div className="space-y-1.5">
+            {stopErr && <p className="text-[11px] text-red-600 mt-1 mb-2">{stopErr}</p>}
+            <div className="space-y-1.5 mt-3">
+              {stops.length === 0 && <p className="text-xs text-gray-400">No stops yet — search for a place above, or use "Use my location".</p>}
               {stops.map((s, i) => <div key={s.id} className="text-xs text-gray-700 flex items-center gap-2"><span className="text-gray-400">{i + 1}.</span> {s.name} <span className="text-gray-300">({s.lat.toFixed(4)}, {s.lng.toFixed(4)})</span></div>)}
             </div>
           </div>
@@ -478,6 +562,7 @@ export default function SafeRide360Page() {
             <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Users size={15} className="text-teal-600" /> Passengers</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
               <input value={newPName} onChange={e => setNewPName(e.target.value)} placeholder="Student Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+              <input value={newPSchool} onChange={e => setNewPSchool(e.target.value)} placeholder="School Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
               <input value={newPGuardianName} onChange={e => setNewPGuardianName(e.target.value)} placeholder="Parent Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
               <input value={newPGuardianPhone} onChange={e => setNewPGuardianPhone(e.target.value)} placeholder="Parent Mobile" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
               <div className="flex gap-2">
@@ -485,9 +570,17 @@ export default function SafeRide360Page() {
                 <select value={newPDrop} onChange={e => setNewPDrop(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white flex-1"><option value="">Drop stop…</option>{stops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               </div>
             </div>
-            <button onClick={addPassenger} className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition mb-3">Add Passenger</button>
+            {stops.length === 0 && <p className="text-[11px] text-amber-600 mb-2">No stops set up yet — add one in Pickup / Drop Points above so you can assign it here.</p>}
+            {passengerErr && <p className="text-[11px] text-red-600 mb-2">{passengerErr}</p>}
+            <button onClick={addPassenger} disabled={passengerBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition mb-3">
+              {passengerBusy && <Loader2 size={12} className="animate-spin" />} Add Passenger
+            </button>
             <div className="space-y-1.5">
-              {passengers.map(p => <div key={p.id} className="text-xs text-gray-700">• {p.name} <span className="text-gray-400">(guardian: {p.guardianName}, {p.guardianPhone})</span></div>)}
+              {passengers.map(p => (
+                <div key={p.id} className="text-xs text-gray-700">
+                  • {p.name} {p.schoolName && <span className="text-teal-600">({p.schoolName})</span>} <span className="text-gray-400">— guardian: {p.guardianName}, {p.guardianPhone}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -513,6 +606,11 @@ export default function SafeRide360Page() {
                     <p className="text-[11px] text-amber-600">Contact support to activate — payments are handled manually for now.</p>
                   </div>
                 )}
+                {tripStartGenericErr && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <p className="text-xs text-red-700 font-bold flex items-center gap-1.5"><AlertTriangle size={14} /> {tripStartGenericErr}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -524,7 +622,7 @@ export default function SafeRide360Page() {
                       <span className="text-sm font-bold text-gray-900">{tp.passengerName}</span>
                       {tp.status === "pending" ? (
                         <div className="flex gap-2">
-                          <button onClick={() => markPassenger(tp.id, "picked")} className="flex items-center gap-1 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 px-2.5 py-1.5 rounded-lg transition"><CheckCircle size={12} /> Picked Up</button>
+                          <button onClick={() => markPassenger(tp.id, "picked")} className="flex items-center gap-1 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 px-2.5 py-1.5 rounded-lg transition"><CheckCircle size={12} /> Confirm Pickup</button>
                           <button onClick={() => markPassenger(tp.id, "absent")} className="flex items-center gap-1 text-xs font-bold text-gray-500 border border-gray-200 hover:bg-gray-100 px-2.5 py-1.5 rounded-lg transition"><XCircle size={12} /> Absent</button>
                         </div>
                       ) : (
@@ -533,6 +631,7 @@ export default function SafeRide360Page() {
                     </div>
                   ))}
                 </div>
+                <p className="text-[11px] text-gray-400">Any student not confirmed will be marked absent when the trip completes.</p>
                 <button onClick={() => setShowAlertComposer(v => !v)} className="w-full flex items-center justify-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 font-bold text-sm py-3 rounded-xl transition">
                   <MessageSquare size={14} /> {showAlertComposer ? "Hide" : "Send Update to Parents"}
                 </button>
@@ -561,9 +660,26 @@ export default function SafeRide360Page() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <button onClick={raiseSos} disabled={sosBusy || sosSent} className="flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 font-bold text-sm py-3 rounded-xl transition"><Siren size={14} /> {sosSent ? "Alert Sent" : "SOS"}</button>
-                  <button onClick={completeTrip} className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm py-3 rounded-xl transition">Complete Trip</button>
+                  <button onClick={openCompleteTrip} className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm py-3 rounded-xl transition">Complete Trip</button>
                 </div>
                 <p className="text-[11px] text-gray-400 text-center">Keep this screen open — live location is shared with parents while the trip is active.</p>
+
+                {showHeadcountConfirm && (
+                  <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowHeadcountConfirm(false)}>
+                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
+                      <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><ShieldCheck size={16} className="text-teal-600" /> Confirm Headcount</h3>
+                      <p className="text-xs text-gray-500">{pickedCount} student{pickedCount === 1 ? "" : "s"} marked confirmed in the app. How many students are physically in the vehicle right now?</p>
+                      <input type="number" min={0} value={headcountInput} onChange={e => setHeadcountInput(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-center font-bold" />
+                      {headcountErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{headcountErr}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={() => setShowHeadcountConfirm(false)} className="flex-1 text-xs font-bold text-gray-500 hover:text-gray-700 py-2.5">Cancel</button>
+                        <button onClick={confirmCompleteTrip} disabled={completeBusy} className="flex-1 flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs py-2.5 rounded-lg transition">
+                          {completeBusy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />} Confirm &amp; Complete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -575,22 +691,12 @@ export default function SafeRide360Page() {
         <div className="max-w-md mx-auto px-4 py-12">
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
             <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><Phone size={16} className="text-teal-600" /> Parent Login</h2>
-            <p className="text-xs text-gray-400">Use the mobile number your driver already has on file — we'll send a WhatsApp code.</p>
-            <input value={gPhone} onChange={e => setGPhone(e.target.value)} disabled={gOtpSent} placeholder="Mobile Number" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm disabled:bg-gray-50" />
-            {gOtpSent && (
-              <input value={gOtp} onChange={e => setGOtp(e.target.value)} placeholder="6-digit code" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            )}
-            {gHint && <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">{gHint}</p>}
+            <p className="text-xs text-gray-400">Use the mobile number your driver already has on file for your child.</p>
+            <input value={gPhone} onChange={e => setGPhone(e.target.value)} onKeyDown={e => e.key === "Enter" && loginGuardian()} placeholder="Mobile Number" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
             {gAuthErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{gAuthErr}</p>}
-            {!gOtpSent ? (
-              <button onClick={sendGuardianOtp} disabled={gAuthBusy || !gPhone.trim()} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition">
-                {gAuthBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />} Send Code
-              </button>
-            ) : (
-              <button onClick={verifyGuardianOtp} disabled={gAuthBusy || !gOtp.trim()} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition">
-                {gAuthBusy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />} Verify &amp; Log In
-              </button>
-            )}
+            <button onClick={loginGuardian} disabled={gAuthBusy || !gPhone.trim()} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition">
+              {gAuthBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />} Log In
+            </button>
           </div>
         </div>
       )}

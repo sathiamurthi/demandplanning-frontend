@@ -14,7 +14,9 @@ export interface Passenger {
   id: string; organizationId: string; name: string;
   guardianName: string; guardianPhone: string;
   pickupStopId?: string; dropStopId?: string;
+  schoolName?: string;
 }
+export interface GeocodeResult { label: string; lat: number; lng: number; }
 export type TripDirection = "pickup" | "drop";
 export type TripStatus = "scheduled" | "active" | "completed";
 export interface Trip {
