@@ -23,6 +23,27 @@ function tripStatusLabel(status: string): string {
   return "Not Started";
 }
 
+// "Today" / "Yesterday" / a real date — a parent scanning notifications
+// thinks in days, not a flat reverse-chronological list.
+function dateGroupLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOf(now) - startOf(d)) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return d.toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "short" });
+}
+function groupNotificationsByDate<T extends { createdAt: string }>(items: T[]): [string, T[]][] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const label = dateGroupLabel(item.createdAt);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label)!.push(item);
+  }
+  return Array.from(groups.entries());
+}
+
 export default function SafeRide360Page() {
   const [view, setView] = useState<View>("landing");
   const [role, setRole] = useState<Role | null>(null);
@@ -97,6 +118,7 @@ export default function SafeRide360Page() {
   const handleLogout = () => { clearToken(); setRole(null); setDriver(null); setOrganization(null); go("landing"); };
 
 // ── Driver: stops/passengers/trips ───────────────────────────────────
+  const [setupTab, setSetupTab] = useState<"stops" | "students" | "templates">("stops");
   const [stops, setStops] = useState<Stop[]>([]);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -600,6 +622,20 @@ export default function SafeRide360Page() {
         <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
           <button onClick={() => go("driver-dashboard")} className="text-sm text-gray-500 hover:text-teal-600">← Back to Dashboard</button>
 
+          {/* Tabs, not a long stacked scroll — each section is one click away */}
+          <div className="flex gap-1 bg-gray-100 border border-gray-200 rounded-xl p-1 w-fit flex-wrap">
+            {([
+              ["stops", "Pickup / Drop Points", stops.length],
+              ["students", "Students", passengers.length],
+              ["templates", "Trip Templates", tripTemplates.length],
+            ] as const).map(([key, label, count]) => (
+              <button key={key} onClick={() => setSetupTab(key)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition ${setupTab === key ? "bg-white text-teal-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                {label} <span className={`text-[10px] rounded-full px-1.5 ${setupTab === key ? "bg-teal-50 text-teal-600" : "bg-gray-200 text-gray-500"}`}>{count}</span>
+              </button>
+            ))}
+          </div>
+
+          {setupTab === "stops" && (
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><MapPin size={15} className="text-teal-600" /> Pickup / Drop Points</h3>
             <p className="text-[11px] text-gray-400 mb-3">One-time setup — order stops in pickup/drop sequence; a trip defaults students to this order.</p>
@@ -632,7 +668,9 @@ export default function SafeRide360Page() {
               {stops.map((s, i) => <div key={s.id} className="text-xs text-gray-700 flex items-center gap-2"><span className="text-gray-400">{i + 1}.</span> {s.name} <span className="text-gray-300">({s.lat.toFixed(4)}, {s.lng.toFixed(4)})</span></div>)}
             </div>
           </div>
+          )}
 
+          {setupTab === "students" && (
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Users size={15} className="text-teal-600" /> Students</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
@@ -649,7 +687,11 @@ export default function SafeRide360Page() {
                 <select value={newPDrop} onChange={e => setNewPDrop(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"><option value="">Select…</option>{stops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               </div>
             </div>
-            {stops.length === 0 && <p className="text-[11px] text-amber-600 mb-2">No stops set up yet — add one in Pickup / Drop Points above so you can assign it here.</p>}
+            {stops.length === 0 && (
+              <p className="text-[11px] text-amber-600 mb-2">
+                No stops set up yet — <button onClick={() => setSetupTab("stops")} className="font-bold underline">add one in Pickup / Drop Points</button> so you can assign it here.
+              </p>
+            )}
             {passengerErr && <p className="text-[11px] text-red-600 mb-2">{passengerErr}</p>}
             <div className="flex gap-2 mb-3">
               <button onClick={addPassenger} disabled={passengerBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
@@ -670,7 +712,9 @@ export default function SafeRide360Page() {
               ))}
             </div>
           </div>
+          )}
 
+          {setupTab === "templates" && (
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Bus size={15} className="text-teal-600" /> Trip Templates</h3>
             <p className="text-[11px] text-gray-400 mb-3">Configure a trip once — select students, save it — then reuse it every time you create a trip instead of picking students again.</p>
@@ -683,16 +727,26 @@ export default function SafeRide360Page() {
             </div>
             {templateErr && <p className="text-[11px] text-red-600 mb-2">{templateErr}</p>}
             {passengers.length === 0 ? (
-              <p className="text-xs text-gray-400 mb-3">Add students above before configuring a trip template.</p>
+              <p className="text-xs text-gray-400 mb-3">
+                <button onClick={() => setSetupTab("students")} className="font-bold text-teal-600 underline">Add students</button> before configuring a trip template.
+              </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-3 max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2">
-                {passengers.map(p => (
-                  <label key={p.id} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={templateSelection.includes(p.id)} onChange={() => toggleTemplatePassenger(p.id)} className="accent-teal-600" />
-                    {p.name}
-                  </label>
-                ))}
-              </div>
+              <>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-gray-400">{templateSelection.length} of {passengers.length} selected</span>
+                  <button onClick={() => setTemplateSelection(templateSelection.length === passengers.length ? [] : passengers.map(p => p.id))} className="text-[11px] font-bold text-teal-600 hover:underline">
+                    {templateSelection.length === passengers.length ? "Clear all" : "Select all"}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-3 max-h-64 overflow-y-auto border border-gray-100 rounded-lg p-2">
+                  {passengers.map(p => (
+                    <label key={p.id} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={templateSelection.includes(p.id)} onChange={() => toggleTemplatePassenger(p.id)} className="accent-teal-600" />
+                      {p.name}
+                    </label>
+                  ))}
+                </div>
+              </>
             )}
             <div className="space-y-1.5">
               {tripTemplates.length === 0 && <p className="text-xs text-gray-400">No templates yet — select students above and save one.</p>}
@@ -708,6 +762,7 @@ export default function SafeRide360Page() {
               ))}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -884,11 +939,19 @@ export default function SafeRide360Page() {
                 <h3 className="font-black text-gray-900 text-sm flex items-center gap-2"><Bell size={14} className="text-teal-600" /> Notifications</h3>
                 {unreadCount > 0 && <button onClick={async () => { await saferide360Api.markNotificationsRead(); loadGuardianData(); }} className="text-[11px] font-bold text-teal-600 hover:underline">Mark all read</button>}
               </div>
-              <div className="space-y-2 max-h-72 overflow-y-auto">
-                {gNotifications.map(n => (
-                  <div key={n.id} className={`text-xs p-2.5 rounded-lg ${n.read ? "text-gray-500 bg-gray-50" : "text-gray-800 bg-teal-50 font-medium"}`}>
-                    <p className="whitespace-pre-line">{n.text}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString("en-IN")}</p>
+              <p className="text-[11px] text-gray-400 mb-2">Older notifications are cleaned up automatically.</p>
+              <div className="space-y-3 max-h-72 overflow-y-auto">
+                {groupNotificationsByDate(gNotifications).map(([label, items]) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 sticky top-0 bg-white">{label}</p>
+                    <div className="space-y-2">
+                      {items.map(n => (
+                        <div key={n.id} className={`text-xs p-2.5 rounded-lg ${n.read ? "text-gray-500 bg-gray-50" : "text-gray-800 bg-teal-50 font-medium"}`}>
+                          <p className="whitespace-pre-line">{n.text}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>

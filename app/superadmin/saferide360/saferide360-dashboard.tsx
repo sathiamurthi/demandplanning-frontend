@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, Users, Bus, MapPin, TrendingUp, Siren, RefreshCw, Building2, CreditCard, Loader2 } from "lucide-react";
+import { ShieldCheck, Users, Bus, MapPin, TrendingUp, Siren, RefreshCw, Building2, CreditCard, Loader2, Settings, Save, CheckCircle } from "lucide-react";
 import AccountTable from "../components/AccountTable";
 
 interface Overview {
@@ -28,7 +28,7 @@ const StatCard = ({ label, value, sub, icon: Icon }: { label: string; value: str
 );
 
 export default function SafeRide360Dashboard() {
-  const [tab, setTab] = useState<"overview" | "organizations" | "drivers" | "trips">("overview");
+  const [tab, setTab] = useState<"overview" | "organizations" | "drivers" | "trips" | "config">("overview");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [trips, setTrips] = useState<TripRow[]>([]);
@@ -69,7 +69,7 @@ export default function SafeRide360Dashboard() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
 
       <div className="flex gap-2 border-b border-gray-200">
-        {(["overview", "organizations", "drivers", "trips"] as const).map(t => (
+        {(["overview", "organizations", "drivers", "trips", "config"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-bold capitalize border-b-2 -mb-px transition ${tab === t ? "border-teal-500 text-teal-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
             {t}
           </button>
@@ -171,6 +171,61 @@ export default function SafeRide360Dashboard() {
           </table>
         </div>
       )}
+
+      {tab === "config" && <ConfigTab />}
+    </div>
+  );
+}
+
+// Notification cleanup schedule shown to parents — "keep last N days" is a
+// setting here (platform_config key "saferide360"), not a hardcoded number
+// in the backend job.
+function ConfigTab() {
+  const [days, setDays] = useState("5");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
+
+  useEffect(() => {
+    fetch("/v1/superadmin/platform-config", { headers: auth() })
+      .then(r => r.json())
+      .then(d => { const n = d?.data?.saferide360?.notificationRetentionDays; if (n) setDays(String(n)); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    const n = parseInt(days, 10);
+    if (!n || n <= 0) { setStatus("err"); return; }
+    setSaving(true); setStatus("idle");
+    try {
+      const r = await fetch("/v1/superadmin/platform-config", {
+        method: "PUT", headers: auth(), body: JSON.stringify({ key: "saferide360", value: { notificationRetentionDays: n } }),
+      });
+      setStatus(r.ok ? "ok" : "err");
+    } catch { setStatus("err"); }
+    setSaving(false);
+  };
+
+  if (loading) return <p className="text-sm text-gray-400">Loading…</p>;
+
+  return (
+    <div className="max-w-md space-y-4">
+      <div className="bg-white border border-gray-200 rounded-2xl p-5">
+        <p className="font-black text-gray-900 text-sm flex items-center gap-2"><Settings size={15} className="text-teal-600" /> Guardian Notification Cleanup</p>
+        <p className="text-xs text-gray-500 mt-1 mb-3">Parents see notifications grouped by date in their app. Older notifications are purged automatically on this schedule (checked every 6 hours).</p>
+        <div className="flex items-center gap-2">
+          <input type="number" min={1} value={days} onChange={e => setDays(e.target.value)} className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center font-bold" />
+          <span className="text-sm text-gray-500">days of history to keep</span>
+        </div>
+        <div className="flex items-center gap-3 mt-4">
+          <button onClick={save} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-60 text-white rounded-lg text-sm font-semibold transition">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save
+          </button>
+          {status === "ok" && <span className="text-sm text-emerald-600 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}
+          {status === "err" && <span className="text-sm text-red-500">Save failed — enter a number of days &gt; 0</span>}
+        </div>
+      </div>
     </div>
   );
 }
