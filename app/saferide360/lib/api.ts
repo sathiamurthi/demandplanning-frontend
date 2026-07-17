@@ -76,8 +76,8 @@ export const saferide360Api = {
   listTrips: () => req<Trip[]>("/trips"),
   createTrip: (body: { name: string; direction: "pickup" | "drop"; scheduled_start_time: string; scheduled_end_time: string; template_id?: string }) =>
     req<Trip>("/trips", { method: "POST", body: JSON.stringify(body) }),
-  startTrip: (id: string, confirmed_students: number) =>
-    req<Trip>(`/trips/${id}/start`, { method: "POST", body: JSON.stringify({ confirmed_students }) }),
+  startTrip: (id: string, confirmed_students: number, passenger_ids?: string[]) =>
+    req<Trip>(`/trips/${id}/start`, { method: "POST", body: JSON.stringify({ confirmed_students, passenger_ids }) }),
   tripRosterPreview: (id: string) => req<TripRosterEntry[]>(`/trips/${id}/roster-preview`),
   updateTripLive: (id: string, lat: number, lng: number) => req<Trip>(`/trips/${id}/live`, { method: "PATCH", body: JSON.stringify({ lat, lng }) }),
   listTripPassengers: (id: string) => req<(TripPassenger & { passengerName: string })[]>(`/trips/${id}/passengers`),

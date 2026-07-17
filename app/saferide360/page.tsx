@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ShieldCheck, Loader2, LogOut, ArrowRight, Plus, MapPin, Users, Bus, Bell,
   CheckCircle, XCircle, AlertTriangle, Phone, X, Navigation, Siren, Mic, MicOff,
-  MessageSquare, CreditCard, Pencil,
+  MessageSquare, CreditCard, Pencil, RefreshCw,
 } from "lucide-react";
 import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
 import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop, SubstituteDriver, AbsenceKind } from "./lib/types";
@@ -389,40 +389,63 @@ export default function SafeRide360Page() {
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [tripPassengers, setTripPassengers] = useState<(TripPassenger & { passengerName: string })[]>([]);
   const [rosterPreview, setRosterPreview] = useState<TripRosterEntry[]>([]);
+  const [selectedRosterIds, setSelectedRosterIds] = useState<Set<string>>(new Set());
+  const [rosterLoading, setRosterLoading] = useState(false);
   const [confirmedCountInput, setConfirmedCountInput] = useState("");
   const [startCountErr, setStartCountErr] = useState("");
   const [startBusy, setStartBusy] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const lastBroadcastRef = useRef(0);
 
-  const expectedRosterCount = rosterPreview.filter(r => !r.absentToday).length;
+  // Loaded fresh every time — a newly-onboarded student (once they have a
+  // pickup/drop stop set) shows up automatically, no stale snapshot.
+  const loadRosterPreview = async (tripId: string) => {
+    setRosterLoading(true);
+    try {
+      const preview = await saferide360Api.tripRosterPreview(tripId);
+      setRosterPreview(preview);
+      const selectable = preview.filter(r => !r.absentToday).map(r => r.passengerId);
+      setSelectedRosterIds(new Set(selectable));
+      setConfirmedCountInput(String(selectable.length));
+    } catch { /* ignore, non-critical preview */ } finally {
+      setRosterLoading(false);
+    }
+  };
+
+  const toggleRosterSelection = (passengerId: string) => {
+    setSelectedRosterIds(prev => {
+      const next = new Set(prev);
+      if (next.has(passengerId)) next.delete(passengerId); else next.add(passengerId);
+      setConfirmedCountInput(String(next.size));
+      return next;
+    });
+  };
 
   const openTrip = async (t: Trip) => {
     setActiveTrip(t);
-    setRosterPreview([]); setConfirmedCountInput(""); setStartCountErr("");
+    setRosterPreview([]); setSelectedRosterIds(new Set()); setConfirmedCountInput(""); setStartCountErr("");
     if (t.status === "active") {
       const tp = await saferide360Api.listTripPassengers(t.id);
       setTripPassengers(tp);
     } else if (t.status === "scheduled") {
-      try {
-        const preview = await saferide360Api.tripRosterPreview(t.id);
-        setRosterPreview(preview);
-        setConfirmedCountInput(String(preview.filter(r => !r.absentToday).length));
-      } catch { /* ignore, non-critical preview */ }
+      await loadRosterPreview(t.id);
     }
     go("driver-trip");
   };
 
   // Driver must confirm the expected headcount (total minus today's
-  // absentees) before a trip can start — same safety-gate shape as the
-  // existing complete-trip confirmation, just at the other end of the trip.
+  // absentees, and any they deselected) before a trip can start — same
+  // safety-gate shape as the existing complete-trip confirmation, just at
+  // the other end of the trip. passenger_ids lets the driver flex the
+  // roster right here (deselect a no-show, or a newly-onboarded student
+  // who isn't riding yet) without needing a saved template.
   const startTrip = async (t: Trip) => {
     setTripStartErr(null); setTripStartGenericErr(""); setStartCountErr("");
     const n = parseInt(confirmedCountInput, 10);
     if (isNaN(n) || n < 0) { setStartCountErr("Enter a valid number of students."); return; }
     setStartBusy(true);
     try {
-      const updated = await saferide360Api.startTrip(t.id, n);
+      const updated = await saferide360Api.startTrip(t.id, n, Array.from(selectedRosterIds));
       setActiveTrip(updated);
       setTrips(prev => prev.map(x => x.id === updated.id ? updated : x));
       const tp = await saferide360Api.listTripPassengers(updated.id);
@@ -1026,17 +1049,28 @@ export default function SafeRide360Page() {
               <div className="space-y-3">
                 {rosterPreview.length > 0 && (
                   <div className="border border-gray-100 rounded-xl p-3">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                      On this trip ({expectedRosterCount} of {rosterPreview.length})
-                    </p>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        On this trip ({selectedRosterIds.size} of {rosterPreview.length})
+                      </p>
+                      <button onClick={() => activeTrip && loadRosterPreview(activeTrip.id)} disabled={rosterLoading} className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:underline disabled:opacity-50">
+                        {rosterLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />} Refresh
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mb-2">Uncheck anyone not riding today, or hit Refresh if you just added a new student.</p>
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
                       {rosterPreview.map(r => (
-                        <div key={r.passengerId} className={`flex items-center justify-between text-xs rounded-lg px-2 py-1.5 ${r.absentToday ? "bg-gray-50 text-gray-400" : "text-gray-700"}`}>
-                          <span className="font-bold">{r.name}</span>
+                        <label key={r.passengerId} className={`flex items-center justify-between text-xs rounded-lg px-2 py-1.5 cursor-pointer ${r.absentToday ? "bg-gray-50 text-gray-400" : "text-gray-700"}`}>
+                          <span className="flex items-center gap-2 font-bold">
+                            <input type="checkbox" className="accent-teal-600" disabled={r.absentToday}
+                              checked={r.absentToday ? false : selectedRosterIds.has(r.passengerId)}
+                              onChange={() => toggleRosterSelection(r.passengerId)} />
+                            {r.name}
+                          </span>
                           <span className="text-gray-400">
                             {r.absentToday ? (r.absenceKind === "self_arranged" ? "Parent managing today — skip stop" : "Absent today (parent)") : r.stopName}
                           </span>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   </div>
@@ -1048,7 +1082,7 @@ export default function SafeRide360Page() {
                     <div className="flex items-center gap-2">
                       <input type="number" min={0} value={confirmedCountInput} onChange={e => setConfirmedCountInput(e.target.value)}
                         className="w-20 border border-teal-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold bg-white" />
-                      <span className="text-[11px] text-teal-700">Expected {expectedRosterCount} ({rosterPreview.length} total, {rosterPreview.length - expectedRosterCount} absent)</span>
+                      <span className="text-[11px] text-teal-700">{selectedRosterIds.size} selected ({rosterPreview.length} on roster, {rosterPreview.filter(r => r.absentToday).length} absent)</span>
                     </div>
                   </div>
                 )}
