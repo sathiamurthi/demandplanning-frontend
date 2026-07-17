@@ -1,4 +1,4 @@
-import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop } from "./types";
+import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop, SubstituteDriver, AbsenceKind } from "./types";
 
 const BASE = "/v1/saferide360";
 const TOKEN_KEY = "saferide360_token";
@@ -76,7 +76,8 @@ export const saferide360Api = {
   listTrips: () => req<Trip[]>("/trips"),
   createTrip: (body: { name: string; direction: "pickup" | "drop"; scheduled_start_time: string; scheduled_end_time: string; template_id?: string }) =>
     req<Trip>("/trips", { method: "POST", body: JSON.stringify(body) }),
-  startTrip: (id: string) => req<Trip>(`/trips/${id}/start`, { method: "POST" }),
+  startTrip: (id: string, confirmed_students: number) =>
+    req<Trip>(`/trips/${id}/start`, { method: "POST", body: JSON.stringify({ confirmed_students }) }),
   tripRosterPreview: (id: string) => req<TripRosterEntry[]>(`/trips/${id}/roster-preview`),
   updateTripLive: (id: string, lat: number, lng: number) => req<Trip>(`/trips/${id}/live`, { method: "PATCH", body: JSON.stringify({ lat, lng }) }),
   listTripPassengers: (id: string) => req<(TripPassenger & { passengerName: string })[]>(`/trips/${id}/passengers`),
@@ -84,7 +85,8 @@ export const saferide360Api = {
     req<TripPassenger>(`/trip-passengers/${tripPassengerId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
   completeTrip: (id: string, confirmed_in_vehicle: number) =>
     req<Trip>(`/trips/${id}/complete`, { method: "POST", body: JSON.stringify({ confirmed_in_vehicle }) }),
-  sosTrip: (id: string) => req<{ alerted: number }>(`/trips/${id}/sos`, { method: "POST" }),
+  sosTrip: (id: string, body: { reason?: string; contact_name?: string; contact_phone?: string }) =>
+    req<{ alerted: number }>(`/trips/${id}/sos`, { method: "POST", body: JSON.stringify(body) }),
   alertTrip: (id: string, message: string, alert_type?: "delay" | "traffic" | "vehicle_issue" | "custom") =>
     req<{ alerted: number }>(`/trips/${id}/alert`, { method: "POST", body: JSON.stringify({ message, alert_type }) }),
 
@@ -93,12 +95,21 @@ export const saferide360Api = {
     req<Driver>("/auth/driver/vehicle", { method: "PATCH", body: JSON.stringify({ vehicle_number, vehicle_type }) }),
   getBilling: () => req<Billing>("/organization/billing"),
 
+  // ── Driver: substitute drivers directory + advance unavailability ────
+  listSubstituteDrivers: () => req<SubstituteDriver[]>("/substitute-drivers"),
+  createSubstituteDriver: (body: { name: string; phone: string; vehicle_number?: string; vehicle_type?: string }) =>
+    req<SubstituteDriver>("/substitute-drivers", { method: "POST", body: JSON.stringify(body) }),
+  deleteSubstituteDriver: (id: string) => req<{ deleted: true }>(`/substitute-drivers/${id}`, { method: "DELETE" }),
+  notifyUnavailability: (body: { date: string; message?: string; substitute_name?: string; substitute_phone?: string }) =>
+    req<{ notified: number }>("/driver/unavailability", { method: "POST", body: JSON.stringify(body) }),
+
   // ── Guardian views ───────────────────────────────────────────────────
   myChildren: () => req<Passenger[]>("/guardian/children"),
   todayStatus: () => req<GuardianTodayEntry[]>("/guardian/today"),
   tripStops: (tripId: string) => req<GuardianStop[]>(`/guardian/trips/${tripId}/stops`),
   notifications: () => req<GuardianNotification[]>("/guardian/notifications"),
   markNotificationsRead: () => req<{ updated: true }>("/guardian/notifications/read-all", { method: "PATCH" }),
-  markChildAbsentToday: (passengerId: string) => req<{ absentToday: boolean }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "POST" }),
+  markChildAbsentToday: (passengerId: string, kind: AbsenceKind = "absent") =>
+    req<{ absentToday: boolean; kind: AbsenceKind }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "POST", body: JSON.stringify({ kind }) }),
   unmarkChildAbsentToday: (passengerId: string) => req<{ absentToday: boolean }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "DELETE" }),
 };

@@ -7,7 +7,7 @@ import {
   MessageSquare, CreditCard, Pencil,
 } from "lucide-react";
 import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
-import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop } from "./lib/types";
+import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop, SubstituteDriver, AbsenceKind } from "./lib/types";
 import LiveMap from "./components/LiveMap";
 import type { LiveStop } from "./lib/mapProvider";
 import { InstallAppBadge } from "../../components/InstallApp";
@@ -42,6 +42,20 @@ function groupNotificationsByDate<T extends { createdAt: string }>(items: T[]): 
     groups.get(label)!.push(item);
   }
   return Array.from(groups.entries());
+}
+
+// Rough ETA only — straight-line distance / an assumed city-driving speed,
+// not real routing/traffic (no paid directions API in this stack). Good
+// enough to tell a parent "a few minutes" vs "quite a while," not a precise
+// arrival time.
+const ASSUMED_CITY_SPEED_KMH = 20;
+function estimateEtaMinutes(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
+  const R = 6371;
+  const dLat = (to.lat - from.lat) * Math.PI / 180;
+  const dLng = (to.lng - from.lng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.max(1, Math.round((distanceKm / ASSUMED_CITY_SPEED_KMH) * 60));
 }
 
 export default function SafeRide360Page() {
@@ -118,18 +132,19 @@ export default function SafeRide360Page() {
   const handleLogout = () => { clearToken(); setRole(null); setDriver(null); setOrganization(null); go("landing"); };
 
 // ── Driver: stops/passengers/trips ───────────────────────────────────
-  const [setupTab, setSetupTab] = useState<"stops" | "students" | "templates">("stops");
+  const [setupTab, setSetupTab] = useState<"stops" | "students" | "templates" | "substitutes">("stops");
   const [stops, setStops] = useState<Stop[]>([]);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
+  const [substituteDrivers, setSubstituteDrivers] = useState<SubstituteDriver[]>([]);
   const [dashLoading, setDashLoading] = useState(false);
 
   const loadDriverData = async () => {
     setDashLoading(true);
     try {
-      const [s, p, t, tt] = await Promise.all([saferide360Api.listStops(), saferide360Api.listPassengers(), saferide360Api.listTrips(), saferide360Api.listTripTemplates()]);
-      setStops(s); setPassengers(p); setTrips(t); setTripTemplates(tt);
+      const [s, p, t, tt, sd] = await Promise.all([saferide360Api.listStops(), saferide360Api.listPassengers(), saferide360Api.listTrips(), saferide360Api.listTripTemplates(), saferide360Api.listSubstituteDrivers()]);
+      setStops(s); setPassengers(p); setTrips(t); setTripTemplates(tt); setSubstituteDrivers(sd);
     } catch { /* ignore */ } finally { setDashLoading(false); }
   };
   useEffect(() => { if (view === "driver-dashboard" || view === "driver-setup") loadDriverData(); }, [view]);
@@ -293,6 +308,52 @@ export default function SafeRide360Page() {
     if (editingTemplateId === t.id) resetTemplateForm();
   };
 
+  // ── Substitute drivers directory + advance unavailability notice ──────
+  const [subName, setSubName] = useState(""); const [subPhone, setSubPhone] = useState("");
+  const [subVehicleNumber, setSubVehicleNumber] = useState(""); const [subVehicleType, setSubVehicleType] = useState("van");
+  const [subBusy, setSubBusy] = useState(false); const [subErr, setSubErr] = useState("");
+  const addSubstituteDriver = async () => {
+    setSubErr("");
+    if (!subName.trim() || !subPhone.trim()) { setSubErr("Name and phone are required."); return; }
+    setSubBusy(true);
+    try {
+      const sd = await saferide360Api.createSubstituteDriver({ name: subName.trim(), phone: subPhone.trim(), vehicle_number: subVehicleNumber.trim() || undefined, vehicle_type: subVehicleType || undefined });
+      setSubstituteDrivers(prev => [sd, ...prev]);
+      setSubName(""); setSubPhone(""); setSubVehicleNumber("");
+    } catch (e: any) {
+      setSubErr(e.message || "Could not save this substitute driver.");
+    } finally {
+      setSubBusy(false);
+    }
+  };
+  const deleteSubstituteDriver = async (sd: SubstituteDriver) => {
+    if (!confirm(`Remove ${sd.name} from your substitutes list?`)) return;
+    await saferide360Api.deleteSubstituteDriver(sd.id);
+    setSubstituteDrivers(prev => prev.filter(x => x.id !== sd.id));
+  };
+
+  const [unavailDate, setUnavailDate] = useState(""); const [unavailMessage, setUnavailMessage] = useState("");
+  const [unavailSubId, setUnavailSubId] = useState(""); const [unavailBusy, setUnavailBusy] = useState(false);
+  const [unavailErr, setUnavailErr] = useState(""); const [unavailSentMsg, setUnavailSentMsg] = useState("");
+  const sendUnavailability = async () => {
+    setUnavailErr(""); setUnavailSentMsg("");
+    if (!unavailDate) { setUnavailErr("Pick a date."); return; }
+    setUnavailBusy(true);
+    try {
+      const sub = substituteDrivers.find(s => s.id === unavailSubId);
+      const { notified } = await saferide360Api.notifyUnavailability({
+        date: unavailDate, message: unavailMessage.trim() || undefined,
+        substitute_name: sub?.name, substitute_phone: sub?.phone,
+      });
+      setUnavailSentMsg(`Notified ${notified} parent${notified === 1 ? "" : "s"}.`);
+      setUnavailDate(""); setUnavailMessage(""); setUnavailSubId("");
+    } catch (e: any) {
+      setUnavailErr(e.message || "Could not send this notice.");
+    } finally {
+      setUnavailBusy(false);
+    }
+  };
+
   const [newTName, setNewTName] = useState(""); const [newTDirection, setNewTDirection] = useState<"pickup" | "drop">("pickup");
   const [newTStart, setNewTStart] = useState("07:00"); const [newTEnd, setNewTEnd] = useState("08:00");
   const [newTTemplate, setNewTTemplate] = useState("");
@@ -302,29 +363,66 @@ export default function SafeRide360Page() {
     setTrips(prev => [t, ...prev]); setNewTName(""); setNewTTemplate("");
   };
 
+  // "By default provide 2 trips for the day (home to school, school to
+  // home)" — one tap creates a sensibly-named, sensibly-timed trip instead
+  // of filling in the custom form every day for the routine two runs.
+  const [quickStartBusy, setQuickStartBusy] = useState<"pickup" | "drop" | null>(null);
+  const quickStartTrip = async (direction: "pickup" | "drop") => {
+    setQuickStartBusy(direction);
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + 60 * 60_000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const label = direction === "pickup" ? "Home → School" : "School → Home";
+      const t = await saferide360Api.createTrip({
+        name: `${label} — ${now.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`,
+        direction, scheduled_start_time: `${pad(now.getHours())}:${pad(now.getMinutes())}`, scheduled_end_time: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+      });
+      setTrips(prev => [t, ...prev]);
+      await openTrip(t);
+    } finally {
+      setQuickStartBusy(null);
+    }
+  };
+
   // ── Driver: active trip ──────────────────────────────────────────────
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [tripPassengers, setTripPassengers] = useState<(TripPassenger & { passengerName: string })[]>([]);
   const [rosterPreview, setRosterPreview] = useState<TripRosterEntry[]>([]);
+  const [confirmedCountInput, setConfirmedCountInput] = useState("");
+  const [startCountErr, setStartCountErr] = useState("");
+  const [startBusy, setStartBusy] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const lastBroadcastRef = useRef(0);
 
+  const expectedRosterCount = rosterPreview.filter(r => !r.absentToday).length;
+
   const openTrip = async (t: Trip) => {
     setActiveTrip(t);
-    setRosterPreview([]);
+    setRosterPreview([]); setConfirmedCountInput(""); setStartCountErr("");
     if (t.status === "active") {
       const tp = await saferide360Api.listTripPassengers(t.id);
       setTripPassengers(tp);
     } else if (t.status === "scheduled") {
-      try { setRosterPreview(await saferide360Api.tripRosterPreview(t.id)); } catch { /* ignore, non-critical preview */ }
+      try {
+        const preview = await saferide360Api.tripRosterPreview(t.id);
+        setRosterPreview(preview);
+        setConfirmedCountInput(String(preview.filter(r => !r.absentToday).length));
+      } catch { /* ignore, non-critical preview */ }
     }
     go("driver-trip");
   };
 
+  // Driver must confirm the expected headcount (total minus today's
+  // absentees) before a trip can start — same safety-gate shape as the
+  // existing complete-trip confirmation, just at the other end of the trip.
   const startTrip = async (t: Trip) => {
-    setTripStartErr(null); setTripStartGenericErr("");
+    setTripStartErr(null); setTripStartGenericErr(""); setStartCountErr("");
+    const n = parseInt(confirmedCountInput, 10);
+    if (isNaN(n) || n < 0) { setStartCountErr("Enter a valid number of students."); return; }
+    setStartBusy(true);
     try {
-      const updated = await saferide360Api.startTrip(t.id);
+      const updated = await saferide360Api.startTrip(t.id, n);
       setActiveTrip(updated);
       setTrips(prev => prev.map(x => x.id === updated.id ? updated : x));
       const tp = await saferide360Api.listTripPassengers(updated.id);
@@ -332,9 +430,13 @@ export default function SafeRide360Page() {
     } catch (e: any) {
       if (e instanceof ApiError && e.code === "SUBSCRIPTION_REQUIRED") {
         setTripStartErr({ message: e.message, passengerCount: e.data.passengerCount, ratePerPassenger: e.data.ratePerPassenger, monthlyCost: e.data.monthlyCost });
+      } else if (e instanceof ApiError && e.code === "STUDENT_COUNT_MISMATCH") {
+        setStartCountErr(e.message);
       } else {
         setTripStartGenericErr(e.message || "Could not start this trip.");
       }
+    } finally {
+      setStartBusy(false);
     }
   };
 
@@ -417,11 +519,20 @@ export default function SafeRide360Page() {
     }
   };
 
+  // SOS carries a reason and a contact person so a parent knows what's
+  // wrong and who to actually call, not just that something is.
+  const [showSosForm, setShowSosForm] = useState(false);
+  const [sosReason, setSosReason] = useState(""); const [sosContactName, setSosContactName] = useState(""); const [sosContactPhone, setSosContactPhone] = useState("");
   const [sosBusy, setSosBusy] = useState(false); const [sosSent, setSosSent] = useState(false);
-  const raiseSos = async () => {
-    if (!activeTrip || !confirm("Send an emergency alert to every parent on this trip?")) return;
+  const sendSos = async () => {
+    if (!activeTrip || !sosReason.trim() || !confirm("Send an emergency alert to every parent on this trip?")) return;
     setSosBusy(true);
-    try { await saferide360Api.sosTrip(activeTrip.id); setSosSent(true); } finally { setSosBusy(false); }
+    try {
+      await saferide360Api.sosTrip(activeTrip.id, { reason: sosReason.trim(), contact_name: sosContactName.trim() || undefined, contact_phone: sosContactPhone.trim() || undefined });
+      setSosSent(true); setShowSosForm(false);
+    } finally {
+      setSosBusy(false);
+    }
   };
 
   // ── Custom update to parents (typed or voice-recorded -> transcribed) ──
@@ -468,6 +579,7 @@ export default function SafeRide360Page() {
   const [myChildren, setMyChildren] = useState<Passenger[]>([]);
   const [absenceBusyId, setAbsenceBusyId] = useState<string | null>(null);
   const [expandedChildId, setExpandedChildId] = useState<string | null>(null);
+  const [expandedTripMapId, setExpandedTripMapId] = useState<string | null>(null);
   const [gLoading, setGLoading] = useState(false);
 
   const loadGuardianData = async () => {
@@ -493,11 +605,20 @@ export default function SafeRide360Page() {
   // "Parents able to mark absent for the student on the day" — reflected
   // automatically the next time a trip starts (driver never has to chase or
   // wait on a child who isn't riding today).
-  const toggleChildAbsentToday = async (p: Passenger) => {
+  const markChildAbsence = async (p: Passenger, kind: AbsenceKind) => {
     setAbsenceBusyId(p.id);
     try {
-      const result = p.absentToday ? await saferide360Api.unmarkChildAbsentToday(p.id) : await saferide360Api.markChildAbsentToday(p.id);
-      setMyChildren(prev => prev.map(c => c.id === p.id ? { ...c, absentToday: result.absentToday } : c));
+      const result = await saferide360Api.markChildAbsentToday(p.id, kind);
+      setMyChildren(prev => prev.map(c => c.id === p.id ? { ...c, absentToday: result.absentToday, absenceKind: result.kind } : c));
+    } finally {
+      setAbsenceBusyId(null);
+    }
+  };
+  const cancelChildAbsence = async (p: Passenger) => {
+    setAbsenceBusyId(p.id);
+    try {
+      const result = await saferide360Api.unmarkChildAbsentToday(p.id);
+      setMyChildren(prev => prev.map(c => c.id === p.id ? { ...c, absentToday: result.absentToday, absenceKind: undefined } : c));
     } finally {
       setAbsenceBusyId(null);
     }
@@ -626,6 +747,17 @@ export default function SafeRide360Page() {
             </div>
           )}
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button onClick={() => quickStartTrip("pickup")} disabled={quickStartBusy !== null} className="flex items-center justify-between bg-white border-2 border-gray-200 hover:border-teal-400 disabled:opacity-50 rounded-2xl p-4 transition text-left">
+              <div><p className="font-black text-gray-900 text-sm">🏠 → 🏫 Home to School</p><p className="text-[11px] text-gray-400 mt-0.5">Quick-start today's pickup run</p></div>
+              {quickStartBusy === "pickup" ? <Loader2 size={16} className="animate-spin text-teal-600" /> : <ArrowRight size={16} className="text-teal-600" />}
+            </button>
+            <button onClick={() => quickStartTrip("drop")} disabled={quickStartBusy !== null} className="flex items-center justify-between bg-white border-2 border-gray-200 hover:border-teal-400 disabled:opacity-50 rounded-2xl p-4 transition text-left">
+              <div><p className="font-black text-gray-900 text-sm">🏫 → 🏠 School to Home</p><p className="text-[11px] text-gray-400 mt-0.5">Quick-start today's drop run</p></div>
+              {quickStartBusy === "drop" ? <Loader2 size={16} className="animate-spin text-teal-600" /> : <ArrowRight size={16} className="text-teal-600" />}
+            </button>
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="font-black text-gray-900 text-sm">Trips</h3>
@@ -669,6 +801,7 @@ export default function SafeRide360Page() {
               ["stops", "Pickup / Drop Points", stops.length],
               ["students", "Students", passengers.length],
               ["templates", "Trip Templates", tripTemplates.length],
+              ["substitutes", "Substitutes", substituteDrivers.length],
             ] as const).map(([key, label, count]) => (
               <button key={key} onClick={() => setSetupTab(key)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition ${setupTab === key ? "bg-white text-teal-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
                 {label} <span className={`text-[10px] rounded-full px-1.5 ${setupTab === key ? "bg-teal-50 text-teal-600" : "bg-gray-200 text-gray-500"}`}>{count}</span>
@@ -809,6 +942,55 @@ export default function SafeRide360Page() {
             </div>
           </div>
           )}
+
+          {setupTab === "substitutes" && (
+          <div className="space-y-5">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Bus size={15} className="text-teal-600" /> Substitute Drivers</h3>
+              <p className="text-[11px] text-gray-400 mb-3">Save a substitute's contact and vehicle once, then pick them when sending an unavailability notice below.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                <input value={subName} onChange={e => setSubName(e.target.value)} placeholder="Substitute Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                <input value={subPhone} onChange={e => setSubPhone(e.target.value)} placeholder="Substitute Mobile" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                <input value={subVehicleNumber} onChange={e => setSubVehicleNumber(e.target.value)} placeholder="Vehicle Number (if different)" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                <select value={subVehicleType} onChange={e => setSubVehicleType(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+                  <option value="van">Van</option><option value="bus">Bus</option><option value="auto">Auto</option><option value="car">Car</option>
+                </select>
+              </div>
+              {subErr && <p className="text-[11px] text-red-600 mb-2">{subErr}</p>}
+              <button onClick={addSubstituteDriver} disabled={subBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition mb-3">
+                {subBusy && <Loader2 size={12} className="animate-spin" />} Save Substitute
+              </button>
+              <div className="space-y-1.5">
+                {substituteDrivers.length === 0 && <p className="text-xs text-gray-400">No substitutes saved yet.</p>}
+                {substituteDrivers.map(sd => (
+                  <div key={sd.id} className="flex items-center justify-between text-xs text-gray-700 rounded-lg px-2 py-1.5">
+                    <span>• {sd.name} <span className="text-gray-400">— {sd.phone}{sd.vehicleNumber ? ` · ${sd.vehicleType} ${sd.vehicleNumber}` : ""}</span></span>
+                    <button onClick={() => deleteSubstituteDriver(sd)} className="text-red-500 hover:underline">Delete</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Bell size={15} className="text-teal-600" /> Notify Unavailability in Advance</h3>
+              <p className="text-[11px] text-gray-400 mb-3">Tell every parent well ahead of time if you won't be driving on a date — optionally naming who's covering.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                <input value={unavailDate} onChange={e => setUnavailDate(e.target.value)} type="date" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                <select value={unavailSubId} onChange={e => setUnavailSubId(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+                  <option value="">No substitute named</option>
+                  {substituteDrivers.map(sd => <option key={sd.id} value={sd.id}>{sd.name} — {sd.phone}</option>)}
+                </select>
+              </div>
+              <textarea value={unavailMessage} onChange={e => setUnavailMessage(e.target.value)} rows={2} placeholder="Optional message, e.g. reason or extra instructions…"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs mb-2 resize-none" />
+              {unavailErr && <p className="text-[11px] text-red-600 mb-2">{unavailErr}</p>}
+              <button onClick={sendUnavailability} disabled={unavailBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                {unavailBusy ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} />} Notify Parents
+              </button>
+              {unavailSentMsg && <p className="text-[11px] text-teal-600 font-bold mt-2">{unavailSentMsg}</p>}
+            </div>
+          </div>
+          )}
         </div>
       )}
 
@@ -845,19 +1027,36 @@ export default function SafeRide360Page() {
                 {rosterPreview.length > 0 && (
                   <div className="border border-gray-100 rounded-xl p-3">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                      On this trip ({rosterPreview.filter(r => !r.absentToday).length} of {rosterPreview.length})
+                      On this trip ({expectedRosterCount} of {rosterPreview.length})
                     </p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {rosterPreview.map(r => (
                         <div key={r.passengerId} className={`flex items-center justify-between text-xs rounded-lg px-2 py-1.5 ${r.absentToday ? "bg-gray-50 text-gray-400" : "text-gray-700"}`}>
                           <span className="font-bold">{r.name}</span>
-                          <span className="text-gray-400">{r.absentToday ? "Absent today (parent)" : r.stopName}</span>
+                          <span className="text-gray-400">
+                            {r.absentToday ? (r.absenceKind === "self_arranged" ? "Parent managing today — skip stop" : "Absent today (parent)") : r.stopName}
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                <button onClick={() => startTrip(activeTrip)} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black text-sm py-3.5 rounded-2xl transition">Start Trip</button>
+
+                {rosterPreview.length > 0 && (
+                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-1.5">
+                    <label className="text-[11px] font-bold text-teal-800">Confirm number of students for this trip</label>
+                    <div className="flex items-center gap-2">
+                      <input type="number" min={0} value={confirmedCountInput} onChange={e => setConfirmedCountInput(e.target.value)}
+                        className="w-20 border border-teal-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold bg-white" />
+                      <span className="text-[11px] text-teal-700">Expected {expectedRosterCount} ({rosterPreview.length} total, {rosterPreview.length - expectedRosterCount} absent)</span>
+                    </div>
+                  </div>
+                )}
+                {startCountErr && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{startCountErr}</p>}
+
+                <button onClick={() => startTrip(activeTrip)} disabled={startBusy} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-black text-sm py-3.5 rounded-2xl transition">
+                  {startBusy && <Loader2 size={15} className="animate-spin" />} Start Trip
+                </button>
                 {tripStartErr && (
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
                     <p className="text-sm text-amber-800 font-bold flex items-center gap-1.5"><CreditCard size={14} /> Subscription required</p>
@@ -885,7 +1084,9 @@ export default function SafeRide360Page() {
                           <button onClick={() => markPassenger(tp.id, "absent")} className="flex items-center gap-1 text-xs font-bold text-gray-500 border border-gray-200 hover:bg-gray-100 px-2.5 py-1.5 rounded-lg transition"><XCircle size={12} /> Absent</button>
                         </div>
                       ) : (
-                        <span className={`text-xs font-bold ${tp.status === "picked" ? "text-green-600" : "text-gray-400"}`}>{tp.status === "picked" ? "✓ Picked Up" : "Absent"}</span>
+                        <span className={`text-xs font-bold ${tp.status === "picked" ? "text-green-600" : "text-gray-400"}`}>
+                          {tp.status === "picked" ? "✓ Picked Up" : tp.absenceKind === "self_arranged" ? "Parent managing — skip" : "Absent"}
+                        </span>
                       )}
                     </div>
                   ))}
@@ -929,8 +1130,24 @@ export default function SafeRide360Page() {
                   </div>
                 )}
 
+                {showSosForm && !sosSent && (
+                  <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-2">
+                    <p className="text-xs font-bold text-red-800">What's the emergency? (required, sent to every parent)</p>
+                    <input value={sosReason} onChange={e => setSosReason(e.target.value)} placeholder="e.g. Vehicle breakdown, medical emergency…" className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={sosContactName} onChange={e => setSosContactName(e.target.value)} placeholder="Contact person name" className="border border-red-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                      <input value={sosContactPhone} onChange={e => setSosContactPhone(e.target.value)} placeholder="Contact phone (optional)" className="border border-red-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={sendSos} disabled={sosBusy || !sosReason.trim()} className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold text-sm py-2.5 rounded-lg transition">
+                        {sosBusy ? <Loader2 size={14} className="animate-spin" /> : <Siren size={14} />} Send Emergency Alert
+                      </button>
+                      <button onClick={() => setShowSosForm(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-3">Cancel</button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={raiseSos} disabled={sosBusy || sosSent} className="flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 font-bold text-sm py-3 rounded-xl transition"><Siren size={14} /> {sosSent ? "Alert Sent" : "SOS"}</button>
+                  <button onClick={() => setShowSosForm(v => !v)} disabled={sosSent} className="flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 font-bold text-sm py-3 rounded-xl transition"><Siren size={14} /> {sosSent ? "Alert Sent" : "SOS"}</button>
                   <button onClick={openCompleteTrip} className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm py-3 rounded-xl transition">Complete Trip</button>
                 </div>
                 <p className="text-[11px] text-gray-400 text-center">Keep this screen open — live location is shared with parents while the trip is active.</p>
@@ -997,7 +1214,7 @@ export default function SafeRide360Page() {
           {myChildren.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Users size={14} className="text-teal-600" /> My Children</h3>
-              <p className="text-[11px] text-gray-400 mb-3">Mark a child absent for today and the driver will see it automatically — no need to wait for them.</p>
+              <p className="text-[11px] text-gray-400 mb-3">Mark a child absent, or say you're handling pickup/drop yourself today — either way the driver sees it automatically and won't wait.</p>
               <div className="space-y-3">
                 {myChildren.map(c => {
                   const childStops: LiveStop[] = [];
@@ -1005,18 +1222,31 @@ export default function SafeRide360Page() {
                   if (c.dropLat != null && c.dropLng != null && (c.dropLat !== c.pickupLat || c.dropLng !== c.pickupLng)) childStops.push({ id: `${c.id}-drop`, name: `${c.dropStopName || "Drop"} (School → Home)`, lat: c.dropLat, lng: c.dropLng, state: "upcoming" });
                   return (
                     <div key={c.id} className="border border-gray-100 rounded-lg px-3 py-2">
-                      <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center justify-between text-xs flex-wrap gap-2">
                         <div>
                           <span className="font-bold text-gray-900">{c.name}</span> {c.schoolName && <span className="text-gray-400 font-normal">({c.schoolName})</span>}
                           <p className="text-[10px] text-gray-400 mt-0.5">
                             {c.pickupStopName ? `Pickup: ${c.pickupStopName}` : "No pickup point set"}{c.dropStopName ? ` · Drop: ${c.dropStopName}` : ""}
                           </p>
                         </div>
-                        <button onClick={() => toggleChildAbsentToday(c)} disabled={absenceBusyId === c.id}
-                          className={`flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition disabled:opacity-50 shrink-0 ${c.absentToday ? "bg-amber-50 text-amber-700 border border-amber-200" : "text-gray-500 border border-gray-200 hover:bg-gray-50"}`}>
-                          {absenceBusyId === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
-                          {c.absentToday ? "Absent today — Cancel" : "Mark absent today"}
-                        </button>
+                        {c.absentToday ? (
+                          <button onClick={() => cancelChildAbsence(c)} disabled={absenceBusyId === c.id}
+                            className="flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition disabled:opacity-50 shrink-0 bg-amber-50 text-amber-700 border border-amber-200">
+                            {absenceBusyId === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                            {c.absenceKind === "self_arranged" ? "Self-managed today — Cancel" : "Absent today — Cancel"}
+                          </button>
+                        ) : (
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => markChildAbsence(c, "absent")} disabled={absenceBusyId === c.id}
+                              className="flex items-center gap-1 font-bold px-2 py-1 rounded-lg transition disabled:opacity-50 text-gray-500 border border-gray-200 hover:bg-gray-50">
+                              {absenceBusyId === c.id ? <Loader2 size={11} className="animate-spin" /> : null} Mark absent
+                            </button>
+                            <button onClick={() => markChildAbsence(c, "self_arranged")} disabled={absenceBusyId === c.id}
+                              className="flex items-center gap-1 font-bold px-2 py-1 rounded-lg transition disabled:opacity-50 text-gray-500 border border-gray-200 hover:bg-gray-50">
+                              I'll drop/pick up myself
+                            </button>
+                          </div>
+                        )}
                       </div>
                       {childStops.length > 0 && (
                         <>
@@ -1062,7 +1292,23 @@ export default function SafeRide360Page() {
                           </span>
                         </div>
                         {fallbackStops.length > 0 && (
-                          <LiveMap driverPosition={hasLive ? { lat: s.liveLat!, lng: s.liveLng! } : null} driverLabel={`${s.driverName} — ${s.vehicleNumber}`} stops={fallbackStops} height="220px" autoFollow={hasLive} />
+                          <div>
+                            <div className="flex items-center justify-between flex-wrap gap-1">
+                              <button onClick={() => setExpandedTripMapId(expandedTripMapId === s.tripPassengerId ? null : s.tripPassengerId)} className="text-[11px] font-bold text-teal-600 hover:underline flex items-center gap-1">
+                                <MapPin size={11} /> {expandedTripMapId === s.tripPassengerId ? "Hide live map" : "View Live Map"}
+                              </button>
+                              {hasLive && s.stopLat != null && s.stopLng != null && (
+                                <span className="text-[11px] text-gray-400">
+                                  ~{estimateEtaMinutes({ lat: s.liveLat!, lng: s.liveLng! }, { lat: s.stopLat, lng: s.stopLng })} min to {s.direction === "pickup" ? "pickup" : "drop"} point <span className="text-gray-300">(estimate)</span>
+                                </span>
+                              )}
+                            </div>
+                            {expandedTripMapId === s.tripPassengerId && (
+                              <div className="mt-2">
+                                <LiveMap driverPosition={hasLive ? { lat: s.liveLat!, lng: s.liveLng! } : null} driverLabel={`${s.driverName} — ${s.vehicleNumber}`} stops={fallbackStops} height="220px" autoFollow={hasLive} />
+                              </div>
+                            )}
+                          </div>
                         )}
                         {s.tripStatus === "completed" && <p className="text-xs text-green-600 font-bold flex items-center gap-1.5"><CheckCircle size={13} /> Trip completed{s.direction === "drop" ? " — reached home safely" : " — reached school safely"}</p>}
                       </div>
