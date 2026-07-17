@@ -7,7 +7,7 @@ import {
   MessageSquare, CreditCard, Pencil,
 } from "lucide-react";
 import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
-import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate } from "./lib/types";
+import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop } from "./lib/types";
 import LiveMap from "./components/LiveMap";
 import type { LiveStop } from "./lib/mapProvider";
 import { InstallAppBadge } from "../../components/InstallApp";
@@ -305,14 +305,18 @@ export default function SafeRide360Page() {
   // ── Driver: active trip ──────────────────────────────────────────────
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [tripPassengers, setTripPassengers] = useState<(TripPassenger & { passengerName: string })[]>([]);
+  const [rosterPreview, setRosterPreview] = useState<TripRosterEntry[]>([]);
   const watchIdRef = useRef<number | null>(null);
   const lastBroadcastRef = useRef(0);
 
   const openTrip = async (t: Trip) => {
     setActiveTrip(t);
+    setRosterPreview([]);
     if (t.status === "active") {
       const tp = await saferide360Api.listTripPassengers(t.id);
       setTripPassengers(tp);
+    } else if (t.status === "scheduled") {
+      try { setRosterPreview(await saferide360Api.tripRosterPreview(t.id)); } catch { /* ignore, non-critical preview */ }
     }
     go("driver-trip");
   };
@@ -356,6 +360,26 @@ export default function SafeRide360Page() {
     watchIdRef.current = id;
     return () => { if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); };
   }, [activeTrip?.id, activeTrip?.status]);
+
+  // One pin per stop, labeled with every student riding through it on this
+  // trip (not just the stop name) — "done" once every student there has
+  // been confirmed picked/absent, so the driver can see route progress at
+  // a glance instead of just a flat list.
+  const [showTripMap, setShowTripMap] = useState(false);
+  const tripMapStops: LiveStop[] = (() => {
+    const byStop = new Map<string, { name: string; lat: number; lng: number; names: string[]; allDone: boolean }>();
+    for (const tp of tripPassengers) {
+      if (tp.stopLat == null || tp.stopLng == null) continue;
+      const key = `${tp.stopLat},${tp.stopLng}`;
+      const entry = byStop.get(key) || { name: tp.stopName || "Stop", lat: tp.stopLat, lng: tp.stopLng, names: [], allDone: true };
+      entry.names.push(tp.passengerName || "Student");
+      if (tp.status === "pending") entry.allDone = false;
+      byStop.set(key, entry);
+    }
+    return Array.from(byStop.entries()).map(([key, s]) => ({
+      id: key, name: `${s.name} — ${s.names.join(", ")}`, lat: s.lat, lng: s.lng, state: s.allDone ? "done" : "upcoming",
+    }));
+  })();
 
   const markPassenger = async (tpId: string, status: "picked" | "absent") => {
     const updated = await saferide360Api.markTripPassenger(tpId, status);
@@ -440,17 +464,20 @@ export default function SafeRide360Page() {
   // ── Guardian: dashboard ───────────────────────────────────────────────
   const [todayStatus, setTodayStatus] = useState<GuardianTodayEntry[]>([]);
   const [gNotifications, setGNotifications] = useState<GuardianNotification[]>([]);
-  const [gTripStops, setGTripStops] = useState<Record<string, Stop[]>>({});
+  const [gTripStops, setGTripStops] = useState<Record<string, GuardianStop[]>>({});
+  const [myChildren, setMyChildren] = useState<Passenger[]>([]);
+  const [absenceBusyId, setAbsenceBusyId] = useState<string | null>(null);
   const [gLoading, setGLoading] = useState(false);
 
   const loadGuardianData = async () => {
     setGLoading(true);
     try {
-      const [status, notifs] = await Promise.all([saferide360Api.todayStatus(), saferide360Api.notifications()]);
+      const [status, notifs, children] = await Promise.all([saferide360Api.todayStatus(), saferide360Api.notifications(), saferide360Api.myChildren()]);
       setTodayStatus(status);
       setGNotifications(notifs);
+      setMyChildren(children);
       const uniqueTripIds = Array.from(new Set(status.filter(s => s.tripStatus === "active").map(s => s.tripId)));
-      const stopsByTrip: Record<string, Stop[]> = {};
+      const stopsByTrip: Record<string, GuardianStop[]> = {};
       for (const tid of uniqueTripIds) stopsByTrip[tid] = await saferide360Api.tripStops(tid);
       setGTripStops(stopsByTrip);
     } catch { /* ignore */ } finally { setGLoading(false); }
@@ -461,6 +488,19 @@ export default function SafeRide360Page() {
     const id = setInterval(loadGuardianData, 8000); // live polling, matches driver broadcast cadence
     return () => clearInterval(id);
   }, [view]);
+
+  // "Parents able to mark absent for the student on the day" — reflected
+  // automatically the next time a trip starts (driver never has to chase or
+  // wait on a child who isn't riding today).
+  const toggleChildAbsentToday = async (p: Passenger) => {
+    setAbsenceBusyId(p.id);
+    try {
+      const result = p.absentToday ? await saferide360Api.unmarkChildAbsentToday(p.id) : await saferide360Api.markChildAbsentToday(p.id);
+      setMyChildren(prev => prev.map(c => c.id === p.id ? { ...c, absentToday: result.absentToday } : c));
+    } finally {
+      setAbsenceBusyId(null);
+    }
+  };
 
   const unreadCount = gNotifications.filter(n => !n.read).length;
 
@@ -667,6 +707,11 @@ export default function SafeRide360Page() {
               {stops.length === 0 && <p className="text-xs text-gray-400">No stops yet — search for a place above, or use "Use my location".</p>}
               {stops.map((s, i) => <div key={s.id} className="text-xs text-gray-700 flex items-center gap-2"><span className="text-gray-400">{i + 1}.</span> {s.name} <span className="text-gray-300">({s.lat.toFixed(4)}, {s.lng.toFixed(4)})</span></div>)}
             </div>
+            {stops.length > 0 && (
+              <div className="mt-3">
+                <LiveMap driverPosition={null} stops={stops.map(s => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng, state: "upcoming" }))} height="240px" autoFollow={false} />
+              </div>
+            )}
           </div>
           )}
 
@@ -796,6 +841,21 @@ export default function SafeRide360Page() {
 
             {activeTrip.status === "scheduled" && (
               <div className="space-y-3">
+                {rosterPreview.length > 0 && (
+                  <div className="border border-gray-100 rounded-xl p-3">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                      On this trip ({rosterPreview.filter(r => !r.absentToday).length} of {rosterPreview.length})
+                    </p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {rosterPreview.map(r => (
+                        <div key={r.passengerId} className={`flex items-center justify-between text-xs rounded-lg px-2 py-1.5 ${r.absentToday ? "bg-gray-50 text-gray-400" : "text-gray-700"}`}>
+                          <span className="font-bold">{r.name}</span>
+                          <span className="text-gray-400">{r.absentToday ? "Absent today (parent)" : r.stopName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <button onClick={() => startTrip(activeTrip)} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black text-sm py-3.5 rounded-2xl transition">Start Trip</button>
                 {tripStartErr && (
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
@@ -830,6 +890,18 @@ export default function SafeRide360Page() {
                   ))}
                 </div>
                 <p className="text-[11px] text-gray-400">Any student not confirmed will be marked absent when the trip completes.</p>
+
+                {tripMapStops.length > 0 && (
+                  <>
+                    <button onClick={() => setShowTripMap(v => !v)} className="w-full flex items-center justify-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 font-bold text-sm py-3 rounded-xl transition">
+                      <MapPin size={14} /> {showTripMap ? "Hide Map" : "View Map"}
+                    </button>
+                    {showTripMap && (
+                      <LiveMap driverPosition={activeTrip.liveLat != null && activeTrip.liveLng != null ? { lat: activeTrip.liveLat, lng: activeTrip.liveLng } : null} driverLabel={activeTrip.name} stops={tripMapStops} height="280px" />
+                    )}
+                  </>
+                )}
+
                 <button onClick={() => setShowAlertComposer(v => !v)} className="w-full flex items-center justify-center gap-2 border border-teal-200 text-teal-700 hover:bg-teal-50 font-bold text-sm py-3 rounded-xl transition">
                   <MessageSquare size={14} /> {showAlertComposer ? "Hide" : "Send Update to Parents"}
                 </button>
@@ -907,13 +979,35 @@ export default function SafeRide360Page() {
             {unreadCount > 0 && <span className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"><Bell size={12} /> {unreadCount} new</span>}
           </div>
 
+          {myChildren.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Users size={14} className="text-teal-600" /> My Children</h3>
+              <p className="text-[11px] text-gray-400 mb-3">Mark a child absent for today and the driver will see it automatically — no need to wait for them.</p>
+              <div className="space-y-2">
+                {myChildren.map(c => (
+                  <div key={c.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-3 py-2">
+                    <span className="font-bold text-gray-900">{c.name} {c.schoolName && <span className="text-gray-400 font-normal">({c.schoolName})</span>}</span>
+                    <button onClick={() => toggleChildAbsentToday(c)} disabled={absenceBusyId === c.id}
+                      className={`flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition disabled:opacity-50 ${c.absentToday ? "bg-amber-50 text-amber-700 border border-amber-200" : "text-gray-500 border border-gray-200 hover:bg-gray-50"}`}>
+                      {absenceBusyId === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                      {c.absentToday ? "Absent today — Cancel" : "Mark absent today"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {gLoading && todayStatus.length === 0 ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-gray-300" size={22} /></div>
           ) : todayStatus.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-12">No active trips right now — you'll see live tracking here once your driver starts one.</p>
           ) : (
             todayStatus.map(s => {
-              const liveStops: LiveStop[] = (gTripStops[s.tripId] || []).map(st => ({ id: st.id, name: st.name, lat: st.lat, lng: st.lng, state: "upcoming" }));
+              const liveStops: LiveStop[] = (gTripStops[s.tripId] || []).map(st => ({
+                id: st.id, name: st.studentNames?.length ? `${st.name} — ${st.studentNames.join(", ")}` : st.name,
+                lat: st.lat, lng: st.lng, state: "upcoming",
+              }));
               return (
                 <div key={s.tripPassengerId} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                   <div className="p-5 space-y-3">

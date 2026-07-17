@@ -10,11 +10,18 @@ export interface Driver {
   vehicleNumber: string; vehicleType: string; createdAt: string;
 }
 export interface Stop { id: string; organizationId: string; name: string; lat: number; lng: number; sequence: number; }
+export interface GuardianStop extends Stop { studentNames: string[]; }
 export interface Passenger {
   id: string; organizationId: string; name: string;
   guardianName: string; guardianPhone: string;
   pickupStopId?: string; dropStopId?: string;
   schoolName?: string;
+  absentToday?: boolean;
+}
+export interface TripRosterEntry {
+  passengerId: string; name: string; schoolName?: string;
+  stopName?: string; stopLat?: number; stopLng?: number;
+  absentToday?: boolean;
 }
 export interface GeocodeResult { label: string; lat: number; lng: number; }
 export type TripDirection = "pickup" | "drop";
@@ -32,7 +39,7 @@ export interface TripTemplate {
 export type TripPassengerStatus = "pending" | "picked" | "absent";
 export interface TripPassenger {
   id: string; tripId: string; passengerId: string; status: TripPassengerStatus; pickedAt?: string;
-  passengerName?: string;
+  passengerName?: string; stopName?: string; stopLat?: number; stopLng?: number;
 }
 export interface GuardianNotification {
   id: string; guardianPhone: string; tripId?: string; passengerId?: string;

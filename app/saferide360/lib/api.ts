@@ -1,4 +1,4 @@
-import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult, TripTemplate } from "./types";
+import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop } from "./types";
 
 const BASE = "/v1/saferide360";
 const TOKEN_KEY = "saferide360_token";
@@ -77,6 +77,7 @@ export const saferide360Api = {
   createTrip: (body: { name: string; direction: "pickup" | "drop"; scheduled_start_time: string; scheduled_end_time: string; template_id?: string }) =>
     req<Trip>("/trips", { method: "POST", body: JSON.stringify(body) }),
   startTrip: (id: string) => req<Trip>(`/trips/${id}/start`, { method: "POST" }),
+  tripRosterPreview: (id: string) => req<TripRosterEntry[]>(`/trips/${id}/roster-preview`),
   updateTripLive: (id: string, lat: number, lng: number) => req<Trip>(`/trips/${id}/live`, { method: "PATCH", body: JSON.stringify({ lat, lng }) }),
   listTripPassengers: (id: string) => req<(TripPassenger & { passengerName: string })[]>(`/trips/${id}/passengers`),
   markTripPassenger: (tripPassengerId: string, status: "picked" | "absent") =>
@@ -95,7 +96,9 @@ export const saferide360Api = {
   // ── Guardian views ───────────────────────────────────────────────────
   myChildren: () => req<Passenger[]>("/guardian/children"),
   todayStatus: () => req<GuardianTodayEntry[]>("/guardian/today"),
-  tripStops: (tripId: string) => req<Stop[]>(`/guardian/trips/${tripId}/stops`),
+  tripStops: (tripId: string) => req<GuardianStop[]>(`/guardian/trips/${tripId}/stops`),
   notifications: () => req<GuardianNotification[]>("/guardian/notifications"),
   markNotificationsRead: () => req<{ updated: true }>("/guardian/notifications/read-all", { method: "PATCH" }),
+  markChildAbsentToday: (passengerId: string) => req<{ absentToday: boolean }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "POST" }),
+  unmarkChildAbsentToday: (passengerId: string) => req<{ absentToday: boolean }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "DELETE" }),
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LiveMapProps } from "../lib/mapProvider";
@@ -52,6 +52,7 @@ export default function LeafletLiveMap({ driverPosition, driverLabel, stops, hei
         {routePoints.length > 1 && <Polyline positions={routePoints} pathOptions={{ color: "#0d9488", weight: 3, dashArray: "6 6" }} />}
         {stops.map(s => (
           <Marker key={s.id} position={[s.lat, s.lng]} icon={s.state === "done" ? stopDoneIcon : stopUpcomingIcon}>
+            <Tooltip permanent direction="top" offset={[0, -8]} className="!text-[10px] !font-bold !px-1.5 !py-0.5">{s.name}</Tooltip>
             <Popup>{s.name} — {s.state === "done" ? "Completed" : "Upcoming"}</Popup>
           </Marker>
         ))}
