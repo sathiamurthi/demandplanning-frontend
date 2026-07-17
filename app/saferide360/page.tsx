@@ -421,9 +421,37 @@ export default function SafeRide360Page() {
     });
   };
 
+  // Add any other org student to today's trip — not just the ones the
+  // stop/template auto-resolved (e.g. someone without this direction's stop
+  // configured yet, or outside the trip's template for a one-off change).
+  // The backend treats passenger_ids as authoritative at start time, so
+  // whoever is selected here rides today regardless of how they were added.
+  const [addStudentId, setAddStudentId] = useState("");
+  const addableStudents = passengers.filter(p => !rosterPreview.some(r => r.passengerId === p.id));
+  const addStudentToRoster = () => {
+    const p = passengers.find(x => x.id === addStudentId);
+    if (!p || !activeTrip) return;
+    const stopId = activeTrip.direction === "drop" ? p.dropStopId : p.pickupStopId;
+    const stop = stops.find(s => s.id === stopId);
+    const entry: TripRosterEntry = {
+      passengerId: p.id, name: p.name, schoolName: p.schoolName,
+      stopName: stop?.name || "No stop set", stopLat: stop?.lat, stopLng: stop?.lng,
+      absentToday: p.absentToday, absenceKind: p.absenceKind,
+    };
+    setRosterPreview(prev => [...prev, entry]);
+    if (!p.absentToday) {
+      setSelectedRosterIds(prev => {
+        const next = new Set(prev); next.add(p.id);
+        setConfirmedCountInput(String(next.size));
+        return next;
+      });
+    }
+    setAddStudentId("");
+  };
+
   const openTrip = async (t: Trip) => {
     setActiveTrip(t);
-    setRosterPreview([]); setSelectedRosterIds(new Set()); setConfirmedCountInput(""); setStartCountErr("");
+    setRosterPreview([]); setSelectedRosterIds(new Set()); setConfirmedCountInput(""); setStartCountErr(""); setAddStudentId("");
     if (t.status === "active") {
       const tp = await saferide360Api.listTripPassengers(t.id);
       setTripPassengers(tp);
@@ -1047,18 +1075,20 @@ export default function SafeRide360Page() {
 
             {activeTrip.status === "scheduled" && (
               <div className="space-y-3">
-                {rosterPreview.length > 0 && (
-                  <div className="border border-gray-100 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        On this trip ({selectedRosterIds.size} of {rosterPreview.length})
-                      </p>
-                      <button onClick={() => activeTrip && loadRosterPreview(activeTrip.id)} disabled={rosterLoading} className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:underline disabled:opacity-50">
-                        {rosterLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />} Refresh
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mb-2">Uncheck anyone not riding today, or hit Refresh if you just added a new student.</p>
-                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                <div className="border border-gray-100 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      On this trip ({selectedRosterIds.size} of {rosterPreview.length})
+                    </p>
+                    <button onClick={() => activeTrip && loadRosterPreview(activeTrip.id)} disabled={rosterLoading} className="flex items-center gap-1 text-[11px] font-bold text-teal-600 hover:underline disabled:opacity-50">
+                      {rosterLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />} Refresh
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-2">Uncheck anyone not riding today, or add another student below.</p>
+                  {rosterPreview.length === 0 ? (
+                    <p className="text-xs text-gray-400 mb-2">No students on this trip yet — add one below.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto mb-2">
                       {rosterPreview.map(r => (
                         <label key={r.passengerId} className={`flex items-center justify-between text-xs rounded-lg px-2 py-1.5 cursor-pointer ${r.absentToday ? "bg-gray-50 text-gray-400" : "text-gray-700"}`}>
                           <span className="flex items-center gap-2 font-bold">
@@ -1073,8 +1103,19 @@ export default function SafeRide360Page() {
                         </label>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                  {addableStudents.length > 0 && (
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <select value={addStudentId} onChange={e => setAddStudentId(e.target.value)} className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+                        <option value="">+ Add a student to this trip…</option>
+                        {addableStudents.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <button onClick={addStudentToRoster} disabled={!addStudentId} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                        <Plus size={12} /> Add
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {rosterPreview.length > 0 && (
                   <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-1.5">
