@@ -17,6 +17,8 @@ export interface Passenger {
   pickupStopId?: string; dropStopId?: string;
   schoolName?: string;
   absentToday?: boolean;
+  pickupStopName?: string; pickupLat?: number; pickupLng?: number;
+  dropStopName?: string; dropLat?: number; dropLng?: number;
 }
 export interface TripRosterEntry {
   passengerId: string; name: string; schoolName?: string;
@@ -47,7 +49,8 @@ export interface GuardianNotification {
 }
 export interface GuardianTodayEntry {
   tripPassengerId: string; passengerId: string; passengerName: string; status: TripPassengerStatus; pickedAt?: string;
-  tripId: string; tripName: string; tripStatus: TripStatus; direction: TripDirection;
+  tripId: string; tripName: string; tripStatus: TripStatus; direction: TripDirection; createdAt: string;
   liveLat?: number; liveLng?: number; liveUpdatedAt?: string;
   driverName: string; driverPhone: string; vehicleNumber: string; vehicleType: string;
+  stopName?: string; stopLat?: number; stopLng?: number;
 }

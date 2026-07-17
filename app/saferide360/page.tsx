@@ -467,6 +467,7 @@ export default function SafeRide360Page() {
   const [gTripStops, setGTripStops] = useState<Record<string, GuardianStop[]>>({});
   const [myChildren, setMyChildren] = useState<Passenger[]>([]);
   const [absenceBusyId, setAbsenceBusyId] = useState<string | null>(null);
+  const [expandedChildId, setExpandedChildId] = useState<string | null>(null);
   const [gLoading, setGLoading] = useState(false);
 
   const loadGuardianData = async () => {
@@ -979,21 +980,55 @@ export default function SafeRide360Page() {
             {unreadCount > 0 && <span className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"><Bell size={12} /> {unreadCount} new</span>}
           </div>
 
+          {/* Driver alerts/messages for today, surfaced up top — not buried
+              in the general notifications list below. */}
+          {gNotifications.filter(n => ["trip_alert", "sos"].includes(n.type) && dateGroupLabel(n.createdAt) === "Today").length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+              <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest flex items-center gap-1.5"><AlertTriangle size={13} /> From your driver today</p>
+              {gNotifications.filter(n => ["trip_alert", "sos"].includes(n.type) && dateGroupLabel(n.createdAt) === "Today").map(n => (
+                <div key={n.id} className="text-xs text-amber-900">
+                  <p className="whitespace-pre-line font-medium">{n.text}</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">{new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {myChildren.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Users size={14} className="text-teal-600" /> My Children</h3>
               <p className="text-[11px] text-gray-400 mb-3">Mark a child absent for today and the driver will see it automatically — no need to wait for them.</p>
-              <div className="space-y-2">
-                {myChildren.map(c => (
-                  <div key={c.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-3 py-2">
-                    <span className="font-bold text-gray-900">{c.name} {c.schoolName && <span className="text-gray-400 font-normal">({c.schoolName})</span>}</span>
-                    <button onClick={() => toggleChildAbsentToday(c)} disabled={absenceBusyId === c.id}
-                      className={`flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition disabled:opacity-50 ${c.absentToday ? "bg-amber-50 text-amber-700 border border-amber-200" : "text-gray-500 border border-gray-200 hover:bg-gray-50"}`}>
-                      {absenceBusyId === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
-                      {c.absentToday ? "Absent today — Cancel" : "Mark absent today"}
-                    </button>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {myChildren.map(c => {
+                  const childStops: LiveStop[] = [];
+                  if (c.pickupLat != null && c.pickupLng != null) childStops.push({ id: `${c.id}-pickup`, name: `${c.pickupStopName || "Pickup"} (Home → School)`, lat: c.pickupLat, lng: c.pickupLng, state: "upcoming" });
+                  if (c.dropLat != null && c.dropLng != null && (c.dropLat !== c.pickupLat || c.dropLng !== c.pickupLng)) childStops.push({ id: `${c.id}-drop`, name: `${c.dropStopName || "Drop"} (School → Home)`, lat: c.dropLat, lng: c.dropLng, state: "upcoming" });
+                  return (
+                    <div key={c.id} className="border border-gray-100 rounded-lg px-3 py-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-bold text-gray-900">{c.name}</span> {c.schoolName && <span className="text-gray-400 font-normal">({c.schoolName})</span>}
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {c.pickupStopName ? `Pickup: ${c.pickupStopName}` : "No pickup point set"}{c.dropStopName ? ` · Drop: ${c.dropStopName}` : ""}
+                          </p>
+                        </div>
+                        <button onClick={() => toggleChildAbsentToday(c)} disabled={absenceBusyId === c.id}
+                          className={`flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition disabled:opacity-50 shrink-0 ${c.absentToday ? "bg-amber-50 text-amber-700 border border-amber-200" : "text-gray-500 border border-gray-200 hover:bg-gray-50"}`}>
+                          {absenceBusyId === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                          {c.absentToday ? "Absent today — Cancel" : "Mark absent today"}
+                        </button>
+                      </div>
+                      {childStops.length > 0 && (
+                        <>
+                          <button onClick={() => setExpandedChildId(expandedChildId === c.id ? null : c.id)} className="text-[11px] font-bold text-teal-600 hover:underline mt-1.5">
+                            {expandedChildId === c.id ? "Hide map" : "Show pickup/drop on map"}
+                          </button>
+                          {expandedChildId === c.id && <div className="mt-2"><LiveMap driverPosition={null} stops={childStops} height="200px" autoFollow={false} /></div>}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1001,30 +1036,41 @@ export default function SafeRide360Page() {
           {gLoading && todayStatus.length === 0 ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-gray-300" size={22} /></div>
           ) : todayStatus.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-12">No active trips right now — you'll see live tracking here once your driver starts one.</p>
+            <p className="text-sm text-gray-400 text-center py-12">No trips in the last couple of days — you'll see tracking here once your driver starts one.</p>
           ) : (
-            todayStatus.map(s => {
-              const liveStops: LiveStop[] = (gTripStops[s.tripId] || []).map(st => ({
-                id: st.id, name: st.studentNames?.length ? `${st.name} — ${st.studentNames.join(", ")}` : st.name,
-                lat: st.lat, lng: st.lng, state: "upcoming",
-              }));
-              return (
-                <div key={s.tripPassengerId} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                  <div className="p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div><p className="font-black text-gray-900 text-sm">{s.passengerName}</p><p className="text-xs text-gray-400">{s.tripName} · {s.driverName} · {s.vehicleNumber}</p></div>
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${s.status === "picked" ? "bg-green-50 text-green-700" : s.status === "absent" ? "bg-gray-100 text-gray-500" : "bg-amber-50 text-amber-700"}`}>
-                        {s.status === "picked" ? "✓ Picked Up" : s.status === "absent" ? "Absent" : "Awaiting Pickup"}
-                      </span>
+            groupNotificationsByDate(todayStatus).map(([dateLabel, entries]) => (
+              <div key={dateLabel} className="space-y-3">
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{dateLabel} <span className="font-normal normal-case text-gray-300">· {entries.length} trip{entries.length === 1 ? "" : "s"}</span></p>
+                {entries.map(s => {
+                  const liveStops: LiveStop[] = (gTripStops[s.tripId] || []).map(st => ({
+                    id: st.id, name: st.studentNames?.length ? `${st.name} — ${st.studentNames.join(", ")}` : st.name,
+                    lat: st.lat, lng: st.lng, state: "upcoming",
+                  }));
+                  const hasLive = s.tripStatus === "active" && s.liveLat != null && s.liveLng != null;
+                  const fallbackStops: LiveStop[] = liveStops.length > 0 ? liveStops
+                    : (s.stopLat != null && s.stopLng != null ? [{ id: s.tripId, name: s.stopName || "Stop", lat: s.stopLat, lng: s.stopLng, state: "upcoming" as const }] : []);
+                  return (
+                    <div key={s.tripPassengerId} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                      <div className="p-5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-black text-gray-900 text-sm">{s.passengerName} <span className="text-[10px] font-bold text-teal-600 ml-1">{s.direction === "pickup" ? "Home → School" : "School → Home"}</span></p>
+                            <p className="text-xs text-gray-400">{s.tripName} · {s.driverName} · {s.vehicleNumber}{s.stopName ? ` · ${s.stopName}` : ""}</p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${s.status === "picked" ? "bg-green-50 text-green-700" : s.status === "absent" ? "bg-gray-100 text-gray-500" : "bg-amber-50 text-amber-700"}`}>
+                            {s.status === "picked" ? "✓ Picked Up" : s.status === "absent" ? "Absent" : "Awaiting Pickup"}
+                          </span>
+                        </div>
+                        {fallbackStops.length > 0 && (
+                          <LiveMap driverPosition={hasLive ? { lat: s.liveLat!, lng: s.liveLng! } : null} driverLabel={`${s.driverName} — ${s.vehicleNumber}`} stops={fallbackStops} height="220px" autoFollow={hasLive} />
+                        )}
+                        {s.tripStatus === "completed" && <p className="text-xs text-green-600 font-bold flex items-center gap-1.5"><CheckCircle size={13} /> Trip completed{s.direction === "drop" ? " — reached home safely" : " — reached school safely"}</p>}
+                      </div>
                     </div>
-                    {s.tripStatus === "active" && s.liveLat != null && s.liveLng != null && (
-                      <LiveMap driverPosition={{ lat: s.liveLat, lng: s.liveLng }} driverLabel={`${s.driverName} — ${s.vehicleNumber}`} stops={liveStops} height="240px" />
-                    )}
-                    {s.tripStatus === "completed" && <p className="text-xs text-green-600 font-bold flex items-center gap-1.5"><CheckCircle size={13} /> Trip completed{s.direction === "drop" ? " — reached home safely" : " — reached school safely"}</p>}
-                  </div>
-                </div>
-              );
-            })
+                  );
+                })}
+              </div>
+            ))
           )}
 
           {gNotifications.length > 0 && (
