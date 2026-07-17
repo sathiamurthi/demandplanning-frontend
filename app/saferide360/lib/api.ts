@@ -1,4 +1,4 @@
-import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult } from "./types";
+import type { Organization, Driver, Stop, Passenger, Trip, TripPassenger, GuardianNotification, GuardianTodayEntry, Billing, GeocodeResult, TripTemplate } from "./types";
 
 const BASE = "/v1/saferide360";
 const TOKEN_KEY = "saferide360_token";
@@ -64,9 +64,17 @@ export const saferide360Api = {
     req<Passenger>(`/passengers/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deletePassenger: (id: string) => req<{ deleted: true }>(`/passengers/${id}`, { method: "DELETE" }),
 
+  // ── Driver: trip templates (save a student selection for reuse) ──────
+  listTripTemplates: () => req<TripTemplate[]>("/trip-templates"),
+  createTripTemplate: (name: string, passenger_ids: string[]) =>
+    req<TripTemplate>("/trip-templates", { method: "POST", body: JSON.stringify({ name, passenger_ids }) }),
+  updateTripTemplate: (id: string, body: { name?: string; passenger_ids?: string[] }) =>
+    req<TripTemplate>(`/trip-templates/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteTripTemplate: (id: string) => req<{ deleted: true }>(`/trip-templates/${id}`, { method: "DELETE" }),
+
   // ── Driver: trips ────────────────────────────────────────────────────
   listTrips: () => req<Trip[]>("/trips"),
-  createTrip: (body: { name: string; direction: "pickup" | "drop"; scheduled_start_time: string; scheduled_end_time: string }) =>
+  createTrip: (body: { name: string; direction: "pickup" | "drop"; scheduled_start_time: string; scheduled_end_time: string; template_id?: string }) =>
     req<Trip>("/trips", { method: "POST", body: JSON.stringify(body) }),
   startTrip: (id: string) => req<Trip>(`/trips/${id}/start`, { method: "POST" }),
   updateTripLive: (id: string, lat: number, lng: number) => req<Trip>(`/trips/${id}/live`, { method: "PATCH", body: JSON.stringify({ lat, lng }) }),

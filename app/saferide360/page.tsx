@@ -7,13 +7,21 @@ import {
   MessageSquare, CreditCard, Pencil,
 } from "lucide-react";
 import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
-import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult } from "./lib/types";
+import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate } from "./lib/types";
 import LiveMap from "./components/LiveMap";
 import type { LiveStop } from "./lib/mapProvider";
 import { InstallAppBadge } from "../../components/InstallApp";
 
 type Role = "driver" | "guardian";
 type View = "landing" | "driver-auth" | "driver-dashboard" | "driver-setup" | "driver-trip" | "guardian-auth" | "guardian-dashboard";
+
+// Plain-English trip status, everywhere a status is shown — "scheduled" and
+// "active" are backend/DB language, not what a driver or parent thinks in.
+function tripStatusLabel(status: string): string {
+  if (status === "active") return "In Progress";
+  if (status === "completed") return "Completed";
+  return "Not Started";
+}
 
 export default function SafeRide360Page() {
   const [view, setView] = useState<View>("landing");
@@ -88,17 +96,18 @@ export default function SafeRide360Page() {
 
   const handleLogout = () => { clearToken(); setRole(null); setDriver(null); setOrganization(null); go("landing"); };
 
-  // ── Driver: stops/passengers/trips ───────────────────────────────────
+// ── Driver: stops/passengers/trips ───────────────────────────────────
   const [stops, setStops] = useState<Stop[]>([]);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [tripTemplates, setTripTemplates] = useState<TripTemplate[]>([]);
   const [dashLoading, setDashLoading] = useState(false);
 
   const loadDriverData = async () => {
     setDashLoading(true);
     try {
-      const [s, p, t] = await Promise.all([saferide360Api.listStops(), saferide360Api.listPassengers(), saferide360Api.listTrips()]);
-      setStops(s); setPassengers(p); setTrips(t);
+      const [s, p, t, tt] = await Promise.all([saferide360Api.listStops(), saferide360Api.listPassengers(), saferide360Api.listTrips(), saferide360Api.listTripTemplates()]);
+      setStops(s); setPassengers(p); setTrips(t); setTripTemplates(tt);
     } catch { /* ignore */ } finally { setDashLoading(false); }
   };
   useEffect(() => { if (view === "driver-dashboard" || view === "driver-setup") loadDriverData(); }, [view]);
@@ -178,6 +187,23 @@ export default function SafeRide360Page() {
   const [newPName, setNewPName] = useState(""); const [newPGuardianName, setNewPGuardianName] = useState("");
   const [newPGuardianPhone, setNewPGuardianPhone] = useState(""); const [newPPickup, setNewPPickup] = useState(""); const [newPDrop, setNewPDrop] = useState("");
   const [newPSchool, setNewPSchool] = useState(""); const [passengerErr, setPassengerErr] = useState(""); const [passengerBusy, setPassengerBusy] = useState(false);
+  const [editingPassengerId, setEditingPassengerId] = useState<string | null>(null);
+
+  const resetPassengerForm = () => {
+    setNewPName(""); setNewPGuardianName(""); setNewPGuardianPhone(""); setNewPPickup(""); setNewPDrop("");
+    setNewPSchool(organization?.name || ""); setEditingPassengerId(null); setPassengerErr("");
+  };
+  const startEditPassenger = (p: Passenger) => {
+    setEditingPassengerId(p.id); setNewPName(p.name); setNewPGuardianName(p.guardianName); setNewPGuardianPhone(p.guardianPhone);
+    setNewPPickup(p.pickupStopId || ""); setNewPDrop(p.dropStopId || ""); setNewPSchool(p.schoolName || organization?.name || "");
+    setPassengerErr("");
+  };
+  const deletePassenger = async (p: Passenger) => {
+    if (!confirm(`Remove ${p.name} from your passenger list?`)) return;
+    await saferide360Api.deletePassenger(p.id);
+    setPassengers(prev => prev.filter(x => x.id !== p.id));
+    if (editingPassengerId === p.id) resetPassengerForm();
+  };
   const addPassenger = async () => {
     setPassengerErr("");
     if (!newPName.trim() || !newPGuardianName.trim() || !newPGuardianPhone.trim()) {
@@ -186,13 +212,20 @@ export default function SafeRide360Page() {
     }
     setPassengerBusy(true);
     try {
-      const p = await saferide360Api.createPassenger({
+      const body = {
         name: newPName.trim(), guardian_name: newPGuardianName.trim(), guardian_phone: newPGuardianPhone.trim(),
         pickup_stop_id: newPPickup || undefined, drop_stop_id: newPDrop || undefined, school_name: newPSchool.trim() || undefined,
-      });
-      setPassengers(prev => [...prev, p]); setNewPName(""); setNewPGuardianName(""); setNewPGuardianPhone(""); setNewPPickup(""); setNewPDrop(""); setNewPSchool("");
+      };
+      if (editingPassengerId) {
+        const p = await saferide360Api.updatePassenger(editingPassengerId, body);
+        setPassengers(prev => prev.map(x => x.id === p.id ? p : x));
+      } else {
+        const p = await saferide360Api.createPassenger(body);
+        setPassengers(prev => [...prev, p]);
+      }
+      resetPassengerForm();
     } catch (e: any) {
-      setPassengerErr(e.message || "Could not add this passenger.");
+      setPassengerErr(e.message || "Could not save this passenger.");
     } finally {
       setPassengerBusy(false);
     }
@@ -201,12 +234,50 @@ export default function SafeRide360Page() {
   // editable per student (e.g. a shared van serving more than one school).
   useEffect(() => { if (view === "driver-setup" && organization && !newPSchool) setNewPSchool(organization.name); }, [view, organization]);
 
+  // ── Trip templates: "select students, save as a reusable template" ────
+  const [templateName, setTemplateName] = useState(""); const [templateSelection, setTemplateSelection] = useState<string[]>([]);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateErr, setTemplateErr] = useState(""); const [templateBusy, setTemplateBusy] = useState(false);
+
+  const toggleTemplatePassenger = (id: string) =>
+    setTemplateSelection(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const startEditTemplate = (t: TripTemplate) => {
+    setEditingTemplateId(t.id); setTemplateName(t.name); setTemplateSelection(t.passengerIds); setTemplateErr("");
+  };
+  const resetTemplateForm = () => { setEditingTemplateId(null); setTemplateName(""); setTemplateSelection([]); setTemplateErr(""); };
+  const saveTemplate = async () => {
+    setTemplateErr("");
+    if (!templateName.trim() || templateSelection.length === 0) { setTemplateErr("Name the route and select at least one student."); return; }
+    setTemplateBusy(true);
+    try {
+      if (editingTemplateId) {
+        const t = await saferide360Api.updateTripTemplate(editingTemplateId, { name: templateName.trim(), passenger_ids: templateSelection });
+        setTripTemplates(prev => prev.map(x => x.id === t.id ? t : x));
+      } else {
+        const t = await saferide360Api.createTripTemplate(templateName.trim(), templateSelection);
+        setTripTemplates(prev => [t, ...prev]);
+      }
+      resetTemplateForm();
+    } catch (e: any) {
+      setTemplateErr(e.message || "Could not save this template.");
+    } finally {
+      setTemplateBusy(false);
+    }
+  };
+  const deleteTemplate = async (t: TripTemplate) => {
+    if (!confirm(`Delete the "${t.name}" template?`)) return;
+    await saferide360Api.deleteTripTemplate(t.id);
+    setTripTemplates(prev => prev.filter(x => x.id !== t.id));
+    if (editingTemplateId === t.id) resetTemplateForm();
+  };
+
   const [newTName, setNewTName] = useState(""); const [newTDirection, setNewTDirection] = useState<"pickup" | "drop">("pickup");
   const [newTStart, setNewTStart] = useState("07:00"); const [newTEnd, setNewTEnd] = useState("08:00");
+  const [newTTemplate, setNewTTemplate] = useState("");
   const addTrip = async () => {
     if (!newTName.trim()) return;
-    const t = await saferide360Api.createTrip({ name: newTName.trim(), direction: newTDirection, scheduled_start_time: newTStart, scheduled_end_time: newTEnd });
-    setTrips(prev => [t, ...prev]); setNewTName("");
+    const t = await saferide360Api.createTrip({ name: newTName.trim(), direction: newTDirection, scheduled_start_time: newTStart, scheduled_end_time: newTEnd, template_id: newTTemplate || undefined });
+    setTrips(prev => [t, ...prev]); setNewTName(""); setNewTTemplate("");
   };
 
   // ── Driver: active trip ──────────────────────────────────────────────
@@ -493,12 +564,16 @@ export default function SafeRide360Page() {
           )}
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="font-black text-gray-900 text-sm">Trips</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <input value={newTName} onChange={e => setNewTName(e.target.value)} placeholder="Morning Trip" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-32" />
                 <select value={newTDirection} onChange={e => setNewTDirection(e.target.value as any)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white">
                   <option value="pickup">Home → School</option><option value="drop">School → Home</option>
+                </select>
+                <select value={newTTemplate} onChange={e => setNewTTemplate(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+                  <option value="">All students</option>
+                  {tripTemplates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.passengerIds.length})</option>)}
                 </select>
                 <input value={newTStart} onChange={e => setNewTStart(e.target.value)} type="time" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
                 <input value={newTEnd} onChange={e => setNewTEnd(e.target.value)} type="time" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
@@ -511,7 +586,7 @@ export default function SafeRide360Page() {
                 {trips.map(t => (
                   <button key={t.id} onClick={() => openTrip(t)} className="w-full flex items-center justify-between border border-gray-100 rounded-xl p-3 hover:border-teal-300 transition text-left">
                     <div><p className="text-sm font-bold text-gray-900">{t.name}</p><p className="text-[11px] text-gray-400">{t.scheduledStartTime}–{t.scheduledEndTime} · {t.direction === "pickup" ? "Home → School" : "School → Home"}</p></div>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${t.status === "active" ? "bg-teal-50 text-teal-700" : t.status === "completed" ? "bg-gray-100 text-gray-500" : "bg-amber-50 text-amber-700"}`}>{t.status}</span>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${t.status === "active" ? "bg-teal-50 text-teal-700" : t.status === "completed" ? "bg-gray-100 text-gray-500" : "bg-amber-50 text-amber-700"}`}>{tripStatusLabel(t.status)}</span>
                   </button>
                 ))}
               </div>
@@ -559,26 +634,76 @@ export default function SafeRide360Page() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
-            <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Users size={15} className="text-teal-600" /> Passengers</h3>
+            <h3 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Users size={15} className="text-teal-600" /> Students</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
               <input value={newPName} onChange={e => setNewPName(e.target.value)} placeholder="Student Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
               <input value={newPSchool} onChange={e => setNewPSchool(e.target.value)} placeholder="School Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
               <input value={newPGuardianName} onChange={e => setNewPGuardianName(e.target.value)} placeholder="Parent Name" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
               <input value={newPGuardianPhone} onChange={e => setNewPGuardianPhone(e.target.value)} placeholder="Parent Mobile" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
-              <div className="flex gap-2">
-                <select value={newPPickup} onChange={e => setNewPPickup(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white flex-1"><option value="">Pickup stop…</option>{stops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-                <select value={newPDrop} onChange={e => setNewPDrop(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white flex-1"><option value="">Drop stop…</option>{stops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Start Point (Pickup)</label>
+                <select value={newPPickup} onChange={e => setNewPPickup(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"><option value="">Select…</option>{stops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">End Point (Drop)</label>
+                <select value={newPDrop} onChange={e => setNewPDrop(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white"><option value="">Select…</option>{stops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               </div>
             </div>
             {stops.length === 0 && <p className="text-[11px] text-amber-600 mb-2">No stops set up yet — add one in Pickup / Drop Points above so you can assign it here.</p>}
             {passengerErr && <p className="text-[11px] text-red-600 mb-2">{passengerErr}</p>}
-            <button onClick={addPassenger} disabled={passengerBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition mb-3">
-              {passengerBusy && <Loader2 size={12} className="animate-spin" />} Add Passenger
-            </button>
+            <div className="flex gap-2 mb-3">
+              <button onClick={addPassenger} disabled={passengerBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                {passengerBusy && <Loader2 size={12} className="animate-spin" />} {editingPassengerId ? "Save Changes" : "Add Student"}
+              </button>
+              {editingPassengerId && <button onClick={resetPassengerForm} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-3 py-1.5">Cancel</button>}
+            </div>
             <div className="space-y-1.5">
+              {passengers.length === 0 && <p className="text-xs text-gray-400">No students yet — add one above.</p>}
               {passengers.map(p => (
-                <div key={p.id} className="text-xs text-gray-700">
-                  • {p.name} {p.schoolName && <span className="text-teal-600">({p.schoolName})</span>} <span className="text-gray-400">— guardian: {p.guardianName}, {p.guardianPhone}</span>
+                <div key={p.id} className={`flex items-center justify-between gap-2 text-xs text-gray-700 rounded-lg px-2 py-1.5 ${editingPassengerId === p.id ? "bg-teal-50" : ""}`}>
+                  <span>• {p.name} {p.schoolName && <span className="text-teal-600">({p.schoolName})</span>} <span className="text-gray-400">— guardian: {p.guardianName}, {p.guardianPhone}</span></span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => startEditPassenger(p)} className="text-teal-600 hover:underline flex items-center gap-0.5"><Pencil size={10} /> Edit</button>
+                    <button onClick={() => deletePassenger(p)} className="text-red-500 hover:underline">Delete</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <h3 className="font-black text-gray-900 text-sm mb-1 flex items-center gap-2"><Bus size={15} className="text-teal-600" /> Trip Templates</h3>
+            <p className="text-[11px] text-gray-400 mb-3">Configure a trip once — select students, save it — then reuse it every time you create a trip instead of picking students again.</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Route name, e.g. Van A Morning" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs flex-1 min-w-[160px]" />
+              <button onClick={saveTemplate} disabled={templateBusy} className="flex items-center gap-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                {templateBusy && <Loader2 size={12} className="animate-spin" />} {editingTemplateId ? "Save Changes" : "Save Template"}
+              </button>
+              {editingTemplateId && <button onClick={resetTemplateForm} className="text-xs font-bold text-gray-500 hover:text-gray-700 px-3 py-1.5">Cancel</button>}
+            </div>
+            {templateErr && <p className="text-[11px] text-red-600 mb-2">{templateErr}</p>}
+            {passengers.length === 0 ? (
+              <p className="text-xs text-gray-400 mb-3">Add students above before configuring a trip template.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-3 max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2">
+                {passengers.map(p => (
+                  <label key={p.id} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={templateSelection.includes(p.id)} onChange={() => toggleTemplatePassenger(p.id)} className="accent-teal-600" />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              {tripTemplates.length === 0 && <p className="text-xs text-gray-400">No templates yet — select students above and save one.</p>}
+              {tripTemplates.map(t => (
+                <div key={t.id} className={`flex items-center justify-between text-xs text-gray-700 rounded-lg px-2 py-1.5 ${editingTemplateId === t.id ? "bg-teal-50" : ""}`}>
+                  <span className="font-bold text-gray-900">{t.name}</span>
+                  <span className="flex items-center gap-2 text-gray-400">
+                    {t.passengerIds.length} student{t.passengerIds.length === 1 ? "" : "s"}
+                    <button onClick={() => startEditTemplate(t)} className="text-teal-600 hover:underline flex items-center gap-0.5"><Pencil size={10} /> Edit</button>
+                    <button onClick={() => deleteTemplate(t)} className="text-red-500 hover:underline">Delete</button>
+                  </span>
                 </div>
               ))}
             </div>
@@ -593,7 +718,25 @@ export default function SafeRide360Page() {
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div><h2 className="font-black text-gray-900 text-lg">{activeTrip.name}</h2><p className="text-xs text-gray-400">{activeTrip.direction === "pickup" ? "Home → School" : "School → Home"}</p></div>
-              <span className={`text-xs font-bold px-3 py-1 rounded-full ${activeTrip.status === "active" ? "bg-teal-50 text-teal-700" : "bg-amber-50 text-amber-700"}`}>{activeTrip.status}</span>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full ${activeTrip.status === "active" ? "bg-teal-50 text-teal-700" : activeTrip.status === "completed" ? "bg-gray-100 text-gray-500" : "bg-amber-50 text-amber-700"}`}>{tripStatusLabel(activeTrip.status)}</span>
+            </div>
+
+            {/* Step indicator — Start → In Progress (confirm each student) → Complete (confirm headcount) */}
+            <div className="flex items-center gap-1.5 mb-5">
+              {(["scheduled", "active", "completed"] as const).map((step, i) => {
+                const order = { scheduled: 0, active: 1, completed: 2 } as const;
+                const done = order[activeTrip.status] > i;
+                const current = order[activeTrip.status] === i;
+                return (
+                  <div key={step} className="flex items-center gap-1.5 flex-1">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${done ? "bg-teal-600 text-white" : current ? "bg-teal-100 text-teal-700 border-2 border-teal-600" : "bg-gray-100 text-gray-400"}`}>
+                      {done ? <CheckCircle size={13} /> : i + 1}
+                    </div>
+                    <span className={`text-[10px] font-bold ${current ? "text-teal-700" : done ? "text-gray-500" : "text-gray-300"}`}>{["Start", "In Progress", "Complete"][i]}</span>
+                    {i < 2 && <div className={`flex-1 h-0.5 ${done ? "bg-teal-600" : "bg-gray-100"}`} />}
+                  </div>
+                );
+              })}
             </div>
 
             {activeTrip.status === "scheduled" && (

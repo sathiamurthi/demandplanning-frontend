@@ -24,6 +24,10 @@ export interface Trip {
   scheduledStartTime: string; scheduledEndTime: string; status: TripStatus;
   actualStartAt?: string; actualEndAt?: string;
   liveLat?: number; liveLng?: number; liveUpdatedAt?: string;
+  templateId?: string;
+}
+export interface TripTemplate {
+  id: string; organizationId: string; name: string; passengerIds: string[]; createdAt: string;
 }
 export type TripPassengerStatus = "pending" | "picked" | "absent";
 export interface TripPassenger {
