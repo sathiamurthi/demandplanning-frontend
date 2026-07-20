@@ -514,6 +514,32 @@ export default function SafeRide360Page() {
     return () => { if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current); };
   }, [activeTrip?.id, activeTrip?.status]);
 
+  // Keeps the phone screen from sleeping while a trip is active — a locked
+  // screen throttles/pauses the geolocation watch above, which is the real
+  // reliability gap in phone-based tracking (not something hardware trackers
+  // would fix any cheaper). Free, no new infra: just the browser's Wake Lock
+  // API. The browser releases the lock automatically when the tab loses
+  // visibility, so it's re-acquired on visibilitychange too.
+  const wakeLockRef = useRef<any>(null);
+  useEffect(() => {
+    if (!activeTrip || activeTrip.status !== "active" || !("wakeLock" in navigator)) return;
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+      } catch { /* not fatal — tracking still runs, just may pause if the screen sleeps */ }
+    };
+    acquire();
+    const onVisible = () => { if (!cancelled && document.visibilityState === "visible") acquire(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      wakeLockRef.current?.release?.().catch(() => {});
+      wakeLockRef.current = null;
+    };
+  }, [activeTrip?.id, activeTrip?.status]);
+
   // One pin per stop, labeled with every student riding through it on this
   // trip (not just the stop name) — "done" once every student there has
   // been confirmed picked/absent, so the driver can see route progress at
@@ -1225,7 +1251,7 @@ export default function SafeRide360Page() {
                   <button onClick={() => setShowSosForm(v => !v)} disabled={sosSent} className="flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 font-bold text-sm py-3 rounded-xl transition"><Siren size={14} /> {sosSent ? "Alert Sent" : "SOS"}</button>
                   <button onClick={openCompleteTrip} className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm py-3 rounded-xl transition">Complete Trip</button>
                 </div>
-                <p className="text-[11px] text-gray-400 text-center">Keep this screen open — live location is shared with parents while the trip is active.</p>
+                <p className="text-[11px] text-gray-400 text-center">Keep this screen open — live location is shared with parents while the trip is active. Your phone screen will stay on automatically so tracking doesn't pause.</p>
 
                 {showHeadcountConfirm && (
                   <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowHeadcountConfirm(false)}>
