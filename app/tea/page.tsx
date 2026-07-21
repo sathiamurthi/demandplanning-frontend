@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Leaf, Scale, Users, Truck, Factory, Wallet, TrendingUp, AlertCircle, RefreshCw, ClipboardList, Package, Sparkles } from "lucide-react";
+import { Leaf, Scale, Users, Truck, Factory, Wallet, TrendingUp, AlertCircle, RefreshCw, ClipboardList, Package, Sparkles, ArrowRight, X } from "lucide-react";
 import { teaUrl, teaAuthHeaders } from "@/lib/tea-api";
 
 interface Dashboard {
@@ -32,6 +32,24 @@ export default function TeaDashboard() {
   const [ai, setAi]       = useState<AIData>({});
   const [loading, setLoading] = useState(true);
   const [dateStr, setDateStr] = useState("");
+  const [setupIncomplete, setSetupIncomplete] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const checkSetup = async () => {
+    if (localStorage.getItem("tea_onboarding_done")) return;
+    try {
+      const headers = teaAuthHeaders() as Record<string, string>;
+      const [gRes, rRes, fRes, vRes] = await Promise.all([
+        fetch(teaUrl("/growers"), { headers }),
+        fetch(teaUrl("/rates"), { headers }),
+        fetch(teaUrl("/factories"), { headers }),
+        fetch(teaUrl("/vehicles"), { headers }),
+      ]);
+      const [g, r, f, v] = await Promise.all([gRes.json(), rRes.json(), fRes.json(), vRes.json()]);
+      const empty = (x: any) => x.success && Array.isArray(x.data) && x.data.length === 0;
+      if (empty(g) && empty(r) && empty(f) && empty(v)) setSetupIncomplete(true);
+    } catch { /* silently fail — never block the dashboard on this check */ }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -59,6 +77,7 @@ export default function TeaDashboard() {
 
   useEffect(() => {
     load();
+    checkSetup();
     setDateStr(new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }));
   }, []);
 
@@ -90,6 +109,25 @@ export default function TeaDashboard() {
           Refresh
         </button>
       </div>
+
+      {/* Setup checklist banner — new tenant with no growers/rates/factories/vehicles yet */}
+      {setupIncomplete && !bannerDismissed && (
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-4 flex-wrap">
+          <div className="w-10 h-10 bg-white border border-emerald-200 rounded-xl flex items-center justify-center shrink-0">
+            <Sparkles size={18} className="text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <p className="text-sm font-semibold text-gray-900">Let's get TeaFactory360 set up for you</p>
+            <p className="text-xs text-gray-600 mt-0.5">Add your rates, growers, and first vehicle & factory — takes about 2 minutes.</p>
+          </div>
+          <a href="/tea/onboarding" className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-4 py-2 rounded-lg text-sm font-medium">
+            Start Setup <ArrowRight size={14} />
+          </a>
+          <button onClick={() => setBannerDismissed(true)} className="text-gray-400 hover:text-gray-600 p-1">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* KPIs */}
       {loading ? (
