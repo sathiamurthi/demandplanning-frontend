@@ -75,11 +75,11 @@ export default function ReportsPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-blue-950/20">
             <BarChart3 size={18} className="text-blue-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Reports</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Reports</h1>
             <p className="text-white/40 text-xs">Daily, weekly, and grower ledger reports</p>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
         {([["daily", "Daily Report"], ["weekly", "Weekly Report"], ["ledger", "Grower Ledger"]] as [ReportTab, string][]).map(([t, l]) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-blue-600/20 text-blue-400" : "text-white/40 hover:text-white"}`}>
@@ -101,13 +101,13 @@ export default function ReportsPage() {
       {/* Filters */}
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="bg-[#161a23] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+          className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
         <span className="text-white/30 text-xs">to</span>
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="bg-[#161a23] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+          className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
         {tab === "ledger" && (
           <select value={growerId} onChange={e => setGrowerId(e.target.value)}
-            className="bg-[#161a23] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none">
+            className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none">
             <option value="">Select grower...</option>
             {growers.map(g => <option key={g.id} value={g.id}>{g.name} ({g.grower_code})</option>)}
           </select>
@@ -128,14 +128,14 @@ export default function ReportsPage() {
                 { label: "Total KG", value: `${totalDailyKg.toFixed(0)} kg`, color: "text-green-400" },
                 { label: "Avg/Day", value: `${(totalDailyKg / daily.length).toFixed(0)} kg`, color: "text-yellow-400" },
               ].map(s => (
-                <div key={s.label} className="bg-[#161a23] border border-white/8 rounded-xl p-3">
+                <div key={s.label} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-3">
                   <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
                   <p className="text-white/40 text-xs">{s.label}</p>
                 </div>
               ))}
             </div>
           )}
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {loading ? <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
             : daily.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No data in this range.</div>
             : (
@@ -170,7 +170,7 @@ export default function ReportsPage() {
 
       {/* Weekly Report */}
       {tab === "weekly" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           {loading ? <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
           : weekly.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No weekly data in this range.</div>
           : (
@@ -205,7 +205,7 @@ export default function ReportsPage() {
 
       {/* Grower Ledger */}
       {tab === "ledger" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           {!growerId ? (
             <div className="p-10 text-center text-white/30 text-sm">
               <Users size={32} className="mx-auto mb-3 opacity-20" />

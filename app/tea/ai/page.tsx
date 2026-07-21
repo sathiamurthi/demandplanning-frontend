@@ -91,32 +91,32 @@ export default function TeaAIPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 bg-purple-500/10 rounded-xl flex items-center justify-center"><Sparkles size={18} className="text-purple-400" /></div>
-        <div><h1 className="text-lg font-bold text-white">AI Assistant</h1><p className="text-white/40 text-xs">Powered by Claude — voice intake, payment summaries, and factory intelligence</p></div>
+        <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-purple-950/20"><Sparkles size={18} className="text-purple-400" /></div>
+        <div><h1 className="text-xl font-bold text-white tracking-tight">AI Assistant</h1><p className="text-white/40 text-xs">Powered by Claude — voice intake, payment summaries, and factory intelligence</p></div>
       </div>
 
-      <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit flex-wrap">
+      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit flex-wrap">
         {(role === "agent" ? AGENT_TABS : ALL_TABS).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-purple-600/20 text-purple-300" : "text-white/40 hover:text-white"}`}>{l}</button>
         ))}
       </div>
 
       {tab === "assistant" && role !== "agent" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
           <p className="text-white/50 text-xs mb-3 flex items-center gap-1"><MessageSquare size={14} /> Ask anything about today's factory numbers, in plain language.</p>
           <div className="flex gap-2 mb-3">
-            <input placeholder="e.g. How did today go?" value={question} onChange={e => setQuestion(e.target.value)} onKeyDown={e => e.key === "Enter" && askAssistant()} className="flex-1 bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <button onClick={askAssistant} disabled={askingAssistant} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium px-4 disabled:opacity-50"><Send size={14} /> {askingAssistant ? "Thinking…" : "Ask"}</button>
+            <input placeholder="e.g. How did today go?" value={question} onChange={e => setQuestion(e.target.value)} onKeyDown={e => e.key === "Enter" && askAssistant()} className="flex-1 bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <button onClick={askAssistant} disabled={askingAssistant} className="flex items-center gap-1 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 shadow-md shadow-purple-950/40 transition-all text-white rounded-lg text-sm font-medium px-4 disabled:opacity-50"><Send size={14} /> {askingAssistant ? "Thinking…" : "Ask"}</button>
           </div>
           {answer && <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 text-sm text-purple-100 whitespace-pre-wrap">{answer}</div>}
         </div>
       )}
 
       {tab === "intake" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
           <p className="text-white/50 text-xs mb-3 flex items-center gap-1"><Mic size={14} /> Paste a transcribed voice note or WhatsApp message (Tamil/English mix OK). Produces a draft only — never writes to collections directly.</p>
-          <textarea rows={3} placeholder='e.g. "Murugan 45 kg grade A today"' value={intakeText} onChange={e => setIntakeText(e.target.value)} className="w-full bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-3" />
-          <button onClick={parseIntake} disabled={parsingIntake} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium px-4 py-2 disabled:opacity-50 mb-3"><Sparkles size={14} /> {parsingIntake ? "Parsing…" : "Parse Intake"}</button>
+          <textarea rows={3} placeholder='e.g. "Murugan 45 kg grade A today"' value={intakeText} onChange={e => setIntakeText(e.target.value)} className="w-full bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white mb-3" />
+          <button onClick={parseIntake} disabled={parsingIntake} className="flex items-center gap-1 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 shadow-md shadow-purple-950/40 transition-all text-white rounded-lg text-sm font-medium px-4 py-2 disabled:opacity-50 mb-3"><Sparkles size={14} /> {parsingIntake ? "Parsing…" : "Parse Intake"}</button>
           {intakeDraft && (
             intakeDraft.error ? <p className="text-red-400 text-sm">{intakeDraft.error}</p> : (
               <div className="bg-white/5 rounded-xl p-4 space-y-1 text-sm">
@@ -132,13 +132,13 @@ export default function TeaAIPage() {
       )}
 
       {tab === "payment" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
           <div className="flex gap-2 mb-3">
-            <select value={selectedGrower} onChange={e => setSelectedGrower(e.target.value)} className="flex-1 bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+            <select value={selectedGrower} onChange={e => setSelectedGrower(e.target.value)} className="flex-1 bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Select grower...</option>
               {growers.map(g => <option key={g.id} value={g.id}>{g.name} ({g.grower_code})</option>)}
             </select>
-            <button onClick={generateSummary} disabled={loadingSummary || !selectedGrower} className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium px-4 disabled:opacity-50"><Sparkles size={14} /> {loadingSummary ? "Generating…" : "Generate"}</button>
+            <button onClick={generateSummary} disabled={loadingSummary || !selectedGrower} className="flex items-center gap-1 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 shadow-md shadow-purple-950/40 transition-all text-white rounded-lg text-sm font-medium px-4 disabled:opacity-50"><Sparkles size={14} /> {loadingSummary ? "Generating…" : "Generate"}</button>
           </div>
           {paymentSummary && (
             paymentSummary.error ? <p className="text-red-400 text-sm">{paymentSummary.error}</p> : (
@@ -155,7 +155,7 @@ export default function TeaAIPage() {
 
       {tab === "ops" && role !== "agent" && (
         <div className="space-y-4">
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
             <p className="text-white text-sm font-medium mb-3 flex items-center gap-2"><Users size={14} className="text-purple-400" /> Farmer Comparison (last 90 days)</p>
             {farmerComparison.length === 0 ? <p className="text-white/30 text-sm">No data yet.</p> : farmerComparison.slice(0, 10).map(f => (
               <div key={f.id} className="flex justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
@@ -166,7 +166,7 @@ export default function TeaAIPage() {
             ))}
           </div>
 
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
             <p className="text-white text-sm font-medium mb-3 flex items-center gap-2"><Fuel size={14} className="text-orange-400" /> Fuel Anomalies {fuelAnomalies && `(avg ${fuelAnomalies.average_fuel_per_kg}/kg)`}</p>
             {!fuelAnomalies || fuelAnomalies.anomalies.length === 0 ? <p className="text-white/30 text-sm">No anomalies detected.</p> : fuelAnomalies.anomalies.map(a => (
               <div key={a.id} className="flex justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
@@ -177,7 +177,7 @@ export default function TeaAIPage() {
             ))}
           </div>
 
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
             <p className="text-white text-sm font-medium mb-3 flex items-center gap-2"><TrendingUp size={14} className="text-red-400" /> Budget Alerts (month-over-month, ≥25% jump)</p>
             {budgetAlerts.length === 0 ? <p className="text-white/30 text-sm">No unusual cost jumps this month.</p> : budgetAlerts.map((b, idx) => (
               <div key={idx} className="flex justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
@@ -188,7 +188,7 @@ export default function TeaAIPage() {
             ))}
           </div>
 
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
             <p className="text-white text-sm font-medium mb-3 flex items-center gap-2"><Wrench size={14} className="text-yellow-400" /> Predictive Maintenance Nudges</p>
             {maintNudges.length === 0 ? <p className="text-white/30 text-sm">Nothing needs attention.</p> : maintNudges.map(m => (
               <div key={m.id} className="text-sm py-1.5 border-b border-white/5 last:border-0 text-white/70">{m.nudge}</div>

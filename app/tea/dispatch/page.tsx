@@ -191,11 +191,11 @@ export default function DispatchPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-yellow-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border border-yellow-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-yellow-950/20">
             <Truck size={18} className="text-yellow-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Factory Dispatch</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Factory Dispatch</h1>
             <p className="text-white/40 text-xs">Click a dispatch to add bags and record factory weights</p>
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function DispatchPage() {
 
       <div className="space-y-2">
         {dispatches.length === 0 ? (
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-10 text-center text-white/30 text-sm">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-10 text-center text-white/30 text-sm">
             <Truck size={32} className="mx-auto mb-3 opacity-20" />
             No dispatches yet.
           </div>
@@ -214,7 +214,7 @@ export default function DispatchPage() {
           const vari = variance(d);
           const ft   = factoryTotal(d);
           return (
-            <div key={d.id} className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+            <div key={d.id} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
               {/* Header */}
               <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/2" onClick={() => toggleExpand(d)}>
                 <div className="w-8 h-8 bg-yellow-500/10 rounded-xl flex items-center justify-center shrink-0">
@@ -269,7 +269,7 @@ export default function DispatchPage() {
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center gap-1.5 bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2">
+                      <div className="flex items-center gap-1.5 bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2">
                         <Package size={12} className="text-white/30" />
                         <input ref={weightRef} type="number" step="0.1" min="0" placeholder="Dispatch wt (kg)"
                           value={bagWeight} onChange={e => setBagWeight(e.target.value)}
@@ -278,7 +278,7 @@ export default function DispatchPage() {
                         <span className="text-white/30 text-xs">kg</span>
                       </div>
                       <input type="text" placeholder="Notes" value={bagNotes} onChange={e => setBagNotes(e.target.value)}
-                        className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none w-32" />
+                        className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none w-32" />
                       <button onClick={addBag} disabled={addingBag || !bagWeight}
                         className="flex items-center gap-1.5 bg-green-600/80 hover:bg-green-600 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-sm font-medium">
                         <Plus size={14} /> {addingBag ? "Adding…" : "Add"}
@@ -455,7 +455,7 @@ export default function DispatchPage() {
       {/* New Dispatch Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white">New Dispatch</h2>
               <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
@@ -464,7 +464,7 @@ export default function DispatchPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Factory *</label>
                 <select value={form.factory_id} onChange={e => setForm(p => ({ ...p, factory_id: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
                   <option value="">Select factory...</option>
                   {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
@@ -476,7 +476,7 @@ export default function DispatchPage() {
                     const v = vehicles.find(v => v.id === e.target.value);
                     setForm(p => ({ ...p, vehicle_id: e.target.value, driver_name: v?.driver_name || p.driver_name }));
                   }}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
                     <option value="">None</option>
                     {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
                   </select>
@@ -484,25 +484,25 @@ export default function DispatchPage() {
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Dispatch Date</label>
                   <input type="date" value={form.dispatch_date} onChange={e => setForm(p => ({ ...p, dispatch_date: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Driver Name</label>
                   <input type="text" value={form.driver_name} onChange={e => setForm(p => ({ ...p, driver_name: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Driver Phone</label>
                   <input type="text" value={form.driver_phone} onChange={e => setForm(p => ({ ...p, driver_phone: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
               </div>
               <div>
                 <label className="text-white/50 text-xs block mb-1">Notes</label>
                 <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
               <p className="text-white/25 text-xs">After creating, click the dispatch row to add bags one by one.</p>
             </div>

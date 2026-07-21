@@ -166,7 +166,7 @@ export default function SettlementsPage() {
   ];
 
   const SettlementTable = ({ list }: { list: Settlement[] }) => (
-    <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+    <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
       {list.length === 0 ? (
         <div className="p-10 text-center text-white/30 text-sm">
           <Factory size={28} className="mx-auto mb-3 opacity-20" />
@@ -243,11 +243,11 @@ export default function SettlementsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-purple-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-purple-950/20">
             <Factory size={18} className="text-purple-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Factory Settlement</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Factory Settlement</h1>
             <p className="text-white/40 text-xs">Record payments received from factories</p>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function SettlementsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
         <button onClick={() => setTab("week")}
           className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs transition-all ${tab==="week" ? "bg-purple-600/20 text-purple-400" : "text-white/40 hover:text-white"}`}>
           <Calendar size={12} /> This Week
@@ -292,7 +292,7 @@ export default function SettlementsPage() {
           {weekSettlements.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               {summaryCards(weekSettlements).map(s => (
-                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-purple-500/10 border-purple-500/20" : "bg-[#161a23] border-white/8"}`}>
+                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-purple-500/10 border-purple-500/20" : "bg-gradient-to-b from-[#181c26] to-[#12151b] border-white/10"}`}>
                   <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
                   <p className="text-white/40 text-xs">{s.label}</p>
                 </div>
@@ -308,7 +308,7 @@ export default function SettlementsPage() {
       {tab === "history" && (
         <>
           {/* Filter bar */}
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-5">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               <Filter size={13} className="text-white/30" />
               <span className="text-white/40 text-xs font-medium">Period:</span>
@@ -347,15 +347,15 @@ export default function SettlementsPage() {
             )}
             {histFilter === "monthly" && (
               <input type="month" value={histMonth} onChange={e => setHistMonth(e.target.value)}
-                className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+                className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
             )}
             {histFilter === "range" && (
               <div className="flex items-center gap-2">
                 <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)}
-                  className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+                  className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
                 <span className="text-white/30 text-xs">to</span>
                 <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)}
-                  className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+                  className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
               </div>
             )}
           </div>
@@ -364,7 +364,7 @@ export default function SettlementsPage() {
           {historySettlements.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               {summaryCards(historySettlements).map(s => (
-                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-purple-500/10 border-purple-500/20" : "bg-[#161a23] border-white/8"}`}>
+                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-purple-500/10 border-purple-500/20" : "bg-gradient-to-b from-[#181c26] to-[#12151b] border-white/10"}`}>
                   <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
                   <p className="text-white/40 text-xs">{s.label}</p>
                 </div>
@@ -379,7 +379,7 @@ export default function SettlementsPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white">Record Factory Settlement</h2>
               <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
@@ -388,7 +388,7 @@ export default function SettlementsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Factory *</label>
                 <select value={form.factory_id} onChange={e => setForm(p => ({ ...p, factory_id: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
                   <option value="">Select factory...</option>
                   {factories.map(fc => <option key={fc.id} value={fc.id}>{fc.name}</option>)}
                 </select>
@@ -396,7 +396,7 @@ export default function SettlementsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Settlement Date</label>
                 <input type="date" value={form.settlement_date} onChange={e => setForm(p => ({ ...p, settlement_date: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
               <div className="space-y-2">
                 <p className="text-white/50 text-xs font-medium">Grade-wise KG & Rate</p>
@@ -409,10 +409,10 @@ export default function SettlementsPage() {
                     <span className={`text-xs font-semibold px-2 py-1 rounded-lg bg-white/5 ${color} text-center`}>Grade {grade}</span>
                     <input type="number" step="0.1" min="0" placeholder="KG"
                       value={form[kgKey]} onChange={e => setForm(p => ({ ...p, [kgKey]: e.target.value }))}
-                      className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                     <input type="number" step="0.01" min="0" placeholder="₹/kg"
                       value={form[rateKey]} onChange={e => setForm(p => ({ ...p, [rateKey]: e.target.value }))}
-                      className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                   </div>
                 ))}
               </div>
@@ -421,13 +421,13 @@ export default function SettlementsPage() {
                   <label className="text-white/50 text-xs block mb-1">Rejected KG</label>
                   <input type="number" step="0.1" min="0" placeholder="0" value={form.rejected_kg}
                     onChange={e => setForm(p => ({ ...p, rejected_kg: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Deductions (₹)</label>
                   <input type="number" step="0.01" min="0" value={form.deductions}
                     onChange={e => setForm(p => ({ ...p, deductions: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
               </div>
               {totalKg > 0 && (
@@ -446,7 +446,7 @@ export default function SettlementsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Notes</label>
                 <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

@@ -192,11 +192,11 @@ export default function SettingsPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/5 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-white/10 to-white/5 border border-white/10 rounded-xl flex items-center justify-center shadow-sm shadow-black/20">
             <Settings size={18} className="text-white/60" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Settings</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Settings</h1>
             <p className="text-white/40 text-xs">Rates, factories, and vehicles</p>
           </div>
         </div>
@@ -207,7 +207,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
         {([["rates", "📊 Rates"], ["factories", "🏭 Factories"], ["vehicles", "🚛 Vehicles"]] as [SettingsTab, string][]).map(([t, l]) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-[#6c63ff]/20 text-[#6c63ff]" : "text-white/40 hover:text-white"}`}>
@@ -218,7 +218,7 @@ export default function SettingsPage() {
 
       {/* Rates */}
       {tab === "rates" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/8">
@@ -276,7 +276,7 @@ export default function SettingsPage() {
 
       {/* Factories */}
       {tab === "factories" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/8">
@@ -319,9 +319,9 @@ export default function SettingsPage() {
       {tab === "vehicles" && (
         <div className="space-y-2">
           {vehicles.length === 0 ? (
-            <div className="bg-[#161a23] border border-white/8 rounded-xl p-8 text-center text-white/30 text-sm">No vehicles added.</div>
+            <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-8 text-center text-white/30 text-sm">No vehicles added.</div>
           ) : vehicles.map(v => (
-            <div key={v.id} className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+            <div key={v.id} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
               {/* Vehicle row */}
               <div className="flex items-center gap-3 px-4 py-3">
                 <div className="w-8 h-8 bg-yellow-500/10 rounded-xl flex items-center justify-center shrink-0">
@@ -411,7 +411,7 @@ export default function SettingsPage() {
       {/* Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white">
                 {tab === "rates" ? "Set Weekly Rate" : tab === "factories" ? (editFactory ? "Edit Factory" : "Add Factory") : (editVehicle ? "Edit Vehicle" : "Add Vehicle")}
@@ -424,7 +424,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Week Starting (any day in the week)</label>
                   <input type="date" value={rateForm.effective_date} onChange={e => setRateForm(p => ({ ...p, effective_date: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
 
                 <div>
@@ -456,7 +456,7 @@ export default function SettingsPage() {
                     <div key={k}>
                       <label className="text-white/50 text-xs block mb-1">{l}</label>
                       <input type="number" value={(rateForm as any)[k]} onChange={e => setRateForm(p => ({ ...p, [k]: e.target.value }))} step="0.01"
-                        className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                        className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                     </div>
                   ))}
                 </div>
@@ -492,7 +492,7 @@ export default function SettingsPage() {
                   <div key={k}>
                     <label className="text-white/50 text-xs block mb-1">{l}</label>
                     <input type="text" value={(factoryForm as any)[k]} onChange={e => setFactoryForm(p => ({ ...p, [k]: e.target.value }))}
-                      className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                   </div>
                 ))}
                 <div className="flex gap-3 mt-5">
@@ -510,7 +510,7 @@ export default function SettingsPage() {
                   <div key={k}>
                     <label className="text-white/50 text-xs block mb-1">{l}</label>
                     <input type="text" value={(vehicleForm as any)[k]} onChange={e => setVehicleForm(p => ({ ...p, [k]: e.target.value }))}
-                      className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                   </div>
                 ))}
                 <div className="flex gap-3 mt-5">
@@ -528,7 +528,7 @@ export default function SettingsPage() {
       {/* Fuel Log Modal */}
       {showFuelForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Fuel size={16} className="text-orange-400" />
@@ -542,7 +542,7 @@ export default function SettingsPage() {
                 <label className="text-white/50 text-xs block mb-1">Date</label>
                 <input type="date" value={fuelForm.log_date}
                   onChange={e => setFuelForm(p => ({ ...p, log_date: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
 
               <div>
@@ -573,7 +573,7 @@ export default function SettingsPage() {
                       const t = l && fuelForm.rate_per_liter ? (parseFloat(l) * parseFloat(fuelForm.rate_per_liter)).toFixed(2) : fuelForm.total_cost;
                       setFuelForm(p => ({ ...p, liters: l, total_cost: t }));
                     }}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Rate (₹/L) *</label>
@@ -583,7 +583,7 @@ export default function SettingsPage() {
                       const t = r && fuelForm.liters ? (parseFloat(r) * parseFloat(fuelForm.liters)).toFixed(2) : fuelForm.total_cost;
                       setFuelForm(p => ({ ...p, rate_per_liter: r, total_cost: t }));
                     }}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
               </div>
 
@@ -598,7 +598,7 @@ export default function SettingsPage() {
                   <label className="text-white/50 text-xs block mb-1">Odometer (km)</label>
                   <input type="number" placeholder="optional" value={fuelForm.odometer_km}
                     onChange={e => setFuelForm(p => ({ ...p, odometer_km: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
               </div>
             </div>

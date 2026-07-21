@@ -59,31 +59,31 @@ export default function SalesPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center"><ShoppingCart size={18} className="text-emerald-400" /></div>
-        <div><h1 className="text-lg font-bold text-white">Sales & Auction</h1><p className="text-white/40 text-xs">Buyers, auction lots, private sales, and channel performance</p></div>
+        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-emerald-950/20"><ShoppingCart size={18} className="text-emerald-400" /></div>
+        <div><h1 className="text-xl font-bold text-white tracking-tight">Sales & Auction</h1><p className="text-white/40 text-xs">Buyers, auction lots, private sales, and channel performance</p></div>
       </div>
 
-      <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit flex-wrap">
+      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit flex-wrap">
         {([["sales", "Sales"], ["auction", "Auction Lots"], ["buyers", "Buyers"], ["report", "Report"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-green-600/20 text-green-400" : "text-white/40 hover:text-white"}`}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30" : "text-white/40 hover:text-white"}`}>{l}</button>
         ))}
       </div>
 
       {tab === "sales" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <select value={saleForm.channel} onChange={e => setSaleForm({ ...saleForm, channel: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <select value={saleForm.channel} onChange={e => setSaleForm({ ...saleForm, channel: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               {["private", "auction", "export"].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select value={saleForm.buyer_id} onChange={e => setSaleForm({ ...saleForm, buyer_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+            <select value={saleForm.buyer_id} onChange={e => setSaleForm({ ...saleForm, buyer_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Buyer...</option>
               {buyers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
-            <input type="number" placeholder="Qty (kg)" value={saleForm.quantity_kg} onChange={e => setSaleForm({ ...saleForm, quantity_kg: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="number" placeholder="Price/kg ₹" value={saleForm.price_per_kg} onChange={e => setSaleForm({ ...saleForm, price_per_kg: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <button onClick={addSale} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Record Sale</button>
+            <input type="number" placeholder="Qty (kg)" value={saleForm.quantity_kg} onChange={e => setSaleForm({ ...saleForm, quantity_kg: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input type="number" placeholder="Price/kg ₹" value={saleForm.price_per_kg} onChange={e => setSaleForm({ ...saleForm, price_per_kg: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <button onClick={addSale} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Record Sale</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {sales.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No sales recorded yet.</div> : (
               <table className="w-full"><tbody>
                 {sales.map(s => (
@@ -103,15 +103,15 @@ export default function SalesPage() {
 
       {tab === "auction" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <input placeholder="Auction house" value={lotForm.auction_house} onChange={e => setLotForm({ ...lotForm, auction_house: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input placeholder="Lot number" value={lotForm.lot_number} onChange={e => setLotForm({ ...lotForm, lot_number: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="date" value={lotForm.auction_date} onChange={e => setLotForm({ ...lotForm, auction_date: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="number" placeholder="Qty (kg)" value={lotForm.quantity_kg} onChange={e => setLotForm({ ...lotForm, quantity_kg: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="number" placeholder="Reserve ₹/kg" value={lotForm.reserve_price} onChange={e => setLotForm({ ...lotForm, reserve_price: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <input placeholder="Auction house" value={lotForm.auction_house} onChange={e => setLotForm({ ...lotForm, auction_house: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input placeholder="Lot number" value={lotForm.lot_number} onChange={e => setLotForm({ ...lotForm, lot_number: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input type="date" value={lotForm.auction_date} onChange={e => setLotForm({ ...lotForm, auction_date: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input type="number" placeholder="Qty (kg)" value={lotForm.quantity_kg} onChange={e => setLotForm({ ...lotForm, quantity_kg: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input type="number" placeholder="Reserve ₹/kg" value={lotForm.reserve_price} onChange={e => setLotForm({ ...lotForm, reserve_price: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
           </div>
-          <button onClick={addLot} className="mb-4 flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium px-4 py-2"><Gavel size={14} /> Create Lot</button>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <button onClick={addLot} className="mb-4 flex items-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium px-4 py-2"><Gavel size={14} /> Create Lot</button>
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {lots.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No auction lots yet.</div> : (
               <table className="w-full"><tbody>
                 {lots.map(l => (
@@ -122,7 +122,7 @@ export default function SalesPage() {
                     <td className="px-4 py-3 text-right">
                       {l.status !== "sold" ? (
                         <div className="flex gap-2 justify-end items-center">
-                          <input type="number" placeholder="Sold ₹/kg" value={soldPriceDraft[l.id] || ""} onChange={e => setSoldPriceDraft({ ...soldPriceDraft, [l.id]: e.target.value })} className="w-24 bg-[#0f1218] border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+                          <input type="number" placeholder="Sold ₹/kg" value={soldPriceDraft[l.id] || ""} onChange={e => setSoldPriceDraft({ ...soldPriceDraft, [l.id]: e.target.value })} className="w-24 bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-2 py-1 text-xs text-white" />
                           <button onClick={() => markSold(l.id, soldPriceDraft[l.id])} className="text-xs bg-green-600/20 hover:bg-green-600/30 text-green-400 px-3 py-1.5 rounded-lg">Mark Sold</button>
                         </div>
                       ) : <span className="text-white text-sm">₹{l.sold_price}/kg</span>}
@@ -137,16 +137,16 @@ export default function SalesPage() {
 
       {tab === "buyers" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <input placeholder="Buyer name" value={buyerForm.name} onChange={e => setBuyerForm({ ...buyerForm, name: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input placeholder="Contact" value={buyerForm.contact} onChange={e => setBuyerForm({ ...buyerForm, contact: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input placeholder="Phone" value={buyerForm.phone} onChange={e => setBuyerForm({ ...buyerForm, phone: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <select value={buyerForm.channel_preference} onChange={e => setBuyerForm({ ...buyerForm, channel_preference: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <input placeholder="Buyer name" value={buyerForm.name} onChange={e => setBuyerForm({ ...buyerForm, name: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input placeholder="Contact" value={buyerForm.contact} onChange={e => setBuyerForm({ ...buyerForm, contact: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input placeholder="Phone" value={buyerForm.phone} onChange={e => setBuyerForm({ ...buyerForm, phone: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <select value={buyerForm.channel_preference} onChange={e => setBuyerForm({ ...buyerForm, channel_preference: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               {["auction", "private", "export"].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <button onClick={addBuyer} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            <button onClick={addBuyer} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {buyers.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No buyers yet.</div> : (
               <table className="w-full"><tbody>
                 {buyers.map(b => (
@@ -165,7 +165,7 @@ export default function SalesPage() {
 
       {tab === "report" && report && (
         <div className="space-y-4">
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
             <p className="text-white text-sm font-medium mb-3 flex items-center gap-2"><TrendingUp size={14} className="text-green-400" /> Revenue by Channel (last 90 days)</p>
             {report.by_channel.map(c => (
               <div key={c.channel} className="flex justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
@@ -175,7 +175,7 @@ export default function SalesPage() {
               </div>
             ))}
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
             <p className="text-white text-sm font-medium mb-3">Auction Performance vs Reserve</p>
             {report.auction_performance.length === 0 ? <p className="text-white/30 text-sm">No sold lots in this period.</p> : report.auction_performance.map((a, idx) => (
               <div key={idx} className="flex justify-between text-sm py-1.5 border-b border-white/5 last:border-0">

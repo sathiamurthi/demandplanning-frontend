@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Leaf, Scale, Users, Truck, Factory, Wallet, TrendingUp, AlertCircle, RefreshCw, ClipboardList } from "lucide-react";
+import { Leaf, Scale, Users, Truck, Factory, Wallet, TrendingUp, AlertCircle, RefreshCw, ClipboardList, Package, Sparkles } from "lucide-react";
 import { teaUrl, teaAuthHeaders } from "@/lib/tea-api";
 
 interface Dashboard {
@@ -77,15 +77,15 @@ export default function TeaDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-600/15 rounded-xl flex items-center justify-center">
-            <Leaf size={20} className="text-green-400" />
+          <div className="w-11 h-11 bg-gradient-to-br from-green-500 to-emerald-700 rounded-xl flex items-center justify-center shadow-lg shadow-green-950/40 ring-1 ring-white/10">
+            <Leaf size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">TeaFactory360</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">TeaFactory360</h1>
             <p className="text-white/40 text-xs">ABC Tea Agency{dateStr ? ` · ${dateStr}` : ""}</p>
           </div>
         </div>
-        <button onClick={load} className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm">
+        <button onClick={load} className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 transition-colors">
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
         </button>
@@ -95,7 +95,7 @@ export default function TeaDashboard() {
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {Array.from({length:5}).map((_,i) => (
-            <div key={i} className="bg-[#161a23] border border-white/8 rounded-xl p-4 h-20 animate-pulse" />
+            <div key={i} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 h-20 animate-pulse" />
           ))}
         </div>
       ) : (
@@ -103,7 +103,7 @@ export default function TeaDashboard() {
           {kpis.map(k => {
             const Icon = k.icon;
             return (
-              <div key={k.label} className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+              <div key={k.label} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 hover:border-white/20 hover:-translate-y-0.5 transition-all">
                 <div className={`w-8 h-8 ${k.bg} rounded-lg flex items-center justify-center mb-2`}>
                   <Icon size={15} className={k.color} />
                 </div>
@@ -118,7 +118,7 @@ export default function TeaDashboard() {
       {/* AI Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Forecast */}
-        <div className="bg-[#161a23] border border-green-500/20 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-green-500/25 rounded-2xl shadow-lg shadow-green-950/10 p-4">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp size={14} className="text-green-400" />
             <p className="text-white/60 text-xs font-medium">Tomorrow Forecast</p>
@@ -134,7 +134,7 @@ export default function TeaDashboard() {
         </div>
 
         {/* Recommended Rate */}
-        <div className="bg-[#161a23] border border-blue-500/20 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-blue-500/25 rounded-2xl shadow-lg shadow-blue-950/10 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Scale size={14} className="text-blue-400" />
             <p className="text-white/60 text-xs font-medium">Recommended Rate</p>
@@ -150,14 +150,14 @@ export default function TeaDashboard() {
         </div>
 
         {/* Best Factory */}
-        <div className="bg-[#161a23] border border-purple-500/20 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-purple-500/25 rounded-2xl shadow-lg shadow-purple-950/10 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Factory size={14} className="text-purple-400" />
             <p className="text-white/60 text-xs font-medium">Best Factory</p>
           </div>
           {ai.factoryRec ? (
             <>
-              <p className="text-lg font-bold text-white">{ai.factoryRec.best_factory || "—"}</p>
+              <p className="text-xl font-bold text-white tracking-tight">{ai.factoryRec.best_factory || "—"}</p>
               <p className="text-white/40 text-xs mt-1">Dispatch 70% here</p>
             </>
           ) : (
@@ -166,7 +166,7 @@ export default function TeaDashboard() {
         </div>
 
         {/* Cash Flow Risk */}
-        <div className="bg-[#161a23] border border-yellow-500/20 rounded-xl p-4">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-yellow-500/25 rounded-2xl shadow-lg shadow-yellow-950/10 p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle size={14} className="text-yellow-400" />
             <p className="text-white/60 text-xs font-medium">Cash Flow Risk</p>
@@ -183,7 +183,7 @@ export default function TeaDashboard() {
       </div>
 
       {/* Quick links */}
-      <div className="bg-[#161a23] border border-white/8 rounded-xl p-5">
+      <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-5">
         <h3 className="font-semibold text-sm text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
@@ -191,11 +191,15 @@ export default function TeaDashboard() {
             { href: "/tea/growers",     icon: Users,         label: "Add Grower",     color: "text-blue-400 bg-blue-500/10" },
             { href: "/tea/dispatch",    icon: Truck,         label: "New Dispatch",   color: "text-yellow-400 bg-yellow-500/10" },
             { href: "/tea/payments",    icon: Wallet,        label: "Process Payment",color: "text-orange-400 bg-orange-500/10" },
+            { href: "/tea/suppliers",   icon: Package,       label: "Suppliers & Fuel", color: "text-amber-400 bg-amber-500/10" },
+            { href: "/tea/fleet",       icon: Truck,         label: "Fleet & Live Map", color: "text-cyan-400 bg-cyan-500/10" },
+            { href: "/tea/ai",          icon: Sparkles,      label: "AI Assistant",   color: "text-purple-400 bg-purple-500/10" },
+            { href: "/tea/reports",     icon: TrendingUp,    label: "Reports",        color: "text-pink-400 bg-pink-500/10" },
           ].map(q => {
             const Icon = q.icon;
             return (
               <a key={q.href} href={q.href}
-                className="flex items-center gap-3 p-3 bg-[#0d0f14] rounded-xl border border-white/8 hover:border-white/20 transition-all">
+                className="flex items-center gap-3 p-3 bg-gradient-to-b from-white/[0.04] to-transparent rounded-xl border border-white/8 hover:border-white/20 hover:-translate-y-0.5 transition-all">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${q.color.split(' ')[1]}`}>
                   <Icon size={15} className={q.color.split(' ')[0]} />
                 </div>

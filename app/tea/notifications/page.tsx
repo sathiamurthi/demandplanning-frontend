@@ -26,11 +26,11 @@ export default function NotificationsPage() {
     <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-yellow-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border border-yellow-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-yellow-950/20">
             <Bell size={18} className="text-yellow-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Notifications</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Notifications</h1>
             <p className="text-white/40 text-xs">Things that need your attention today</p>
           </div>
         </div>
@@ -39,7 +39,7 @@ export default function NotificationsPage() {
         </button>
       </div>
 
-      <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+      <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
         {items.length === 0 ? (
           <div className="p-10 text-center text-white/30 text-sm">
             <Bell size={32} className="mx-auto mb-3 opacity-20" />

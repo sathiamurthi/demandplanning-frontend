@@ -65,13 +65,13 @@ export default function AgentLoginPage() {
     <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-9 h-9 bg-green-600/20 rounded-xl flex items-center justify-center">
-            <Leaf size={18} className="text-green-400" />
+          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-700 rounded-xl flex items-center justify-center shadow-lg shadow-green-950/40 ring-1 ring-white/10">
+            <Leaf size={18} className="text-white" />
           </div>
           <span className="text-xl font-bold text-white tracking-tight">TeaFactory360</span>
         </div>
 
-        <div className="bg-[#161a23] border border-white/8 rounded-2xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
           <div className="px-6 pt-6 pb-4 border-b border-white/8">
             <h1 className="text-base font-bold text-white">Agent Login</h1>
             <p className="text-xs text-white/40 mt-1">
@@ -123,7 +123,7 @@ export default function AgentLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-green-600 hover:bg-green-700 py-3 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+              className="w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 py-3 text-sm font-semibold text-white transition-all disabled:opacity-50"
             >
               {loading ? "Signing in…" : "Sign in as Agent"}
             </button>

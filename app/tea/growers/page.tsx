@@ -111,24 +111,24 @@ export default function GrowersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-blue-950/20">
             <Users size={18} className="text-blue-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Tea Growers</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Tea Growers</h1>
             <p className="text-white/40 text-xs">{growers.length} growers registered</p>
           </div>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
+        <button onClick={openNew} className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white px-4 py-2 rounded-xl text-sm font-medium">
           <Plus size={15} /> Add Grower
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
         {(["all", "pluck-plan"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-xs capitalize transition-all ${activeTab === tab ? "bg-green-600/20 text-green-400" : "text-white/40 hover:text-white"}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs capitalize transition-all ${activeTab === tab ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30" : "text-white/40 hover:text-white"}`}>
             {tab === "pluck-plan" ? "🌿 Pluck Plan" : "All Growers"}
           </button>
         ))}
@@ -141,14 +141,14 @@ export default function GrowersPage() {
           <input
             type="text" placeholder="Search by name, code, phone..." value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#161a23] border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-green-500/40"
+            className="w-full bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-green-500/40"
           />
         </div>
       )}
 
       {/* Growers Table */}
       {activeTab === "all" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
           ) : growers.length === 0 ? (
@@ -227,7 +227,7 @@ export default function GrowersPage() {
 
       {/* Pluck Plan tab */}
       {activeTab === "pluck-plan" && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           {pluckPlan.length === 0 ? (
             <div className="p-8 text-center text-white/30 text-sm">No pluck plan data.</div>
           ) : (
@@ -279,7 +279,7 @@ export default function GrowersPage() {
       {/* Portal PIN Modal */}
       {portalGrower && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <KeyRound size={16} className="text-green-400" />
@@ -309,7 +309,7 @@ export default function GrowersPage() {
                 placeholder="e.g. 1234"
                 value={portalPin}
                 onChange={e => setPortalPin(e.target.value.replace(/\D/g, ""))}
-                className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm tracking-widest focus:outline-none focus:border-green-500/40"
+                className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-white text-sm tracking-widest focus:outline-none focus:border-green-500/40"
               />
               <p className="text-white/30 text-xs mt-1.5">
                 Grower logs in at <span className="text-white/50 font-mono">/grower/login</span> using their phone + this PIN.
@@ -320,7 +320,7 @@ export default function GrowersPage() {
               <button
                 onClick={() => savePortalPin(portalPin)}
                 disabled={portalSaving || portalPin.length < 4}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {portalSaving ? "Saving..." : portalGrower.portal_enabled ? "Update PIN" : "Enable Portal"}
               </button>
               {portalGrower.portal_enabled && (
@@ -342,7 +342,7 @@ export default function GrowersPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-lg">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white">{editing ? "Edit Grower" : "Add Grower"}</h2>
               <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
@@ -363,7 +363,7 @@ export default function GrowersPage() {
                     type={f.type}
                     value={(form as any)[f.key] ?? ""}
                     onChange={e => setForm(prev => ({ ...prev, [f.key]: f.type === "number" ? parseFloat(e.target.value) : e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/40"
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/40"
                   />
                 </div>
               ))}
@@ -374,7 +374,7 @@ export default function GrowersPage() {
                   value={form.address ?? ""}
                   onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
                   rows={2}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/40"
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/40"
                 />
               </div>
 
@@ -393,7 +393,7 @@ export default function GrowersPage() {
                 Cancel
               </button>
               <button onClick={save} disabled={saving || !form.name}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
+                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {saving ? "Saving..." : editing ? "Update" : "Add Grower"}
               </button>
             </div>

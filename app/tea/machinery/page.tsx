@@ -75,26 +75,26 @@ export default function MachineryPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 bg-orange-500/10 rounded-xl flex items-center justify-center"><Wrench size={18} className="text-orange-400" /></div>
-        <div><h1 className="text-lg font-bold text-white">Machinery & Vendors</h1><p className="text-white/40 text-xs">Rollers, driers, sorters — service tickets and vendor quote comparison</p></div>
+        <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-orange-950/20"><Wrench size={18} className="text-orange-400" /></div>
+        <div><h1 className="text-xl font-bold text-white tracking-tight">Machinery & Vendors</h1><p className="text-white/40 text-xs">Rollers, driers, sorters — service tickets and vendor quote comparison</p></div>
       </div>
 
-      <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
         {([["machines", "Machines"], ["vendors", "Vendors"], ["tickets", "Service Tickets"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-green-600/20 text-green-400" : "text-white/40 hover:text-white"}`}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30" : "text-white/40 hover:text-white"}`}>{l}</button>
         ))}
       </div>
 
       {tab === "machines" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <input placeholder="Machine name" value={machineForm.name} onChange={e => setMachineForm({ ...machineForm, name: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <select value={machineForm.type} onChange={e => setMachineForm({ ...machineForm, type: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <input placeholder="Machine name" value={machineForm.name} onChange={e => setMachineForm({ ...machineForm, name: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <select value={machineForm.type} onChange={e => setMachineForm({ ...machineForm, type: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               {["roller", "drier", "sorter", "ctc", "withering_trough", "other"].map(t => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
             </select>
-            <button onClick={addMachine} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            <button onClick={addMachine} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {machines.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No machines registered yet.</div> : (
               <table className="w-full"><tbody>
                 {machines.map(m => (
@@ -115,16 +115,16 @@ export default function MachineryPage() {
 
       {tab === "vendors" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <input placeholder="Vendor name" value={vendorForm.name} onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input placeholder="Contact" value={vendorForm.contact} onChange={e => setVendorForm({ ...vendorForm, contact: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input placeholder="Phone" value={vendorForm.phone} onChange={e => setVendorForm({ ...vendorForm, phone: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <select value={vendorForm.category} onChange={e => setVendorForm({ ...vendorForm, category: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <input placeholder="Vendor name" value={vendorForm.name} onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input placeholder="Contact" value={vendorForm.contact} onChange={e => setVendorForm({ ...vendorForm, contact: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input placeholder="Phone" value={vendorForm.phone} onChange={e => setVendorForm({ ...vendorForm, phone: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <select value={vendorForm.category} onChange={e => setVendorForm({ ...vendorForm, category: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               {["spares", "electrical", "mechanical", "civil", "other"].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <button onClick={addVendor} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Building2 size={14} /> Add</button>
+            <button onClick={addVendor} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Building2 size={14} /> Add</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {vendors.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No vendors yet.</div> : (
               <table className="w-full"><tbody>
                 {vendors.map(v => (
@@ -143,15 +143,15 @@ export default function MachineryPage() {
 
       {tab === "tickets" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <select value={ticketForm.machine_id} onChange={e => setTicketForm({ ...ticketForm, machine_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <select value={ticketForm.machine_id} onChange={e => setTicketForm({ ...ticketForm, machine_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Machine...</option>
               {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
-            <input placeholder="Issue description" value={ticketForm.issue} onChange={e => setTicketForm({ ...ticketForm, issue: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <button onClick={addTicket} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Raise Ticket</button>
+            <input placeholder="Issue description" value={ticketForm.issue} onChange={e => setTicketForm({ ...ticketForm, issue: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <button onClick={addTicket} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Raise Ticket</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden mb-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden mb-4">
             {tickets.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No maintenance tickets yet.</div> : (
               <table className="w-full"><tbody>
                 {tickets.map(t => (
@@ -170,20 +170,20 @@ export default function MachineryPage() {
           </div>
 
           {quotesFor && (
-            <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
+            <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-white text-sm font-medium">Vendor Quotes</p>
-                <button onClick={getRecommendation} className="flex items-center gap-1 text-xs bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 px-3 py-1.5 rounded-lg"><Sparkles size={12} /> AI Recommend</button>
+                <button onClick={getRecommendation} className="flex items-center gap-1 text-xs bg-gradient-to-r from-purple-600/25 to-fuchsia-600/25 hover:from-purple-500/30 hover:to-fuchsia-500/30 text-purple-200 border border-purple-500/30 px-3 py-1.5 rounded-lg"><Sparkles size={12} /> AI Recommend</button>
               </div>
               {recommendation && <p className="text-xs text-purple-300 bg-purple-500/10 rounded-lg p-2 mb-3">{recommendation}</p>}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                <select value={quoteForm.vendor_id} onChange={e => setQuoteForm({ ...quoteForm, vendor_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                <select value={quoteForm.vendor_id} onChange={e => setQuoteForm({ ...quoteForm, vendor_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
                   <option value="">Vendor...</option>
                   {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
-                <input type="number" placeholder="Amount ₹" value={quoteForm.amount} onChange={e => setQuoteForm({ ...quoteForm, amount: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-                <input type="number" placeholder="Delivery (days)" value={quoteForm.delivery_days} onChange={e => setQuoteForm({ ...quoteForm, delivery_days: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-                <button onClick={addQuote} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add Quote</button>
+                <input type="number" placeholder="Amount ₹" value={quoteForm.amount} onChange={e => setQuoteForm({ ...quoteForm, amount: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+                <input type="number" placeholder="Delivery (days)" value={quoteForm.delivery_days} onChange={e => setQuoteForm({ ...quoteForm, delivery_days: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+                <button onClick={addQuote} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add Quote</button>
               </div>
               {quotes.map(q => (
                 <div key={q.id} className={`flex items-center justify-between px-3 py-2 rounded-lg mb-1 ${q.ai_recommended ? "bg-green-500/10 border border-green-500/30" : "bg-white/5"}`}>

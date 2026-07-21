@@ -80,42 +80,42 @@ export default function EstatePage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 bg-lime-500/10 rounded-xl flex items-center justify-center"><Tractor size={18} className="text-lime-400" /></div>
-        <div><h1 className="text-lg font-bold text-white">Estate & Payroll</h1><p className="text-white/40 text-xs">Own plots, workforce, attendance, wages, and worker insurance</p></div>
+        <div className="w-10 h-10 bg-gradient-to-br from-lime-500/20 to-lime-600/10 border border-lime-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-lime-950/20"><Tractor size={18} className="text-lime-400" /></div>
+        <div><h1 className="text-xl font-bold text-white tracking-tight">Estate & Payroll</h1><p className="text-white/40 text-xs">Own plots, workforce, attendance, wages, and worker insurance</p></div>
       </div>
 
-      <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit flex-wrap">
+      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit flex-wrap">
         {([["workers", "Workers & Plots"], ["attendance", "Attendance & Wages"], ["payroll", "Payroll"], ["insurance", "Insurance"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-green-600/20 text-green-400" : "text-white/40 hover:text-white"}`}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30" : "text-white/40 hover:text-white"}`}>{l}</button>
         ))}
       </div>
 
       {tab === "workers" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4">
             <p className="text-white/50 text-xs mb-2">Add estate plot</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <input placeholder="Plot name" value={plotForm.name} onChange={e => setPlotForm({ ...plotForm, name: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-              <input type="number" placeholder="Area (hectares)" value={plotForm.area_hectares} onChange={e => setPlotForm({ ...plotForm, area_hectares: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-              <button onClick={addPlot} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add Plot</button>
+              <input placeholder="Plot name" value={plotForm.name} onChange={e => setPlotForm({ ...plotForm, name: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+              <input type="number" placeholder="Area (hectares)" value={plotForm.area_hectares} onChange={e => setPlotForm({ ...plotForm, area_hectares: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+              <button onClick={addPlot} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add Plot</button>
             </div>
             {plots.length > 0 && <div className="flex flex-wrap gap-2 mt-3">{plots.map(p => <span key={p.id} className="text-xs bg-white/5 text-white/60 px-2 py-1 rounded-full">{p.name}{p.area_hectares ? ` — ${p.area_hectares}ha` : ""}</span>)}</div>}
           </div>
 
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-6 gap-2">
-            <input placeholder="Worker name" value={workerForm.name} onChange={e => setWorkerForm({ ...workerForm, name: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input placeholder="Phone" value={workerForm.phone} onChange={e => setWorkerForm({ ...workerForm, phone: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <select value={workerForm.role} onChange={e => setWorkerForm({ ...workerForm, role: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-6 gap-2">
+            <input placeholder="Worker name" value={workerForm.name} onChange={e => setWorkerForm({ ...workerForm, name: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input placeholder="Phone" value={workerForm.phone} onChange={e => setWorkerForm({ ...workerForm, phone: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <select value={workerForm.role} onChange={e => setWorkerForm({ ...workerForm, role: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               {ROLES.map(r => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
             </select>
-            <select value={workerForm.plot_id} onChange={e => setWorkerForm({ ...workerForm, plot_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+            <select value={workerForm.plot_id} onChange={e => setWorkerForm({ ...workerForm, plot_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Plot...</option>
               {plots.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <input type="number" placeholder="Daily wage ₹" value={workerForm.daily_wage} onChange={e => setWorkerForm({ ...workerForm, daily_wage: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <button onClick={addWorker} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            <input type="number" placeholder="Daily wage ₹" value={workerForm.daily_wage} onChange={e => setWorkerForm({ ...workerForm, daily_wage: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <button onClick={addWorker} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {workers.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No estate workers yet.</div> : (
               <table className="w-full"><tbody>
                 {workers.map(w => (
@@ -134,24 +134,24 @@ export default function EstatePage() {
 
       {tab === "attendance" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <select value={attForm.worker_id} onChange={e => setAttForm({ ...attForm, worker_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <select value={attForm.worker_id} onChange={e => setAttForm({ ...attForm, worker_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Worker...</option>
               {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
-            <input type="date" value={attForm.attendance_date} onChange={e => setAttForm({ ...attForm, attendance_date: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <select value={attForm.status} onChange={e => setAttForm({ ...attForm, status: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+            <input type="date" value={attForm.attendance_date} onChange={e => setAttForm({ ...attForm, attendance_date: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <select value={attForm.status} onChange={e => setAttForm({ ...attForm, status: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="present">Present</option><option value="absent">Absent</option><option value="half_day">Half day</option>
             </select>
-            <button onClick={markAttendance} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><CalendarCheck size={14} /> Mark</button>
+            <button onClick={markAttendance} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><CalendarCheck size={14} /> Mark</button>
           </div>
           <div className="flex items-center gap-2 mb-3 text-xs text-white/40">
             <span>Period:</span>
-            <input type="date" value={range.from} onChange={e => setRange({ ...range, from: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-2 py-1 text-white" />
+            <input type="date" value={range.from} onChange={e => setRange({ ...range, from: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-2 py-1 text-white" />
             <span>to</span>
-            <input type="date" value={range.to} onChange={e => setRange({ ...range, to: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-2 py-1 text-white" />
+            <input type="date" value={range.to} onChange={e => setRange({ ...range, to: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-2 py-1 text-white" />
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {wageTotals.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No attendance in this period.</div> : (
               <table className="w-full"><tbody>
                 {wageTotals.map(w => (
@@ -172,17 +172,17 @@ export default function EstatePage() {
 
       {tab === "payroll" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <select value={payrollForm.worker_id} onChange={e => setPayrollForm({ ...payrollForm, worker_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <select value={payrollForm.worker_id} onChange={e => setPayrollForm({ ...payrollForm, worker_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Worker...</option>
               {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
-            <input type="date" value={payrollForm.period_start} onChange={e => setPayrollForm({ ...payrollForm, period_start: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="date" value={payrollForm.period_end} onChange={e => setPayrollForm({ ...payrollForm, period_end: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <button onClick={() => generatePayroll()} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><Wallet size={14} /> Generate</button>
+            <input type="date" value={payrollForm.period_start} onChange={e => setPayrollForm({ ...payrollForm, period_start: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input type="date" value={payrollForm.period_end} onChange={e => setPayrollForm({ ...payrollForm, period_end: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <button onClick={() => generatePayroll()} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Wallet size={14} /> Generate</button>
           </div>
           <p className="text-white/30 text-xs mb-3">Simplified EPF (12%) / ESI (0.75% under ₹21,000) — review against a compliance professional before real statutory use.</p>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {payroll.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No payroll runs yet.</div> : (
               <table className="w-full"><tbody>
                 {payroll.map(p => (
@@ -206,19 +206,19 @@ export default function EstatePage() {
 
       {tab === "insurance" && (
         <>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <select value={insForm.worker_id} onChange={e => setInsForm({ ...insForm, worker_id: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <select value={insForm.worker_id} onChange={e => setInsForm({ ...insForm, worker_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="">Worker...</option>
               {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
-            <select value={insForm.type} onChange={e => setInsForm({ ...insForm, type: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+            <select value={insForm.type} onChange={e => setInsForm({ ...insForm, type: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
               <option value="group_health">Group Health</option><option value="accident">Accident</option><option value="checkup">Medical Checkup</option>
             </select>
-            <input placeholder="Provider" value={insForm.provider} onChange={e => setInsForm({ ...insForm, provider: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <input type="date" placeholder="Expiry" value={insForm.expiry_date} onChange={e => setInsForm({ ...insForm, expiry_date: e.target.value })} className="bg-[#0f1218] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-            <button onClick={addInsurance} className="flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"><ShieldCheck size={14} /> Add</button>
+            <input placeholder="Provider" value={insForm.provider} onChange={e => setInsForm({ ...insForm, provider: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <input type="date" placeholder="Expiry" value={insForm.expiry_date} onChange={e => setInsForm({ ...insForm, expiry_date: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
+            <button onClick={addInsurance} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><ShieldCheck size={14} /> Add</button>
           </div>
-          <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
             {insurance.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No worker insurance records yet.</div> : (
               <table className="w-full"><tbody>
                 {insurance.map(i => (

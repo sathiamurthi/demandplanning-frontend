@@ -141,18 +141,18 @@ export default function CollectionsPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-green-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-green-950/20">
             <ClipboardList size={18} className="text-green-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Tea Collection</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Tea Collection</h1>
             <p className="text-white/40 text-xs">Record daily grower collections</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="bg-[#161a23] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+            className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export default function CollectionsPage() {
 
       {/* Batch summary */}
       {batch ? (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-5 flex items-center gap-5 flex-wrap">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5 flex items-center gap-5 flex-wrap">
           <div className="text-sm">
             <span className="text-white/40 text-xs">Batch Date </span>
             <span className="text-white font-medium">{batch.collection_date}</span>
@@ -180,7 +180,7 @@ export default function CollectionsPage() {
               </span>
             </div>
           </div>
-          <button onClick={() => setShowEntry(true)} className="ml-auto flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
+          <button onClick={() => setShowEntry(true)} className="ml-auto flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white px-4 py-2 rounded-xl text-sm font-medium">
             <Plus size={15} /> Add Entry
           </button>
         </div>
@@ -188,7 +188,7 @@ export default function CollectionsPage() {
 
       {/* Production stage tracker */}
       {batch && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-5">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5">
           <p className="text-white/40 text-xs mb-3">Production Stage (withering → firing → grading → packaging → dispatched)</p>
           <div className="flex gap-1 flex-wrap mb-3">
             {PRODUCTION_STAGES.map(s => {
@@ -198,7 +198,7 @@ export default function CollectionsPage() {
               return (
                 <button key={s} disabled={updatingStage} onClick={() => updateStage(s)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all disabled:opacity-40 ${
-                    s === batch.stage ? "bg-green-600/20 text-green-400 border border-green-500/40"
+                    s === batch.stage ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30 border border-green-500/40"
                     : done ? "bg-white/10 text-white/60" : "bg-[#0d0f14] text-white/30 hover:text-white/60"
                   }`}>
                   {s}
@@ -217,10 +217,10 @@ export default function CollectionsPage() {
       )}
 
       {!batch && (
-        <div className="bg-[#161a23] border border-white/8 border-dashed rounded-xl p-8 mb-5 text-center">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/15 border-dashed rounded-2xl p-8 mb-5 text-center">
           <Leaf size={32} className="mx-auto mb-3 text-white/20" />
           <p className="text-white/50 text-sm mb-3">No collection batch for {date}</p>
-          <button onClick={openBatch} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium">
+          <button onClick={openBatch} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white px-4 py-2 rounded-xl text-sm font-medium">
             Start Today's Collection
           </button>
         </div>
@@ -228,7 +228,7 @@ export default function CollectionsPage() {
 
       {/* Entries */}
       {entries.length > 0 && (
-        <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/8">
@@ -270,7 +270,7 @@ export default function CollectionsPage() {
       {/* Entry Modal */}
       {showEntry && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white">Add Collection Entry</h2>
               <button onClick={() => setShowEntry(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
@@ -281,7 +281,7 @@ export default function CollectionsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Grower *</label>
                 <select value={growerId} onChange={e => setGrowerId(e.target.value)}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
                   <option value="">Select grower...</option>
                   {growers.map(g => <option key={g.id} value={g.id}>{g.name} ({g.grower_code})</option>)}
                 </select>
@@ -292,14 +292,14 @@ export default function CollectionsPage() {
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Gross Weight (kg) *</label>
                   <input type="number" value={grossWeight} onChange={e => setGrossWeight(e.target.value)} step="0.1"
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
 
                 {/* Moisture in kg */}
                 <div>
                   <label className="text-white/50 text-xs block mb-1">Moisture Deduction (kg)</label>
                   <input type="number" value={moistureKg} onChange={e => setMoistureKg(e.target.value)} step="0.01" min="0"
-                    className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
                 </div>
               </div>
 
@@ -328,14 +328,14 @@ export default function CollectionsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Notes (optional)</label>
                 <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
             </div>
 
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowEntry(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
               <button onClick={addEntry} disabled={saving || !growerId || !grossWeight}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white flex items-center justify-center gap-2">
+                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white flex items-center justify-center gap-2">
                 <Save size={14} /> {saving ? "Saving..." : "Save Entry"}
               </button>
             </div>

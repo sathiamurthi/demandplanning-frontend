@@ -104,11 +104,11 @@ export default function PaymentsPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-orange-500/10 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-orange-950/20">
             <Wallet size={18} className="text-orange-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Grower Payments</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Grower Payments</h1>
             <p className="text-white/40 text-xs">Weekly settlement & advance management</p>
           </div>
         </div>
@@ -126,21 +126,21 @@ export default function PaymentsPage() {
       {/* Summary */}
       {settlements.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-3">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-3">
             <p className="text-white font-bold text-lg">{pending.length}</p>
             <p className="text-white/40 text-xs">Pending</p>
           </div>
-          <div className="bg-[#161a23] border border-orange-500/20 rounded-xl p-3">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-orange-500/25 rounded-2xl shadow-lg shadow-orange-950/10 p-3">
             <p className="text-orange-400 font-bold text-lg">₹{(totalDue / 1000).toFixed(1)}K</p>
             <p className="text-white/40 text-xs">Total Due Now</p>
           </div>
           {totalBalance > 0 && (
-            <div className="bg-[#161a23] border border-yellow-500/20 rounded-xl p-3">
+            <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-yellow-500/25 rounded-2xl shadow-lg shadow-yellow-950/10 p-3">
               <p className="text-yellow-400 font-bold text-lg">₹{(totalBalance / 1000).toFixed(1)}K</p>
               <p className="text-white/40 text-xs">Balance Carried</p>
             </div>
           )}
-          <div className="bg-[#161a23] border border-white/8 rounded-xl p-3">
+          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-3">
             <p className="text-green-400 font-bold text-lg">{paid.length}</p>
             <p className="text-white/40 text-xs">Paid</p>
           </div>
@@ -148,7 +148,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Generate settlements */}
-      <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-5">
+      <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Week navigation */}
           <button onClick={() => shiftWeek(-1)}
@@ -157,10 +157,10 @@ export default function PaymentsPage() {
           </button>
           <div className="flex items-center gap-2">
             <input type="date" value={period.start} onChange={e => setPeriod(p => ({ ...p, start: e.target.value }))}
-              className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+              className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
             <span className="text-white/30 text-xs">to</span>
             <input type="date" value={period.end} onChange={e => setPeriod(p => ({ ...p, end: e.target.value }))}
-              className="bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none" />
+              className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
           </div>
           <button onClick={() => shiftWeek(1)}
             className="w-8 h-8 flex items-center justify-center border border-white/10 rounded-lg text-white/50 hover:text-white hover:border-white/30">
@@ -182,7 +182,7 @@ export default function PaymentsPage() {
       </div>
 
       {/* Settlements table */}
-      <div className="bg-[#161a23] border border-white/8 rounded-xl overflow-hidden">
+      <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
         {settlements.length === 0 ? (
           <div className="p-10 text-center text-white/30 text-sm">
             <Wallet size={32} className="mx-auto mb-3 opacity-20" />
@@ -256,7 +256,7 @@ export default function PaymentsPage() {
       {/* Advance Modal */}
       {showAdvance && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#161a23] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white">Give Advance</h2>
               <button onClick={() => setShowAdvance(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
@@ -265,7 +265,7 @@ export default function PaymentsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Grower *</label>
                 <select value={advanceForm.grower_id} onChange={e => setAdvanceForm(p => ({ ...p, grower_id: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
                   <option value="">Select grower...</option>
                   {growers.map(g => <option key={g.id} value={g.id}>{g.name} ({g.grower_code})</option>)}
                 </select>
@@ -273,12 +273,12 @@ export default function PaymentsPage() {
               <div>
                 <label className="text-white/50 text-xs block mb-1">Amount (₹) *</label>
                 <input type="number" value={advanceForm.amount} onChange={e => setAdvanceForm(p => ({ ...p, amount: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
               <div>
                 <label className="text-white/50 text-xs block mb-1">Notes</label>
                 <input type="text" value={advanceForm.notes} onChange={e => setAdvanceForm(p => ({ ...p, notes: e.target.value }))}
-                  className="w-full bg-[#0d0f14] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
