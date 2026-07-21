@@ -111,24 +111,24 @@ export default function GrowersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-blue-950/20">
-            <Users size={18} className="text-blue-400" />
+          <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center">
+            <Users size={18} className="text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Tea Growers</h1>
-            <p className="text-white/40 text-xs">{growers.length} growers registered</p>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Tea Growers</h1>
+            <p className="text-gray-500 text-xs">{growers.length} growers registered</p>
           </div>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white px-4 py-2 rounded-xl text-sm font-medium">
+        <button onClick={openNew} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium">
           <Plus size={15} /> Add Grower
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit">
         {(["all", "pluck-plan"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-xs capitalize transition-all ${activeTab === tab ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30" : "text-white/40 hover:text-white"}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs capitalize transition-all ${activeTab === tab ? "bg-white text-emerald-700 shadow-sm border border-gray-200" : "text-gray-500 hover:text-gray-900"}`}>
             {tab === "pluck-plan" ? "🌿 Pluck Plan" : "All Growers"}
           </button>
         ))}
@@ -137,22 +137,22 @@ export default function GrowersPage() {
       {/* Search */}
       {activeTab === "all" && (
         <div className="relative mb-4 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
           <input
             type="text" placeholder="Search by name, code, phone..." value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-green-500/40"
+            className="w-full bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors pl-9 pr-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-emerald-500"
           />
         </div>
       )}
 
       {/* Growers Table */}
       {activeTab === "all" && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
+            <div className="p-8 text-center text-gray-600 text-sm animate-pulse">Loading...</div>
           ) : growers.length === 0 ? (
-            <div className="p-8 text-center text-white/30 text-sm">
+            <div className="p-8 text-center text-gray-600 text-sm">
               <Users size={32} className="mx-auto mb-2 opacity-20" />
               No growers yet. Add your first grower.
             </div>
@@ -160,15 +160,15 @@ export default function GrowersPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/8">
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Code</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Name</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Phone</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs hidden md:table-cell">Land</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs hidden md:table-cell">Last Pluck</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Cycle</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Status</th>
-                    <th className="px-4 py-3 text-right text-white/40 text-xs">Actions</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Code</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Name</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Phone</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs hidden md:table-cell">Land</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs hidden md:table-cell">Last Pluck</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Cycle</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Status</th>
+                    <th className="px-4 py-3 text-right text-gray-500 text-xs">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,29 +176,29 @@ export default function GrowersPage() {
                     const days = daysSinceLastPluck(g.last_pluck_date);
                     const due = days !== null && g.pluck_cycle_days && days >= g.pluck_cycle_days;
                     return (
-                      <tr key={g.id} className="border-b border-white/5 hover:bg-white/3">
-                        <td className="px-4 py-3 text-white/60 text-xs font-mono">{g.grower_code || "—"}</td>
+                      <tr key={g.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-600 text-xs font-mono">{g.grower_code || "—"}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 bg-green-500/10 rounded-lg flex items-center justify-center">
-                              <Leaf size={12} className="text-green-400" />
+                              <Leaf size={12} className="text-green-600" />
                             </div>
-                            <span className="text-white text-sm font-medium">{g.name}</span>
+                            <span className="text-gray-900 text-sm font-medium">{g.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 hidden sm:table-cell text-white/60 text-sm">{g.phone || "—"}</td>
-                        <td className="px-4 py-3 hidden md:table-cell text-white/60 text-sm">{g.land_acres ? `${g.land_acres} ac` : "—"}</td>
+                        <td className="px-4 py-3 hidden sm:table-cell text-gray-600 text-sm">{g.phone || "—"}</td>
+                        <td className="px-4 py-3 hidden md:table-cell text-gray-600 text-sm">{g.land_acres ? `${g.land_acres} ac` : "—"}</td>
                         <td className="px-4 py-3 hidden md:table-cell">
                           {g.last_pluck_date ? (
-                            <span className={`text-xs ${due ? "text-yellow-400" : "text-white/50"}`}>
+                            <span className={`text-xs ${due ? "text-yellow-600" : "text-gray-500"}`}>
                               {days} days ago
                               {due && " ⚠️"}
                             </span>
-                          ) : <span className="text-white/30 text-xs">Not set</span>}
+                          ) : <span className="text-gray-600 text-xs">Not set</span>}
                         </td>
-                        <td className="px-4 py-3 text-white/60 text-xs">{g.pluck_cycle_days}d</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{g.pluck_cycle_days}d</td>
                         <td className="px-4 py-3">
-                          <button onClick={() => toggleActive(g)} className={`text-xs px-2 py-1 rounded-full ${g.is_active ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                          <button onClick={() => toggleActive(g)} className={`text-xs px-2 py-1 rounded-full ${g.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                             {g.is_active ? "Active" : "Inactive"}
                           </button>
                         </td>
@@ -207,10 +207,10 @@ export default function GrowersPage() {
                             <button
                               onClick={() => { setPortalGrower(g); setPortalPin(""); }}
                               title={g.portal_enabled ? "Manage portal access" : "Enable grower portal"}
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/10 ${g.portal_enabled ? "bg-green-500/15 text-green-400" : "bg-white/5 text-white/30"}`}>
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-100 ${g.portal_enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
                               <KeyRound size={12} />
                             </button>
-                            <button onClick={() => openEdit(g)} className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/10">
+                            <button onClick={() => openEdit(g)} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-100">
                               <Edit size={12} />
                             </button>
                           </div>
@@ -227,44 +227,44 @@ export default function GrowersPage() {
 
       {/* Pluck Plan tab */}
       {activeTab === "pluck-plan" && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           {pluckPlan.length === 0 ? (
-            <div className="p-8 text-center text-white/30 text-sm">No pluck plan data.</div>
+            <div className="p-8 text-center text-gray-600 text-sm">No pluck plan data.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/8">
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Grower</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Last Pluck</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Next Expected</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Status</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Land</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Grower</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Last Pluck</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Next Expected</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Status</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Land</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pluckPlan.map((g: any) => (
-                    <tr key={g.id} className="border-b border-white/5 hover:bg-white/3">
+                    <tr key={g.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <p className="text-white text-sm font-medium">{g.name}</p>
-                        <p className="text-white/40 text-xs">{g.grower_code}</p>
+                        <p className="text-gray-900 text-sm font-medium">{g.name}</p>
+                        <p className="text-gray-500 text-xs">{g.grower_code}</p>
                       </td>
-                      <td className="px-4 py-3 text-white/60 text-sm">
+                      <td className="px-4 py-3 text-gray-600 text-sm">
                         {g.last_pluck_date ? new Date(g.last_pluck_date).toLocaleDateString("en-IN") : "Not set"}
                       </td>
-                      <td className="px-4 py-3 text-white text-sm">
+                      <td className="px-4 py-3 text-gray-900 text-sm">
                         {g.next_pluck_date ? new Date(g.next_pluck_date).toLocaleDateString("en-IN") : "—"}
                       </td>
                       <td className="px-4 py-3">
                         {g.pluck_today ? (
-                          <span className="text-xs bg-green-500/15 text-green-400 px-2 py-1 rounded-full">🌿 Today</span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">🌿 Today</span>
                         ) : g.pluck_soon ? (
-                          <span className="text-xs bg-yellow-500/15 text-yellow-400 px-2 py-1 rounded-full">⚠️ Soon (3d)</span>
+                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">⚠️ Soon (3d)</span>
                         ) : (
-                          <span className="text-xs text-white/30">Upcoming</span>
+                          <span className="text-xs text-gray-600">Upcoming</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-white/60 text-xs">
+                      <td className="px-4 py-3 text-gray-600 text-xs">
                         {g.land_acres ? `${g.land_acres} ac` : "—"}
                       </td>
                     </tr>
@@ -279,27 +279,27 @@ export default function GrowersPage() {
       {/* Portal PIN Modal */}
       {portalGrower && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <KeyRound size={16} className="text-green-400" />
-                <h2 className="font-bold text-white">Grower Portal Access</h2>
+                <KeyRound size={16} className="text-green-600" />
+                <h2 className="font-bold text-gray-900">Grower Portal Access</h2>
               </div>
-              <button onClick={() => setPortalGrower(null)} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <button onClick={() => setPortalGrower(null)} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
 
-            <div className="bg-[#0d0f14] rounded-xl p-3 mb-4">
-              <p className="text-white font-medium text-sm">{portalGrower.name}</p>
-              <p className="text-white/40 text-xs">{portalGrower.phone || portalGrower.grower_code}</p>
+            <div className="bg-gray-100 rounded-xl p-3 mb-4">
+              <p className="text-gray-900 font-medium text-sm">{portalGrower.name}</p>
+              <p className="text-gray-500 text-xs">{portalGrower.phone || portalGrower.grower_code}</p>
               <div className="mt-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${portalGrower.portal_enabled ? "bg-green-500/15 text-green-400" : "bg-white/8 text-white/30"}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${portalGrower.portal_enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
                   {portalGrower.portal_enabled ? "Portal Enabled" : "Portal Disabled"}
                 </span>
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="text-white/50 text-xs block mb-1.5">
+              <label className="text-gray-500 text-xs block mb-1.5">
                 {portalGrower.portal_enabled ? "Set New PIN (4–6 digits)" : "Set PIN to enable portal (4–6 digits)"}
               </label>
               <input
@@ -309,10 +309,10 @@ export default function GrowersPage() {
                 placeholder="e.g. 1234"
                 value={portalPin}
                 onChange={e => setPortalPin(e.target.value.replace(/\D/g, ""))}
-                className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-white text-sm tracking-widest focus:outline-none focus:border-green-500/40"
+                className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2.5 text-gray-900 text-sm tracking-widest focus:outline-none focus:border-emerald-500"
               />
-              <p className="text-white/30 text-xs mt-1.5">
-                Grower logs in at <span className="text-white/50 font-mono">/grower/login</span> using their phone + this PIN.
+              <p className="text-gray-600 text-xs mt-1.5">
+                Grower logs in at <span className="text-gray-500 font-mono">/grower/login</span> using their phone + this PIN.
               </p>
             </div>
 
@@ -320,18 +320,18 @@ export default function GrowersPage() {
               <button
                 onClick={() => savePortalPin(portalPin)}
                 disabled={portalSaving || portalPin.length < 4}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
+                className="w-full bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {portalSaving ? "Saving..." : portalGrower.portal_enabled ? "Update PIN" : "Enable Portal"}
               </button>
               {portalGrower.portal_enabled && (
                 <button
                   onClick={() => savePortalPin(null)}
                   disabled={portalSaving}
-                  className="w-full border border-red-500/30 rounded-xl py-2 text-sm text-red-400 hover:bg-red-500/10">
+                  className="w-full border border-red-500/30 rounded-xl py-2 text-sm text-red-600 hover:bg-red-500/10">
                   Disable Portal Access
                 </button>
               )}
-              <button onClick={() => setPortalGrower(null)} className="w-full border border-white/8 rounded-xl py-2 text-sm text-white/40 hover:text-white">
+              <button onClick={() => setPortalGrower(null)} className="w-full border border-gray-200 rounded-xl py-2 text-sm text-gray-500 hover:text-gray-900">
                 Cancel
               </button>
             </div>
@@ -342,10 +342,10 @@ export default function GrowersPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-lg">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-white">{editing ? "Edit Grower" : "Add Grower"}</h2>
-              <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <h2 className="font-bold text-gray-900">{editing ? "Edit Grower" : "Add Grower"}</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -358,42 +358,42 @@ export default function GrowersPage() {
                 { key: "pluck_cycle_days", label: "Pluck Cycle (days)", type: "number" },
               ].map(f => (
                 <div key={f.key} className={f.full ? "col-span-2" : ""}>
-                  <label className="text-white/50 text-xs block mb-1">{f.label}</label>
+                  <label className="text-gray-500 text-xs block mb-1">{f.label}</label>
                   <input
                     type={f.type}
                     value={(form as any)[f.key] ?? ""}
                     onChange={e => setForm(prev => ({ ...prev, [f.key]: f.type === "number" ? parseFloat(e.target.value) : e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/40"
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               ))}
 
               <div className="col-span-2">
-                <label className="text-white/50 text-xs block mb-1">Address</label>
+                <label className="text-gray-500 text-xs block mb-1">Address</label>
                 <textarea
                   value={form.address ?? ""}
                   onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
                   rows={2}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/40"
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div className="col-span-2">
-                <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                   <input type="checkbox" checked={form.will_pluck ?? false}
                     onChange={e => setForm(prev => ({ ...prev, will_pluck: e.target.checked }))}
-                    className="w-4 h-4 rounded border-white/20" />
+                    className="w-4 h-4 rounded border-gray-300" />
                   Will pluck today (agent confirmation)
                 </label>
               </div>
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowForm(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50 hover:text-white">
+              <button onClick={() => setShowForm(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500 hover:text-gray-900">
                 Cancel
               </button>
               <button onClick={save} disabled={saving || !form.name}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {saving ? "Saving..." : editing ? "Update" : "Add Grower"}
               </button>
             </div>

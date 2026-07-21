@@ -192,12 +192,12 @@ export default function SettingsPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-white/10 to-white/5 border border-white/10 rounded-xl flex items-center justify-center shadow-sm shadow-black/20">
-            <Settings size={18} className="text-white/60" />
+          <div className="w-10 h-10 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center">
+            <Settings size={18} className="text-gray-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Settings</h1>
-            <p className="text-white/40 text-xs">Rates, factories, and vehicles</p>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Settings</h1>
+            <p className="text-gray-500 text-xs">Rates, factories, and vehicles</p>
           </div>
         </div>
         <button onClick={() => { setEditFactory(null); setEditVehicle(null); setShowForm(true); }}
@@ -207,10 +207,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit">
         {([["rates", "📊 Rates"], ["factories", "🏭 Factories"], ["vehicles", "🚛 Vehicles"]] as [SettingsTab, string][]).map(([t, l]) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-[#6c63ff]/20 text-[#6c63ff]" : "text-white/40 hover:text-white"}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-[#6c63ff]/20 text-[#6c63ff]" : "text-gray-500 hover:text-gray-900"}`}>
             {l}
           </button>
         ))}
@@ -218,53 +218,53 @@ export default function SettingsPage() {
 
       {/* Rates */}
       {tab === "rates" && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/8">
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Week (Mon)</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Mode</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Grade A</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Grade B</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Grade C</th>
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Week (Mon)</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Mode</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Grade A</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Grade B</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Grade C</th>
               </tr>
             </thead>
             <tbody>
               {rates.length === 0 ? (
-                <tr><td colSpan={5} className="p-8 text-center text-white/30 text-sm">No rates set yet.</td></tr>
+                <tr><td colSpan={5} className="p-8 text-center text-gray-600 text-sm">No rates set yet.</td></tr>
               ) : rates.map((r, i) => (
-                <tr key={r.id} className={`border-b border-white/5 ${i === 0 ? "bg-green-500/5" : ""}`}>
+                <tr key={r.id} className={`border-b border-gray-100 ${i === 0 ? "bg-green-500/5" : ""}`}>
                   <td className="px-4 py-3">
-                    <p className="text-white text-sm">
+                    <p className="text-gray-900 text-sm">
                       {r.week_start_date
                         ? new Date(r.week_start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })
                         : `Wk ${r.week_number}/${r.week_year}`}
                     </p>
-                    {i === 0 && <span className="text-xs text-green-400">Current</span>}
+                    {i === 0 && <span className="text-xs text-green-600">Current</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      r.payment_mode === 'advance' ? 'bg-yellow-500/15 text-yellow-400' : 'bg-green-500/15 text-green-400'
+                      r.payment_mode === 'advance' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
                     }`}>
                       {r.payment_mode === 'advance' ? 'Advance' : 'Full'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-green-400 font-semibold text-sm">₹{r.grade_a_rate}</p>
+                    <p className="text-green-600 font-semibold text-sm">₹{r.grade_a_rate}</p>
                     {r.payment_mode === 'advance' && r.advance_rate_a && (
-                      <p className="text-yellow-400 text-xs">adv ₹{r.advance_rate_a}</p>
+                      <p className="text-yellow-600 text-xs">adv ₹{r.advance_rate_a}</p>
                     )}
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <p className="text-blue-400 font-semibold text-sm">₹{r.grade_b_rate}</p>
+                    <p className="text-blue-600 font-semibold text-sm">₹{r.grade_b_rate}</p>
                     {r.payment_mode === 'advance' && r.advance_rate_b && (
-                      <p className="text-yellow-400 text-xs">adv ₹{r.advance_rate_b}</p>
+                      <p className="text-yellow-600 text-xs">adv ₹{r.advance_rate_b}</p>
                     )}
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <p className="text-yellow-400 font-semibold text-sm">₹{r.grade_c_rate}</p>
+                    <p className="text-yellow-600 font-semibold text-sm">₹{r.grade_c_rate}</p>
                     {r.payment_mode === 'advance' && r.advance_rate_c && (
-                      <p className="text-yellow-400 text-xs">adv ₹{r.advance_rate_c}</p>
+                      <p className="text-yellow-600 text-xs">adv ₹{r.advance_rate_c}</p>
                     )}
                   </td>
                 </tr>
@@ -276,35 +276,35 @@ export default function SettingsPage() {
 
       {/* Factories */}
       {tab === "factories" && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/8">
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Factory Name</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Location</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs hidden md:table-cell">Contact</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Status</th>
-                <th className="px-4 py-3 text-right text-white/40 text-xs">Edit</th>
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Factory Name</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Location</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs hidden md:table-cell">Contact</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Status</th>
+                <th className="px-4 py-3 text-right text-gray-500 text-xs">Edit</th>
               </tr>
             </thead>
             <tbody>
               {factories.length === 0 ? (
-                <tr><td colSpan={5} className="p-8 text-center text-white/30 text-sm">No factories added.</td></tr>
+                <tr><td colSpan={5} className="p-8 text-center text-gray-600 text-sm">No factories added.</td></tr>
               ) : factories.map(f => (
-                <tr key={f.id} className="border-b border-white/5 hover:bg-white/3">
+                <tr key={f.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                        <Factory size={12} className="text-purple-400" />
+                        <Factory size={12} className="text-purple-600" />
                       </div>
-                      <span className="text-white text-sm font-medium">{f.name}</span>
+                      <span className="text-gray-900 text-sm font-medium">{f.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden sm:table-cell text-white/50 text-sm">{f.location || "—"}</td>
-                  <td className="px-4 py-3 hidden md:table-cell text-white/50 text-sm">{f.contact_name || "—"}</td>
-                  <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${f.is_active ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>{f.is_active ? "Active" : "Inactive"}</span></td>
+                  <td className="px-4 py-3 hidden sm:table-cell text-gray-500 text-sm">{f.location || "—"}</td>
+                  <td className="px-4 py-3 hidden md:table-cell text-gray-500 text-sm">{f.contact_name || "—"}</td>
+                  <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${f.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{f.is_active ? "Active" : "Inactive"}</span></td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => openFactoryEdit(f)} className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center ml-auto hover:bg-white/10">
+                    <button onClick={() => openFactoryEdit(f)} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center ml-auto hover:bg-gray-100">
                       <Edit size={12} />
                     </button>
                   </td>
@@ -319,80 +319,80 @@ export default function SettingsPage() {
       {tab === "vehicles" && (
         <div className="space-y-2">
           {vehicles.length === 0 ? (
-            <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-8 text-center text-white/30 text-sm">No vehicles added.</div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8 text-center text-gray-600 text-sm">No vehicles added.</div>
           ) : vehicles.map(v => (
-            <div key={v.id} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+            <div key={v.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               {/* Vehicle row */}
               <div className="flex items-center gap-3 px-4 py-3">
                 <div className="w-8 h-8 bg-yellow-500/10 rounded-xl flex items-center justify-center shrink-0">
-                  <Truck size={14} className="text-yellow-400" />
+                  <Truck size={14} className="text-yellow-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-mono font-semibold text-sm">{v.vehicle_number}</p>
-                  <p className="text-white/40 text-xs">{v.driver_name || "No driver"}{v.driver_phone ? ` · ${v.driver_phone}` : ""}</p>
+                  <p className="text-gray-900 font-mono font-semibold text-sm">{v.vehicle_number}</p>
+                  <p className="text-gray-500 text-xs">{v.driver_name || "No driver"}{v.driver_phone ? ` · ${v.driver_phone}` : ""}</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full hidden sm:inline-flex ${v.is_active ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full hidden sm:inline-flex ${v.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                   {v.is_active ? "Active" : "Inactive"}
                 </span>
                 <button
                   onClick={() => { setFuelVehicleId(v.id); setShowFuelForm(true); }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 text-orange-400 rounded-lg text-xs hover:bg-orange-500/20">
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 text-orange-600 rounded-lg text-xs hover:bg-orange-500/20">
                   <Fuel size={11} /> Log Fuel
                 </button>
-                <button onClick={() => openVehicleEdit(v)} className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/10">
+                <button onClick={() => openVehicleEdit(v)} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-100">
                   <Edit size={12} />
                 </button>
-                <button onClick={() => toggleFuelExpand(v.id)} className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/10">
+                <button onClick={() => toggleFuelExpand(v.id)} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-100">
                   {expandedVehicle === v.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
               </div>
 
               {/* Fuel logs expand */}
               {expandedVehicle === v.id && (
-                <div className="border-t border-white/8">
+                <div className="border-t border-gray-200">
                   <div className="px-4 py-2 flex items-center justify-between">
-                    <span className="text-white/40 text-xs font-medium">Fuel Logs</span>
+                    <span className="text-gray-500 text-xs font-medium">Fuel Logs</span>
                     {fuelLogs.length > 0 && (
-                      <span className="text-orange-400 text-xs">
+                      <span className="text-orange-600 text-xs">
                         Total: ₹{fuelLogs.reduce((s, l) => s + Number(l.total_cost), 0).toFixed(0)}
                         {" · "}{fuelLogs.reduce((s, l) => s + Number(l.liters), 0).toFixed(1)}L
                       </span>
                     )}
                   </div>
                   {fuelLogs.length === 0 ? (
-                    <p className="px-4 pb-4 text-white/30 text-xs">No fuel logs yet. Click "Log Fuel" to add.</p>
+                    <p className="px-4 pb-4 text-gray-600 text-xs">No fuel logs yet. Click "Log Fuel" to add.</p>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-white/5">
-                          <th className="px-4 py-2 text-left text-white/30 text-xs">Date</th>
-                          <th className="px-4 py-2 text-left text-white/30 text-xs">Type</th>
-                          <th className="px-4 py-2 text-left text-white/30 text-xs">Litres</th>
-                          <th className="px-4 py-2 text-left text-white/30 text-xs hidden sm:table-cell">Rate</th>
-                          <th className="px-4 py-2 text-left text-white/30 text-xs">Cost</th>
-                          <th className="px-4 py-2 text-left text-white/30 text-xs hidden md:table-cell">Odometer</th>
-                          <th className="px-4 py-2 text-right text-white/30 text-xs"></th>
+                        <tr className="border-b border-gray-100">
+                          <th className="px-4 py-2 text-left text-gray-600 text-xs">Date</th>
+                          <th className="px-4 py-2 text-left text-gray-600 text-xs">Type</th>
+                          <th className="px-4 py-2 text-left text-gray-600 text-xs">Litres</th>
+                          <th className="px-4 py-2 text-left text-gray-600 text-xs hidden sm:table-cell">Rate</th>
+                          <th className="px-4 py-2 text-left text-gray-600 text-xs">Cost</th>
+                          <th className="px-4 py-2 text-left text-gray-600 text-xs hidden md:table-cell">Odometer</th>
+                          <th className="px-4 py-2 text-right text-gray-600 text-xs"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {fuelLogs.map(log => (
-                          <tr key={log.id} className="border-b border-white/5 hover:bg-white/3">
-                            <td className="px-4 py-2 text-white/60 text-xs">
+                          <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-2 text-gray-600 text-xs">
                               {new Date(log.log_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                             </td>
                             <td className="px-4 py-2">
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full ${log.fuel_type === "diesel" ? "bg-yellow-500/15 text-yellow-400" : "bg-blue-500/15 text-blue-400"}`}>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full ${log.fuel_type === "diesel" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>
                                 {log.fuel_type}
                               </span>
                             </td>
-                            <td className="px-4 py-2 text-white/70 text-xs">{Number(log.liters).toFixed(1)}L</td>
-                            <td className="px-4 py-2 text-white/50 text-xs hidden sm:table-cell">₹{Number(log.rate_per_liter).toFixed(2)}/L</td>
-                            <td className="px-4 py-2 text-orange-400 text-xs font-semibold">₹{Number(log.total_cost).toFixed(0)}</td>
-                            <td className="px-4 py-2 text-white/40 text-xs hidden md:table-cell">
+                            <td className="px-4 py-2 text-gray-700 text-xs">{Number(log.liters).toFixed(1)}L</td>
+                            <td className="px-4 py-2 text-gray-500 text-xs hidden sm:table-cell">₹{Number(log.rate_per_liter).toFixed(2)}/L</td>
+                            <td className="px-4 py-2 text-orange-600 text-xs font-semibold">₹{Number(log.total_cost).toFixed(0)}</td>
+                            <td className="px-4 py-2 text-gray-500 text-xs hidden md:table-cell">
                               {log.odometer_km ? `${log.odometer_km} km` : "—"}
                             </td>
                             <td className="px-4 py-2 text-right">
-                              <button onClick={() => deleteFuelLog(v.id, log.id)} className="text-white/20 hover:text-red-400">
+                              <button onClick={() => deleteFuelLog(v.id, log.id)} className="text-gray-300 hover:text-red-600">
                                 <Trash2 size={11} />
                               </button>
                             </td>
@@ -411,24 +411,24 @@ export default function SettingsPage() {
       {/* Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-white">
+              <h2 className="font-bold text-gray-900">
                 {tab === "rates" ? "Set Weekly Rate" : tab === "factories" ? (editFactory ? "Edit Factory" : "Add Factory") : (editVehicle ? "Edit Vehicle" : "Add Vehicle")}
               </h2>
-              <button onClick={() => { setShowForm(false); setEditFactory(null); setEditVehicle(null); }} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <button onClick={() => { setShowForm(false); setEditFactory(null); setEditVehicle(null); }} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
 
             {tab === "rates" && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Week Starting (any day in the week)</label>
+                  <label className="text-gray-500 text-xs block mb-1">Week Starting (any day in the week)</label>
                   <input type="date" value={rateForm.effective_date} onChange={e => setRateForm(p => ({ ...p, effective_date: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
 
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Payment Mode</label>
+                  <label className="text-gray-500 text-xs block mb-1">Payment Mode</label>
                   <div className="flex gap-2">
                     {["full", "advance"].map(mode => (
                       <button key={mode} type="button"
@@ -436,16 +436,16 @@ export default function SettingsPage() {
                         className={`flex-1 py-2 rounded-xl text-sm border transition-all ${
                           rateForm.payment_mode === mode
                             ? mode === "advance"
-                              ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-                              : "border-green-500/50 bg-green-500/10 text-green-400"
-                            : "border-white/10 text-white/40 hover:text-white"
+                              ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-600"
+                              : "border-green-500/50 bg-green-500/10 text-green-600"
+                            : "border-gray-200 text-gray-500 hover:text-gray-900"
                         }`}>
                         {mode === "full" ? "Full Rate" : "Advance"}
                       </button>
                     ))}
                   </div>
                   {rateForm.payment_mode === "advance" && (
-                    <p className="text-yellow-400/70 text-xs mt-1.5">
+                    <p className="text-yellow-600/70 text-xs mt-1.5">
                       Advance: growers are paid the advance rate now; balance (full − advance) carries forward.
                     </p>
                   )}
@@ -454,23 +454,23 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {[["grade_a_rate", "Grade A (₹/kg)"], ["grade_b_rate", "Grade B (₹/kg)"], ["grade_c_rate", "Grade C (₹/kg)"]].map(([k, l]) => (
                     <div key={k}>
-                      <label className="text-white/50 text-xs block mb-1">{l}</label>
+                      <label className="text-gray-500 text-xs block mb-1">{l}</label>
                       <input type="number" value={(rateForm as any)[k]} onChange={e => setRateForm(p => ({ ...p, [k]: e.target.value }))} step="0.01"
-                        className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                        className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                     </div>
                   ))}
                 </div>
 
                 {rateForm.payment_mode === "advance" && (
                   <>
-                    <p className="text-white/30 text-xs pt-1">Advance rates paid now (leave blank to use full rate):</p>
+                    <p className="text-gray-600 text-xs pt-1">Advance rates paid now (leave blank to use full rate):</p>
                     <div className="grid grid-cols-3 gap-2">
                       {[["advance_rate_a", "Adv A"], ["advance_rate_b", "Adv B"], ["advance_rate_c", "Adv C"]].map(([k, l]) => (
                         <div key={k}>
-                          <label className="text-white/50 text-xs block mb-1">{l} (₹/kg)</label>
+                          <label className="text-gray-500 text-xs block mb-1">{l} (₹/kg)</label>
                           <input type="number" value={(rateForm as any)[k]} onChange={e => setRateForm(p => ({ ...p, [k]: e.target.value }))} step="0.01"
                             placeholder={(rateForm as any)[k.replace('advance_rate_', 'grade_') + '_rate'] || ""}
-                            className="w-full bg-[#0d0f14] border border-yellow-500/20 rounded-xl px-3 py-2 text-sm text-white focus:outline-none" />
+                            className="w-full bg-gray-100 border border-yellow-500/20 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                         </div>
                       ))}
                     </div>
@@ -478,7 +478,7 @@ export default function SettingsPage() {
                 )}
 
                 <div className="flex gap-3 mt-5">
-                  <button onClick={() => setShowForm(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+                  <button onClick={() => setShowForm(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
                   <button onClick={saveRate} disabled={saving || !rateForm.grade_a_rate} className="flex-1 bg-[#6c63ff]/80 hover:bg-[#6c63ff] disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                     {saving ? "Saving..." : "Set Rate"}
                   </button>
@@ -490,13 +490,13 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 {[["name", "Factory Name *"], ["location", "Location"], ["contact_name", "Contact Person"], ["contact_phone", "Contact Phone"]].map(([k, l]) => (
                   <div key={k}>
-                    <label className="text-white/50 text-xs block mb-1">{l}</label>
+                    <label className="text-gray-500 text-xs block mb-1">{l}</label>
                     <input type="text" value={(factoryForm as any)[k]} onChange={e => setFactoryForm(p => ({ ...p, [k]: e.target.value }))}
-                      className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                   </div>
                 ))}
                 <div className="flex gap-3 mt-5">
-                  <button onClick={() => { setShowForm(false); setEditFactory(null); }} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+                  <button onClick={() => { setShowForm(false); setEditFactory(null); }} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
                   <button onClick={saveFactory} disabled={saving || !factoryForm.name} className="flex-1 bg-[#6c63ff]/80 hover:bg-[#6c63ff] disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                     {saving ? "Saving..." : editFactory ? "Update" : "Add Factory"}
                   </button>
@@ -508,13 +508,13 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 {[["vehicle_number", "Vehicle / Reg Number *"], ["driver_name", "Driver Name"], ["driver_phone", "Driver Phone"]].map(([k, l]) => (
                   <div key={k}>
-                    <label className="text-white/50 text-xs block mb-1">{l}</label>
+                    <label className="text-gray-500 text-xs block mb-1">{l}</label>
                     <input type="text" value={(vehicleForm as any)[k]} onChange={e => setVehicleForm(p => ({ ...p, [k]: e.target.value }))}
-                      className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                   </div>
                 ))}
                 <div className="flex gap-3 mt-5">
-                  <button onClick={() => { setShowForm(false); setEditVehicle(null); }} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+                  <button onClick={() => { setShowForm(false); setEditVehicle(null); }} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
                   <button onClick={saveVehicle} disabled={saving || !vehicleForm.vehicle_number} className="flex-1 bg-[#6c63ff]/80 hover:bg-[#6c63ff] disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                     {saving ? "Saving..." : editVehicle ? "Update" : "Add Vehicle"}
                   </button>
@@ -528,25 +528,25 @@ export default function SettingsPage() {
       {/* Fuel Log Modal */}
       {showFuelForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Fuel size={16} className="text-orange-400" />
-                <h2 className="font-bold text-white">Log Fuel Fill-up</h2>
+                <Fuel size={16} className="text-orange-600" />
+                <h2 className="font-bold text-gray-900">Log Fuel Fill-up</h2>
               </div>
-              <button onClick={() => setShowFuelForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <button onClick={() => setShowFuelForm(false)} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-white/50 text-xs block mb-1">Date</label>
+                <label className="text-gray-500 text-xs block mb-1">Date</label>
                 <input type="date" value={fuelForm.log_date}
                   onChange={e => setFuelForm(p => ({ ...p, log_date: e.target.value }))}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
               </div>
 
               <div>
-                <label className="text-white/50 text-xs block mb-1">Fuel Type</label>
+                <label className="text-gray-500 text-xs block mb-1">Fuel Type</label>
                 <div className="flex gap-2">
                   {["diesel", "petrol"].map(ft => (
                     <button key={ft} type="button"
@@ -554,9 +554,9 @@ export default function SettingsPage() {
                       className={`flex-1 py-2 rounded-xl text-sm border transition-all capitalize ${
                         fuelForm.fuel_type === ft
                           ? ft === "diesel"
-                            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-                            : "border-blue-500/50 bg-blue-500/10 text-blue-400"
-                          : "border-white/10 text-white/40 hover:text-white"
+                            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-600"
+                            : "border-blue-500/50 bg-blue-500/10 text-blue-600"
+                          : "border-gray-200 text-gray-500 hover:text-gray-900"
                       }`}>
                       {ft}
                     </button>
@@ -566,45 +566,45 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Litres *</label>
+                  <label className="text-gray-500 text-xs block mb-1">Litres *</label>
                   <input type="number" step="0.1" placeholder="e.g. 40" value={fuelForm.liters}
                     onChange={e => {
                       const l = e.target.value;
                       const t = l && fuelForm.rate_per_liter ? (parseFloat(l) * parseFloat(fuelForm.rate_per_liter)).toFixed(2) : fuelForm.total_cost;
                       setFuelForm(p => ({ ...p, liters: l, total_cost: t }));
                     }}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Rate (₹/L) *</label>
+                  <label className="text-gray-500 text-xs block mb-1">Rate (₹/L) *</label>
                   <input type="number" step="0.01" placeholder="e.g. 95.50" value={fuelForm.rate_per_liter}
                     onChange={e => {
                       const r = e.target.value;
                       const t = r && fuelForm.liters ? (parseFloat(r) * parseFloat(fuelForm.liters)).toFixed(2) : fuelForm.total_cost;
                       setFuelForm(p => ({ ...p, rate_per_liter: r, total_cost: t }));
                     }}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Total Cost (₹)</label>
+                  <label className="text-gray-500 text-xs block mb-1">Total Cost (₹)</label>
                   <input type="number" step="0.01" value={fuelForm.total_cost}
                     onChange={e => setFuelForm(p => ({ ...p, total_cost: e.target.value }))}
-                    className="w-full bg-[#0d0f14] border border-orange-500/20 rounded-xl px-3 py-2 text-sm text-orange-300 focus:outline-none" />
+                    className="w-full bg-gray-100 border border-orange-500/20 rounded-xl px-3 py-2 text-sm text-orange-300 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Odometer (km)</label>
+                  <label className="text-gray-500 text-xs block mb-1">Odometer (km)</label>
                   <input type="number" placeholder="optional" value={fuelForm.odometer_km}
                     onChange={e => setFuelForm(p => ({ ...p, odometer_km: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
               </div>
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowFuelForm(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+              <button onClick={() => setShowFuelForm(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
               <button onClick={saveFuelLog} disabled={fuelSaving || !fuelForm.liters || !fuelForm.rate_per_liter}
                 className="flex-1 bg-orange-600/80 hover:bg-orange-600 disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {fuelSaving ? "Saving..." : "Save Log"}

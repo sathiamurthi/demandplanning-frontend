@@ -62,31 +62,31 @@ export default function AgentLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-700 rounded-xl flex items-center justify-center shadow-lg shadow-green-950/40 ring-1 ring-white/10">
+          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-700 rounded-xl flex items-center justify-center shadow-md">
             <Leaf size={18} className="text-white" />
           </div>
-          <span className="text-xl font-bold text-white tracking-tight">TeaFactory360</span>
+          <span className="text-xl font-bold text-gray-900 tracking-tight">TeaFactory360</span>
         </div>
 
-        <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-white/8">
-            <h1 className="text-base font-bold text-white">Agent Login</h1>
-            <p className="text-xs text-white/40 mt-1">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+            <h1 className="text-base font-bold text-gray-900">Agent Login</h1>
+            <p className="text-xs text-gray-500 mt-1">
               Growers, tea collection, dispatch, payments &amp; vehicle management — for field collection agents.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-wide mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                 Email or Phone
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-                  {isPhone ? <Phone className="h-4 w-4 text-white/30" /> : <Mail className="h-4 w-4 text-white/30" />}
+                  {isPhone ? <Phone className="h-4 w-4 text-gray-400" /> : <Mail className="h-4 w-4 text-gray-400" />}
                 </div>
                 <input
                   type="text"
@@ -94,13 +94,13 @@ export default function AgentLoginPage() {
                   onChange={e => setIdentifier(e.target.value)}
                   placeholder="agent@abcteaagency.com"
                   required
-                  className="w-full rounded-xl border border-white/10 bg-[#0d0f14] pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                  className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-wide mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                 Password
               </label>
               <input
@@ -110,12 +110,12 @@ export default function AgentLoginPage() {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="w-full rounded-xl border border-white/10 bg-[#0d0f14] px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
               />
             </div>
 
             {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -123,7 +123,7 @@ export default function AgentLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 py-3 text-sm font-semibold text-white transition-all disabled:opacity-50"
+              className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 shadow-sm py-3 text-sm font-semibold text-white transition-colors disabled:opacity-50"
             >
               {loading ? "Signing in…" : "Sign in as Agent"}
             </button>
@@ -131,7 +131,7 @@ export default function AgentLoginPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-xs text-white/30 hover:text-white/60 transition-colors">
+          <Link href="/login" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
             Not an agent? Go to the full TeaFactory360 login
           </Link>
         </div>

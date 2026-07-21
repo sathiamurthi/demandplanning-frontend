@@ -19,7 +19,7 @@ export default function TeaFleetMap({ vehicles, height = "420px" }: { vehicles: 
     : [11.4064, 76.6932]; // Nilgiris default
 
   return (
-    <div style={{ height }} className="relative z-0 rounded-xl overflow-hidden border border-white/10">
+    <div style={{ height }} className="relative z-0 rounded-xl overflow-hidden border border-gray-200">
       <MapContainer center={center} zoom={11} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
         <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {withPos.map(v => (
@@ -34,7 +34,7 @@ export default function TeaFleetMap({ vehicles, height = "420px" }: { vehicles: 
         ))}
       </MapContainer>
       {withPos.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white/60 text-sm pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-sm pointer-events-none">
           No vehicles broadcasting a live position yet
         </div>
       )}

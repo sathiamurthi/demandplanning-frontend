@@ -75,24 +75,24 @@ export default function ReportsPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-blue-950/20">
-            <BarChart3 size={18} className="text-blue-400" />
+          <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center">
+            <BarChart3 size={18} className="text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Reports</h1>
-            <p className="text-white/40 text-xs">Daily, weekly, and grower ledger reports</p>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Reports</h1>
+            <p className="text-gray-500 text-xs">Daily, weekly, and grower ledger reports</p>
           </div>
         </div>
-        <button onClick={loadReport} className="flex items-center gap-1.5 text-white/40 hover:text-white text-sm">
+        <button onClick={loadReport} className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 text-sm">
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit">
         {([["daily", "Daily Report"], ["weekly", "Weekly Report"], ["ledger", "Grower Ledger"]] as [ReportTab, string][]).map(([t, l]) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-blue-600/20 text-blue-400" : "text-white/40 hover:text-white"}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-blue-600/20 text-blue-600" : "text-gray-500 hover:text-gray-900"}`}>
             {l}
           </button>
         ))}
@@ -101,13 +101,13 @@ export default function ReportsPage() {
       {/* Filters */}
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
-        <span className="text-white/30 text-xs">to</span>
+          className="bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900 focus:outline-none" />
+        <span className="text-gray-600 text-xs">to</span>
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
+          className="bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900 focus:outline-none" />
         {tab === "ledger" && (
           <select value={growerId} onChange={e => setGrowerId(e.target.value)}
-            className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none">
+            className="bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900 focus:outline-none">
             <option value="">Select grower...</option>
             {growers.map(g => <option key={g.id} value={g.id}>{g.name} ({g.grower_code})</option>)}
           </select>
@@ -124,41 +124,41 @@ export default function ReportsPage() {
           {daily.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               {[
-                { label: "Days", value: daily.length, color: "text-blue-400" },
-                { label: "Total KG", value: `${totalDailyKg.toFixed(0)} kg`, color: "text-green-400" },
-                { label: "Avg/Day", value: `${(totalDailyKg / daily.length).toFixed(0)} kg`, color: "text-yellow-400" },
+                { label: "Days", value: daily.length, color: "text-blue-600" },
+                { label: "Total KG", value: `${totalDailyKg.toFixed(0)} kg`, color: "text-green-600" },
+                { label: "Avg/Day", value: `${(totalDailyKg / daily.length).toFixed(0)} kg`, color: "text-yellow-600" },
               ].map(s => (
-                <div key={s.label} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-3">
+                <div key={s.label} className="bg-white border border-gray-200 rounded-xl shadow-sm p-3">
                   <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
-                  <p className="text-white/40 text-xs">{s.label}</p>
+                  <p className="text-gray-500 text-xs">{s.label}</p>
                 </div>
               ))}
             </div>
           )}
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
-            {loading ? <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
-            : daily.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No data in this range.</div>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {loading ? <div className="p-8 text-center text-gray-600 text-sm animate-pulse">Loading...</div>
+            : daily.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No data in this range.</div>
             : (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/8">
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Date</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Growers</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs">Total KG</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Grade A</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Grade B</th>
-                    <th className="px-4 py-3 text-left text-white/40 text-xs hidden md:table-cell">Grade C</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Date</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Growers</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs">Total KG</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Grade A</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Grade B</th>
+                    <th className="px-4 py-3 text-left text-gray-500 text-xs hidden md:table-cell">Grade C</th>
                   </tr>
                 </thead>
                 <tbody>
                   {daily.map(d => (
-                    <tr key={d.collection_date} className="border-b border-white/5 hover:bg-white/3">
-                      <td className="px-4 py-3 text-white text-sm">{new Date(d.collection_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", weekday: "short" })}</td>
-                      <td className="px-4 py-3 text-white/70 text-sm">{d.total_growers}</td>
-                      <td className="px-4 py-3 text-white font-semibold">{d.total_kg} kg</td>
-                      <td className="px-4 py-3 hidden sm:table-cell text-green-400 text-sm">{d.grade_a_kg} kg</td>
-                      <td className="px-4 py-3 hidden sm:table-cell text-blue-400 text-sm">{d.grade_b_kg} kg</td>
-                      <td className="px-4 py-3 hidden md:table-cell text-yellow-400 text-sm">{d.grade_c_kg} kg</td>
+                    <tr key={d.collection_date} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-900 text-sm">{new Date(d.collection_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", weekday: "short" })}</td>
+                      <td className="px-4 py-3 text-gray-700 text-sm">{d.total_growers}</td>
+                      <td className="px-4 py-3 text-gray-900 font-semibold">{d.total_kg} kg</td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-green-600 text-sm">{d.grade_a_kg} kg</td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-blue-600 text-sm">{d.grade_b_kg} kg</td>
+                      <td className="px-4 py-3 hidden md:table-cell text-yellow-600 text-sm">{d.grade_c_kg} kg</td>
                     </tr>
                   ))}
                 </tbody>
@@ -170,31 +170,31 @@ export default function ReportsPage() {
 
       {/* Weekly Report */}
       {tab === "weekly" && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
-          {loading ? <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
-          : weekly.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No weekly data in this range.</div>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          {loading ? <div className="p-8 text-center text-gray-600 text-sm animate-pulse">Loading...</div>
+          : weekly.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No weekly data in this range.</div>
           : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/8">
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Week</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Growers</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Collected KG</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Dispatched KG</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Net Settled</th>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Week</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Growers</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Collected KG</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Dispatched KG</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Net Settled</th>
                 </tr>
               </thead>
               <tbody>
                 {weekly.map((w, i) => (
-                  <tr key={i} className="border-b border-white/5 hover:bg-white/3">
+                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <p className="text-white text-sm">{new Date(w.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
-                      <p className="text-white/40 text-xs">to {new Date(w.week_end).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                      <p className="text-gray-900 text-sm">{new Date(w.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                      <p className="text-gray-500 text-xs">to {new Date(w.week_end).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
                     </td>
-                    <td className="px-4 py-3 text-white/70 text-sm">{w.total_growers}</td>
-                    <td className="px-4 py-3 text-white font-semibold">{w.total_kg} kg</td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-yellow-400 text-sm">{w.total_dispatched} kg</td>
-                    <td className="px-4 py-3 text-green-400 font-semibold">₹{Number(w.net_settled).toFixed(0)}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{w.total_growers}</td>
+                    <td className="px-4 py-3 text-gray-900 font-semibold">{w.total_kg} kg</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-yellow-600 text-sm">{w.total_dispatched} kg</td>
+                    <td className="px-4 py-3 text-green-600 font-semibold">₹{Number(w.net_settled).toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -205,45 +205,45 @@ export default function ReportsPage() {
 
       {/* Grower Ledger */}
       {tab === "ledger" && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           {!growerId ? (
-            <div className="p-10 text-center text-white/30 text-sm">
+            <div className="p-10 text-center text-gray-600 text-sm">
               <Users size={32} className="mx-auto mb-3 opacity-20" />
               Select a grower to view their ledger.
             </div>
           ) : loading ? (
-            <div className="p-8 text-center text-white/30 text-sm animate-pulse">Loading...</div>
+            <div className="p-8 text-center text-gray-600 text-sm animate-pulse">Loading...</div>
           ) : ledger.length === 0 ? (
-            <div className="p-8 text-center text-white/30 text-sm">No ledger entries in this range.</div>
+            <div className="p-8 text-center text-gray-600 text-sm">No ledger entries in this range.</div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/8">
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Date</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Type</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Description</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">KG</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Amount</th>
-                  <th className="px-4 py-3 text-left text-white/40 text-xs">Balance</th>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Date</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Type</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Description</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">KG</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Amount</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {ledger.map((l, i) => (
-                  <tr key={i} className="border-b border-white/5 hover:bg-white/3">
-                    <td className="px-4 py-3 text-white/60 text-sm">{new Date(l.date).toLocaleDateString("en-IN")}</td>
+                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-600 text-sm">{new Date(l.date).toLocaleDateString("en-IN")}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${l.type === "collection" ? "bg-green-500/15 text-green-400" : l.type === "advance" ? "bg-red-500/15 text-red-400" : "bg-blue-500/15 text-blue-400"}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${l.type === "collection" ? "bg-green-100 text-green-700" : l.type === "advance" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
                         {l.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-white/60 text-sm">{l.description}</td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-white/50 text-sm">{l.kg ? `${l.kg} kg` : "—"}</td>
+                    <td className="px-4 py-3 text-gray-600 text-sm">{l.description}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-500 text-sm">{l.kg ? `${l.kg} kg` : "—"}</td>
                     <td className="px-4 py-3 text-sm font-medium">
                       {l.amount !== null
-                        ? <span className="text-green-400">+₹{Number(l.amount).toFixed(0)}</span>
-                        : <span className="text-white/30 text-xs">at settlement</span>}
+                        ? <span className="text-green-600">+₹{Number(l.amount).toFixed(0)}</span>
+                        : <span className="text-gray-600 text-xs">at settlement</span>}
                     </td>
-                    <td className="px-4 py-3 text-white font-semibold text-sm">₹{Number(l.balance).toFixed(0)}</td>
+                    <td className="px-4 py-3 text-gray-900 font-semibold text-sm">₹{Number(l.balance).toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>

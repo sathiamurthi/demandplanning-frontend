@@ -141,46 +141,46 @@ export default function CollectionsPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-green-950/20">
-            <ClipboardList size={18} className="text-green-400" />
+          <div className="w-10 h-10 bg-green-50 border border-green-100 rounded-xl flex items-center justify-center">
+            <ClipboardList size={18} className="text-green-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Tea Collection</h1>
-            <p className="text-white/40 text-xs">Record daily grower collections</p>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Tea Collection</h1>
+            <p className="text-gray-500 text-xs">Record daily grower collections</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="bg-[#0d0f16] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+            className="bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
         </div>
       </div>
 
       {/* Rate notice */}
-      <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
-        <span className="text-yellow-400 text-lg">ℹ</span>
-        <p className="text-yellow-400/80 text-xs">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
+        <span className="text-yellow-600 text-lg">ℹ</span>
+        <p className="text-yellow-800 text-xs">
           Rates are set by the owner at week end (Saturday/Sunday). Payment is calculated during settlement, not at collection time.
         </p>
       </div>
 
       {/* Batch summary */}
       {batch ? (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5 flex items-center gap-5 flex-wrap">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-5 flex items-center gap-5 flex-wrap">
           <div className="text-sm">
-            <span className="text-white/40 text-xs">Batch Date </span>
-            <span className="text-white font-medium">{batch.collection_date}</span>
+            <span className="text-gray-500 text-xs">Batch Date </span>
+            <span className="text-gray-900 font-medium">{batch.collection_date}</span>
           </div>
           <div className="flex gap-4">
-            <div><p className="text-white font-bold">{Number(batch.total_kg).toFixed(2)} kg</p><p className="text-white/40 text-xs">Net KG</p></div>
-            <div><p className="text-white font-bold">{batch.grower_count}</p><p className="text-white/40 text-xs">Growers</p></div>
+            <div><p className="text-gray-900 font-bold">{Number(batch.total_kg).toFixed(2)} kg</p><p className="text-gray-500 text-xs">Net KG</p></div>
+            <div><p className="text-gray-900 font-bold">{batch.grower_count}</p><p className="text-gray-500 text-xs">Growers</p></div>
             <div>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${batch.status === 'open' ? 'bg-green-500/15 text-green-400' : 'bg-white/10 text-white/40'}`}>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${batch.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                 {batch.status}
               </span>
             </div>
           </div>
-          <button onClick={() => setShowEntry(true)} className="ml-auto flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white px-4 py-2 rounded-xl text-sm font-medium">
+          <button onClick={() => setShowEntry(true)} className="ml-auto flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium">
             <Plus size={15} /> Add Entry
           </button>
         </div>
@@ -188,8 +188,8 @@ export default function CollectionsPage() {
 
       {/* Production stage tracker */}
       {batch && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5">
-          <p className="text-white/40 text-xs mb-3">Production Stage (withering → firing → grading → packaging → dispatched)</p>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-5">
+          <p className="text-gray-500 text-xs mb-3">Production Stage (withering → firing → grading → packaging → dispatched)</p>
           <div className="flex gap-1 flex-wrap mb-3">
             {PRODUCTION_STAGES.map(s => {
               const currentIdx = PRODUCTION_STAGES.indexOf(batch.stage || "intake");
@@ -198,8 +198,8 @@ export default function CollectionsPage() {
               return (
                 <button key={s} disabled={updatingStage} onClick={() => updateStage(s)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all disabled:opacity-40 ${
-                    s === batch.stage ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30 border border-green-500/40"
-                    : done ? "bg-white/10 text-white/60" : "bg-[#0d0f14] text-white/30 hover:text-white/60"
+                    s === batch.stage ? "bg-white text-emerald-700 shadow-sm border border-emerald-300"
+                    : done ? "bg-gray-100 text-gray-600" : "bg-gray-50 text-gray-400 hover:text-gray-600"
                   }`}>
                   {s}
                 </button>
@@ -208,19 +208,19 @@ export default function CollectionsPage() {
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <input type="number" placeholder="Made tea (kg)" value={madeTeaKg} onChange={e => setMadeTeaKg(e.target.value)}
-              className="bg-[#0d0f14] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white w-40" />
+              className="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 w-40" />
             {batch.made_tea_kg != null && (
-              <span className="text-white/50 text-xs">Made tea: {Number(batch.made_tea_kg).toFixed(2)} kg{batch.yield_pct != null ? ` · Yield ${batch.yield_pct}%` : ""}</span>
+              <span className="text-gray-500 text-xs">Made tea: {Number(batch.made_tea_kg).toFixed(2)} kg{batch.yield_pct != null ? ` · Yield ${batch.yield_pct}%` : ""}</span>
             )}
           </div>
         </div>
       )}
 
       {!batch && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/15 border-dashed rounded-2xl p-8 mb-5 text-center">
-          <Leaf size={32} className="mx-auto mb-3 text-white/20" />
-          <p className="text-white/50 text-sm mb-3">No collection batch for {date}</p>
-          <button onClick={openBatch} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white px-4 py-2 rounded-xl text-sm font-medium">
+        <div className="bg-gray-50 border border-gray-300 border-dashed rounded-2xl p-8 mb-5 text-center">
+          <Leaf size={32} className="mx-auto mb-3 text-gray-300" />
+          <p className="text-gray-500 text-sm mb-3">No collection batch for {date}</p>
+          <button onClick={openBatch} className="bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium">
             Start Today's Collection
           </button>
         </div>
@@ -228,35 +228,35 @@ export default function CollectionsPage() {
 
       {/* Entries */}
       {entries.length > 0 && (
-        <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/8">
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Grower</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Grade</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Gross (kg)</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Moisture (kg)</th>
-                <th className="px-4 py-3 text-left text-white/40 text-xs">Net (kg)</th>
-                <th className="px-4 py-3 text-right text-white/40 text-xs">Slip</th>
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Grower</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Grade</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Gross (kg)</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Moisture (kg)</th>
+                <th className="px-4 py-3 text-left text-gray-500 text-xs">Net (kg)</th>
+                <th className="px-4 py-3 text-right text-gray-500 text-xs">Slip</th>
               </tr>
             </thead>
             <tbody>
               {entries.map(e => (
-                <tr key={e.id} className="border-b border-white/5 hover:bg-white/3">
+                <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <p className="text-white text-sm">{e.grower_name}</p>
-                    <p className="text-white/40 text-xs">{e.grower_code}</p>
+                    <p className="text-gray-900 text-sm">{e.grower_name}</p>
+                    <p className="text-gray-500 text-xs">{e.grower_code}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full ${e.grade === "A" ? "bg-green-500/15 text-green-400" : e.grade === "B" ? "bg-blue-500/15 text-blue-400" : "bg-yellow-500/15 text-yellow-400"}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${e.grade === "A" ? "bg-green-100 text-green-700" : e.grade === "B" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>
                       {e.grade}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-white/70 text-sm">{Number(e.gross_weight).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-red-400/70 text-sm">−{Number(e.moisture_deduction_kg).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-white font-semibold text-sm">{Number(e.net_weight).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-gray-700 text-sm">{Number(e.gross_weight).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-red-600/70 text-sm">−{Number(e.moisture_deduction_kg).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-gray-900 font-semibold text-sm">{Number(e.net_weight).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => printSlip(e)} className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center ml-auto hover:bg-white/10" title="Print Slip">
+                    <button onClick={() => printSlip(e)} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center ml-auto hover:bg-gray-100" title="Print Slip">
                       <Printer size={12} />
                     </button>
                   </td>
@@ -270,18 +270,18 @@ export default function CollectionsPage() {
       {/* Entry Modal */}
       {showEntry && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-white">Add Collection Entry</h2>
-              <button onClick={() => setShowEntry(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <h2 className="font-bold text-gray-900">Add Collection Entry</h2>
+              <button onClick={() => setShowEntry(false)} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
 
             <div className="space-y-3">
               {/* Grower */}
               <div>
-                <label className="text-white/50 text-xs block mb-1">Grower *</label>
+                <label className="text-gray-500 text-xs block mb-1">Grower *</label>
                 <select value={growerId} onChange={e => setGrowerId(e.target.value)}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2.5 text-sm text-gray-900 focus:outline-none">
                   <option value="">Select grower...</option>
                   {growers.map(g => <option key={g.id} value={g.id}>{g.name} ({g.grower_code})</option>)}
                 </select>
@@ -290,26 +290,26 @@ export default function CollectionsPage() {
               <div className="grid grid-cols-2 gap-3">
                 {/* Gross weight */}
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Gross Weight (kg) *</label>
+                  <label className="text-gray-500 text-xs block mb-1">Gross Weight (kg) *</label>
                   <input type="number" value={grossWeight} onChange={e => setGrossWeight(e.target.value)} step="0.1"
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
 
                 {/* Moisture in kg */}
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Moisture Deduction (kg)</label>
+                  <label className="text-gray-500 text-xs block mb-1">Moisture Deduction (kg)</label>
                   <input type="number" value={moistureKg} onChange={e => setMoistureKg(e.target.value)} step="0.01" min="0"
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
               </div>
 
               {/* Grade */}
               <div>
-                <label className="text-white/50 text-xs block mb-1">Grade</label>
+                <label className="text-gray-500 text-xs block mb-1">Grade</label>
                 <div className="flex gap-2">
                   {["A", "B", "C"].map(g => (
                     <button key={g} onClick={() => setGrade(g)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${grade === g ? "bg-green-600/20 border-green-500/40 text-green-400" : "bg-[#0d0f14] border-white/10 text-white/50 hover:text-white"}`}>
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${grade === g ? "bg-green-600/20 border-green-500/40 text-green-600" : "bg-gray-100 border-gray-200 text-gray-500 hover:text-gray-900"}`}>
                       Grade {g}
                     </button>
                   ))}
@@ -319,23 +319,23 @@ export default function CollectionsPage() {
               {/* Net weight preview */}
               {grossWeight && (
                 <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3 flex items-center justify-between">
-                  <span className="text-white/50 text-sm">Net Weight:</span>
-                  <span className="text-white font-bold text-lg">{netWeight} kg</span>
+                  <span className="text-gray-500 text-sm">Net Weight:</span>
+                  <span className="text-gray-900 font-bold text-lg">{netWeight} kg</span>
                 </div>
               )}
 
               {/* Notes */}
               <div>
-                <label className="text-white/50 text-xs block mb-1">Notes (optional)</label>
+                <label className="text-gray-500 text-xs block mb-1">Notes (optional)</label>
                 <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
               </div>
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowEntry(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+              <button onClick={() => setShowEntry(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
               <button onClick={addEntry} disabled={saving || !growerId || !grossWeight}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white flex items-center justify-center gap-2">
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white flex items-center justify-center gap-2">
                 <Save size={14} /> {saving ? "Saving..." : "Save Entry"}
               </button>
             </div>

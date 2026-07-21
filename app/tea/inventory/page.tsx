@@ -47,38 +47,38 @@ export default function InventoryPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-cyan-950/20"><Boxes size={18} className="text-cyan-400" /></div>
-        <div><h1 className="text-xl font-bold text-white tracking-tight">Inventory</h1><p className="text-white/40 text-xs">Packaging, chemicals, spares — indent → approval → store issue</p></div>
+        <div className="w-10 h-10 bg-cyan-50 border border-cyan-100 rounded-xl flex items-center justify-center"><Boxes size={18} className="text-cyan-600" /></div>
+        <div><h1 className="text-xl font-bold text-gray-900 tracking-tight">Inventory</h1><p className="text-gray-500 text-xs">Packaging, chemicals, spares — indent → approval → store issue</p></div>
       </div>
 
-      <div className="flex gap-1 mb-4 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit">
         {([["stock", "Stock Items"], ["indents", "Indents"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-gradient-to-r from-green-600/25 to-emerald-600/25 text-green-300 border border-green-500/30" : "text-white/40 hover:text-white"}`}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-white text-emerald-700 shadow-sm border border-gray-200" : "text-gray-500 hover:text-gray-900"}`}>{l}</button>
         ))}
       </div>
 
       {tab === "stock" && (
         <>
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <input placeholder="Item name" value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
-            <select value={itemForm.category} onChange={e => setItemForm({ ...itemForm, category: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <input placeholder="Item name" value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+            <select value={itemForm.category} onChange={e => setItemForm({ ...itemForm, category: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
               {["packaging", "chemicals", "spares", "stationery", "other"].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <input type="number" placeholder="Current qty" value={itemForm.current_qty} onChange={e => setItemForm({ ...itemForm, current_qty: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
-            <input type="number" placeholder="Reorder level" value={itemForm.reorder_level} onChange={e => setItemForm({ ...itemForm, reorder_level: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
-            <button onClick={addItem} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            <input type="number" placeholder="Current qty" value={itemForm.current_qty} onChange={e => setItemForm({ ...itemForm, current_qty: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+            <input type="number" placeholder="Reorder level" value={itemForm.reorder_level} onChange={e => setItemForm({ ...itemForm, reorder_level: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+            <button onClick={addItem} className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
           </div>
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
-            {items.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No stock items yet.</div> : (
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {items.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No stock items yet.</div> : (
               <table className="w-full"><tbody>
                 {items.map(i => (
-                  <tr key={i.id} className="border-b border-white/5">
-                    <td className="px-4 py-3 text-white text-sm font-medium">{i.name}</td>
-                    <td className="px-4 py-3 text-white/50 text-xs capitalize">{i.category}</td>
-                    <td className="px-4 py-3 text-white text-sm">{i.current_qty} {i.unit}</td>
-                    <td className="px-4 py-3 text-white/40 text-xs">reorder @ {i.reorder_level}</td>
+                  <tr key={i.id} className="border-b border-gray-100">
+                    <td className="px-4 py-3 text-gray-900 text-sm font-medium">{i.name}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs capitalize">{i.category}</td>
+                    <td className="px-4 py-3 text-gray-900 text-sm">{i.current_qty} {i.unit}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">reorder @ {i.reorder_level}</td>
                     <td className="px-4 py-3">
-                      {i.needs_reorder && <span className="flex items-center gap-1 text-xs text-red-400"><AlertTriangle size={12} /> Reorder needed</span>}
+                      {i.needs_reorder && <span className="flex items-center gap-1 text-xs text-red-600"><AlertTriangle size={12} /> Reorder needed</span>}
                     </td>
                   </tr>
                 ))}
@@ -90,34 +90,34 @@ export default function InventoryPage() {
 
       {tab === "indents" && (
         <>
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <select value={indentForm.stock_item_id} onChange={e => setIndentForm({ ...indentForm, stock_item_id: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <select value={indentForm.stock_item_id} onChange={e => setIndentForm({ ...indentForm, stock_item_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
               <option value="">Item...</option>
               {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
-            <input placeholder="Requested by" value={indentForm.requested_by} onChange={e => setIndentForm({ ...indentForm, requested_by: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
-            <input type="number" placeholder="Quantity" value={indentForm.quantity} onChange={e => setIndentForm({ ...indentForm, quantity: e.target.value })} className="bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white" />
-            <button onClick={addIndent} className="flex items-center justify-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-md shadow-green-950/40 transition-all text-white rounded-lg text-sm font-medium"><Plus size={14} /> Raise Indent</button>
+            <input placeholder="Requested by" value={indentForm.requested_by} onChange={e => setIndentForm({ ...indentForm, requested_by: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+            <input type="number" placeholder="Quantity" value={indentForm.quantity} onChange={e => setIndentForm({ ...indentForm, quantity: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+            <button onClick={addIndent} className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Raise Indent</button>
           </div>
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
-            {indents.length === 0 ? <div className="p-8 text-center text-white/30 text-sm">No indents yet.</div> : (
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {indents.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No indents yet.</div> : (
               <table className="w-full"><tbody>
                 {indents.map(i => (
-                  <tr key={i.id} className="border-b border-white/5">
-                    <td className="px-4 py-3 text-white text-sm">{i.stock_item_name}</td>
-                    <td className="px-4 py-3 text-white/50 text-xs">{i.quantity} {i.unit} · {i.requested_by || "—"}</td>
-                    <td className="px-4 py-3"><span className="text-xs px-2 py-1 rounded-full bg-white/5 text-white/60 capitalize">{i.status}</span></td>
+                  <tr key={i.id} className="border-b border-gray-100">
+                    <td className="px-4 py-3 text-gray-900 text-sm">{i.stock_item_name}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{i.quantity} {i.unit} · {i.requested_by || "—"}</td>
+                    <td className="px-4 py-3"><span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 capitalize">{i.status}</span></td>
                     <td className="px-4 py-3 text-right">
                       {i.status === "pending" && (
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => setIndentStatus(i.id, "approved")} className="text-xs bg-green-600/20 hover:bg-green-600/30 text-green-400 px-3 py-1.5 rounded-lg">Approve</button>
-                          <button onClick={() => setIndentStatus(i.id, "rejected")} className="text-xs bg-red-600/20 hover:bg-red-600/30 text-red-400 px-3 py-1.5 rounded-lg">Reject</button>
+                          <button onClick={() => setIndentStatus(i.id, "approved")} className="text-xs bg-green-600/20 hover:bg-green-600/30 text-green-600 px-3 py-1.5 rounded-lg">Approve</button>
+                          <button onClick={() => setIndentStatus(i.id, "rejected")} className="text-xs bg-red-600/20 hover:bg-red-600/30 text-red-600 px-3 py-1.5 rounded-lg">Reject</button>
                         </div>
                       )}
                       {i.status === "approved" && (
                         <div className="flex gap-2 justify-end items-center">
-                          <input type="number" placeholder="Issue qty" value={issueQty[i.id] || ""} onChange={e => setIssueQty({ ...issueQty, [i.id]: e.target.value })} className="w-24 bg-[#0d0f16] border border-white/10 rounded-lg focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-2 py-1 text-xs text-white" />
-                          <button onClick={() => issueIndent(i.id)} className="flex items-center gap-1 text-xs bg-green-600/20 hover:bg-green-600/30 text-green-400 px-3 py-1.5 rounded-lg"><PackageCheck size={12} /> Issue</button>
+                          <input type="number" placeholder="Issue qty" value={issueQty[i.id] || ""} onChange={e => setIssueQty({ ...issueQty, [i.id]: e.target.value })} className="w-24 bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-2 py-1 text-xs text-gray-900" />
+                          <button onClick={() => issueIndent(i.id)} className="flex items-center gap-1 text-xs bg-green-600/20 hover:bg-green-600/30 text-green-600 px-3 py-1.5 rounded-lg"><PackageCheck size={12} /> Issue</button>
                         </div>
                       )}
                     </td>

@@ -19,9 +19,9 @@ interface Dispatch {
 }
 
 const GC: Record<string, string> = {
-  A: "bg-green-500/15 text-green-400 border-green-500/30",
-  B: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  C: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+  A: "bg-green-100 text-green-700 border-green-500/30",
+  B: "bg-blue-100 text-blue-700 border-blue-500/30",
+  C: "bg-yellow-100 text-yellow-700 border-yellow-500/30",
 };
 
 export default function DispatchPage() {
@@ -178,9 +178,9 @@ export default function DispatchPage() {
   };
 
   const statusColor = (s: string) =>
-    s === "settled" ? "bg-purple-500/15 text-purple-400"
-    : s === "in_transit" ? "bg-yellow-500/15 text-yellow-400"
-    : "bg-blue-500/15 text-blue-400";
+    s === "settled" ? "bg-purple-100 text-purple-700"
+    : s === "in_transit" ? "bg-yellow-100 text-yellow-700"
+    : "bg-blue-100 text-blue-700";
 
   // Totals for bag-level factory weight
   const bagDispatchTotal = bags.reduce((s, b) => s + Number(b.weight_kg), 0);
@@ -191,12 +191,12 @@ export default function DispatchPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border border-yellow-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-yellow-950/20">
-            <Truck size={18} className="text-yellow-400" />
+          <div className="w-10 h-10 bg-yellow-50 border border-yellow-100 rounded-xl flex items-center justify-center">
+            <Truck size={18} className="text-yellow-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Factory Dispatch</h1>
-            <p className="text-white/40 text-xs">Click a dispatch to add bags and record factory weights</p>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Factory Dispatch</h1>
+            <p className="text-gray-500 text-xs">Click a dispatch to add bags and record factory weights</p>
           </div>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-yellow-600/80 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl text-sm font-medium">
@@ -206,7 +206,7 @@ export default function DispatchPage() {
 
       <div className="space-y-2">
         {dispatches.length === 0 ? (
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-10 text-center text-white/30 text-sm">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-10 text-center text-gray-600 text-sm">
             <Truck size={32} className="mx-auto mb-3 opacity-20" />
             No dispatches yet.
           </div>
@@ -214,33 +214,33 @@ export default function DispatchPage() {
           const vari = variance(d);
           const ft   = factoryTotal(d);
           return (
-            <div key={d.id} className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+            <div key={d.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               {/* Header */}
-              <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/2" onClick={() => toggleExpand(d)}>
+              <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50" onClick={() => toggleExpand(d)}>
                 <div className="w-8 h-8 bg-yellow-500/10 rounded-xl flex items-center justify-center shrink-0">
-                  <Truck size={14} className="text-yellow-400" />
+                  <Truck size={14} className="text-yellow-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-white font-medium text-sm">{d.factory_name}</span>
-                    {d.vehicle_number && <span className="text-white/40 text-xs font-mono">{d.vehicle_number}</span>}
-                    <span className="text-white/30 text-xs">{new Date(d.dispatch_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}</span>
+                    <span className="text-gray-900 font-medium text-sm">{d.factory_name}</span>
+                    {d.vehicle_number && <span className="text-gray-500 text-xs font-mono">{d.vehicle_number}</span>}
+                    <span className="text-gray-600 text-xs">{new Date(d.dispatch_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    <span className="text-white/60 text-xs">
-                      <span className="text-white font-semibold">{Number(d.total_kg).toFixed(2)} kg</span>
-                      {d.bag_count > 0 && <span className="text-white/30"> · {d.bag_count} bags</span>}
+                    <span className="text-gray-600 text-xs">
+                      <span className="text-gray-900 font-semibold">{Number(d.total_kg).toFixed(2)} kg</span>
+                      {d.bag_count > 0 && <span className="text-gray-600"> · {d.bag_count} bags</span>}
                     </span>
-                    {Number(d.grade_a_kg) > 0 && <span className="text-green-400 text-xs">A: {Number(d.grade_a_kg).toFixed(1)} kg</span>}
-                    {Number(d.grade_b_kg) > 0 && <span className="text-blue-400 text-xs">B: {Number(d.grade_b_kg).toFixed(1)} kg</span>}
-                    {Number(d.grade_c_kg) > 0 && <span className="text-yellow-400 text-xs">C: {Number(d.grade_c_kg).toFixed(1)} kg</span>}
+                    {Number(d.grade_a_kg) > 0 && <span className="text-green-600 text-xs">A: {Number(d.grade_a_kg).toFixed(1)} kg</span>}
+                    {Number(d.grade_b_kg) > 0 && <span className="text-blue-600 text-xs">B: {Number(d.grade_b_kg).toFixed(1)} kg</span>}
+                    {Number(d.grade_c_kg) > 0 && <span className="text-yellow-600 text-xs">C: {Number(d.grade_c_kg).toFixed(1)} kg</span>}
                     {/* Factory weight summary */}
                     {ft != null && (
                       <span className="flex items-center gap-1 text-xs">
-                        <Scale size={10} className="text-purple-400" />
-                        <span className="text-purple-400">Fac: {ft.toFixed(2)} kg</span>
+                        <Scale size={10} className="text-purple-600" />
+                        <span className="text-purple-600">Fac: {ft.toFixed(2)} kg</span>
                         {vari != null && (
-                          <span className={`${vari < 0 ? "text-red-400" : vari > 0 ? "text-green-400" : "text-white/30"}`}>
+                          <span className={`${vari < 0 ? "text-red-600" : vari > 0 ? "text-green-600" : "text-gray-600"}`}>
                             ({vari >= 0 ? "+" : ""}{vari.toFixed(2)})
                           </span>
                         )}
@@ -251,39 +251,39 @@ export default function DispatchPage() {
                 <span className={`text-xs px-2 py-0.5 rounded-full capitalize hidden sm:inline-flex ${statusColor(d.status)}`}>
                   {d.status.replace("_", " ")}
                 </span>
-                {expandedId === d.id ? <ChevronUp size={14} className="text-white/40" /> : <ChevronDown size={14} className="text-white/40" />}
+                {expandedId === d.id ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
               </div>
 
               {/* Expanded */}
               {expandedId === d.id && (
-                <div className="border-t border-white/8">
+                <div className="border-t border-gray-200">
                   {/* Add Bag form */}
-                  <div className="px-4 py-3 bg-white/2 border-b border-white/5">
-                    <p className="text-white/40 text-xs mb-2 font-medium">Add Bag</p>
+                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                    <p className="text-gray-500 text-xs mb-2 font-medium">Add Bag</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex gap-1">
                         {["A", "B", "C"].map(g => (
                           <button key={g} onClick={() => setBagGrade(g)}
-                            className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all ${bagGrade === g ? GC[g] : "bg-white/5 text-white/30 border-white/8 hover:text-white"}`}>
+                            className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all ${bagGrade === g ? GC[g] : "bg-gray-100 text-gray-600 border-gray-200 hover:text-gray-900"}`}>
                             {g}
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center gap-1.5 bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2">
-                        <Package size={12} className="text-white/30" />
+                      <div className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2">
+                        <Package size={12} className="text-gray-600" />
                         <input ref={weightRef} type="number" step="0.1" min="0" placeholder="Dispatch wt (kg)"
                           value={bagWeight} onChange={e => setBagWeight(e.target.value)}
                           onKeyDown={e => e.key === "Enter" && addBag()}
-                          className="bg-transparent text-white text-sm w-32 focus:outline-none" />
-                        <span className="text-white/30 text-xs">kg</span>
+                          className="bg-transparent text-gray-900 text-sm w-32 focus:outline-none" />
+                        <span className="text-gray-600 text-xs">kg</span>
                       </div>
                       <input type="text" placeholder="Notes" value={bagNotes} onChange={e => setBagNotes(e.target.value)}
-                        className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none w-32" />
+                        className="bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none w-32" />
                       <button onClick={addBag} disabled={addingBag || !bagWeight}
-                        className="flex items-center gap-1.5 bg-green-600/80 hover:bg-green-600 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-sm font-medium">
+                        className="flex items-center gap-1.5 bg-green-600/80 hover:bg-green-600 disabled:opacity-40 text-gray-900 px-3 py-2 rounded-xl text-sm font-medium">
                         <Plus size={14} /> {addingBag ? "Adding…" : "Add"}
                       </button>
-                      <span className="text-white/20 text-xs hidden sm:inline">↵ Enter</span>
+                      <span className="text-gray-300 text-xs hidden sm:inline">↵ Enter</span>
                     </div>
                   </div>
 
@@ -291,13 +291,13 @@ export default function DispatchPage() {
                   {bags.length > 0 && (
                     <>
                       {/* Factory weight mode toggle */}
-                      <div className="px-4 py-2.5 border-b border-white/5 flex items-center gap-3">
-                        <Scale size={13} className="text-purple-400" />
-                        <span className="text-white/40 text-xs font-medium">Factory Weight:</span>
-                        <div className="flex gap-1 bg-[#0d0f14] rounded-lg p-0.5 border border-white/8">
+                      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-3">
+                        <Scale size={13} className="text-purple-600" />
+                        <span className="text-gray-500 text-xs font-medium">Factory Weight:</span>
+                        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 border border-gray-200">
                           {(["per-bag", "consolidated"] as const).map(m => (
                             <button key={m} onClick={() => setFwMode(m)}
-                              className={`px-2.5 py-1 rounded-md text-xs transition-all capitalize ${fwMode === m ? "bg-purple-600/30 text-purple-400" : "text-white/30 hover:text-white"}`}>
+                              className={`px-2.5 py-1 rounded-md text-xs transition-all capitalize ${fwMode === m ? "bg-purple-600/30 text-purple-600" : "text-gray-600 hover:text-gray-900"}`}>
                               {m === "per-bag" ? "Per Bag" : "Consolidated"}
                             </button>
                           ))}
@@ -307,13 +307,13 @@ export default function DispatchPage() {
                             <input ref={fwRef} type="number" step="0.1" placeholder="Total factory kg"
                               value={consolidatedFw} onChange={e => setConsolidatedFw(e.target.value)}
                               onKeyDown={e => e.key === "Enter" && saveConsolidatedFw()}
-                              className="bg-[#0d0f14] border border-purple-500/30 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none w-36" />
+                              className="bg-gray-100 border border-purple-500/30 rounded-xl px-3 py-1.5 text-sm text-gray-900 focus:outline-none w-36" />
                             <button onClick={saveConsolidatedFw} disabled={savingFw}
-                              className="text-xs px-2.5 py-1.5 bg-purple-600/20 text-purple-400 rounded-lg hover:bg-purple-600/30">
+                              className="text-xs px-2.5 py-1.5 bg-purple-600/20 text-purple-600 rounded-lg hover:bg-purple-600/30">
                               {savingFw ? "Saving…" : "Save"}
                             </button>
                             {d.factory_total_kg != null && (
-                              <span className="text-white/30 text-xs">saved: {Number(d.factory_total_kg).toFixed(2)} kg</span>
+                              <span className="text-gray-600 text-xs">saved: {Number(d.factory_total_kg).toFixed(2)} kg</span>
                             )}
                           </div>
                         )}
@@ -321,32 +321,32 @@ export default function DispatchPage() {
 
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-white/5">
-                            <th className="px-4 py-2 text-left text-white/30 text-xs">Bag #</th>
-                            <th className="px-4 py-2 text-left text-white/30 text-xs">Grade</th>
-                            <th className="px-4 py-2 text-left text-white/30 text-xs">Dispatch (kg)</th>
+                          <tr className="border-b border-gray-100">
+                            <th className="px-4 py-2 text-left text-gray-600 text-xs">Bag #</th>
+                            <th className="px-4 py-2 text-left text-gray-600 text-xs">Grade</th>
+                            <th className="px-4 py-2 text-left text-gray-600 text-xs">Dispatch (kg)</th>
                             {fwMode === "per-bag" && (
-                              <th className="px-4 py-2 text-left text-white/30 text-xs">
-                                <span className="flex items-center gap-1"><Scale size={10} className="text-purple-400" /> Factory (kg)</span>
+                              <th className="px-4 py-2 text-left text-gray-600 text-xs">
+                                <span className="flex items-center gap-1"><Scale size={10} className="text-purple-600" /> Factory (kg)</span>
                               </th>
                             )}
                             {fwMode === "per-bag" && (
-                              <th className="px-4 py-2 text-left text-white/30 text-xs hidden sm:table-cell">Variance</th>
+                              <th className="px-4 py-2 text-left text-gray-600 text-xs hidden sm:table-cell">Variance</th>
                             )}
-                            <th className="px-4 py-2 text-left text-white/30 text-xs hidden md:table-cell">Notes</th>
-                            <th className="px-4 py-2 text-right text-white/30 text-xs"></th>
+                            <th className="px-4 py-2 text-left text-gray-600 text-xs hidden md:table-cell">Notes</th>
+                            <th className="px-4 py-2 text-right text-gray-600 text-xs"></th>
                           </tr>
                         </thead>
                         <tbody>
                           {bags.map(b => {
                             const bv = b.factory_weight_kg != null ? Number(b.factory_weight_kg) - Number(b.weight_kg) : null;
                             return (
-                              <tr key={b.id} className="border-b border-white/5 hover:bg-white/2">
-                                <td className="px-4 py-2 text-white/40 text-xs font-mono">#{b.bag_number}</td>
+                              <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                <td className="px-4 py-2 text-gray-500 text-xs font-mono">#{b.bag_number}</td>
                                 <td className="px-4 py-2">
-                                  <span className={`text-xs px-1.5 py-0.5 rounded border ${GC[b.grade] || "bg-white/10 text-white/50"}`}>{b.grade}</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded border ${GC[b.grade] || "bg-gray-100 text-gray-500"}`}>{b.grade}</span>
                                 </td>
-                                <td className="px-4 py-2 text-white font-semibold text-sm">{Number(b.weight_kg).toFixed(2)}</td>
+                                <td className="px-4 py-2 text-gray-900 font-semibold text-sm">{Number(b.weight_kg).toFixed(2)}</td>
                                 {fwMode === "per-bag" && (
                                   <td className="px-4 py-2">
                                     {editingFwBagId === b.id ? (
@@ -355,12 +355,12 @@ export default function DispatchPage() {
                                           onChange={e => setEditingFwVal(e.target.value)}
                                           onKeyDown={e => { if (e.key === "Enter") saveBagFactoryWeight(b.id, editingFwVal); if (e.key === "Escape") setEditingFwBagId(null); }}
                                           onBlur={() => saveBagFactoryWeight(b.id, editingFwVal)}
-                                          className="bg-[#0d0f14] border border-purple-500/30 rounded-lg px-2 py-1 text-sm text-white focus:outline-none w-20" />
-                                        <span className="text-white/30 text-xs">kg</span>
+                                          className="bg-gray-100 border border-purple-500/30 rounded-lg px-2 py-1 text-sm text-gray-900 focus:outline-none w-20" />
+                                        <span className="text-gray-600 text-xs">kg</span>
                                       </div>
                                     ) : (
                                       <button onClick={() => { setEditingFwBagId(b.id); setEditingFwVal(b.factory_weight_kg != null ? String(b.factory_weight_kg) : ""); }}
-                                        className={`text-sm px-2 py-0.5 rounded-lg border border-dashed transition-all min-w-[60px] text-left ${b.factory_weight_kg != null ? "text-purple-400 border-purple-500/20 hover:border-purple-500/50" : "text-white/20 border-white/10 hover:text-white/50"}`}>
+                                        className={`text-sm px-2 py-0.5 rounded-lg border border-dashed transition-all min-w-[60px] text-left ${b.factory_weight_kg != null ? "text-purple-600 border-purple-500/20 hover:border-purple-500/50" : "text-gray-300 border-gray-200 hover:text-gray-500"}`}>
                                         {b.factory_weight_kg != null ? `${Number(b.factory_weight_kg).toFixed(2)}` : "— click"}
                                       </button>
                                     )}
@@ -369,15 +369,15 @@ export default function DispatchPage() {
                                 {fwMode === "per-bag" && (
                                   <td className="px-4 py-2 hidden sm:table-cell">
                                     {bv != null ? (
-                                      <span className={`text-xs ${bv < 0 ? "text-red-400" : bv > 0 ? "text-green-400" : "text-white/30"}`}>
+                                      <span className={`text-xs ${bv < 0 ? "text-red-600" : bv > 0 ? "text-green-600" : "text-gray-600"}`}>
                                         {bv >= 0 ? "+" : ""}{bv.toFixed(2)}
                                       </span>
-                                    ) : <span className="text-white/20 text-xs">—</span>}
+                                    ) : <span className="text-gray-300 text-xs">—</span>}
                                   </td>
                                 )}
-                                <td className="px-4 py-2 text-white/40 text-xs hidden md:table-cell">{b.notes || "—"}</td>
+                                <td className="px-4 py-2 text-gray-500 text-xs hidden md:table-cell">{b.notes || "—"}</td>
                                 <td className="px-4 py-2 text-right">
-                                  <button onClick={() => deleteBag(b.id)} className="text-white/20 hover:text-red-400">
+                                  <button onClick={() => deleteBag(b.id)} className="text-gray-300 hover:text-red-600">
                                     <Trash2 size={12} />
                                   </button>
                                 </td>
@@ -386,20 +386,20 @@ export default function DispatchPage() {
                           })}
                         </tbody>
                         <tfoot>
-                          <tr className="border-t border-white/10 bg-white/1">
-                            <td colSpan={2} className="px-4 py-2 text-white/30 text-xs">{bags.length} bags</td>
-                            <td className="px-4 py-2 text-white font-bold text-sm">{bagDispatchTotal.toFixed(2)}</td>
+                          <tr className="border-t border-gray-200 bg-gray-50">
+                            <td colSpan={2} className="px-4 py-2 text-gray-600 text-xs">{bags.length} bags</td>
+                            <td className="px-4 py-2 text-gray-900 font-bold text-sm">{bagDispatchTotal.toFixed(2)}</td>
                             {fwMode === "per-bag" && (
                               <td className="px-4 py-2">
                                 {bags.some(b => b.factory_weight_kg != null) ? (
-                                  <span className="text-purple-400 font-bold text-sm">{bagFactoryTotal.toFixed(2)}</span>
-                                ) : <span className="text-white/20 text-xs">not entered</span>}
+                                  <span className="text-purple-600 font-bold text-sm">{bagFactoryTotal.toFixed(2)}</span>
+                                ) : <span className="text-gray-300 text-xs">not entered</span>}
                               </td>
                             )}
                             {fwMode === "per-bag" && (
                               <td className="px-4 py-2 hidden sm:table-cell">
                                 {bagVariance != null ? (
-                                  <span className={`text-sm font-semibold ${bagVariance < 0 ? "text-red-400" : bagVariance > 0 ? "text-green-400" : "text-white/30"}`}>
+                                  <span className={`text-sm font-semibold ${bagVariance < 0 ? "text-red-600" : bagVariance > 0 ? "text-green-600" : "text-gray-600"}`}>
                                     {bagVariance >= 0 ? "+" : ""}{bagVariance.toFixed(2)} kg
                                   </span>
                                 ) : null}
@@ -408,7 +408,7 @@ export default function DispatchPage() {
                             {fwMode === "consolidated" && (
                               <td colSpan={2} className="px-4 py-2">
                                 {d.factory_total_kg != null && (
-                                  <span className={`text-sm font-semibold ${Number(d.factory_total_kg) - bagDispatchTotal < 0 ? "text-red-400" : "text-green-400"}`}>
+                                  <span className={`text-sm font-semibold ${Number(d.factory_total_kg) - bagDispatchTotal < 0 ? "text-red-600" : "text-green-600"}`}>
                                     Factory total: {Number(d.factory_total_kg).toFixed(2)} kg
                                     {" ("}
                                     {Number(d.factory_total_kg) - bagDispatchTotal >= 0 ? "+" : ""}
@@ -436,12 +436,12 @@ export default function DispatchPage() {
                   {bags.length === 0 && (
                     <div className="px-4 py-4">
                       {Number(dispatches.find(dp => dp.id === expandedId)?.total_kg ?? 0) > 0 ? (
-                        <p className="text-yellow-400/60 text-xs">
-                          This dispatch has <span className="font-semibold text-yellow-400">{Number(dispatches.find(dp => dp.id === expandedId)?.total_kg).toFixed(2)} kg</span> recorded as a total.
+                        <p className="text-yellow-600/60 text-xs">
+                          This dispatch has <span className="font-semibold text-yellow-600">{Number(dispatches.find(dp => dp.id === expandedId)?.total_kg).toFixed(2)} kg</span> recorded as a total.
                           Use the form above to add individual bag entries.
                         </p>
                       ) : (
-                        <p className="text-white/30 text-xs">No bags added yet. Use the form above to add bags.</p>
+                        <p className="text-gray-600 text-xs">No bags added yet. Use the form above to add bags.</p>
                       )}
                     </div>
                   )}
@@ -455,59 +455,59 @@ export default function DispatchPage() {
       {/* New Dispatch Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-md">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-white">New Dispatch</h2>
-              <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <h2 className="font-bold text-gray-900">New Dispatch</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-white/50 text-xs block mb-1">Factory *</label>
+                <label className="text-gray-500 text-xs block mb-1">Factory *</label>
                 <select value={form.factory_id} onChange={e => setForm(p => ({ ...p, factory_id: e.target.value }))}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2.5 text-sm text-gray-900 focus:outline-none">
                   <option value="">Select factory...</option>
                   {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Vehicle</label>
+                  <label className="text-gray-500 text-xs block mb-1">Vehicle</label>
                   <select value={form.vehicle_id} onChange={e => {
                     const v = vehicles.find(v => v.id === e.target.value);
                     setForm(p => ({ ...p, vehicle_id: e.target.value, driver_name: v?.driver_name || p.driver_name }));
                   }}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2.5 text-sm text-gray-900 focus:outline-none">
                     <option value="">None</option>
                     {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicle_number}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Dispatch Date</label>
+                  <label className="text-gray-500 text-xs block mb-1">Dispatch Date</label>
                   <input type="date" value={form.dispatch_date} onChange={e => setForm(p => ({ ...p, dispatch_date: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Driver Name</label>
+                  <label className="text-gray-500 text-xs block mb-1">Driver Name</label>
                   <input type="text" value={form.driver_name} onChange={e => setForm(p => ({ ...p, driver_name: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Driver Phone</label>
+                  <label className="text-gray-500 text-xs block mb-1">Driver Phone</label>
                   <input type="text" value={form.driver_phone} onChange={e => setForm(p => ({ ...p, driver_phone: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
               </div>
               <div>
-                <label className="text-white/50 text-xs block mb-1">Notes</label>
+                <label className="text-gray-500 text-xs block mb-1">Notes</label>
                 <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
               </div>
-              <p className="text-white/25 text-xs">After creating, click the dispatch row to add bags one by one.</p>
+              <p className="text-gray-900/25 text-xs">After creating, click the dispatch row to add bags one by one.</p>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowForm(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+              <button onClick={() => setShowForm(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
               <button onClick={createDispatch} disabled={saving || !form.factory_id}
                 className="flex-1 bg-yellow-600/80 hover:bg-yellow-600 disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {saving ? "Creating..." : "Create Dispatch"}

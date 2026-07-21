@@ -159,56 +159,56 @@ export default function SettlementsPage() {
   }, [all, mon, sun, histFilter, histMonth, hwMon, hwSun, histFrom, histTo, statusFilter]);
 
   const summaryCards = (list: Settlement[]) => [
-    { label: "Settlements", value: list.length, color: "text-white" },
-    { label: "Total KG", value: `${list.reduce((s, x) => s + Number(x.total_kg), 0).toFixed(0)} kg`, color: "text-green-400" },
-    { label: "Gross", value: `₹${(list.reduce((s, x) => s + Number(x.gross_amount), 0) / 1000).toFixed(1)}K`, color: "text-yellow-400" },
-    { label: "Net Received", value: `₹${(list.reduce((s, x) => s + Number(x.net_amount), 0) / 1000).toFixed(1)}K`, color: "text-purple-400", highlight: true },
+    { label: "Settlements", value: list.length, color: "text-gray-900" },
+    { label: "Total KG", value: `${list.reduce((s, x) => s + Number(x.total_kg), 0).toFixed(0)} kg`, color: "text-green-600" },
+    { label: "Gross", value: `₹${(list.reduce((s, x) => s + Number(x.gross_amount), 0) / 1000).toFixed(1)}K`, color: "text-yellow-600" },
+    { label: "Net Received", value: `₹${(list.reduce((s, x) => s + Number(x.net_amount), 0) / 1000).toFixed(1)}K`, color: "text-purple-600", highlight: true },
   ];
 
   const SettlementTable = ({ list }: { list: Settlement[] }) => (
-    <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       {list.length === 0 ? (
-        <div className="p-10 text-center text-white/30 text-sm">
+        <div className="p-10 text-center text-gray-600 text-sm">
           <Factory size={28} className="mx-auto mb-3 opacity-20" />
           No settlements in this period.
         </div>
       ) : (
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/8">
-              <th className="px-4 py-3 text-left text-white/40 text-xs">Date</th>
-              <th className="px-4 py-3 text-left text-white/40 text-xs">Factory</th>
-              <th className="px-4 py-3 text-left text-white/40 text-xs">Total KG</th>
-              <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Gross</th>
-              <th className="px-4 py-3 text-left text-white/40 text-xs hidden sm:table-cell">Deductions</th>
-              <th className="px-4 py-3 text-left text-white/40 text-xs">Net Amount</th>
-              <th className="px-4 py-3 text-left text-white/40 text-xs">Status</th>
+            <tr className="border-b border-gray-200">
+              <th className="px-4 py-3 text-left text-gray-500 text-xs">Date</th>
+              <th className="px-4 py-3 text-left text-gray-500 text-xs">Factory</th>
+              <th className="px-4 py-3 text-left text-gray-500 text-xs">Total KG</th>
+              <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Gross</th>
+              <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Deductions</th>
+              <th className="px-4 py-3 text-left text-gray-500 text-xs">Net Amount</th>
+              <th className="px-4 py-3 text-left text-gray-500 text-xs">Status</th>
             </tr>
           </thead>
           <tbody>
             {list.map(s => (
               <>
                 <tr key={s.id}
-                  className="border-b border-white/5 hover:bg-white/3 cursor-pointer"
+                  className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                   onClick={() => setExpandedRow(expandedRow === s.id ? null : s.id)}>
-                  <td className="px-4 py-3 text-white/70 text-sm">
+                  <td className="px-4 py-3 text-gray-700 text-sm">
                     {new Date(s.settlement_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}
                   </td>
-                  <td className="px-4 py-3 text-white text-sm font-medium">{s.factory_name}</td>
-                  <td className="px-4 py-3 text-white/70 text-sm">{Number(s.total_kg).toFixed(1)} kg</td>
-                  <td className="px-4 py-3 hidden sm:table-cell text-white/60 text-sm">₹{Number(s.gross_amount).toFixed(0)}</td>
-                  <td className="px-4 py-3 hidden sm:table-cell text-red-400 text-sm">
+                  <td className="px-4 py-3 text-gray-900 text-sm font-medium">{s.factory_name}</td>
+                  <td className="px-4 py-3 text-gray-700 text-sm">{Number(s.total_kg).toFixed(1)} kg</td>
+                  <td className="px-4 py-3 hidden sm:table-cell text-gray-600 text-sm">₹{Number(s.gross_amount).toFixed(0)}</td>
+                  <td className="px-4 py-3 hidden sm:table-cell text-red-600 text-sm">
                     {Number(s.deductions) > 0 ? `-₹${Number(s.deductions).toFixed(0)}` : "—"}
                   </td>
-                  <td className="px-4 py-3 text-purple-400 font-semibold text-sm">₹{Number(s.net_amount).toFixed(0)}</td>
+                  <td className="px-4 py-3 text-purple-600 font-semibold text-sm">₹{Number(s.net_amount).toFixed(0)}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full ${s.payment_status === "paid" ? "bg-green-500/15 text-green-400" : "bg-yellow-500/15 text-yellow-400"}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${s.payment_status === "paid" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                       {s.payment_status}
                     </span>
                   </td>
                 </tr>
                 {expandedRow === s.id && (
-                  <tr key={`${s.id}-exp`} className="border-b border-white/5 bg-white/2">
+                  <tr key={`${s.id}-exp`} className="border-b border-gray-100 bg-gray-50">
                     <td colSpan={7} className="px-6 py-3">
                       <div className="flex gap-6 flex-wrap text-xs">
                         {[
@@ -217,15 +217,15 @@ export default function SettlementsPage() {
                           { grade: "C", kg: s.grade_c_kg, rate: s.rate_per_kg_c },
                         ].filter(g => Number(g.kg) > 0).map(g => (
                           <div key={g.grade} className="flex items-center gap-2">
-                            <span className={`px-1.5 py-0.5 rounded text-xs ${g.grade==="A"?"bg-green-500/15 text-green-400":g.grade==="B"?"bg-blue-500/15 text-blue-400":"bg-yellow-500/15 text-yellow-400"}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-xs ${g.grade==="A"?"bg-green-100 text-green-700":g.grade==="B"?"bg-blue-100 text-blue-700":"bg-yellow-100 text-yellow-700"}`}>
                               Grade {g.grade}
                             </span>
-                            <span className="text-white/60">{Number(g.kg).toFixed(2)} kg</span>
-                            {g.rate && <span className="text-white/40">@ ₹{g.rate}/kg</span>}
-                            {g.rate && <span className="text-white/70 font-medium">= ₹{(Number(g.kg)*Number(g.rate)).toFixed(0)}</span>}
+                            <span className="text-gray-600">{Number(g.kg).toFixed(2)} kg</span>
+                            {g.rate && <span className="text-gray-500">@ ₹{g.rate}/kg</span>}
+                            {g.rate && <span className="text-gray-700 font-medium">= ₹{(Number(g.kg)*Number(g.rate)).toFixed(0)}</span>}
                           </div>
                         ))}
-                        {s.notes && <span className="text-white/30 italic">{s.notes}</span>}
+                        {s.notes && <span className="text-gray-600 italic">{s.notes}</span>}
                       </div>
                     </td>
                   </tr>
@@ -243,12 +243,12 @@ export default function SettlementsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/20 rounded-xl flex items-center justify-center shadow-sm shadow-purple-950/20">
-            <Factory size={18} className="text-purple-400" />
+          <div className="w-10 h-10 bg-purple-50 border border-purple-100 rounded-xl flex items-center justify-center">
+            <Factory size={18} className="text-purple-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Factory Settlement</h1>
-            <p className="text-white/40 text-xs">Record payments received from factories</p>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Factory Settlement</h1>
+            <p className="text-gray-500 text-xs">Record payments received from factories</p>
           </div>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-purple-600/80 hover:bg-purple-600 text-white px-4 py-2 rounded-xl text-sm font-medium">
@@ -257,13 +257,13 @@ export default function SettlementsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit">
         <button onClick={() => setTab("week")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs transition-all ${tab==="week" ? "bg-purple-600/20 text-purple-400" : "text-white/40 hover:text-white"}`}>
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs transition-all ${tab==="week" ? "bg-purple-600/20 text-purple-600" : "text-gray-500 hover:text-gray-900"}`}>
           <Calendar size={12} /> This Week
         </button>
         <button onClick={() => setTab("history")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs transition-all ${tab==="history" ? "bg-purple-600/20 text-purple-400" : "text-white/40 hover:text-white"}`}>
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs transition-all ${tab==="history" ? "bg-purple-600/20 text-purple-600" : "text-gray-500 hover:text-gray-900"}`}>
           <History size={12} /> History
         </button>
       </div>
@@ -274,16 +274,16 @@ export default function SettlementsPage() {
           {/* Week navigator */}
           <div className="flex items-center gap-3 mb-5">
             <button onClick={() => { const d = new Date(weekAnchor); d.setDate(d.getDate()-7); setWeekAnchor(d); }}
-              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white">
+              className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-white/70 text-sm font-medium">{weekLabel(mon, sun)}</span>
+            <span className="text-gray-700 text-sm font-medium">{weekLabel(mon, sun)}</span>
             <button onClick={() => { const d = new Date(weekAnchor); d.setDate(d.getDate()+7); setWeekAnchor(d); }}
-              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white">
+              className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900">
               <ChevronRight size={14} />
             </button>
             <button onClick={() => setWeekAnchor(new Date())}
-              className="text-xs text-white/30 hover:text-white/70 ml-1">
+              className="text-xs text-gray-600 hover:text-gray-700 ml-1">
               Today
             </button>
           </div>
@@ -292,9 +292,9 @@ export default function SettlementsPage() {
           {weekSettlements.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               {summaryCards(weekSettlements).map(s => (
-                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-purple-500/10 border-purple-500/20" : "bg-gradient-to-b from-[#181c26] to-[#12151b] border-white/10"}`}>
+                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-violet-50 border-violet-200" : "bg-white border-gray-200"}`}>
                   <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
-                  <p className="text-white/40 text-xs">{s.label}</p>
+                  <p className="text-gray-500 text-xs">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -308,23 +308,23 @@ export default function SettlementsPage() {
       {tab === "history" && (
         <>
           {/* Filter bar */}
-          <div className="bg-gradient-to-b from-[#181c26] to-[#12151b] border border-white/10 rounded-2xl shadow-lg shadow-black/20 p-4 mb-5">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-5">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <Filter size={13} className="text-white/30" />
-              <span className="text-white/40 text-xs font-medium">Period:</span>
-              <div className="flex gap-1 bg-[#0d0f14] rounded-lg p-0.5 border border-white/8">
+              <Filter size={13} className="text-gray-600" />
+              <span className="text-gray-500 text-xs font-medium">Period:</span>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 border border-gray-200">
                 {(["weekly", "monthly", "range"] as HistFilter[]).map(f => (
                   <button key={f} onClick={() => setHistFilter(f)}
-                    className={`px-2.5 py-1 rounded-md text-xs transition-all capitalize ${histFilter===f ? "bg-purple-600/30 text-purple-400" : "text-white/30 hover:text-white"}`}>
+                    className={`px-2.5 py-1 rounded-md text-xs transition-all capitalize ${histFilter===f ? "bg-purple-600/30 text-purple-600" : "text-gray-600 hover:text-gray-900"}`}>
                     {f === "range" ? "Date Range" : f.charAt(0).toUpperCase() + f.slice(1)}
                   </button>
                 ))}
               </div>
-              <span className="text-white/40 text-xs font-medium ml-3">Status:</span>
-              <div className="flex gap-1 bg-[#0d0f14] rounded-lg p-0.5 border border-white/8">
+              <span className="text-gray-500 text-xs font-medium ml-3">Status:</span>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 border border-gray-200">
                 {(["all", "paid", "pending"] as StatusFilter[]).map(s => (
                   <button key={s} onClick={() => setStatusFilter(s)}
-                    className={`px-2.5 py-1 rounded-md text-xs transition-all capitalize ${statusFilter===s ? "bg-purple-600/30 text-purple-400" : "text-white/30 hover:text-white"}`}>
+                    className={`px-2.5 py-1 rounded-md text-xs transition-all capitalize ${statusFilter===s ? "bg-purple-600/30 text-purple-600" : "text-gray-600 hover:text-gray-900"}`}>
                     {s}
                   </button>
                 ))}
@@ -335,27 +335,27 @@ export default function SettlementsPage() {
             {histFilter === "weekly" && (
               <div className="flex items-center gap-2">
                 <button onClick={() => { const d = new Date(histWeekAnchor); d.setDate(d.getDate()-7); setHistWeekAnchor(d); }}
-                  className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40">
+                  className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
                   <ChevronLeft size={12} />
                 </button>
-                <span className="text-white/60 text-xs">{weekLabel(hwMon, hwSun)}</span>
+                <span className="text-gray-600 text-xs">{weekLabel(hwMon, hwSun)}</span>
                 <button onClick={() => { const d = new Date(histWeekAnchor); d.setDate(d.getDate()+7); setHistWeekAnchor(d); }}
-                  className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40">
+                  className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
                   <ChevronRight size={12} />
                 </button>
               </div>
             )}
             {histFilter === "monthly" && (
               <input type="month" value={histMonth} onChange={e => setHistMonth(e.target.value)}
-                className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
+                className="bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900 focus:outline-none" />
             )}
             {histFilter === "range" && (
               <div className="flex items-center gap-2">
                 <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)}
-                  className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
-                <span className="text-white/30 text-xs">to</span>
+                  className="bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900 focus:outline-none" />
+                <span className="text-gray-600 text-xs">to</span>
                 <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)}
-                  className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-1.5 text-xs text-white focus:outline-none" />
+                  className="bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900 focus:outline-none" />
               </div>
             )}
           </div>
@@ -364,9 +364,9 @@ export default function SettlementsPage() {
           {historySettlements.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               {summaryCards(historySettlements).map(s => (
-                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-purple-500/10 border-purple-500/20" : "bg-gradient-to-b from-[#181c26] to-[#12151b] border-white/10"}`}>
+                <div key={s.label} className={`border rounded-xl p-3 ${s.highlight ? "bg-violet-50 border-violet-200" : "bg-white border-gray-200"}`}>
                   <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
-                  <p className="text-white/40 text-xs">{s.label}</p>
+                  <p className="text-gray-500 text-xs">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -379,78 +379,78 @@ export default function SettlementsPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1b1f2a] to-[#14171f] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-bold text-white">Record Factory Settlement</h2>
-              <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X size={18} /></button>
+              <h2 className="font-bold text-gray-900">Record Factory Settlement</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-900"><X size={18} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-white/50 text-xs block mb-1">Factory *</label>
+                <label className="text-gray-500 text-xs block mb-1">Factory *</label>
                 <select value={form.factory_id} onChange={e => setForm(p => ({ ...p, factory_id: e.target.value }))}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2.5 text-sm text-white focus:outline-none">
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2.5 text-sm text-gray-900 focus:outline-none">
                   <option value="">Select factory...</option>
                   {factories.map(fc => <option key={fc.id} value={fc.id}>{fc.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-white/50 text-xs block mb-1">Settlement Date</label>
+                <label className="text-gray-500 text-xs block mb-1">Settlement Date</label>
                 <input type="date" value={form.settlement_date} onChange={e => setForm(p => ({ ...p, settlement_date: e.target.value }))}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
               </div>
               <div className="space-y-2">
-                <p className="text-white/50 text-xs font-medium">Grade-wise KG & Rate</p>
+                <p className="text-gray-500 text-xs font-medium">Grade-wise KG & Rate</p>
                 {[
-                  { grade: "A", kgKey: "grade_a_kg" as const, rateKey: "rate_per_kg_a" as const, color: "text-green-400" },
-                  { grade: "B", kgKey: "grade_b_kg" as const, rateKey: "rate_per_kg_b" as const, color: "text-blue-400" },
-                  { grade: "C", kgKey: "grade_c_kg" as const, rateKey: "rate_per_kg_c" as const, color: "text-yellow-400" },
+                  { grade: "A", kgKey: "grade_a_kg" as const, rateKey: "rate_per_kg_a" as const, color: "text-green-600" },
+                  { grade: "B", kgKey: "grade_b_kg" as const, rateKey: "rate_per_kg_b" as const, color: "text-blue-600" },
+                  { grade: "C", kgKey: "grade_c_kg" as const, rateKey: "rate_per_kg_c" as const, color: "text-yellow-600" },
                 ].map(({ grade, kgKey, rateKey, color }) => (
                   <div key={grade} className="grid grid-cols-3 gap-2 items-center">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg bg-white/5 ${color} text-center`}>Grade {grade}</span>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg bg-gray-100 ${color} text-center`}>Grade {grade}</span>
                     <input type="number" step="0.1" min="0" placeholder="KG"
                       value={form[kgKey]} onChange={e => setForm(p => ({ ...p, [kgKey]: e.target.value }))}
-                      className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                     <input type="number" step="0.01" min="0" placeholder="₹/kg"
                       value={form[rateKey]} onChange={e => setForm(p => ({ ...p, [rateKey]: e.target.value }))}
-                      className="bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                      className="bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                   </div>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Rejected KG</label>
+                  <label className="text-gray-500 text-xs block mb-1">Rejected KG</label>
                   <input type="number" step="0.1" min="0" placeholder="0" value={form.rejected_kg}
                     onChange={e => setForm(p => ({ ...p, rejected_kg: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-white/50 text-xs block mb-1">Deductions (₹)</label>
+                  <label className="text-gray-500 text-xs block mb-1">Deductions (₹)</label>
                   <input type="number" step="0.01" min="0" value={form.deductions}
                     onChange={e => setForm(p => ({ ...p, deductions: e.target.value }))}
-                    className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                    className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
                 </div>
               </div>
               {totalKg > 0 && (
                 <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-3 text-sm space-y-1">
-                  <div className="flex justify-between text-white/50"><span>Total KG:</span><span className="text-white">{totalKg.toFixed(2)} kg</span></div>
-                  <div className="flex justify-between text-white/50"><span>Gross:</span><span className="text-white">₹{grossAmount.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-gray-500"><span>Total KG:</span><span className="text-gray-900">{totalKg.toFixed(2)} kg</span></div>
+                  <div className="flex justify-between text-gray-500"><span>Gross:</span><span className="text-gray-900">₹{grossAmount.toFixed(2)}</span></div>
                   {f("deductions") > 0 && (
-                    <div className="flex justify-between text-white/50"><span>Deductions:</span><span className="text-red-400">-₹{f("deductions").toFixed(2)}</span></div>
+                    <div className="flex justify-between text-gray-500"><span>Deductions:</span><span className="text-red-600">-₹{f("deductions").toFixed(2)}</span></div>
                   )}
-                  <div className="flex justify-between font-semibold pt-1 border-t border-white/10">
-                    <span className="text-white/80">Net Amount:</span>
-                    <span className="text-purple-400 text-base">₹{netAmount.toFixed(2)}</span>
+                  <div className="flex justify-between font-semibold pt-1 border-t border-gray-200">
+                    <span className="text-gray-900/80">Net Amount:</span>
+                    <span className="text-purple-600 text-base">₹{netAmount.toFixed(2)}</span>
                   </div>
                 </div>
               )}
               <div>
-                <label className="text-white/50 text-xs block mb-1">Notes</label>
+                <label className="text-gray-500 text-xs block mb-1">Notes</label>
                 <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  className="w-full bg-[#0b0d12] border border-white/10 rounded-xl focus:border-green-500/40 focus:ring-1 focus:ring-green-500/20 transition-colors px-3 py-2 text-sm text-white focus:outline-none" />
+                  className="w-full bg-white border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900 focus:outline-none" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setShowForm(false)} className="flex-1 border border-white/10 rounded-xl py-2.5 text-sm text-white/50">Cancel</button>
+              <button onClick={() => setShowForm(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500">Cancel</button>
               <button onClick={save} disabled={saving || !form.factory_id || totalKg === 0}
                 className="flex-1 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-40 rounded-xl py-2.5 text-sm font-medium text-white">
                 {saving ? "Saving..." : "Record Settlement"}
