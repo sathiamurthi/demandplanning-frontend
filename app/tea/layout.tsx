@@ -6,11 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Leaf, LayoutDashboard, Users, ClipboardList, Truck,
   Factory, Wallet, BarChart3, Settings, ChevronLeft, ChevronRight,
-  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin, Bell, LogOut
+  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin, Bell, LogOut, Rocket
 } from "lucide-react";
 
 const nav = [
   { href: "/tea",            icon: LayoutDashboard, label: "Dashboard",    exact: true },
+  { href: "/tea/onboarding", icon: Rocket,          label: "Setup" },
   { href: "/tea/growers",    icon: Users,           label: "Growers" },
   { href: "/tea/collections",icon: ClipboardList,   label: "Collections" },
   { href: "/tea/dispatch",   icon: Truck,           label: "Dispatch" },

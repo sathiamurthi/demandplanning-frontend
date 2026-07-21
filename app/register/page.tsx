@@ -132,17 +132,31 @@ function RegisterContent() {
     let filteredList = STATIC_INDUSTRIES;
 
     apiGet<{ success: boolean; data: Industry[] }>("/industries")
-      .then(r => { if (r.data?.length) filteredList = r.data; })
+      .then(r => {
+        // A known backend bug can return the row's UUID `id` duplicated
+        // into `industry_id` instead of the real slug ('tea', 'grocery', ...).
+        // That's silently wrong, not a request failure, so detect it by
+        // shape (id === industry_id, or industry_id "looks like" a UUID)
+        // and treat it the same as no data — fall back to the hardcoded
+        // slugs below rather than pass corrupt values through to
+        // registration, where they'd be submitted as the industry_id.
+        const looksLikeUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+        const usable = r.data?.filter(ind => ind.industry_id && !looksLikeUuid(ind.industry_id) && ind.industry_id !== ind.id);
+        if (usable?.length) filteredList = usable;
+      })
       .catch(() => {})
       .finally(() => {
         fetch("/v1/public/platform-config")
           .then(r => r.json())
           .then(d => {
             const mods: string[] = d.data?.enterprise_apps?.enabled_modules;
-            setIndustries(Array.isArray(mods) && mods.length
+            const result = Array.isArray(mods) && mods.length
               ? applyModuleFilter(filteredList, mods)
-              : filteredList
-            );
+              : filteredList;
+            // Never let the module filter zero out every option — a
+            // misconfigured module list would otherwise leave the picker
+            // with no selectable cards and Continue permanently disabled.
+            setIndustries(result.length ? result : filteredList);
           })
           .catch(() => setIndustries(filteredList));
       });

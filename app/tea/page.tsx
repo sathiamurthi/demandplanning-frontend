@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Leaf, Scale, Users, Truck, Factory, Wallet, TrendingUp, AlertCircle, RefreshCw, ClipboardList, Package, Sparkles, ArrowRight, X } from "lucide-react";
+import { Leaf, Scale, Users, Truck, Factory, Wallet, TrendingUp, AlertCircle, RefreshCw, ClipboardList, Package, Sparkles, ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { teaUrl, teaAuthHeaders } from "@/lib/tea-api";
 
 interface Dashboard {
@@ -32,11 +32,13 @@ export default function TeaDashboard() {
   const [ai, setAi]       = useState<AIData>({});
   const [loading, setLoading] = useState(true);
   const [dateStr, setDateStr] = useState("");
-  const [setupIncomplete, setSetupIncomplete] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
+  const [setup, setSetup] = useState({ growers: false, rates: false, factories: false, vehicles: false });
 
+  // Always derived from real backend state, never a localStorage flag —
+  // a "done" flag set on one device/browser shouldn't hide real, missing
+  // setup data when the owner checks the dashboard from another one.
   const checkSetup = async () => {
-    if (localStorage.getItem("tea_onboarding_done")) return;
     try {
       const headers = teaAuthHeaders() as Record<string, string>;
       const [gRes, rRes, fRes, vRes] = await Promise.all([
@@ -46,9 +48,10 @@ export default function TeaDashboard() {
         fetch(teaUrl("/vehicles"), { headers }),
       ]);
       const [g, r, f, v] = await Promise.all([gRes.json(), rRes.json(), fRes.json(), vRes.json()]);
-      const empty = (x: any) => x.success && Array.isArray(x.data) && x.data.length === 0;
-      if (empty(g) && empty(r) && empty(f) && empty(v)) setSetupIncomplete(true);
+      const has = (x: any) => x.success && Array.isArray(x.data) && x.data.length > 0;
+      setSetup({ growers: has(g), rates: has(r), factories: has(f), vehicles: has(v) });
     } catch { /* silently fail — never block the dashboard on this check */ }
+    setSetupChecked(true);
   };
 
   const load = async () => {
@@ -110,22 +113,37 @@ export default function TeaDashboard() {
         </button>
       </div>
 
-      {/* Setup checklist banner — new tenant with no growers/rates/factories/vehicles yet */}
-      {setupIncomplete && !bannerDismissed && (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-4 flex-wrap">
-          <div className="w-10 h-10 bg-white border border-emerald-200 rounded-xl flex items-center justify-center shrink-0">
-            <Sparkles size={18} className="text-emerald-600" />
+      {/* Setup checklist — stays visible on the dashboard (not a dismissible
+          banner) until every item is actually done, so there's always a
+          one-click way in instead of typing /tea/onboarding by hand. */}
+      {setupChecked && (!setup.growers || !setup.rates || !setup.factories || !setup.vehicles) && (
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-4 flex-wrap mb-4">
+            <div className="w-10 h-10 bg-white border border-emerald-200 rounded-xl flex items-center justify-center shrink-0">
+              <Sparkles size={18} className="text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-semibold text-gray-900">Finish setting up TeaFactory360</p>
+              <p className="text-xs text-gray-600 mt-0.5">A few things left before everything's ready to use.</p>
+            </div>
+            <a href="/tea/onboarding" className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-4 py-2 rounded-lg text-sm font-medium">
+              Continue Setup <ArrowRight size={14} />
+            </a>
           </div>
-          <div className="flex-1 min-w-[200px]">
-            <p className="text-sm font-semibold text-gray-900">Let's get TeaFactory360 set up for you</p>
-            <p className="text-xs text-gray-600 mt-0.5">Add your rates, growers, and first vehicle & factory — takes about 2 minutes.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { done: setup.rates, label: "Weekly rates", href: "/tea/settings" },
+              { done: setup.growers, label: "Growers", href: "/tea/growers" },
+              { done: setup.factories, label: "Factory", href: "/tea/settings" },
+              { done: setup.vehicles, label: "Vehicle", href: "/tea/settings" },
+            ].map(item => (
+              <a key={item.label} href={item.done ? undefined : item.href}
+                className={`flex items-center gap-2 bg-white border rounded-lg px-3 py-2 text-xs ${item.done ? "border-emerald-100 text-gray-500" : "border-gray-200 text-gray-700 hover:border-emerald-300"}`}>
+                {item.done ? <CheckCircle2 size={14} className="text-emerald-600 shrink-0" /> : <Circle size={14} className="text-gray-300 shrink-0" />}
+                {item.label}
+              </a>
+            ))}
           </div>
-          <a href="/tea/onboarding" className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-4 py-2 rounded-lg text-sm font-medium">
-            Start Setup <ArrowRight size={14} />
-          </a>
-          <button onClick={() => setBannerDismissed(true)} className="text-gray-400 hover:text-gray-600 p-1">
-            <X size={16} />
-          </button>
         </div>
       )}
 
