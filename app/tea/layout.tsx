@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Leaf, LayoutDashboard, Users, ClipboardList, Truck,
   Factory, Wallet, BarChart3, Settings, ChevronLeft, ChevronRight,
-  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin
+  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin, Bell
 } from "lucide-react";
 
 const nav = [
@@ -24,9 +24,28 @@ const nav = [
   { href: "/tea/sales",      icon: ShoppingCart,    label: "Sales & Auction" },
   { href: "/tea/compliance", icon: ShieldCheck,     label: "Compliance" },
   { href: "/tea/ai",         icon: Sparkles,        label: "AI Assistant" },
+  { href: "/tea/notifications", icon: Bell,         label: "Notifications" },
   { href: "/tea/reports",    icon: BarChart3,       label: "Reports" },
   { href: "/tea/settings",   icon: Settings,        label: "Settings" },
 ];
+
+// Field agent gets a deliberately small slice of the full ERP nav — only
+// what a collection agent actually does in the field, per the owner's
+// explicit scope: growers, collection, dispatch, payments, vehicles, a
+// few AI features, notifications. Everything else (estate/payroll,
+// machinery, inventory, sales/auction, compliance, reports, settings)
+// stays owner/manager-only.
+const agentNav = [
+  { href: "/tea",             icon: LayoutDashboard, label: "Dashboard",    exact: true },
+  { href: "/tea/growers",     icon: Users,           label: "Growers" },
+  { href: "/tea/collections", icon: ClipboardList,   label: "Collections" },
+  { href: "/tea/dispatch",    icon: Truck,           label: "Dispatch" },
+  { href: "/tea/payments",    icon: Wallet,          label: "Payments" },
+  { href: "/tea/fleet",       icon: MapPin,          label: "Vehicles" },
+  { href: "/tea/ai",          icon: Sparkles,        label: "AI Assistant" },
+  { href: "/tea/notifications", icon: Bell,          label: "Notifications" },
+];
+const AGENT_ALLOWED_PREFIXES = agentNav.map(i => i.href);
 
 export default function TeaLayout({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
@@ -34,14 +53,21 @@ export default function TeaLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authed, setAuthed]         = useState(false);
+  const [role, setRole]             = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-    } else {
-      setAuthed(true);
+      return;
     }
+    const storedRole = localStorage.getItem("role");
+    setRole(storedRole);
+    if (storedRole === "agent" && !AGENT_ALLOWED_PREFIXES.some(p => p === "/tea" ? pathname === "/tea" : pathname.startsWith(p))) {
+      router.replace("/tea");
+      return;
+    }
+    setAuthed(true);
   }, [pathname, router]);
 
   if (!authed) {
@@ -55,6 +81,7 @@ export default function TeaLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const activeNav = role === "agent" ? agentNav : nav;
   const isActive = (item: typeof nav[0]) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
@@ -74,14 +101,14 @@ export default function TeaLayout({ children }: { children: React.ReactNode }) {
           {!collapsed && (
             <div>
               <p className="font-semibold text-white text-sm leading-tight">TeaFactory360</p>
-              <p className="text-white/30 text-xs">ABC Tea Agency</p>
+              <p className="text-white/30 text-xs">{role === "agent" ? "Field Agent" : "ABC Tea Agency"}</p>
             </div>
           )}
         </div>
 
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
-          {nav.map(item => {
+          {activeNav.map(item => {
             const Icon = item.icon;
             const active = isActive(item);
             return (
@@ -125,7 +152,7 @@ export default function TeaLayout({ children }: { children: React.ReactNode }) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setMobileOpen(false)}>
           <nav className="bg-[#0f1218] w-56 h-full py-16 px-2" onClick={e => e.stopPropagation()}>
-            {nav.map(item => {
+            {activeNav.map(item => {
               const Icon = item.icon;
               const active = isActive(item);
               return (

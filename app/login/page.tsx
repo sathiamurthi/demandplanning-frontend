@@ -92,8 +92,10 @@ export default function LoginPage() {
               Create an account
             </Link>
           </p>
-          <div className="flex justify-center gap-4 text-[10px] text-white/20">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] text-white/20">
             <Link href="/grower/login" className="hover:text-white/55 transition-colors">Grower Portal Login</Link>
+            <span>•</span>
+            <Link href="/agent-login" className="hover:text-white/55 transition-colors">TeaFactory360 Agent Login</Link>
             <span>•</span>
             <Link href="/explore" className="hover:text-white/55 transition-colors">PigeonSearch AI</Link>
           </div>

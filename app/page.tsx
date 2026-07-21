@@ -550,9 +550,12 @@ export default function HomePage() {
                   Grower collections, production stages (withering → firing → grading → packaging), estate payroll, fleet &amp; live map, machinery &amp; vendors, inventory, sales &amp; auction, compliance, and an AI assistant for daily insights.
                 </p>
               </div>
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-200 space-y-2">
                 <Link href="/tea" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
                   Open TeaFactory360
+                </Link>
+                <Link href="/agent-login" className="block text-center text-emerald-700 hover:text-emerald-800 text-[11px] font-semibold">
+                  Field Agent Login →
                 </Link>
               </div>
             </div>

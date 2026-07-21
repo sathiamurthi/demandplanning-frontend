@@ -10,8 +10,20 @@ interface FuelAnomaly { id: string; consumption_date: string; quantity_used: num
 interface BudgetAlert { center: string; this_month: number; last_month: number; pct_change: number }
 interface MaintNudge { id: string; name: string; nudge: string; }
 
+const ALL_TABS = [["assistant", "Ask Owner Assistant"], ["intake", "Voice/WhatsApp Intake"], ["payment", "Payment Summary"], ["ops", "Ops Intelligence"]] as const;
+// Agent role only gets the field-relevant AI features — owner narrative
+// (assistant) and factory-wide ops intelligence stay owner/manager-only.
+const AGENT_TABS = [["intake", "Voice/WhatsApp Intake"], ["payment", "Payment Summary"]] as const;
+
 export default function TeaAIPage() {
+  const [role, setRole] = useState<string | null>(null);
   const [tab, setTab] = useState<"intake" | "assistant" | "payment" | "vendor" | "ops">("assistant");
+
+  useEffect(() => {
+    const r = localStorage.getItem("role");
+    setRole(r);
+    if (r === "agent") setTab("intake");
+  }, []);
 
   // Owner assistant
   const [question, setQuestion] = useState("");
@@ -84,12 +96,12 @@ export default function TeaAIPage() {
       </div>
 
       <div className="flex gap-1 mb-4 bg-[#161a23] border border-white/8 rounded-xl p-1 w-fit flex-wrap">
-        {([["assistant", "Ask Owner Assistant"], ["intake", "Voice/WhatsApp Intake"], ["payment", "Payment Summary"], ["ops", "Ops Intelligence"]] as const).map(([k, l]) => (
+        {(role === "agent" ? AGENT_TABS : ALL_TABS).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-purple-600/20 text-purple-300" : "text-white/40 hover:text-white"}`}>{l}</button>
         ))}
       </div>
 
-      {tab === "assistant" && (
+      {tab === "assistant" && role !== "agent" && (
         <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
           <p className="text-white/50 text-xs mb-3 flex items-center gap-1"><MessageSquare size={14} /> Ask anything about today's factory numbers, in plain language.</p>
           <div className="flex gap-2 mb-3">
@@ -141,7 +153,7 @@ export default function TeaAIPage() {
         </div>
       )}
 
-      {tab === "ops" && (
+      {tab === "ops" && role !== "agent" && (
         <div className="space-y-4">
           <div className="bg-[#161a23] border border-white/8 rounded-xl p-4">
             <p className="text-white text-sm font-medium mb-3 flex items-center gap-2"><Users size={14} className="text-purple-400" /> Farmer Comparison (last 90 days)</p>
