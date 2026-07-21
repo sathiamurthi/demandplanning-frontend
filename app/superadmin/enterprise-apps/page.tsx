@@ -46,10 +46,10 @@ const ALL_MODULES = [
   },
   {
     id: "tea",
-    label: "Tea Procurement",
+    label: "TeaFactory360",
     emoji: "🍃",
     icon: Leaf,
-    desc: "Grower-to-factory tea collection, dispatch, settlements and weekly payments",
+    desc: "Grower-to-factory tea collection, production stages, payroll, fleet, inventory, sales & compliance",
     color: "text-emerald-500",
     bg: "bg-emerald-50",
   },

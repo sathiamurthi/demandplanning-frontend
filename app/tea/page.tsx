@@ -81,7 +81,7 @@ export default function TeaDashboard() {
             <Leaf size={20} className="text-green-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Tea Procurement</h1>
+            <h1 className="text-xl font-bold text-white">TeaFactory360</h1>
             <p className="text-white/40 text-xs">ABC Tea Agency{dateStr ? ` · ${dateStr}` : ""}</p>
           </div>
         </div>

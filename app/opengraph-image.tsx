@@ -6,7 +6,7 @@ export const contentType = 'image/png';
 
 export default function OGImage() {
   const domain = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dplan-ebon.vercel.app').replace('https://', '');
-  const features = ['🤖 EnterpriseAgent360', '📊 Lex360', '🚛 Route360', '🍃 Tea Procurement', '🔍 PigeonSearch AI', '📦 Inventory & Forecasting'];
+  const features = ['🤖 EnterpriseAgent360', '📊 Lex360', '🚛 Route360', '🍃 TeaFactory360', '🔍 PigeonSearch AI', '📦 Inventory & Forecasting'];
 
   return new ImageResponse(
     (

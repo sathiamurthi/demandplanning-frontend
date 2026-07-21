@@ -60,8 +60,8 @@ const ALL_INDUSTRIES = [
     color: "text-green-600",
     bg: "bg-green-50",
     border: "border-gray-200 hover:border-green-400",
-    title: "Tea Procurement",
-    desc: "Full grower-to-factory workflow: collections, dispatch, settlements, payments.",
+    title: "TeaFactory360",
+    desc: "Full grower-to-factory workflow: collections, production stages, payroll, fleet, inventory, sales, compliance, AI.",
     link: "/tea",
     badge: "Live Demo ->",
   },
@@ -166,7 +166,7 @@ const journeys = [
     ],
   },
   {
-    role: "Tea Procurement",
+    role: "TeaFactory360",
     color: "text-emerald-700",
     dot: "bg-emerald-500",
     steps: [
@@ -533,26 +533,26 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Tea Procurement */}
+            {/* TeaFactory360 */}
             <div className="bg-slate-50 border border-gray-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
               <div>
-                <span className="text-[10px] tracking-wider uppercase text-emerald-700 font-black bg-emerald-100 px-2.5 py-1 rounded-full">Supply Chain Automation</span>
+                <span className="text-[10px] tracking-wider uppercase text-emerald-700 font-black bg-emerald-100 px-2.5 py-1 rounded-full">Tea Factory Operations</span>
                 <div className="my-5 flex items-center gap-3">
                   <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center border border-emerald-200 shrink-0">
                     <Leaf className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">TeaLeaf Collect</h3><InstallAppBadge label="TeaLeaf Collect" /></div>
-                    <p className="text-[10px] text-gray-400">Supply-chain &amp; settlements</p>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">TeaFactory360</h3><InstallAppBadge label="TeaFactory360" /></div>
+                    <p className="text-[10px] text-gray-400">Growers to grading to sales — end to end</p>
                   </div>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed mb-6">
-                  Record daily batch collections from tea growers, manage dispatcher logistics, generate factory invoices, track settlements, and initiate secure weekly grower payments.
+                  Grower collections, production stages (withering → firing → grading → packaging), estate payroll, fleet &amp; live map, machinery &amp; vendors, inventory, sales &amp; auction, compliance, and an AI assistant for daily insights.
                 </p>
               </div>
               <div className="pt-4 border-t border-gray-200">
                 <Link href="/tea" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
-                  Open Tea Hub
+                  Open TeaFactory360
                 </Link>
               </div>
             </div>
