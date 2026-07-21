@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Leaf, LayoutDashboard, Users, ClipboardList, Truck,
   Factory, Wallet, BarChart3, Settings, ChevronLeft, ChevronRight,
-  Menu, X
+  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin
 } from "lucide-react";
 
 const nav = [
@@ -16,6 +16,14 @@ const nav = [
   { href: "/tea/dispatch",   icon: Truck,           label: "Dispatch" },
   { href: "/tea/settlements",icon: Factory,         label: "Settlement" },
   { href: "/tea/payments",   icon: Wallet,          label: "Payments" },
+  { href: "/tea/suppliers",  icon: Package,         label: "Suppliers & Fuel" },
+  { href: "/tea/fleet",      icon: MapPin,          label: "Fleet & Live Map" },
+  { href: "/tea/estate",     icon: Tractor,         label: "Estate & Payroll" },
+  { href: "/tea/machinery",  icon: Wrench,          label: "Machinery & Vendors" },
+  { href: "/tea/inventory",  icon: Boxes,           label: "Inventory" },
+  { href: "/tea/sales",      icon: ShoppingCart,    label: "Sales & Auction" },
+  { href: "/tea/compliance", icon: ShieldCheck,     label: "Compliance" },
+  { href: "/tea/ai",         icon: Sparkles,        label: "AI Assistant" },
   { href: "/tea/reports",    icon: BarChart3,       label: "Reports" },
   { href: "/tea/settings",   icon: Settings,        label: "Settings" },
 ];
@@ -65,8 +73,8 @@ export default function TeaLayout({ children }: { children: React.ReactNode }) {
           </div>
           {!collapsed && (
             <div>
-              <p className="font-semibold text-white text-sm leading-tight">ABC Tea Agency</p>
-              <p className="text-white/30 text-xs">Tea Procurement</p>
+              <p className="font-semibold text-white text-sm leading-tight">TeaFactory360</p>
+              <p className="text-white/30 text-xs">ABC Tea Agency</p>
             </div>
           )}
         </div>
@@ -110,7 +118,7 @@ export default function TeaLayout({ children }: { children: React.ReactNode }) {
         </button>
         <div className="flex items-center gap-2">
           <Leaf size={16} className="text-green-400" />
-          <span className="font-semibold text-sm">ABC Tea Agency</span>
+          <span className="font-semibold text-sm">TeaFactory360</span>
         </div>
       </div>
 

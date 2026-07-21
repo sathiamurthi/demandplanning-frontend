@@ -10,7 +10,9 @@ interface Entry {
   id: string; grower_id: string; grower_name: string; grower_code: string;
   gross_weight: number; moisture_deduction_kg: number; net_weight: number; grade: string;
 }
-interface Batch { id: string; collection_date: string; total_kg: number; grower_count: number; status: string; }
+interface Batch { id: string; collection_date: string; total_kg: number; grower_count: number; status: string; stage?: string; made_tea_kg?: number | null; yield_pct?: number | null; }
+
+const PRODUCTION_STAGES = ["intake", "withering", "firing", "grading", "packaging", "dispatched"];
 
 export default function CollectionsPage() {
   const [growers, setGrowers]     = useState<Grower[]>([]);
@@ -27,6 +29,8 @@ export default function CollectionsPage() {
   const [moistureKg, setMoistureKg]     = useState("0");
   const [grade, setGrade]               = useState("A");
   const [notes, setNotes]               = useState("");
+  const [madeTeaKg, setMadeTeaKg]       = useState("");
+  const [updatingStage, setUpdatingStage] = useState(false);
 
   const netWeight = grossWeight
     ? (parseFloat(grossWeight) - parseFloat(moistureKg || "0")).toFixed(2)
@@ -90,6 +94,21 @@ export default function CollectionsPage() {
       loadBatchForDate();
     }
     setSaving(false);
+  };
+
+  const updateStage = async (stage: string) => {
+    if (!batch) return;
+    setUpdatingStage(true);
+    const body: any = { stage };
+    if (stage === "packaging" || stage === "dispatched") {
+      if (madeTeaKg) body.made_tea_kg = parseFloat(madeTeaKg);
+    }
+    const r = await fetch(teaUrl(`/collections/batches/${batch.id}/stage`), {
+      method: "PATCH", headers: teaAuthHeaders(), body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.success) setBatch(d.data);
+    setUpdatingStage(false);
   };
 
   const printSlip = (entry: Entry) => {
@@ -165,7 +184,39 @@ export default function CollectionsPage() {
             <Plus size={15} /> Add Entry
           </button>
         </div>
-      ) : (
+      ) : null}
+
+      {/* Production stage tracker */}
+      {batch && (
+        <div className="bg-[#161a23] border border-white/8 rounded-xl p-4 mb-5">
+          <p className="text-white/40 text-xs mb-3">Production Stage (withering → firing → grading → packaging → dispatched)</p>
+          <div className="flex gap-1 flex-wrap mb-3">
+            {PRODUCTION_STAGES.map(s => {
+              const currentIdx = PRODUCTION_STAGES.indexOf(batch.stage || "intake");
+              const idx = PRODUCTION_STAGES.indexOf(s);
+              const done = idx <= currentIdx;
+              return (
+                <button key={s} disabled={updatingStage} onClick={() => updateStage(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all disabled:opacity-40 ${
+                    s === batch.stage ? "bg-green-600/20 text-green-400 border border-green-500/40"
+                    : done ? "bg-white/10 text-white/60" : "bg-[#0d0f14] text-white/30 hover:text-white/60"
+                  }`}>
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <input type="number" placeholder="Made tea (kg)" value={madeTeaKg} onChange={e => setMadeTeaKg(e.target.value)}
+              className="bg-[#0d0f14] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white w-40" />
+            {batch.made_tea_kg != null && (
+              <span className="text-white/50 text-xs">Made tea: {Number(batch.made_tea_kg).toFixed(2)} kg{batch.yield_pct != null ? ` · Yield ${batch.yield_pct}%` : ""}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!batch && (
         <div className="bg-[#161a23] border border-white/8 border-dashed rounded-xl p-8 mb-5 text-center">
           <Leaf size={32} className="mx-auto mb-3 text-white/20" />
           <p className="text-white/50 text-sm mb-3">No collection batch for {date}</p>
