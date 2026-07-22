@@ -218,7 +218,9 @@ function RegisterContent() {
             <div>
               <h1 className="text-xl font-bold text-gray-900">Account created!</h1>
               <p className="text-sm text-gray-500 mt-2">
-                Welcome to DemandPlan. You can now sign in with your {contactType}.
+                {role === "owner" && industryId === "tea"
+                  ? "Welcome to TeaFactory360. A superadmin needs to approve your factory account before you can sign in — we'll be in touch shortly."
+                  : `Welcome to DemandPlan. You can now sign in with your ${contactType}.`}
               </p>
             </div>
             <button

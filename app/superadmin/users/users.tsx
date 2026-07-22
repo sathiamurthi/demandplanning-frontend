@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Search, RefreshCw, Users, Globe } from "lucide-react";
+import { Search, RefreshCw, Users, Globe, Leaf } from "lucide-react";
 
 interface DomainUser {
   id: string;
@@ -11,6 +11,17 @@ interface DomainUser {
   is_active: boolean;
   is_email_verified: boolean;
   tenant_id: string;
+}
+
+interface TeaGrower {
+  id: string;
+  name: string;
+  grower_code: string | null;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  tenant_id: string;
+  tenant_name: string;
 }
 
 interface ExploreGuest {
@@ -31,12 +42,14 @@ function authHeader() {
 }
 
 export default function UsersPage() {
-  const [tab, setTab] = useState<"domain" | "explore">("domain");
+  const [tab, setTab] = useState<"domain" | "explore" | "growers">("domain");
 
   // Domain users state
   const [domainUsers, setDomainUsers] = useState<DomainUser[]>([]);
   const [domainLoading, setDomainLoading] = useState(false);
   const [domainSearch, setDomainSearch] = useState("");
+  const [domainFilter, setDomainFilter] = useState<"all" | "active" | "pending">("all");
+  const [domainActionId, setDomainActionId] = useState<string | null>(null);
 
   // Explore guests state
   const [guests, setGuests] = useState<ExploreGuest[]>([]);
@@ -44,6 +57,12 @@ export default function UsersPage() {
   const [guestPage, setGuestPage] = useState(1);
   const [guestSearch, setGuestSearch] = useState("");
   const [guestLoading, setGuestLoading] = useState(false);
+
+  // TeaFactory360 growers state
+  const [growers, setGrowers] = useState<TeaGrower[]>([]);
+  const [growersLoading, setGrowersLoading] = useState(false);
+  const [growerSearch, setGrowerSearch] = useState("");
+  const [growerActionId, setGrowerActionId] = useState<string | null>(null);
 
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -78,7 +97,55 @@ export default function UsersPage() {
     }
   }, [guestPage, guestSearch]);
 
+  const loadGrowers = useCallback(async () => {
+    setGrowersLoading(true);
+    try {
+      const r = await fetch("/v1/superadmin/tea/growers", { headers: authHeader() as HeadersInit });
+      const d = await r.json();
+      if (d.success) setGrowers(d.data || []);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setGrowersLoading(false);
+    }
+  }, []);
+
+  const toggleDomainUser = async (u: DomainUser) => {
+    const action = u.is_active ? "deactivate" : "activate";
+    setDomainActionId(u.id);
+    try {
+      const r = await fetch(`/v1/superadmin/users/${u.id}/${action}`, { method: "POST", headers: authHeader() as HeadersInit });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error || "Failed");
+      setMsg(`User ${action}d`);
+      loadDomainUsers();
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setDomainActionId(null);
+      setTimeout(() => setMsg(""), 3000);
+    }
+  };
+
+  const toggleGrower = async (g: TeaGrower) => {
+    const action = g.is_active ? "deactivate" : "activate";
+    setGrowerActionId(g.id);
+    try {
+      const r = await fetch(`/v1/superadmin/tea/growers/${g.id}/${action}`, { method: "POST", headers: authHeader() as HeadersInit });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error || "Failed");
+      setMsg(`Grower ${action}d`);
+      loadGrowers();
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setGrowerActionId(null);
+      setTimeout(() => setMsg(""), 3000);
+    }
+  };
+
   useEffect(() => { loadDomainUsers(); }, [loadDomainUsers]);
+  useEffect(() => { if (tab === "growers") loadGrowers(); }, [tab, loadGrowers]);
   useEffect(() => { if (tab === "explore") loadGuests(); }, [tab, loadGuests]);
 
   const toggleGuest = async (guestId: string, isActive: boolean) => {
@@ -97,9 +164,22 @@ export default function UsersPage() {
 
   const filteredDomain = domainUsers.filter(u => {
     const q = domainSearch.toLowerCase();
-    return !q || (u.email || "").toLowerCase().includes(q) ||
+    const matchSearch = !q || (u.email || "").toLowerCase().includes(q) ||
       `${u.first_name} ${u.last_name}`.toLowerCase().includes(q) ||
       (u.role || "").toLowerCase().includes(q);
+    const matchFilter =
+      domainFilter === "all"    ? true :
+      domainFilter === "active" ? u.is_active :
+      /* pending */                !u.is_active;
+    return matchSearch && matchFilter;
+  });
+
+  const filteredGrowers = growers.filter(g => {
+    const q = growerSearch.toLowerCase();
+    return !q || (g.name || "").toLowerCase().includes(q) ||
+      (g.phone || "").toLowerCase().includes(q) ||
+      (g.tenant_name || "").toLowerCase().includes(q) ||
+      (g.grower_code || "").toLowerCase().includes(q);
   });
 
   return (
@@ -124,6 +204,11 @@ export default function UsersPage() {
             ${tab === "explore" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:text-gray-700"}`}>
           <Globe size={14} /> Explore Guests
         </button>
+        <button onClick={() => setTab("growers")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
+            ${tab === "growers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:text-gray-700"}`}>
+          <Leaf size={14} /> Tea Growers
+        </button>
       </div>
 
       {/* Domain Users */}
@@ -135,6 +220,14 @@ export default function UsersPage() {
               <input value={domainSearch} onChange={e => setDomainSearch(e.target.value)}
                 placeholder="Search name, email, role…"
                 className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+            </div>
+            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+              {(["all", "active", "pending"] as const).map(f => (
+                <button key={f} onClick={() => setDomainFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${domainFilter === f ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:text-gray-700"}`}>
+                  {f}
+                </button>
+              ))}
             </div>
             <button onClick={loadDomainUsers} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-orange-500 transition-colors">
               <RefreshCw size={13} className={domainLoading ? "animate-spin" : ""} />
@@ -157,11 +250,12 @@ export default function UsersPage() {
                       <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                       <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Verified</th>
                       <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tenant</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDomain.map(u => (
-                      <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                      <tr key={u.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${!u.is_active ? "opacity-60" : ""}`}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 font-bold text-[10px] shrink-0">
@@ -175,8 +269,8 @@ export default function UsersPage() {
                           <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full capitalize">{u.role}</span>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${u.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
-                            {u.is_active ? "Active" : "Inactive"}
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${u.is_active ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"}`}>
+                            {u.is_active ? "Active" : "Pending / Inactive"}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-center">
@@ -185,6 +279,16 @@ export default function UsersPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-400 font-mono">{u.tenant_id?.slice(0, 8) || "—"}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => toggleDomainUser(u)}
+                            disabled={domainActionId === u.id}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 ${u.is_active
+                              ? "bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600"
+                              : "bg-green-500 hover:bg-green-600 text-white"}`}>
+                            {domainActionId === u.id ? "…" : u.is_active ? "Deactivate" : "Approve"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -192,7 +296,7 @@ export default function UsersPage() {
               </div>
             )}
           </div>
-          <p className="text-xs text-gray-400">{filteredDomain.length} platform users (owners, managers, staff)</p>
+          <p className="text-xs text-gray-400">{filteredDomain.length} platform users (owners, managers, staff, agents)</p>
         </div>
       )}
 
@@ -272,6 +376,73 @@ export default function UsersPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* TeaFactory360 Growers */}
+      {tab === "growers" && (
+        <div className="space-y-3">
+          <div className="flex gap-3 items-center">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input value={growerSearch} onChange={e => setGrowerSearch(e.target.value)}
+                placeholder="Search name, phone, factory…"
+                className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:border-orange-400" />
+            </div>
+            <button onClick={loadGrowers} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-orange-500 transition-colors">
+              <RefreshCw size={13} className={growersLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            {growersLoading ? (
+              <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+            ) : filteredGrowers.length === 0 ? (
+              <div className="py-12 text-center text-gray-400 text-sm">No growers found</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Grower</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Factory</th>
+                      <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Login Status</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredGrowers.map(g => (
+                      <tr key={g.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${!g.is_active ? "opacity-60" : ""}`}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{g.name}</p>
+                          {g.grower_code && <p className="text-[10px] text-gray-400">{g.grower_code}</p>}
+                        </td>
+                        <td className="px-3 py-3 text-gray-600 text-xs">{g.phone || "—"}</td>
+                        <td className="px-3 py-3 text-gray-600 text-xs">{g.tenant_name}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
+                            {g.is_active ? "Can sign in" : "Blocked"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => toggleGrower(g)}
+                            disabled={growerActionId === g.id}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 ${g.is_active
+                              ? "bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600"
+                              : "bg-green-500 hover:bg-green-600 text-white"}`}>
+                            {growerActionId === g.id ? "…" : g.is_active ? "Block login" : "Allow login"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">{filteredGrowers.length} growers · phone-only login, gated on being added by an Agent or Factory</p>
         </div>
       )}
     </div>
