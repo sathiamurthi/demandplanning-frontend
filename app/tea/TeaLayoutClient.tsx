@@ -6,29 +6,37 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Leaf, LayoutDashboard, Users, ClipboardList, Truck,
   Factory, Wallet, BarChart3, Settings, ChevronLeft, ChevronRight,
-  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin, Bell, LogOut, Rocket
+  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin, Bell, LogOut, Rocket, UserCog,
 } from "lucide-react";
+import { teaFetch } from "@/lib/tea-api";
 
+// moduleKey matches the backend's TEA_MODULES permission grid
+// (tea-roles.service.ts) — undefined means "always visible, not
+// delegable" (dashboard, setup, notifications, settings, team).
 const nav = [
   { href: "/tea",            icon: LayoutDashboard, label: "Dashboard",    exact: true },
   { href: "/tea/onboarding", icon: Rocket,          label: "Setup" },
-  { href: "/tea/growers",    icon: Users,           label: "Growers" },
-  { href: "/tea/collections",icon: ClipboardList,   label: "Collections" },
-  { href: "/tea/dispatch",   icon: Truck,           label: "Dispatch" },
-  { href: "/tea/settlements",icon: Factory,         label: "Settlement" },
-  { href: "/tea/payments",   icon: Wallet,          label: "Payments" },
-  { href: "/tea/suppliers",  icon: Package,         label: "Suppliers & Fuel" },
-  { href: "/tea/fleet",      icon: MapPin,          label: "Fleet & Live Map" },
-  { href: "/tea/estate",     icon: Tractor,         label: "Estate & Payroll" },
-  { href: "/tea/machinery",  icon: Wrench,          label: "Machinery & Vendors" },
-  { href: "/tea/inventory",  icon: Boxes,           label: "Inventory" },
-  { href: "/tea/sales",      icon: ShoppingCart,    label: "Sales & Auction" },
-  { href: "/tea/compliance", icon: ShieldCheck,     label: "Compliance" },
-  { href: "/tea/ai",         icon: Sparkles,        label: "AI Assistant" },
+  { href: "/tea/growers",    icon: Users,           label: "Growers",             moduleKey: "growers" },
+  { href: "/tea/collections",icon: ClipboardList,   label: "Collections",        moduleKey: "collections" },
+  { href: "/tea/dispatch",   icon: Truck,           label: "Dispatch",           moduleKey: "dispatch" },
+  { href: "/tea/settlements",icon: Factory,         label: "Settlement",         moduleKey: "settlements" },
+  { href: "/tea/payments",   icon: Wallet,          label: "Payments",           moduleKey: "settlements" },
+  { href: "/tea/suppliers",  icon: Package,         label: "Suppliers & Fuel",   moduleKey: "suppliers" },
+  { href: "/tea/fleet",      icon: MapPin,          label: "Fleet & Live Map",   moduleKey: "fleet" },
+  { href: "/tea/estate",     icon: Tractor,         label: "Estate & Payroll",   moduleKey: "estate" },
+  { href: "/tea/machinery",  icon: Wrench,          label: "Machinery & Vendors",moduleKey: "machinery" },
+  { href: "/tea/inventory",  icon: Boxes,           label: "Inventory",          moduleKey: "inventory" },
+  { href: "/tea/sales",      icon: ShoppingCart,    label: "Sales & Auction",    moduleKey: "sales" },
+  { href: "/tea/compliance", icon: ShieldCheck,     label: "Compliance",        moduleKey: "compliance" },
+  { href: "/tea/ai",         icon: Sparkles,        label: "AI Assistant",      moduleKey: "ai" },
   { href: "/tea/notifications", icon: Bell,         label: "Notifications" },
-  { href: "/tea/reports",    icon: BarChart3,       label: "Reports" },
+  { href: "/tea/reports",    icon: BarChart3,       label: "Reports",           moduleKey: "reports" },
+  { href: "/tea/team",       icon: UserCog,         label: "Team & Roles" },
   { href: "/tea/settings",   icon: Settings,        label: "Settings" },
 ];
+// Items with no moduleKey are only ever shown to owner/manager/superadmin
+// (never part of a delegated custom role's grant) — Setup, Team, Settings.
+const OWNER_ONLY_HREFS = new Set(["/tea/onboarding", "/tea/team", "/tea/settings"]);
 
 // Field agent gets a deliberately small slice of the full ERP nav — only
 // what a collection agent actually does in the field, per the owner's
@@ -56,6 +64,10 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
   const [authed, setAuthed]         = useState(false);
   const [role, setRole]             = useState<string | null>(null);
   const [email, setEmail]           = useState<string | null>(null);
+  // null = not yet resolved; an object = this user has a custom tea role
+  // and these are its granted module keys; explicit "none" = legacy
+  // agent/staff with no custom role, fall back to the old agentNav.
+  const [customPerms, setCustomPerms] = useState<Record<string, boolean> | "none" | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -66,11 +78,29 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
     const storedRole = localStorage.getItem("role");
     setRole(storedRole);
     setEmail(localStorage.getItem("userEmail"));
-    if (storedRole === "agent" && !AGENT_ALLOWED_PREFIXES.some(p => p === "/tea" ? pathname === "/tea" : pathname.startsWith(p))) {
-      router.replace("/tea");
+
+    const ownerLike = storedRole === "owner" || storedRole === "manager" || storedRole === "superadmin";
+    if (ownerLike) {
+      setAuthed(true);
       return;
     }
-    setAuthed(true);
+
+    // Not owner-like — resolve whether this user has a custom role (new,
+    // flexible path) or is a legacy agent (old hardcoded path).
+    teaFetch<{ fullAccess: boolean; permissions: Record<string, boolean> | null }>("/roles/my-permissions")
+      .then(r => {
+        const perms = r.success ? r.data?.permissions : null;
+        const allowedHrefs = perms
+          ? nav.filter(n => !OWNER_ONLY_HREFS.has(n.href) && (!n.moduleKey || perms[n.moduleKey])).map(n => n.href)
+          : AGENT_ALLOWED_PREFIXES;
+        setCustomPerms(perms || "none");
+        if (!allowedHrefs.some(p => p === "/tea" ? pathname === "/tea" : pathname.startsWith(p))) {
+          router.replace("/tea");
+          return;
+        }
+        setAuthed(true);
+      })
+      .catch(() => { setCustomPerms("none"); setAuthed(true); });
   }, [pathname, router]);
 
   const logout = () => {
@@ -91,7 +121,12 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
     );
   }
 
-  const activeNav = role === "agent" ? agentNav : nav;
+  const ownerLike = role === "owner" || role === "manager" || role === "superadmin";
+  const activeNav = ownerLike
+    ? nav
+    : customPerms && customPerms !== "none"
+      ? nav.filter(n => !n.moduleKey || customPerms[n.moduleKey]).filter(n => !OWNER_ONLY_HREFS.has(n.href))
+      : agentNav;
   const isActive = (item: typeof nav[0]) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
   const initial = (email || "T")[0].toUpperCase();
