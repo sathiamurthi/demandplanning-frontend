@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Leaf, Phone, Mail, Lock, AlertTriangle } from "lucide-react";
+import { Leaf, Phone, AlertTriangle } from "lucide-react";
 
 const API = "/v1";
 
@@ -10,8 +10,7 @@ export default function GrowerLoginPage() {
   const router = useRouter();
 
   const [tenantId,  setTenantId]  = useState<string>("");
-  const [identity,  setIdentity]  = useState("");   // phone or email
-  const [pin,       setPin]       = useState("");
+  const [phone,     setPhone]     = useState("");
   const [error,     setError]     = useState<string | null>(null);
   const [loading,   setLoading]   = useState(false);
   const [noTenant,  setNoTenant]  = useState(false);
@@ -22,29 +21,23 @@ export default function GrowerLoginPage() {
     if (!t) setNoTenant(true);
   }, []);
 
-  const isPhone = /^[+\d]/.test(identity.trim());
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId) {
-      setError("Missing store link. Use the URL your manager sent you.");
+      setError("Missing store link. Use the URL your agent or factory sent you.");
       return;
     }
-    if (!identity.trim() || !pin) {
-      setError("Enter your phone / email and PIN.");
+    if (!phone.trim()) {
+      setError("Enter your phone number.");
       return;
     }
     setError(null);
     setLoading(true);
     try {
-      const body = isPhone
-        ? { phone: identity.trim(), pin }
-        : { email: identity.trim(), pin };
-
-      const res  = await fetch(`${API}/tenants/${tenantId}/tea/grower-login`, {
+      const res  = await fetch(`${API}/tenants/${tenantId}/tea/grower-auth/login`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(body),
+        body:    JSON.stringify({ phone: phone.trim() }),
       });
       const data = await res.json();
       if (data.success) {
@@ -54,7 +47,7 @@ export default function GrowerLoginPage() {
         localStorage.setItem("grower_tenant", tenantId);
         router.push("/grower");
       } else {
-        setError(data.error || "Login failed. Check your credentials.");
+        setError(data.error || "Login failed. Check your phone number.");
       }
     } catch {
       setError("Network error — please try again.");
@@ -90,46 +83,25 @@ export default function GrowerLoginPage() {
 
         {/* Form card */}
         <div className="bg-[#0d1f12] border border-white/8 rounded-2xl p-6">
-          <h2 className="text-white font-semibold mb-5">Sign in</h2>
+          <h2 className="text-white font-semibold mb-2">Sign in</h2>
+          <p className="text-white/40 text-xs mb-5">
+            Just your phone number — no password needed, as long as your agent or factory has already added you as a grower.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Phone / Email */}
+            {/* Phone */}
             <div>
-              <label className="text-white/40 text-xs block mb-1.5">Phone number or Email</label>
+              <label className="text-white/40 text-xs block mb-1.5">Phone number</label>
               <div className="relative">
-                {isPhone || !identity
-                  ? <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                  : <Mail  size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                }
+                <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input
-                  type="text"
-                  value={identity}
-                  onChange={e => setIdentity(e.target.value)}
-                  placeholder="+91 9876543210 or email"
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+91 9876543210"
                   required
-                  autoComplete="username"
-                  className="w-full bg-[#071009] border border-white/10 rounded-xl pl-9 pr-3 py-2.5
-                             text-sm text-white placeholder-white/20
-                             focus:outline-none focus:border-green-600/50 transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* PIN */}
-            <div>
-              <label className="text-white/40 text-xs block mb-1.5">PIN</label>
-              <div className="relative">
-                <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={e => setPin(e.target.value)}
-                  placeholder="Enter PIN"
-                  required
-                  inputMode="numeric"
-                  maxLength={8}
-                  autoComplete="current-password"
+                  autoComplete="tel"
                   className="w-full bg-[#071009] border border-white/10 rounded-xl pl-9 pr-3 py-2.5
                              text-sm text-white placeholder-white/20
                              focus:outline-none focus:border-green-600/50 transition-colors"
@@ -157,7 +129,7 @@ export default function GrowerLoginPage() {
         </div>
 
         <p className="text-center text-white/15 text-xs mt-6">
-          Contact your tea estate manager to get access
+          Not added yet? Contact your agent or tea factory to get added first.
         </p>
       </div>
     </div>

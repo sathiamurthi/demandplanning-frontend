@@ -130,8 +130,14 @@ export default function AgentLoginPage() {
           </form>
         </div>
 
-        <div className="mt-6 text-center">
-          <Link href="/login" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="mt-6 text-center space-y-2">
+          <p className="text-xs text-gray-400">
+            New field agent?{" "}
+            <Link href="/agent-register" className="font-semibold text-emerald-600 hover:text-emerald-700">
+              Register as Agent
+            </Link>
+          </p>
+          <Link href="/login" className="block text-xs text-gray-400 hover:text-gray-600 transition-colors">
             Not an agent? Go to the full TeaFactory360 login
           </Link>
         </div>

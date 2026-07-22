@@ -259,7 +259,11 @@ export default function TeamPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-gray-900 text-sm truncate">{[m.first_name, m.last_name].filter(Boolean).join(" ")}</p>
                     <RoleBadge role={m.role} teaRoleName={m.tea_role_name} />
-                    {!m.is_active && <span className="text-[11px] text-gray-400 font-medium">Deactivated</span>}
+                    {!m.is_active && (
+                      m.last_login_at
+                        ? <span className="text-[11px] text-gray-400 font-medium">Deactivated</span>
+                        : <span className="text-[11px] text-amber-600 font-semibold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Pending approval</span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 truncate">{m.email}{m.phone ? ` · ${m.phone}` : ""}</p>
                 </div>
@@ -270,8 +274,10 @@ export default function TeamPage() {
                     <button onClick={() => deactivateMember(m)} title="Deactivate"
                       className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"><UserX size={15} /></button>
                   ) : (
-                    <button onClick={() => reactivateMember(m)} title="Reactivate"
-                      className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 px-2">Reactivate</button>
+                    <button onClick={() => reactivateMember(m)} title={m.last_login_at ? "Reactivate" : "Approve"}
+                      className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 px-2">
+                      {m.last_login_at ? "Reactivate" : "Approve"}
+                    </button>
                   )}
                 </div>
               </div>
