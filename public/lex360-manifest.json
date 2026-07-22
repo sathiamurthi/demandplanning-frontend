@@ -1,0 +1,18 @@
+{
+  "name": "Lex360",
+  "short_name": "Lex360",
+  "description": "Lex360 — turns brittle, macro-laden Excel workflows into a fast, shareable web application.",
+  "start_url": "/lex360",
+  "scope": "/lex360",
+  "display": "standalone",
+  "background_color": "#f0f9ff",
+  "theme_color": "#0284c7",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/nexus-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-maskable.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

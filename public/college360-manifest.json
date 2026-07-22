@@ -1,0 +1,18 @@
+{
+  "name": "College360",
+  "short_name": "College360",
+  "description": "College360 — admissions, academic profiles, and career tools for students and institutions.",
+  "start_url": "/college360",
+  "scope": "/college360",
+  "display": "standalone",
+  "background_color": "#fdf4ff",
+  "theme_color": "#c026d3",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/nexus-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-maskable.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

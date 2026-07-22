@@ -1,0 +1,18 @@
+{
+  "name": "Route360",
+  "short_name": "Route360",
+  "description": "Route360 — logistics and route matching for faster, smarter delivery planning.",
+  "start_url": "/route360",
+  "scope": "/route360",
+  "display": "standalone",
+  "background_color": "#fff7ed",
+  "theme_color": "#ea580c",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "categories": ["business", "navigation"],
+  "icons": [
+    { "src": "/nexus-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-maskable.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

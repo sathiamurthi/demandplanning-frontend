@@ -1,0 +1,18 @@
+{
+  "name": "RideConnect360",
+  "short_name": "RideConnect360",
+  "description": "RideConnect360 — track every ride, beat empty km, get AI cost tips, and auto-save a slice of every fare.",
+  "start_url": "/ride360",
+  "scope": "/ride360",
+  "display": "standalone",
+  "background_color": "#fffbeb",
+  "theme_color": "#d97706",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "categories": ["navigation", "business"],
+  "icons": [
+    { "src": "/nexus-icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/nexus-icon-maskable.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

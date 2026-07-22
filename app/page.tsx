@@ -283,7 +283,7 @@ export default function HomePage() {
                     <BarChart3 className="text-indigo-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">DemandGeniusAI Business</h3><InstallAppBadge label="DemandGeniusAI" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">DemandGeniusAI Business</h3><InstallAppBadge label="DemandGeniusAI" installPath="/explore" manifestHref="/manifest.webmanifest" /></div>
                     <p className="text-[10px] text-gray-400">Inventory & forecasting suite</p>
                   </div>
                 </div>
@@ -310,7 +310,7 @@ export default function HomePage() {
                     <School className="text-fuchsia-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">College360</h3><InstallAppBadge label="College360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">College360</h3><InstallAppBadge label="College360" installPath="/college360" manifestHref="/college360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Internships, Mentors &amp; AI Prep</p>
                   </div>
                 </div>
@@ -334,7 +334,7 @@ export default function HomePage() {
                     <Database className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Data360</h3><InstallAppBadge label="Data360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Data360</h3><InstallAppBadge label="Data360" installPath="/data360" manifestHref="/data360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Nexus Flow RPA Engine</p>
                   </div>
                 </div>
@@ -374,7 +374,7 @@ export default function HomePage() {
                     <Bot className="text-violet-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">EnterpriseAgent360</h3><InstallAppBadge label="EnterpriseAgent360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">EnterpriseAgent360</h3><InstallAppBadge label="EnterpriseAgent360" installPath="/enterprise360" manifestHref="/enterprise360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Agentic Intelligence Delivered.</p>
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export default function HomePage() {
                     <FileSpreadsheet className="text-sky-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Lex360</h3><InstallAppBadge label="Lex360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Lex360</h3><InstallAppBadge label="Lex360" installPath="/lex360" manifestHref="/lex360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Legacy Excel &rarr; Web App</p>
                   </div>
                 </div>
@@ -422,7 +422,7 @@ export default function HomePage() {
                     <Truck className="text-orange-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Route360</h3><InstallAppBadge label="Route360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Route360</h3><InstallAppBadge label="Route360" installPath="/route360" manifestHref="/route360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Zero Empty Miles. Full Earnings.</p>
                   </div>
                 </div>
@@ -446,7 +446,7 @@ export default function HomePage() {
                     <GraduationCap className="text-indigo-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Edu360</h3><InstallAppBadge label="Edu360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Edu360</h3><InstallAppBadge label="Edu360" installPath="/edu360" manifestHref="/edu360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Schools, Colleges & Coaching</p>
                   </div>
                 </div>
@@ -470,7 +470,7 @@ export default function HomePage() {
                     <Briefcase className="text-blue-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Nexus Talent</h3><InstallAppBadge label="Nexus Talent" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Nexus Talent</h3><InstallAppBadge label="Nexus Talent" installPath="/jobs" manifestHref="/jobs-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Jobs &amp; Talent · India</p>
                   </div>
                 </div>
@@ -494,7 +494,7 @@ export default function HomePage() {
                     <Car className="text-amber-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">RideConnect360</h3><InstallAppBadge label="RideConnect360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">RideConnect360</h3><InstallAppBadge label="RideConnect360" installPath="/ride360" manifestHref="/ride360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Track. Match. Save.</p>
                   </div>
                 </div>
@@ -518,7 +518,7 @@ export default function HomePage() {
                     <ShieldCheck className="text-teal-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">SafeRide360</h3><InstallAppBadge label="SafeRide360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">SafeRide360</h3><InstallAppBadge label="SafeRide360" installPath="/saferide360" manifestHref="/saferide360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Where is my child?</p>
                   </div>
                 </div>
@@ -542,7 +542,7 @@ export default function HomePage() {
                     <Leaf className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">TeaFactory360</h3><InstallAppBadge label="TeaFactory360" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">TeaFactory360</h3><InstallAppBadge label="TeaFactory360" installPath="/tea" manifestHref="/teafactory360-manifest.json" /></div>
                     <p className="text-[10px] text-gray-400">Growers to grading to sales — end to end</p>
                   </div>
                 </div>
