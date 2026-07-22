@@ -6,8 +6,9 @@ import {
   Trash2, Search, X, ShoppingCart, BarChart2,
   TrendingUp, Package, Download,
   CheckCircle2, AlertTriangle, Loader2, RefreshCw,
-  Printer, MessageCircle, Mail, ReceiptText,
+  Printer, MessageCircle, Mail, ReceiptText, Plus,
 } from "lucide-react";
+import { QuickAddItemModal } from "../QuickAddItemModal";
 
 // ── helpers ──────────────────────────────────────────────────
 function getToken() {
@@ -47,6 +48,7 @@ interface TopItem { id: string; name: string; qty_sold: string; revenue: string;
 interface SavedBill {
   saleNumber: string; saleDate: string; customerName: string; customerPhone: string;
   paymentMethod: string; lines: LineItem[]; total: number; storeName: string;
+  gstAmount?: number; subtotalExGst?: number; gstNumber?: string | null; licenseNumber?: string | null;
 }
 
 // ── Bill Modal ────────────────────────────────────────────────
@@ -55,6 +57,8 @@ function BillModal({ bill, onClose }: { bill: SavedBill; onClose: () => void }) 
 
   const billText = [
     `🧾 *${bill.storeName}*`,
+    bill.licenseNumber ? `Drug Licence No: ${bill.licenseNumber}` : "",
+    bill.gstNumber ? `GSTIN: ${bill.gstNumber}` : "",
     `Bill No: ${bill.saleNumber}`,
     `Date: ${new Date(bill.saleDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`,
     bill.customerName ? `Customer: ${bill.customerName}` : "",
@@ -63,6 +67,8 @@ function BillModal({ bill, onClose }: { bill: SavedBill; onClose: () => void }) 
     `*Items:*`,
     ...bill.lines.map(l => `• ${l.name} × ${l.qty}${l.discountPct ? ` (-${l.discountPct}%)` : ""} = ${fmtINR(lineTotal(l))}`),
     ``,
+    bill.subtotalExGst != null ? `Taxable Amount: ${fmtINR(bill.subtotalExGst)}` : "",
+    bill.gstAmount != null ? `GST (included): ${fmtINR(bill.gstAmount)}` : "",
     `*Total: ${fmtINR(bill.total)}*`,
     ``,
     `Thank you for your purchase! 🙏`,
@@ -94,6 +100,8 @@ function BillModal({ bill, onClose }: { bill: SavedBill; onClose: () => void }) 
         <div id="bill-print-area" className="px-5 py-4 font-mono text-sm">
           <div className="text-center mb-3">
             <p className="font-black text-base text-gray-900">{bill.storeName}</p>
+            {bill.licenseNumber && <p className="text-[10px] text-gray-500">Drug Licence No: {bill.licenseNumber}</p>}
+            {bill.gstNumber && <p className="text-[10px] text-gray-500">GSTIN: {bill.gstNumber}</p>}
             <p className="text-xs text-gray-500">Bill No: {bill.saleNumber}</p>
             <p className="text-xs text-gray-500">
               {new Date(bill.saleDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
@@ -118,7 +126,24 @@ function BillModal({ bill, onClose }: { bill: SavedBill; onClose: () => void }) 
             ))}
           </div>
 
-          <div className="border-t border-dashed border-gray-300 mt-3 pt-3 flex justify-between font-black text-base">
+          {(bill.subtotalExGst != null || bill.gstAmount != null) && (
+            <div className="border-t border-dashed border-gray-300 mt-3 pt-2 space-y-0.5">
+              {bill.subtotalExGst != null && (
+                <div className="flex justify-between text-[11px] text-gray-500">
+                  <span>Taxable Amount</span>
+                  <span>{fmtINR(bill.subtotalExGst)}</span>
+                </div>
+              )}
+              {bill.gstAmount != null && (
+                <div className="flex justify-between text-[11px] text-gray-500">
+                  <span>GST (included)</span>
+                  <span>{fmtINR(bill.gstAmount)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className={`${bill.subtotalExGst != null || bill.gstAmount != null ? "" : "border-t border-dashed border-gray-300 mt-3"} pt-2 flex justify-between font-black text-base`}>
             <span>TOTAL</span>
             <span className="text-orange-500">{fmtINR(bill.total)}</span>
           </div>
@@ -236,6 +261,8 @@ export default function SaleDynamicPage() {
   const [bill, setBill] = useState<SavedBill | null>(null);
   const [todaySales, setTodaySales] = useState<Sale[]>([]);
   const [loadingSales, setLoadingSales] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [storeDetails, setStoreDetails] = useState<{ gst_number?: string | null; drug_license_number?: string | null } | null>(null);
 
   // ── Coupon state ──
   const [couponCode, setCouponCode] = useState("");
@@ -250,15 +277,27 @@ export default function SaleDynamicPage() {
   const [reportSales, setReportSales] = useState<Sale[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
 
-  useEffect(() => {
+  const loadItems = useCallback(() => {
     if (!storeId) return;
     const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") || "" : "";
-    const url = tenantId 
-      ? `/v1/tenants/${tenantId}/stores/${storeId}/items` 
+    const url = tenantId
+      ? `/v1/tenants/${tenantId}/stores/${storeId}/items`
       : `/v1/stores/${storeId}/items`;
-    fetch(url, { headers: authHeaders() })
+    return fetch(url, { headers: authHeaders() })
       .then(r => r.json()).then(d => { if (d.success || Array.isArray(d.data)) setItems(d.data || []); }).catch(() => {});
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    loadItems();
     loadTodaySales();
+    const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") || "" : "";
+    if (tenantId) {
+      fetch(`/v1/tenants/${tenantId}/stores/${storeId}`, { headers: authHeaders() })
+        .then(r => r.json())
+        .then(d => { if (d.success && d.data) setStoreDetails(d.data); })
+        .catch(() => {});
+    }
   }, [storeId]);
 
   const loadTodaySales = useCallback(async () => {
@@ -372,6 +411,10 @@ export default function SaleDynamicPage() {
         saleDate, paymentMethod: payMethod,
         customerName, customerPhone,
         lines: [...lines], total: grandTotal, storeName,
+        gstAmount: d.data?.sale?.gst_amount != null ? parseFloat(d.data.sale.gst_amount) : undefined,
+        subtotalExGst: d.data?.sale?.subtotal != null ? parseFloat(d.data.sale.subtotal) : undefined,
+        gstNumber: storeDetails?.gst_number || null,
+        licenseNumber: storeDetails?.drug_license_number || null,
       });
 
       setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
@@ -412,6 +455,10 @@ export default function SaleDynamicPage() {
     <div className="max-w-4xl mx-auto space-y-4 p-4">
       {/* Bill modal */}
       {bill && <BillModal bill={bill} onClose={() => setBill(null)} />}
+
+      {/* Quick-add item modal — lets the cashier create a brand-new item
+          (medicine or general goods) without leaving the sale screen */}
+      <QuickAddItemModal isOpen={showQuickAdd} onClose={() => setShowQuickAdd(false)} onCreated={loadItems} />
 
       {/* Page header */}
       <div className="flex items-center justify-between">
@@ -466,7 +513,14 @@ export default function SaleDynamicPage() {
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 p-4">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Add Items</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Items</label>
+                <button type="button" onClick={() => setShowQuickAdd(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700">
+                  <Plus size={13} /> New item
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-400 mb-2">Search any item — medicines, general goods (soap, snacks, etc.), sold by strip, piece, or any unit. Can't find it? Add it above.</p>
               <ItemSearch items={items} onAdd={addLine} />
               {lines.length > 0 && (
                 <div className="mt-3 space-y-2">

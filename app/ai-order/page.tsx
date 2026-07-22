@@ -189,10 +189,24 @@ export default function AIOrderPage() {
     setPhase("loading");
     setFilterRisk("all");
     try {
+      // Resolve the real store from the logged-in session — this previously
+      // called /v1/stores/default/report/generate with the literal string
+      // "default" as the storeId, which no store ever has, so the request
+      // always failed and silently fell through to mock demo data below.
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      let storeId = typeof window !== "undefined" ? localStorage.getItem("storeId") : null;
+      if (!storeId && token) {
+        try { storeId = JSON.parse(atob(token.split(".")[1])).storeId || null; } catch {}
+      }
+      if (!storeId) throw new Error("No store on this session");
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       // Try real backend; fall back to mock on any error
-      const resp = await fetch(`/v1/stores/default/report/generate`, {
+      const resp = await fetch(`/v1/stores/${storeId}/report/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ industry: vertical, days: 30 }),
       });
       if (resp.ok) {
