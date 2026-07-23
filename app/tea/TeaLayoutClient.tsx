@@ -72,7 +72,9 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      const staleRole = localStorage.getItem("role");
+      const target = staleRole === "agent" ? "/agent-login" : "/tea-login";
+      router.replace(`${target}?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
     const storedRole = localStorage.getItem("role");
@@ -107,7 +109,7 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("tenantId");
-    router.replace(role === "agent" ? "/agent-login" : "/login");
+    router.replace(role === "agent" ? "/agent-login" : "/tea-login");
   };
 
   if (!authed) {

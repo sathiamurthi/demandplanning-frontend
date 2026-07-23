@@ -137,7 +137,7 @@ export default function AgentLoginPage() {
               Register as Agent
             </Link>
           </p>
-          <Link href="/login" className="block text-xs text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href="/tea-login" className="block text-xs text-gray-400 hover:text-gray-600 transition-colors">
             Not an agent? Go to the full TeaFactory360 login
           </Link>
         </div>

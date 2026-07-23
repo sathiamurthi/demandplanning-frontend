@@ -8,7 +8,7 @@ import {
   Building2, User, ShoppingBag, Stethoscope, Wrench,
   Utensils, Store, CheckCircle2, ArrowRight, ArrowLeft,
   Eye, EyeOff, AlertCircle, Users, Package, Sparkles,
-  UserCheck, Phone, Mail, Wheat, Car,
+  UserCheck, Phone, Mail, Car,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -60,15 +60,15 @@ const DOMAIN_ICONS: Record<string, React.ElementType> = {
   auto_parts:Car,
   auto:      Car,
   parts:     Wrench,
-  tea:       Wheat,
   general:   Store,
 };
 
+// TeaFactory360 is intentionally excluded here — it has its own standalone
+// registration at /tea-register, kept separate from this Enterprise flow.
 const STATIC_INDUSTRIES = [
   { id: "grocery",   industry_id: "grocery",   display_name: "Grocery" },
   { id: "pharma",    industry_id: "pharma",     display_name: "Medical / Pharma" },
   { id: "auto",      industry_id: "auto",       display_name: "Auto Parts" },
-  { id: "tea",       industry_id: "tea",        display_name: "Tea Agency" },
   { id: "retail",    industry_id: "retail",     display_name: "General Retail" },
   { id: "restaurant",industry_id: "restaurant", display_name: "Restaurant" },
 ];
@@ -79,7 +79,6 @@ const MODULE_TO_INDUSTRY: Record<string, string> = {
   pharmacy:  "pharma",
   autoparts: "auto",
   krishna:   "retail",
-  tea:       "tea",
 };
 
 /* ── Helper: step indicator ── */
@@ -141,7 +140,9 @@ function RegisterContent() {
         // slugs below rather than pass corrupt values through to
         // registration, where they'd be submitted as the industry_id.
         const looksLikeUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-        const usable = r.data?.filter(ind => ind.industry_id && !looksLikeUuid(ind.industry_id) && ind.industry_id !== ind.id);
+        // 'tea' is excluded here too — TeaFactory360 registers only through
+        // its own standalone /tea-register page, never this shared flow.
+        const usable = r.data?.filter(ind => ind.industry_id && ind.industry_id !== "tea" && !looksLikeUuid(ind.industry_id) && ind.industry_id !== ind.id);
         if (usable?.length) filteredList = usable;
       })
       .catch(() => {})
@@ -218,9 +219,7 @@ function RegisterContent() {
             <div>
               <h1 className="text-xl font-bold text-gray-900">Account created!</h1>
               <p className="text-sm text-gray-500 mt-2">
-                {role === "owner" && industryId === "tea"
-                  ? "Welcome to TeaFactory360. A superadmin needs to approve your factory account before you can sign in — we'll be in touch shortly."
-                  : `Welcome to DemandPlan. You can now sign in with your ${contactType}.`}
+                Welcome to DemandPlan. You can now sign in with your {contactType}.
               </p>
             </div>
             <button
