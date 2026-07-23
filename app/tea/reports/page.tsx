@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { BarChart3, RefreshCw, Users } from "lucide-react";
 import { teaUrl, teaAuthHeaders } from "@/lib/tea-api";
 
-type ReportTab = "daily" | "weekly" | "ledger" | "yield" | "inventory" | "sales";
+type ReportTab = "daily" | "weekly" | "ledger" | "yield" | "inventory" | "sales" | "profitability" | "vehicles";
 
 interface DailyReport {
   collection_date: string; total_kg: number; total_growers: number;
@@ -31,6 +31,15 @@ interface SalesByChannel {
 interface AuctionPerf {
   lot_number: string; reserve_price: number; sold_price: number; pct_vs_reserve: number | null;
 }
+interface BatchProfitRow {
+  id: string; collection_date: string; green_leaf_kg: number; made_tea_kg: number | null;
+  procurement_cost: number; fuel_cost: number; revenue: number; profit: number;
+}
+interface VehicleReportRow {
+  id: string; vehicle_number: string; driver_name: string | null;
+  total_liters: number; total_fuel_cost: number; dispatch_trips: number; dispatched_kg: number;
+  overdue_maintenance: number;
+}
 
 export default function ReportsPage() {
   const [tab, setTab]           = useState<ReportTab>("daily");
@@ -41,6 +50,8 @@ export default function ReportsPage() {
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [salesByChannel, setSalesByChannel] = useState<SalesByChannel[]>([]);
   const [auctionPerf, setAuctionPerf] = useState<AuctionPerf[]>([]);
+  const [batchProfit, setBatchProfit] = useState<BatchProfitRow[]>([]);
+  const [vehicleReport, setVehicleReport] = useState<VehicleReportRow[]>([]);
   const [growers, setGrowers]   = useState<{ id: string; name: string; grower_code: string }[]>([]);
   const [growerId, setGrowerId] = useState("");
   const [loading, setLoading]   = useState(false);
@@ -84,6 +95,14 @@ export default function ReportsPage() {
           setSalesByChannel(Array.isArray(d.data?.by_channel) ? d.data.by_channel : []);
           setAuctionPerf(Array.isArray(d.data?.auction_performance) ? d.data.auction_performance : []);
         }
+      } else if (tab === "profitability") {
+        const r = await fetch(teaUrl(`/reports/batch-profitability?from=${dateFrom}&to=${dateTo}`), { headers: teaAuthHeaders() });
+        const d = await r.json();
+        if (d.success && Array.isArray(d.data)) setBatchProfit(d.data);
+      } else if (tab === "vehicles") {
+        const r = await fetch(teaUrl(`/reports/by-vehicle?from=${dateFrom}&to=${dateTo}`), { headers: teaAuthHeaders() });
+        const d = await r.json();
+        if (d.success && Array.isArray(d.data)) setVehicleReport(d.data);
       }
     } catch {}
     setLoading(false);
@@ -123,7 +142,7 @@ export default function ReportsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit flex-wrap">
-        {([["daily", "Daily Report"], ["weekly", "Weekly Report"], ["ledger", "Grower Ledger"], ["yield", "Production Yield"], ["inventory", "Inventory"], ["sales", "Sales"]] as [ReportTab, string][]).map(([t, l]) => (
+        {([["daily", "Daily Report"], ["weekly", "Weekly Report"], ["ledger", "Grower Ledger"], ["yield", "Production Yield"], ["inventory", "Inventory"], ["sales", "Sales"], ["profitability", "Batch P&L"], ["vehicles", "Vehicle Report"]] as [ReportTab, string][]).map(([t, l]) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === t ? "bg-blue-600/20 text-blue-600" : "text-gray-500 hover:text-gray-900"}`}>
             {l}
@@ -427,6 +446,86 @@ export default function ReportsPage() {
               </table>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Batch Profitability */}
+      {tab === "profitability" && (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          {loading ? <div className="p-8 text-center text-gray-600 text-sm animate-pulse">Loading...</div>
+          : batchProfit.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No batches in this range.</div>
+          : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Date</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Green Leaf KG</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Procurement Cost</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Fuel Cost</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Revenue</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batchProfit.map(b => (
+                  <tr key={b.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-900 text-sm">{new Date(b.collection_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{b.green_leaf_kg} kg</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-600 text-sm">₹{Number(b.procurement_cost).toFixed(0)}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-600 text-sm">₹{Number(b.fuel_cost).toFixed(0)}</td>
+                    <td className="px-4 py-3 text-gray-900 text-sm">₹{Number(b.revenue).toFixed(0)}</td>
+                    <td className="px-4 py-3 text-sm font-semibold">
+                      <span className={Number(b.profit) >= 0 ? "text-green-600" : "text-red-600"}>
+                        {Number(b.profit) >= 0 ? "+" : ""}₹{Number(b.profit).toFixed(0)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Vehicle Report */}
+      {tab === "vehicles" && (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          {loading ? <div className="p-8 text-center text-gray-600 text-sm animate-pulse">Loading...</div>
+          : vehicleReport.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No active vehicles found.</div>
+          : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Vehicle</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Driver</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Fuel (L)</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Fuel Cost</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Trips</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs hidden sm:table-cell">Dispatched KG</th>
+                  <th className="px-4 py-3 text-left text-gray-500 text-xs">Maintenance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehicleReport.map(v => (
+                  <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-900 text-sm font-medium">{v.vehicle_number}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-600 text-sm">{v.driver_name || "—"}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{Number(v.total_liters).toFixed(1)} L</td>
+                    <td className="px-4 py-3 text-gray-900 text-sm">₹{Number(v.total_fuel_cost).toFixed(0)}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-700 text-sm">{v.dispatch_trips}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-700 text-sm">{Number(v.dispatched_kg).toFixed(0)} kg</td>
+                    <td className="px-4 py-3">
+                      {v.overdue_maintenance > 0 ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">{v.overdue_maintenance} overdue</span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">OK</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

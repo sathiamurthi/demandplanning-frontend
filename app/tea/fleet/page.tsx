@@ -7,7 +7,7 @@ import { teaAuthHeaders, teaUrl } from "@/lib/tea-api";
 
 const TeaFleetMap = dynamic(() => import("../components/TeaFleetMap"), { ssr: false });
 
-interface Vehicle { id: string; vehicle_number: string; driver_name: string; driver_phone: string; is_rental: boolean; live_lat: number | null; live_lng: number | null; minutes_since_update: number | null; }
+interface Vehicle { id: string; vehicle_number: string; driver_name: string; driver_phone: string; is_rental: boolean; live_lat: number | null; live_lng: number | null; minutes_since_update: number | null; is_stale: boolean; }
 interface Trip { id: string; vehicle_id: string; trip_date: string; distance_km: number; fuel_used_l: number; status: string; }
 interface Maint { id: string; vehicle_id: string; type: string; due_date: string; status: string; }
 
@@ -93,6 +93,9 @@ export default function FleetPage() {
                 <td className="px-4 py-3 text-gray-500 text-xs">
                   {v.live_lat ? `${Number(v.live_lat).toFixed(4)}, ${Number(v.live_lng).toFixed(4)}` : "No live position"}
                   {v.minutes_since_update != null && ` (${Math.round(v.minutes_since_update)} min ago)`}
+                  {v.is_stale && (
+                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Idle / not updating</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => { setSelectedVehicle(v.id); broadcastMyLocation(); }} disabled={locating}
