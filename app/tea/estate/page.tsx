@@ -11,6 +11,16 @@ interface PayrollRun { id: string; worker_id: string; worker_name: string; perio
 interface Insurance { id: string; worker_id: string; worker_name: string; type: string; provider: string; policy_number: string; expiry_date: string | null; next_checkup_date: string | null; status: string; }
 interface RoleOption { value: string; label: string; }
 
+// Fallback used only if /estate/roles-catalog isn't reachable yet (e.g. a
+// backend deploy hasn't rolled out this endpoint) — keeps Add Worker
+// functional with the previous, smaller role set instead of an empty,
+// unusable dropdown.
+const FALLBACK_CATALOG = {
+  estate: [{ value: "plucker", label: "Tea Plucker / Harvester" }, { value: "supervisor", label: "Field Officer / Supervisor" }, { value: "other", label: "Other" }],
+  factory: [{ value: "factory_hand", label: "Factory Hand" }, { value: "supervisor", label: "Production Supervisor" }, { value: "other", label: "Other" }],
+  employmentTypes: [{ value: "permanent", label: "Permanent" }, { value: "temporary", label: "Temporary" }, { value: "casual", label: "Casual" }],
+};
+
 const today = () => new Date().toISOString().slice(0, 10);
 const weekAgo = () => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
@@ -34,14 +44,13 @@ export default function EstatePage() {
     const [p, w, rc] = await Promise.all([
       fetch(teaUrl("/estate/plots"), { headers: teaAuthHeaders() }).then(r => r.json()),
       fetch(teaUrl("/estate/workers"), { headers: teaAuthHeaders() }).then(r => r.json()),
-      fetch(teaUrl("/estate/roles-catalog"), { headers: teaAuthHeaders() }).then(r => r.json()),
+      fetch(teaUrl("/estate/roles-catalog"), { headers: teaAuthHeaders() }).then(r => r.json()).catch(() => null),
     ]);
     if (p.success) setPlots(p.data);
     if (w.success) setWorkers(w.data);
-    if (rc.success) {
-      setRoleCatalog(rc.data);
-      setWorkerForm(f => ({ ...f, role: f.role || rc.data.estate[0]?.value || "" }));
-    }
+    const catalog = rc?.success ? rc.data : FALLBACK_CATALOG;
+    setRoleCatalog(catalog);
+    setWorkerForm(f => ({ ...f, role: f.role || catalog.estate[0]?.value || "" }));
   };
   useEffect(() => { load(); }, []);
 
