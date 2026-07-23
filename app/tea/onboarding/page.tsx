@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Leaf, Scale, Users, Truck, CheckCircle2, ArrowRight, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Leaf, Scale, Users, Truck, Sprout, CheckCircle2, ArrowRight, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { teaAuthHeaders, teaUrl } from "@/lib/tea-api";
 
 type GrowerDraft = { name: string; phone: string; land_acres: string };
 
-const STEPS = ["Welcome", "Rates", "Growers", "Vehicle & Factory", "Done"] as const;
+const STEPS = ["Welcome", "Rates", "Growers", "Vehicle & Factory", "Estate Setup", "Done"] as const;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -24,6 +24,12 @@ export default function OnboardingPage() {
   const [vehicle, setVehicle] = useState({ vehicle_number: "", driver_name: "", driver_phone: "" });
   const [factorySaved, setFactorySaved] = useState(false);
   const [vehicleSaved, setVehicleSaved] = useState(false);
+
+  const [plot, setPlot] = useState({ name: "", area_hectares: "" });
+  const [estateManager, setEstateManager] = useState({ name: "", phone: "" });
+  const [factoryManager, setFactoryManager] = useState({ name: "", phone: "" });
+  const [plotSaved, setPlotSaved] = useState(false);
+  const [staffSaved, setStaffSaved] = useState(0);
 
   const next = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep(s => Math.max(s - 1, 0));
@@ -80,6 +86,39 @@ export default function OnboardingPage() {
       const d = await r.json();
       if (d.success) setVehicleSaved(true);
     }
+    setSaving(false);
+    next();
+  };
+
+  const saveEstateSetup = async () => {
+    setSaving(true);
+    let plotId: string | undefined;
+    if (plot.name.trim()) {
+      const r = await fetch(teaUrl("/estate/plots"), {
+        method: "POST", headers: teaAuthHeaders(),
+        body: JSON.stringify({ name: plot.name, area_hectares: plot.area_hectares || undefined }),
+      });
+      const d = await r.json();
+      if (d.success) { setPlotSaved(true); plotId = d.data?.id; }
+    }
+    let count = 0;
+    if (estateManager.name.trim()) {
+      const r = await fetch(teaUrl("/estate/workers"), {
+        method: "POST", headers: teaAuthHeaders(),
+        body: JSON.stringify({ name: estateManager.name, phone: estateManager.phone || undefined, department: "estate", role: "estate_manager", employment_type: "permanent", plot_id: plotId }),
+      });
+      const d = await r.json();
+      if (d.success) count++;
+    }
+    if (factoryManager.name.trim()) {
+      const r = await fetch(teaUrl("/estate/workers"), {
+        method: "POST", headers: teaAuthHeaders(),
+        body: JSON.stringify({ name: factoryManager.name, phone: factoryManager.phone || undefined, department: "factory", role: "factory_manager", employment_type: "permanent" }),
+      });
+      const d = await r.json();
+      if (d.success) count++;
+    }
+    setStaffSaved(count);
     setSaving(false);
     next();
   };
@@ -175,8 +214,38 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 4: Done */}
+          {/* Step 4: Estate Setup */}
           {step === 4 && (
+            <div>
+              <StepHeader icon={Sprout} badgeClass="bg-lime-50 border-lime-100" iconClass="text-lime-600" title="Configure your Tea Estate" desc="Add your first plot and key personnel — the org structure behind Estate & Factory Workforce. Add the rest anytime later." />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Estate Plot</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <input placeholder="Plot name" value={plot.name} onChange={e => setPlot({ ...plot, name: e.target.value })}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30" />
+                <input type="number" placeholder="Area (hectares)" value={plot.area_hectares} onChange={e => setPlot({ ...plot, area_hectares: e.target.value })}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30" />
+              </div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Estate Manager</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <input placeholder="Name" value={estateManager.name} onChange={e => setEstateManager({ ...estateManager, name: e.target.value })}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30" />
+                <input placeholder="Phone" value={estateManager.phone} onChange={e => setEstateManager({ ...estateManager, phone: e.target.value })}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30" />
+              </div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Factory Manager</p>
+              <div className="grid grid-cols-2 gap-2 mb-6">
+                <input placeholder="Name" value={factoryManager.name} onChange={e => setFactoryManager({ ...factoryManager, name: e.target.value })}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30" />
+                <input placeholder="Phone" value={factoryManager.phone} onChange={e => setFactoryManager({ ...factoryManager, phone: e.target.value })}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30" />
+              </div>
+              <p className="text-[11px] text-gray-400 mb-4">Add the rest of your workforce — pluckers, tea makers, field officers, and more — anytime from Estate & Factory Workforce.</p>
+              <StepNav onBack={back} onNext={saveEstateSetup} saving={saving} nextLabel={(plot.name || estateManager.name || factoryManager.name) ? "Save & Continue" : "Skip for now"} />
+            </div>
+          )}
+
+          {/* Step 5: Done */}
+          {step === 5 && (
             <div className="text-center">
               <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
                 <CheckCircle2 size={28} className="text-emerald-600" />
@@ -187,6 +256,8 @@ export default function OnboardingPage() {
                 <p>{growersSaved > 0 ? "✅" : "⏭️"} {growersSaved > 0 ? `${growersSaved} grower${growersSaved > 1 ? "s" : ""} added` : "Growers skipped — add anytime"}</p>
                 <p>{factorySaved ? "✅" : "⏭️"} Factory {factorySaved ? "added" : "skipped"}</p>
                 <p>{vehicleSaved ? "✅" : "⏭️"} Vehicle {vehicleSaved ? "added" : "skipped"}</p>
+                <p>{plotSaved ? "✅" : "⏭️"} Estate plot {plotSaved ? "added" : "skipped"}</p>
+                <p>{staffSaved > 0 ? "✅" : "⏭️"} {staffSaved > 0 ? `${staffSaved} manager${staffSaved > 1 ? "s" : ""} added` : "Estate/Factory managers skipped"}</p>
               </div>
               <button onClick={finish} className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white px-6 py-3 rounded-xl text-sm font-semibold">
                 Go to Dashboard <ArrowRight size={16} />
@@ -195,7 +266,7 @@ export default function OnboardingPage() {
           )}
         </div>
 
-        {step > 0 && step < 4 && (
+        {step > 0 && step < 5 && (
           <p className="text-center text-xs text-gray-400 mt-4">
             Step {step} of {STEPS.length - 2}
           </p>

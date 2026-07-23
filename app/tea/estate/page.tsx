@@ -5,12 +5,12 @@ import { Tractor, Plus, Wallet, ShieldCheck, CalendarCheck } from "lucide-react"
 import { teaAuthHeaders, teaUrl } from "@/lib/tea-api";
 
 interface Plot { id: string; name: string; area_hectares: number | null; }
-interface Worker { id: string; name: string; phone: string; role: string; employment_type: string; plot_id: string | null; plot_name: string | null; daily_wage: number; is_active: boolean; }
+interface Worker { id: string; name: string; phone: string; role: string; department: string; employment_type: string; plot_id: string | null; plot_name: string | null; reports_to_id: string | null; reports_to_name: string | null; daily_wage: number; is_active: boolean; }
 interface WageTotal { worker_id: string; worker_name: string; role: string; days_present: number; days_absent: number; total_wage: number; }
 interface PayrollRun { id: string; worker_id: string; worker_name: string; period_start: string; period_end: string; gross_wage: number; epf: number; esi: number; tds: number; net_pay: number; status: string; }
 interface Insurance { id: string; worker_id: string; worker_name: string; type: string; provider: string; policy_number: string; expiry_date: string | null; next_checkup_date: string | null; status: string; }
+interface RoleOption { value: string; label: string; }
 
-const ROLES = ["plucker", "factory_hand", "supervisor", "other"];
 const today = () => new Date().toISOString().slice(0, 10);
 const weekAgo = () => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
@@ -21,21 +21,27 @@ export default function EstatePage() {
   const [wageTotals, setWageTotals] = useState<WageTotal[]>([]);
   const [payroll, setPayroll] = useState<PayrollRun[]>([]);
   const [insurance, setInsurance] = useState<Insurance[]>([]);
+  const [roleCatalog, setRoleCatalog] = useState<{ estate: RoleOption[]; factory: RoleOption[]; employmentTypes: RoleOption[] }>({ estate: [], factory: [], employmentTypes: [] });
 
   const [plotForm, setPlotForm] = useState({ name: "", area_hectares: "" });
-  const [workerForm, setWorkerForm] = useState({ name: "", phone: "", role: "plucker", employment_type: "permanent", plot_id: "", daily_wage: "" });
+  const [workerForm, setWorkerForm] = useState({ name: "", phone: "", department: "estate", role: "", employment_type: "permanent", plot_id: "", reports_to_id: "", daily_wage: "" });
   const [attForm, setAttForm] = useState({ worker_id: "", attendance_date: today(), status: "present" });
   const [range, setRange] = useState({ from: weekAgo(), to: today() });
   const [payrollForm, setPayrollForm] = useState({ worker_id: "", period_start: weekAgo(), period_end: today() });
   const [insForm, setInsForm] = useState({ worker_id: "", type: "group_health", provider: "", policy_number: "", expiry_date: "" });
 
   const load = async () => {
-    const [p, w] = await Promise.all([
+    const [p, w, rc] = await Promise.all([
       fetch(teaUrl("/estate/plots"), { headers: teaAuthHeaders() }).then(r => r.json()),
       fetch(teaUrl("/estate/workers"), { headers: teaAuthHeaders() }).then(r => r.json()),
+      fetch(teaUrl("/estate/roles-catalog"), { headers: teaAuthHeaders() }).then(r => r.json()),
     ]);
     if (p.success) setPlots(p.data);
     if (w.success) setWorkers(w.data);
+    if (rc.success) {
+      setRoleCatalog(rc.data);
+      setWorkerForm(f => ({ ...f, role: f.role || rc.data.estate[0]?.value || "" }));
+    }
   };
   useEffect(() => { load(); }, []);
 
@@ -51,9 +57,17 @@ export default function EstatePage() {
     setPlotForm({ name: "", area_hectares: "" }); load();
   };
   const addWorker = async () => {
-    if (!workerForm.name) return;
-    await fetch(teaUrl("/estate/workers"), { method: "POST", headers: teaAuthHeaders(), body: JSON.stringify(workerForm) });
-    setWorkerForm({ name: "", phone: "", role: "plucker", employment_type: "permanent", plot_id: "", daily_wage: "" }); load();
+    if (!workerForm.name || !workerForm.role) return;
+    await fetch(teaUrl("/estate/workers"), {
+      method: "POST", headers: teaAuthHeaders(),
+      body: JSON.stringify({ ...workerForm, reports_to_id: workerForm.reports_to_id || undefined, plot_id: workerForm.plot_id || undefined }),
+    });
+    setWorkerForm(f => ({
+      name: "", phone: "", department: f.department,
+      role: (f.department === "factory" ? roleCatalog.factory : roleCatalog.estate)[0]?.value || "",
+      employment_type: "permanent", plot_id: "", reports_to_id: "", daily_wage: "",
+    }));
+    load();
   };
   const markAttendance = async () => {
     if (!attForm.worker_id) return;
@@ -81,7 +95,7 @@ export default function EstatePage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-lime-50 border border-lime-100 rounded-xl flex items-center justify-center"><Tractor size={18} className="text-lime-600" /></div>
-        <div><h1 className="text-xl font-bold text-gray-900 tracking-tight">Estate & Payroll</h1><p className="text-gray-500 text-xs">Own plots, workforce, attendance, wages, and worker insurance</p></div>
+        <div><h1 className="text-xl font-bold text-gray-900 tracking-tight">Estate & Factory Workforce</h1><p className="text-gray-500 text-xs">Plots, estate & factory employees, attendance, wages, and insurance</p></div>
       </div>
 
       <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit flex-wrap">
@@ -102,26 +116,52 @@ export default function EstatePage() {
             {plots.length > 0 && <div className="flex flex-wrap gap-2 mt-3">{plots.map(p => <span key={p.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{p.name}{p.area_hectares ? ` — ${p.area_hectares}ha` : ""}</span>)}</div>}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4 grid grid-cols-2 sm:grid-cols-6 gap-2">
-            <input placeholder="Worker name" value={workerForm.name} onChange={e => setWorkerForm({ ...workerForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
-            <input placeholder="Phone" value={workerForm.phone} onChange={e => setWorkerForm({ ...workerForm, phone: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
-            <select value={workerForm.role} onChange={e => setWorkerForm({ ...workerForm, role: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
-              {ROLES.map(r => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
-            </select>
-            <select value={workerForm.plot_id} onChange={e => setWorkerForm({ ...workerForm, plot_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
-              <option value="">Plot...</option>
-              {plots.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <input type="number" placeholder="Daily wage ₹" value={workerForm.daily_wage} onChange={e => setWorkerForm({ ...workerForm, daily_wage: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
-            <button onClick={addWorker} className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4">
+            <p className="text-gray-500 text-xs mb-2">Add estate or factory employee</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+              <input placeholder="Name" value={workerForm.name} onChange={e => setWorkerForm({ ...workerForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <input placeholder="Phone" value={workerForm.phone} onChange={e => setWorkerForm({ ...workerForm, phone: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <select value={workerForm.department} onChange={e => {
+                const dept = e.target.value;
+                const list = dept === "factory" ? roleCatalog.factory : roleCatalog.estate;
+                setWorkerForm({ ...workerForm, department: dept, role: list[0]?.value || "" });
+              }} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="estate">Estate</option>
+                <option value="factory">Factory</option>
+              </select>
+              <select value={workerForm.role} onChange={e => setWorkerForm({ ...workerForm, role: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                {(workerForm.department === "factory" ? roleCatalog.factory : roleCatalog.estate).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <select value={workerForm.employment_type} onChange={e => setWorkerForm({ ...workerForm, employment_type: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                {roleCatalog.employmentTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <select value={workerForm.plot_id} onChange={e => setWorkerForm({ ...workerForm, plot_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Plot...</option>
+                {plots.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <select value={workerForm.reports_to_id} onChange={e => setWorkerForm({ ...workerForm, reports_to_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Reports to...</option>
+                {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <input type="number" placeholder="Daily wage ₹" value={workerForm.daily_wage} onChange={e => setWorkerForm({ ...workerForm, daily_wage: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <button onClick={addWorker} className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            </div>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            {workers.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No estate workers yet.</div> : (
+            {workers.length === 0 ? <div className="p-8 text-center text-gray-600 text-sm">No estate or factory employees yet.</div> : (
               <table className="w-full"><tbody>
                 {workers.map(w => (
                   <tr key={w.id} className="border-b border-gray-100">
-                    <td className="px-4 py-3 text-gray-900 text-sm font-medium">{w.name}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs capitalize">{w.role.replace("_", " ")}</td>
+                    <td className="px-4 py-3">
+                      <p className="text-gray-900 text-sm font-medium">{w.name}</p>
+                      <p className="text-gray-400 text-[11px] capitalize">{(w.employment_type || "permanent").replace("_", " ")}{w.reports_to_name ? ` · reports to ${w.reports_to_name}` : ""}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${w.department === "factory" ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}>{w.department || "estate"}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs capitalize">{(roleCatalog[(w.department === "factory" ? "factory" : "estate") as "estate" | "factory"].find(r => r.value === w.role)?.label) || w.role.replace(/_/g, " ")}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{w.plot_name || "—"}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">₹{w.daily_wage}/day</td>
                   </tr>
