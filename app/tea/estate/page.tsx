@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tractor, Plus, Wallet, ShieldCheck, CalendarCheck } from "lucide-react";
+import { Tractor, Plus, Wallet, ShieldCheck, CalendarCheck, Home, Stethoscope, MapPinned, LogOut } from "lucide-react";
 import { teaAuthHeaders, teaUrl } from "@/lib/tea-api";
 
-interface Plot { id: string; name: string; area_hectares: number | null; }
+interface Plot { id: string; name: string; area_hectares: number | null; estate_id: string | null; estate_name: string | null; }
+interface Estate {
+  id: string; name: string; acres: number | null; leaf_type: string | null; location: string | null;
+  supervisor_id: string | null; supervisor_name: string | null; manager_id: string | null; manager_name: string | null;
+  field_count: number;
+}
+interface GuestHouse { id: string; name: string; location: string | null; total_rooms: number; occupied_rooms: number; }
+interface GuestHouseAssignment { id: string; guest_house_id: string; guest_house_name: string; worker_id: string; worker_name: string; room_number: string | null; check_in_date: string; check_out_date: string | null; is_active: boolean; }
+interface MedicalFacility { id: string; name: string; location: string | null; facility_type: string; pharmacist_id: string | null; pharmacist_name: string | null; contact_phone: string | null; }
 interface Worker { id: string; name: string; phone: string; role: string; department: string; employment_type: string; plot_id: string | null; plot_name: string | null; reports_to_id: string | null; reports_to_name: string | null; daily_wage: number; is_active: boolean; }
 interface WageTotal { worker_id: string; worker_name: string; role: string; days_present: number; days_absent: number; total_wage: number; }
 interface PayrollRun { id: string; worker_id: string; worker_name: string; period_start: string; period_end: string; gross_wage: number; epf: number; esi: number; tds: number; net_pay: number; status: string; }
@@ -25,15 +33,23 @@ const today = () => new Date().toISOString().slice(0, 10);
 const weekAgo = () => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
 export default function EstatePage() {
-  const [tab, setTab] = useState<"workers" | "attendance" | "payroll" | "insurance">("workers");
+  const [tab, setTab] = useState<"workers" | "estates" | "facilities" | "attendance" | "payroll" | "insurance">("workers");
   const [plots, setPlots] = useState<Plot[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [wageTotals, setWageTotals] = useState<WageTotal[]>([]);
   const [payroll, setPayroll] = useState<PayrollRun[]>([]);
   const [insurance, setInsurance] = useState<Insurance[]>([]);
   const [roleCatalog, setRoleCatalog] = useState<{ estate: RoleOption[]; factory: RoleOption[]; employmentTypes: RoleOption[] }>({ estate: [], factory: [], employmentTypes: [] });
+  const [estates, setEstates] = useState<Estate[]>([]);
+  const [guestHouses, setGuestHouses] = useState<GuestHouse[]>([]);
+  const [ghAssignments, setGhAssignments] = useState<GuestHouseAssignment[]>([]);
+  const [medicalFacilities, setMedicalFacilities] = useState<MedicalFacility[]>([]);
 
-  const [plotForm, setPlotForm] = useState({ name: "", area_hectares: "" });
+  const [plotForm, setPlotForm] = useState({ name: "", area_hectares: "", estate_id: "" });
+  const [estateForm, setEstateForm] = useState({ name: "", acres: "", leaf_type: "", location: "", supervisor_id: "", manager_id: "" });
+  const [ghForm, setGhForm] = useState({ name: "", location: "", total_rooms: "1" });
+  const [ghAssignForm, setGhAssignForm] = useState({ guest_house_id: "", worker_id: "", room_number: "" });
+  const [medForm, setMedForm] = useState({ name: "", location: "", facility_type: "dispensary", pharmacist_id: "", contact_phone: "" });
   const [workerForm, setWorkerForm] = useState({ name: "", phone: "", department: "estate", role: "", employment_type: "permanent", plot_id: "", reports_to_id: "", daily_wage: "" });
   const [attForm, setAttForm] = useState({ worker_id: "", attendance_date: today(), status: "present" });
   const [range, setRange] = useState({ from: weekAgo(), to: today() });
@@ -41,29 +57,84 @@ export default function EstatePage() {
   const [insForm, setInsForm] = useState({ worker_id: "", type: "group_health", provider: "", policy_number: "", expiry_date: "" });
 
   const load = async () => {
-    const [p, w, rc] = await Promise.all([
+    const [p, w, rc, e] = await Promise.all([
       fetch(teaUrl("/estate/plots"), { headers: teaAuthHeaders() }).then(r => r.json()),
       fetch(teaUrl("/estate/workers"), { headers: teaAuthHeaders() }).then(r => r.json()),
       fetch(teaUrl("/estate/roles-catalog"), { headers: teaAuthHeaders() }).then(r => r.json()).catch(() => null),
+      fetch(teaUrl("/estates"), { headers: teaAuthHeaders() }).then(r => r.json()).catch(() => null),
     ]);
     if (p.success) setPlots(p.data);
     if (w.success) setWorkers(w.data);
     const catalog = rc?.success ? rc.data : FALLBACK_CATALOG;
     setRoleCatalog(catalog);
     setWorkerForm(f => ({ ...f, role: f.role || catalog.estate[0]?.value || "" }));
+    if (e?.success) setEstates(e.data);
   };
   useEffect(() => { load(); }, []);
+
+  const loadFacilities = async () => {
+    const [e, gh, gha, med] = await Promise.all([
+      fetch(teaUrl("/estates"), { headers: teaAuthHeaders() }).then(r => r.json()),
+      fetch(teaUrl("/guest-houses"), { headers: teaAuthHeaders() }).then(r => r.json()),
+      fetch(teaUrl("/guest-house-assignments?active_only=true"), { headers: teaAuthHeaders() }).then(r => r.json()),
+      fetch(teaUrl("/medical-facilities"), { headers: teaAuthHeaders() }).then(r => r.json()),
+    ]);
+    if (e.success) setEstates(e.data);
+    if (gh.success) setGuestHouses(gh.data);
+    if (gha.success) setGhAssignments(gha.data);
+    if (med.success) setMedicalFacilities(med.data);
+  };
 
   useEffect(() => {
     if (tab === "attendance") fetch(teaUrl(`/estate/wage-totals?from=${range.from}&to=${range.to}`), { headers: teaAuthHeaders() }).then(r => r.json()).then(d => d.success && setWageTotals(d.data));
     if (tab === "payroll") fetch(teaUrl("/payroll"), { headers: teaAuthHeaders() }).then(r => r.json()).then(d => d.success && setPayroll(d.data));
     if (tab === "insurance") fetch(teaUrl("/worker-insurance"), { headers: teaAuthHeaders() }).then(r => r.json()).then(d => d.success && setInsurance(d.data));
+    if (tab === "estates" || tab === "facilities") loadFacilities();
   }, [tab, range.from, range.to]);
+
+  const addEstate = async () => {
+    if (!estateForm.name) return;
+    await fetch(teaUrl("/estates"), {
+      method: "POST", headers: teaAuthHeaders(),
+      body: JSON.stringify({ ...estateForm, supervisor_id: estateForm.supervisor_id || undefined, manager_id: estateForm.manager_id || undefined }),
+    });
+    setEstateForm({ name: "", acres: "", leaf_type: "", location: "", supervisor_id: "", manager_id: "" });
+    loadFacilities();
+  };
+  const addFieldToEstate = async (estateId: string) => {
+    if (!plotForm.name) return;
+    await fetch(teaUrl("/estate/plots"), { method: "POST", headers: teaAuthHeaders(), body: JSON.stringify({ ...plotForm, estate_id: estateId }) });
+    setPlotForm({ name: "", area_hectares: "", estate_id: "" });
+    load(); loadFacilities();
+  };
+  const addGuestHouse = async () => {
+    if (!ghForm.name) return;
+    await fetch(teaUrl("/guest-houses"), { method: "POST", headers: teaAuthHeaders(), body: JSON.stringify(ghForm) });
+    setGhForm({ name: "", location: "", total_rooms: "1" }); loadFacilities();
+  };
+  const assignGuestHouse = async () => {
+    if (!ghAssignForm.guest_house_id || !ghAssignForm.worker_id) return;
+    await fetch(teaUrl("/guest-house-assignments"), { method: "POST", headers: teaAuthHeaders(), body: JSON.stringify(ghAssignForm) });
+    setGhAssignForm({ guest_house_id: "", worker_id: "", room_number: "" }); loadFacilities();
+  };
+  const checkoutGuestHouse = async (assignmentId: string) => {
+    await fetch(teaUrl(`/guest-house-assignments/${assignmentId}/checkout`), { method: "PUT", headers: teaAuthHeaders() });
+    loadFacilities();
+  };
+  const addMedicalFacility = async () => {
+    if (!medForm.name) return;
+    await fetch(teaUrl("/medical-facilities"), {
+      method: "POST", headers: teaAuthHeaders(),
+      body: JSON.stringify({ ...medForm, pharmacist_id: medForm.pharmacist_id || undefined }),
+    });
+    setMedForm({ name: "", location: "", facility_type: "dispensary", pharmacist_id: "", contact_phone: "" });
+    loadFacilities();
+  };
 
   const addPlot = async () => {
     if (!plotForm.name) return;
     await fetch(teaUrl("/estate/plots"), { method: "POST", headers: teaAuthHeaders(), body: JSON.stringify(plotForm) });
-    setPlotForm({ name: "", area_hectares: "" }); load();
+    setPlotForm({ name: "", area_hectares: "", estate_id: "" }); load();
   };
   const addWorker = async () => {
     if (!workerForm.name || !workerForm.role) return;
@@ -108,7 +179,7 @@ export default function EstatePage() {
       </div>
 
       <div className="flex gap-1 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-1 w-fit flex-wrap">
-        {([["workers", "Workers & Plots"], ["attendance", "Attendance & Wages"], ["payroll", "Payroll"], ["insurance", "Insurance"]] as const).map(([k, l]) => (
+        {([["workers", "Workers & Plots"], ["estates", "Estates"], ["facilities", "Facilities"], ["attendance", "Attendance & Wages"], ["payroll", "Payroll"], ["insurance", "Insurance"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-xs transition-all ${tab === k ? "bg-white text-emerald-700 shadow-sm border border-gray-200" : "text-gray-500 hover:text-gray-900"}`}>{l}</button>
         ))}
       </div>
@@ -116,13 +187,17 @@ export default function EstatePage() {
       {tab === "workers" && (
         <>
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4">
-            <p className="text-gray-500 text-xs mb-2">Add estate plot</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <p className="text-gray-500 text-xs mb-2">Add estate plot / field</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <input placeholder="Plot name" value={plotForm.name} onChange={e => setPlotForm({ ...plotForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
               <input type="number" placeholder="Area (hectares)" value={plotForm.area_hectares} onChange={e => setPlotForm({ ...plotForm, area_hectares: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <select value={plotForm.estate_id} onChange={e => setPlotForm({ ...plotForm, estate_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Estate (optional)...</option>
+                {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
               <button onClick={addPlot} className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add Plot</button>
             </div>
-            {plots.length > 0 && <div className="flex flex-wrap gap-2 mt-3">{plots.map(p => <span key={p.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{p.name}{p.area_hectares ? ` — ${p.area_hectares}ha` : ""}</span>)}</div>}
+            {plots.length > 0 && <div className="flex flex-wrap gap-2 mt-3">{plots.map(p => <span key={p.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{p.name}{p.area_hectares ? ` — ${p.area_hectares}ha` : ""}{p.estate_name ? ` · ${p.estate_name}` : ""}</span>)}</div>}
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4">
@@ -179,6 +254,148 @@ export default function EstatePage() {
             )}
           </div>
         </>
+      )}
+
+      {tab === "estates" && (
+        <>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4">
+            <p className="text-gray-500 text-xs mb-2">Add tea estate</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+              <input placeholder="Estate name" value={estateForm.name} onChange={e => setEstateForm({ ...estateForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <input type="number" placeholder="Acres" value={estateForm.acres} onChange={e => setEstateForm({ ...estateForm, acres: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <input placeholder="Type of leaf (e.g. Orthodox, CTC)" value={estateForm.leaf_type} onChange={e => setEstateForm({ ...estateForm, leaf_type: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <input placeholder="Location" value={estateForm.location} onChange={e => setEstateForm({ ...estateForm, location: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <select value={estateForm.supervisor_id} onChange={e => setEstateForm({ ...estateForm, supervisor_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Supervisor...</option>
+                {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <select value={estateForm.manager_id} onChange={e => setEstateForm({ ...estateForm, manager_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Manager...</option>
+                {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <button onClick={addEstate} className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add Estate</button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {estates.length === 0 ? (
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8 text-center text-gray-600 text-sm">No tea estates added yet.</div>
+            ) : estates.map(e => (
+              <div key={e.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <MapPinned size={16} className="text-lime-600" />
+                    <p className="text-gray-900 font-semibold text-sm">{e.name}</p>
+                    <span className="text-xs bg-lime-50 text-lime-700 px-2 py-0.5 rounded-full">{e.field_count} field{e.field_count === 1 ? "" : "s"}</span>
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    {e.acres ? `${e.acres} acres` : "—"}{e.leaf_type ? ` · ${e.leaf_type}` : ""}{e.location ? ` · ${e.location}` : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                  <span>Supervisor: {e.supervisor_name || "—"}</span>
+                  <span>Manager: {e.manager_name || "—"}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {plots.filter(p => p.estate_id === e.id).map(p => (
+                    <span key={p.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{p.name}{p.area_hectares ? ` — ${p.area_hectares}ha` : ""}</span>
+                  ))}
+                  {plots.filter(p => p.estate_id === e.id).length === 0 && <span className="text-xs text-gray-400">No fields assigned yet — add one from Workers &amp; Plots, or below.</span>}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <input placeholder="New field name" value={plotForm.estate_id === e.id ? plotForm.name : ""} onFocus={() => setPlotForm(f => ({ ...f, estate_id: e.id }))}
+                    onChange={ev => setPlotForm({ ...plotForm, name: ev.target.value, estate_id: e.id })}
+                    className="flex-1 bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900" />
+                  <input type="number" placeholder="ha" value={plotForm.estate_id === e.id ? plotForm.area_hectares : ""}
+                    onChange={ev => setPlotForm({ ...plotForm, area_hectares: ev.target.value, estate_id: e.id })}
+                    className="w-20 bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-1.5 text-xs text-gray-900" />
+                  <button onClick={() => addFieldToEstate(e.id)} className="text-xs bg-lime-600/20 hover:bg-lime-600/30 text-lime-700 px-3 py-1.5 rounded-lg font-medium">Add Field</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === "facilities" && (
+        <div className="space-y-6">
+          {/* Guest Houses */}
+          <div>
+            <p className="text-gray-700 text-sm font-semibold mb-2 flex items-center gap-1.5"><Home size={14} className="text-blue-600" /> Guest Houses</p>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <input placeholder="Guest house name" value={ghForm.name} onChange={e => setGhForm({ ...ghForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <input placeholder="Location" value={ghForm.location} onChange={e => setGhForm({ ...ghForm, location: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <input type="number" placeholder="Total rooms" value={ghForm.total_rooms} onChange={e => setGhForm({ ...ghForm, total_rooms: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <button onClick={addGuestHouse} className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            </div>
+            {guestHouses.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {guestHouses.map(g => <span key={g.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{g.name}: {g.occupied_rooms}/{g.total_rooms} rooms occupied</span>)}
+              </div>
+            )}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <select value={ghAssignForm.guest_house_id} onChange={e => setGhAssignForm({ ...ghAssignForm, guest_house_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Guest house...</option>
+                {guestHouses.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <select value={ghAssignForm.worker_id} onChange={e => setGhAssignForm({ ...ghAssignForm, worker_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Worker...</option>
+                {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <input placeholder="Room #" value={ghAssignForm.room_number} onChange={e => setGhAssignForm({ ...ghAssignForm, room_number: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <button onClick={assignGuestHouse} className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Assign Worker</button>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              {ghAssignments.length === 0 ? <div className="p-6 text-center text-gray-600 text-sm">No active guest house assignments.</div> : (
+                <table className="w-full"><tbody>
+                  {ghAssignments.map(a => (
+                    <tr key={a.id} className="border-b border-gray-100">
+                      <td className="px-4 py-2.5 text-gray-900 text-sm">{a.worker_name}</td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs">{a.guest_house_name}{a.room_number ? ` · Room ${a.room_number}` : ""}</td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs">Since {new Date(a.check_in_date).toLocaleDateString("en-IN")}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button onClick={() => checkoutGuestHouse(a.id)} className="flex items-center gap-1 ml-auto text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg"><LogOut size={11} /> Check Out</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody></table>
+              )}
+            </div>
+          </div>
+
+          {/* Medical Facilities */}
+          <div>
+            <p className="text-gray-700 text-sm font-semibold mb-2 flex items-center gap-1.5"><Stethoscope size={14} className="text-red-600" /> Medical Facilities</p>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <input placeholder="Facility name" value={medForm.name} onChange={e => setMedForm({ ...medForm, name: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <input placeholder="Location" value={medForm.location} onChange={e => setMedForm({ ...medForm, location: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900" />
+              <select value={medForm.facility_type} onChange={e => setMedForm({ ...medForm, facility_type: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="dispensary">Dispensary</option><option value="clinic">Clinic</option><option value="hospital">Hospital</option>
+              </select>
+              <select value={medForm.pharmacist_id} onChange={e => setMedForm({ ...medForm, pharmacist_id: e.target.value })} className="bg-white border border-gray-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors px-3 py-2 text-sm text-gray-900">
+                <option value="">Pharmacist...</option>
+                {workers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <button onClick={addMedicalFacility} className="flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 shadow-sm transition-colors text-white rounded-lg text-sm font-medium"><Plus size={14} /> Add</button>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              {medicalFacilities.length === 0 ? <div className="p-6 text-center text-gray-600 text-sm">No medical facilities added yet.</div> : (
+                <table className="w-full"><tbody>
+                  {medicalFacilities.map(m => (
+                    <tr key={m.id} className="border-b border-gray-100">
+                      <td className="px-4 py-2.5 text-gray-900 text-sm">{m.name}</td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs capitalize">{m.facility_type}</td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs">{m.location || "—"}</td>
+                      <td className="px-4 py-2.5 text-gray-500 text-xs">Pharmacist: {m.pharmacist_name || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody></table>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {tab === "attendance" && (

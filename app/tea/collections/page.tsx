@@ -10,9 +10,11 @@ interface Entry {
   id: string; grower_id: string; grower_name: string; grower_code: string;
   gross_weight: number; moisture_deduction_kg: number; net_weight: number; grade: string;
 }
-interface Batch { id: string; collection_date: string; total_kg: number; grower_count: number; status: string; stage?: string; made_tea_kg?: number | null; yield_pct?: number | null; }
+interface Batch { id: string; collection_date: string; total_kg: number; grower_count: number; status: string; stage?: string; made_tea_kg?: number | null; yield_pct?: number | null; wastage_kg?: number | null; }
+interface ProductionGrade { grade: string; kg: number; }
 
 const PRODUCTION_STAGES = ["intake", "withering", "firing", "grading", "packaging", "dispatched"];
+const PRODUCTION_GRADES = ["A", "B", "C", "Dust"];
 
 export default function CollectionsPage() {
   const [growers, setGrowers]     = useState<Grower[]>([]);
@@ -30,6 +32,8 @@ export default function CollectionsPage() {
   const [grade, setGrade]               = useState("A");
   const [notes, setNotes]               = useState("");
   const [madeTeaKg, setMadeTeaKg]       = useState("");
+  const [wastageKg, setWastageKg]       = useState("");
+  const [gradeKgs, setGradeKgs]         = useState<Record<string, string>>({});
   const [updatingStage, setUpdatingStage] = useState(false);
 
   const netWeight = grossWeight
@@ -53,8 +57,18 @@ export default function CollectionsPage() {
     const d = await r.json();
     const b = d.success && d.data.length > 0 ? d.data[0] : null;
     setBatch(b);
-    if (b) loadEntries(b.id);
-    else setEntries([]);
+    if (b) {
+      loadEntries(b.id);
+      setWastageKg(b.wastage_kg != null ? String(b.wastage_kg) : "");
+      const gr = await fetch(teaUrl(`/collections/batches/${b.id}/grades`), { headers: teaAuthHeaders() }).then(r2 => r2.json());
+      if (gr.success) {
+        const next: Record<string, string> = {};
+        for (const row of gr.data as ProductionGrade[]) next[row.grade] = String(row.kg);
+        setGradeKgs(next);
+      } else setGradeKgs({});
+    } else {
+      setEntries([]); setWastageKg(""); setGradeKgs({});
+    }
   };
 
   const loadEntries = async (batchId: string) => {
@@ -102,6 +116,11 @@ export default function CollectionsPage() {
     const body: any = { stage };
     if (stage === "packaging" || stage === "dispatched") {
       if (madeTeaKg) body.made_tea_kg = parseFloat(madeTeaKg);
+      if (wastageKg) body.wastage_kg = parseFloat(wastageKg);
+      const grades = PRODUCTION_GRADES
+        .filter(g => gradeKgs[g])
+        .map(g => ({ grade: g, kg: parseFloat(gradeKgs[g]) }));
+      if (grades.length) body.grades = grades;
     }
     const r = await fetch(teaUrl(`/collections/batches/${batch.id}/stage`), {
       method: "PATCH", headers: teaAuthHeaders(), body: JSON.stringify(body),
@@ -206,12 +225,26 @@ export default function CollectionsPage() {
               );
             })}
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap mb-3">
             <input type="number" placeholder="Made tea (kg)" value={madeTeaKg} onChange={e => setMadeTeaKg(e.target.value)}
               className="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 w-40" />
+            <input type="number" placeholder="Wastage (kg)" value={wastageKg} onChange={e => setWastageKg(e.target.value)}
+              className="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 w-36" />
             {batch.made_tea_kg != null && (
-              <span className="text-gray-500 text-xs">Made tea: {Number(batch.made_tea_kg).toFixed(2)} kg{batch.yield_pct != null ? ` · Yield ${batch.yield_pct}%` : ""}</span>
+              <span className="text-gray-500 text-xs">Made tea: {Number(batch.made_tea_kg).toFixed(2)} kg{batch.yield_pct != null ? ` · Yield ${batch.yield_pct}%` : ""}{batch.wastage_kg != null ? ` · Wastage ${Number(batch.wastage_kg).toFixed(2)} kg` : ""}</span>
             )}
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs mb-2">Made tea by grade (kg)</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {PRODUCTION_GRADES.map(g => (
+                <div key={g} className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500 w-10">{g}</span>
+                  <input type="number" placeholder="kg" value={gradeKgs[g] || ""} onChange={e => setGradeKgs({ ...gradeKgs, [g]: e.target.value })}
+                    className="bg-gray-100 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-900 w-24" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
