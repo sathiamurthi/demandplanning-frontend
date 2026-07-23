@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Plus, X, Edit, Factory, Truck, Fuel, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Settings, Plus, X, Edit, Factory, Truck, Fuel, ChevronDown, ChevronUp, Trash2, Download } from "lucide-react";
 import { teaUrl, teaAuthHeaders } from "@/lib/tea-api";
 
 type SettingsTab = "rates" | "factories" | "vehicles";
@@ -59,6 +59,7 @@ export default function SettingsPage() {
     fuel_type: "diesel", liters: "", rate_per_liter: "", total_cost: "", odometer_km: "",
   });
   const [fuelSaving, setFuelSaving] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
 
   const load = async () => {
     const [rr, fr, vr] = await Promise.all([
@@ -188,6 +189,23 @@ export default function SettingsPage() {
     } catch {}
   };
 
+  const downloadBackup = async () => {
+    setBackingUp(true);
+    try {
+      const r = await fetch(teaUrl("/backup/export"), { headers: teaAuthHeaders() });
+      const d = await r.json();
+      if (!d.success) { alert(d.error || "Backup export failed"); return; }
+      const blob = new Blob([JSON.stringify(d.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `teafactory360-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert("Error generating backup"); }
+    setBackingUp(false);
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -200,10 +218,16 @@ export default function SettingsPage() {
             <p className="text-gray-500 text-xs">Rates, factories, and vehicles</p>
           </div>
         </div>
-        <button onClick={() => { setEditFactory(null); setEditVehicle(null); setShowForm(true); }}
-          className="flex items-center gap-2 bg-[#6c63ff]/80 hover:bg-[#6c63ff] text-white px-4 py-2 rounded-xl text-sm font-medium">
-          <Plus size={15} /> Add New
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={downloadBackup} disabled={backingUp}
+            className="flex items-center gap-2 border border-gray-200 hover:bg-gray-50 disabled:opacity-40 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium">
+            <Download size={15} /> {backingUp ? "Preparing..." : "Download Backup"}
+          </button>
+          <button onClick={() => { setEditFactory(null); setEditVehicle(null); setShowForm(true); }}
+            className="flex items-center gap-2 bg-[#6c63ff]/80 hover:bg-[#6c63ff] text-white px-4 py-2 rounded-xl text-sm font-medium">
+            <Plus size={15} /> Add New
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
