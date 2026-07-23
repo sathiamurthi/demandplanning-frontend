@@ -554,12 +554,10 @@ export default function HomePage() {
                 <Link href="/tea" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
                   Open TeaFactory360
                 </Link>
-                <div className="flex items-center justify-center gap-3 text-[11px] font-semibold">
-                  <Link href="/tea-register" className="text-emerald-700 hover:text-emerald-800">Register Factory</Link>
-                  <span className="text-gray-300">·</span>
-                  <Link href="/tea-login" className="text-emerald-700 hover:text-emerald-800">Factory Sign In</Link>
-                  <span className="text-gray-300">·</span>
-                  <Link href="/agent-login" className="text-emerald-700 hover:text-emerald-800">Agent Login</Link>
+                <div className="grid grid-cols-3 divide-x divide-gray-200 text-center text-[11px] font-semibold">
+                  <Link href="/tea-register" className="text-emerald-700 hover:text-emerald-800 whitespace-nowrap">Register</Link>
+                  <Link href="/tea-login" className="text-emerald-700 hover:text-emerald-800 whitespace-nowrap">Sign In</Link>
+                  <Link href="/agent-login" className="text-emerald-700 hover:text-emerald-800 whitespace-nowrap">Agent</Link>
                 </div>
               </div>
             </div>
