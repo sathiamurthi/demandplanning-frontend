@@ -9,6 +9,7 @@ import {
   Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck,
   Sparkles, MapPin, Bell, LogOut, Rocket, UserCog,
   ClipboardCheck, Zap, HardHat, FileText, BarChart2, Archive,
+  Scale, FlaskConical, Smartphone,
 } from "lucide-react";
 import { teaFetch } from "@/lib/tea-api";
 
@@ -28,12 +29,17 @@ const nav = [
   { href: "/tea/payments",   icon: Wallet,          label: "Payments",         moduleKey: "settlements" },
 
   // ── Factory Management (new tf_* module) ─────────────────────────────
-  { href: "/tea/factory/shift",    icon: ClipboardCheck, label: "Shift Log",      moduleKey: "factory_shift",    divider: true },
-  { href: "/tea/factory/made-tea", icon: Archive,        label: "Made Tea Stock", moduleKey: "factory_stock" },
-  { href: "/tea/factory/energy",   icon: Zap,            label: "Energy & Fuel",  moduleKey: "factory_energy" },
-  { href: "/tea/factory/mandays",  icon: HardHat,        label: "Mandays",        moduleKey: "factory_labour" },
-  { href: "/tea/factory/gate-pass",icon: FileText,       label: "Gate Pass",      moduleKey: "factory_dispatch" },
-  { href: "/tea/factory/tally",    icon: BarChart2,      label: "Monthly Tally",  moduleKey: "factory_tally" },
+  { href: "/tea/factory/dashboard",    icon: LayoutDashboard, label: "Factory Dashboard", moduleKey: "factory_dash",     divider: true },
+  { href: "/tea/factory/intake",       icon: Scale,           label: "GL Intake (Waybridge)", moduleKey: "factory_intake" },
+  { href: "/tea/factory/batch",        icon: FlaskConical,    label: "Batch Production",  moduleKey: "factory_batch" },
+  { href: "/tea/factory/shift",        icon: ClipboardCheck,  label: "Shift Log",          moduleKey: "factory_shift" },
+  { href: "/tea/factory/made-tea",     icon: Archive,         label: "Made Tea Stock",     moduleKey: "factory_stock" },
+  { href: "/tea/factory/energy",       icon: Zap,             label: "Energy & Fuel",      moduleKey: "factory_energy" },
+  { href: "/tea/factory/mandays",      icon: HardHat,         label: "Mandays",            moduleKey: "factory_labour" },
+  { href: "/tea/factory/gate-pass",    icon: FileText,        label: "Gate Pass",          moduleKey: "factory_dispatch" },
+  { href: "/tea/factory/tally",        icon: BarChart2,       label: "Monthly Tally",      moduleKey: "factory_tally" },
+  { href: "/tea/factory/reports",      icon: BarChart3,       label: "Factory Reports",    moduleKey: "factory_reports" },
+  { href: "/tea/factory/phone-report", icon: Smartphone,      label: "Phone Report",       moduleKey: "factory_reports" },
 
   // ── Operations ────────────────────────────────────────────────────────
   { href: "/tea/suppliers",  icon: Package,         label: "Suppliers & Fuel", moduleKey: "suppliers",    divider: true },
