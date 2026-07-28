@@ -6,33 +6,50 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Leaf, LayoutDashboard, Users, ClipboardList, Truck,
   Factory, Wallet, BarChart3, Settings, ChevronLeft, ChevronRight,
-  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck, Sparkles, MapPin, Bell, LogOut, Rocket, UserCog,
+  Menu, X, Package, Tractor, Wrench, Boxes, ShoppingCart, ShieldCheck,
+  Sparkles, MapPin, Bell, LogOut, Rocket, UserCog,
+  ClipboardCheck, Zap, HardHat, FileText, BarChart2, Archive,
 } from "lucide-react";
 import { teaFetch } from "@/lib/tea-api";
 
 // moduleKey matches the backend's TEA_MODULES permission grid
 // (tea-roles.service.ts) — undefined means "always visible, not
 // delegable" (dashboard, setup, notifications, settings, team).
+// nav separator marker — items with divider:true render a thin rule above them
 const nav = [
-  { href: "/tea",            icon: LayoutDashboard, label: "Dashboard",    exact: true },
+  { href: "/tea",            icon: LayoutDashboard, label: "Dashboard",       exact: true },
   { href: "/tea/onboarding", icon: Rocket,          label: "Setup" },
-  { href: "/tea/growers",    icon: Users,           label: "Growers",             moduleKey: "growers" },
-  { href: "/tea/collections",icon: ClipboardList,   label: "Collections",        moduleKey: "collections" },
-  { href: "/tea/dispatch",   icon: Truck,           label: "Dispatch",           moduleKey: "dispatch" },
-  { href: "/tea/settlements",icon: Factory,         label: "Settlement",         moduleKey: "settlements" },
-  { href: "/tea/payments",   icon: Wallet,          label: "Payments",           moduleKey: "settlements" },
-  { href: "/tea/suppliers",  icon: Package,         label: "Suppliers & Fuel",   moduleKey: "suppliers" },
-  { href: "/tea/fleet",      icon: MapPin,          label: "Fleet & Live Map",   moduleKey: "fleet" },
-  { href: "/tea/estate",     icon: Tractor,         label: "Estate & Payroll",   moduleKey: "estate" },
-  { href: "/tea/machinery",  icon: Wrench,          label: "Machinery & Vendors",moduleKey: "machinery" },
-  { href: "/tea/inventory",  icon: Boxes,           label: "Inventory",          moduleKey: "inventory" },
-  { href: "/tea/sales",      icon: ShoppingCart,    label: "Sales & Auction",    moduleKey: "sales" },
-  { href: "/tea/compliance", icon: ShieldCheck,     label: "Compliance",        moduleKey: "compliance" },
-  { href: "/tea/ai",         icon: Sparkles,        label: "AI Assistant",      moduleKey: "ai" },
-  { href: "/tea/notifications", icon: Bell,         label: "Notifications" },
-  { href: "/tea/reports",    icon: BarChart3,       label: "Reports",           moduleKey: "reports" },
-  { href: "/tea/team",       icon: UserCog,         label: "Team & Roles" },
-  { href: "/tea/settings",   icon: Settings,        label: "Settings" },
+
+  // ── Collection & Trade ───────────────────────────────────────────────
+  { href: "/tea/growers",    icon: Users,           label: "Growers",          moduleKey: "growers",     divider: true },
+  { href: "/tea/collections",icon: ClipboardList,   label: "Collections",      moduleKey: "collections" },
+  { href: "/tea/dispatch",   icon: Truck,           label: "Dispatch",         moduleKey: "dispatch" },
+  { href: "/tea/settlements",icon: Factory,         label: "Settlement",       moduleKey: "settlements" },
+  { href: "/tea/payments",   icon: Wallet,          label: "Payments",         moduleKey: "settlements" },
+
+  // ── Factory Management (new tf_* module) ─────────────────────────────
+  { href: "/tea/factory/shift",    icon: ClipboardCheck, label: "Shift Log",      moduleKey: "factory_shift",    divider: true },
+  { href: "/tea/factory/made-tea", icon: Archive,        label: "Made Tea Stock", moduleKey: "factory_stock" },
+  { href: "/tea/factory/energy",   icon: Zap,            label: "Energy & Fuel",  moduleKey: "factory_energy" },
+  { href: "/tea/factory/mandays",  icon: HardHat,        label: "Mandays",        moduleKey: "factory_labour" },
+  { href: "/tea/factory/gate-pass",icon: FileText,       label: "Gate Pass",      moduleKey: "factory_dispatch" },
+  { href: "/tea/factory/tally",    icon: BarChart2,      label: "Monthly Tally",  moduleKey: "factory_tally" },
+
+  // ── Operations ────────────────────────────────────────────────────────
+  { href: "/tea/suppliers",  icon: Package,         label: "Suppliers & Fuel", moduleKey: "suppliers",    divider: true },
+  { href: "/tea/fleet",      icon: MapPin,          label: "Fleet & Live Map", moduleKey: "fleet" },
+  { href: "/tea/estate",     icon: Tractor,         label: "Estate & Payroll", moduleKey: "estate" },
+  { href: "/tea/machinery",  icon: Wrench,          label: "Machinery",        moduleKey: "machinery" },
+  { href: "/tea/inventory",  icon: Boxes,           label: "Inventory",        moduleKey: "inventory" },
+  { href: "/tea/sales",      icon: ShoppingCart,    label: "Sales & Auction",  moduleKey: "sales" },
+  { href: "/tea/compliance", icon: ShieldCheck,     label: "Compliance",       moduleKey: "compliance" },
+
+  // ── Platform ──────────────────────────────────────────────────────────
+  { href: "/tea/ai",            icon: Sparkles,  label: "AI Assistant",  moduleKey: "ai",      divider: true },
+  { href: "/tea/notifications", icon: Bell,      label: "Notifications" },
+  { href: "/tea/reports",       icon: BarChart3, label: "Reports",       moduleKey: "reports" },
+  { href: "/tea/team",          icon: UserCog,   label: "Team & Roles" },
+  { href: "/tea/settings",      icon: Settings,  label: "Settings" },
 ];
 // Items with no moduleKey are only ever shown to owner/manager/superadmin
 // (never part of a delegated custom role's grant) — Setup, Team, Settings.
@@ -160,22 +177,26 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
             const Icon = item.icon;
             const active = isActive(item);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  relative flex items-center gap-3 px-4 py-2.5 mx-2 my-0.5 rounded-lg text-sm transition-colors
-                  ${active
-                    ? "bg-emerald-50 text-emerald-700 font-medium"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}
-                  ${collapsed ? "justify-center px-2" : ""}
-                `}
-                title={collapsed ? item.label : undefined}
-              >
-                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-emerald-500" />}
-                <Icon size={16} className={active ? "text-emerald-600" : "text-gray-400"} />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
+              <div key={item.href}>
+                {(item as any).divider && !collapsed && (
+                  <div className="mx-4 my-1.5 border-t border-gray-100" />
+                )}
+                <Link
+                  href={item.href}
+                  className={`
+                    relative flex items-center gap-3 px-4 py-2.5 mx-2 my-0.5 rounded-lg text-sm transition-colors
+                    ${active
+                      ? "bg-emerald-50 text-emerald-700 font-medium"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}
+                    ${collapsed ? "justify-center px-2" : ""}
+                  `}
+                  title={collapsed ? item.label : undefined}
+                >
+                  {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-emerald-500" />}
+                  <Icon size={16} className={active ? "text-emerald-600" : "text-gray-400"} />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              </div>
             );
           })}
         </nav>
