@@ -11,20 +11,29 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
   return R * 2 * Math.asin(Math.sqrt(h));
 }
 
+export function isLocationInIndia(lat: number, lng: number): boolean {
+  return lat >= 6.0 && lat <= 38.0 && lng >= 68.0 && lng <= 99.0;
+}
+
 /** Free, keyless address search via OpenStreetMap Nominatim. */
 export async function searchAddress(query: string): Promise<GeoPoint[]> {
   if (!query.trim()) return [];
   const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`,
+    `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=in&q=${encodeURIComponent(query)}`,
     { headers: { Accept: "application/json" } }
   );
   if (!res.ok) return [];
   const data = await res.json();
-  return (data as any[]).map(d => ({ lat: parseFloat(d.lat), lng: parseFloat(d.lon), address: d.display_name as string }));
+  return (data as any[])
+    .map(d => ({ lat: parseFloat(d.lat), lng: parseFloat(d.lon), address: d.display_name as string }))
+    .filter(p => isLocationInIndia(p.lat, p.lng));
 }
 
 /** Free, keyless reverse geocoding via OpenStreetMap Nominatim. */
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  if (!isLocationInIndia(lat, lng)) {
+    return "Location outside India";
+  }
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
       headers: { Accept: "application/json" },

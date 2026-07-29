@@ -117,7 +117,9 @@ function ProfileCard({ data }: { data: TranscriptData }) {
   const print = () => {
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>Academic Profile – ${data.name}</title>
+    w.document.write(`<!DOCTYPE html><html><head>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1642832204354188"
+     crossorigin="anonymous"></script><title>Academic Profile – ${data.name}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;color:#0f172a;background:#fff;padding:40px;max-width:760px;margin:0 auto;font-size:13px;line-height:1.6}

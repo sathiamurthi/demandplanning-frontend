@@ -2,7 +2,8 @@
 
 import { useState, useRef } from "react";
 import { MapPin, Loader2, Crosshair } from "lucide-react";
-import { searchAddress, reverseGeocode } from "../lib/geo";
+import { toast } from "react-toastify";
+import { searchAddress, reverseGeocode, isLocationInIndia } from "../lib/geo";
 import type { GeoPoint } from "../lib/types";
 
 export default function LocationPicker({
@@ -40,8 +41,14 @@ export default function LocationPicker({
     if (!navigator.geolocation) return;
     setLoading(true);
     navigator.geolocation.getCurrentPosition(async (pos) => {
-      const address = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-      pick({ lat: pos.coords.latitude, lng: pos.coords.longitude, address });
+      const { latitude, longitude } = pos.coords;
+      if (!isLocationInIndia(latitude, longitude)) {
+        toast.error("Location must be in India.");
+        setLoading(false);
+        return;
+      }
+      const address = await reverseGeocode(latitude, longitude);
+      pick({ lat: latitude, lng: longitude, address });
       setLoading(false);
     }, () => setLoading(false));
   };

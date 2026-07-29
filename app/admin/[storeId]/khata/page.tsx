@@ -239,7 +239,8 @@ function CustomerDetail({ customer, txns, onAddPurchase, onAddPayment, onBack }:
         <td>${isP?"Credit":"Payment"}</td>
       </tr>`;
     }).join("");
-    w.document.write(`<!DOCTYPE html><html><head><title>Khata - ${customer.name}</title>
+    w.document.write(`<!DOCTYPE html><html><head><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1642832204354188"
+     crossorigin="anonymous"></script><title>Khata - ${customer.name}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:sans-serif;padding:24px;color:#111}
 h1{font-size:20px;font-weight:900}h2{font-size:14px;color:#666;margin:4px 0 4px}
 .bal{font-size:24px;font-weight:900;color:#dc2626;margin:12px 0}

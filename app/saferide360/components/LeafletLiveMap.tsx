@@ -47,7 +47,15 @@ export default function LeafletLiveMap({ driverPosition, driverLabel, stops, hei
 
   return (
     <div style={{ height }} className="relative z-0 rounded-xl overflow-hidden border border-gray-200">
-      <MapContainer center={fallbackCenter} zoom={14} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
+      <MapContainer
+        center={fallbackCenter}
+        zoom={14}
+        minZoom={4}
+        maxBounds={[[5.0, 65.0], [38.5, 99.0]]}
+        maxBoundsViscosity={1.0}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={true}
+      >
         <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {routePoints.length > 1 && <Polyline positions={routePoints} pathOptions={{ color: "#0d9488", weight: 3, dashArray: "6 6" }} />}
         {stops.map(s => (

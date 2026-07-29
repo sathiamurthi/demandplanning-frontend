@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, AlertTriangle, Phone, X, Navigation, Siren, Mic, MicOff,
   MessageSquare, CreditCard, Pencil, RefreshCw,
 } from "lucide-react";
-import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError } from "./lib/api";
+import { saferide360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole, ApiError, isLocationInIndia } from "./lib/api";
 import type { Driver, Organization, Stop, Passenger, Trip, TripPassenger, GuardianTodayEntry, GuardianNotification, Billing, GeocodeResult, TripTemplate, TripRosterEntry, GuardianStop, SubstituteDriver, AbsenceKind } from "./lib/types";
 import LiveMap from "./components/LiveMap";
 import type { LiveStop } from "./lib/mapProvider";
@@ -185,7 +185,10 @@ export default function SafeRide360Page() {
     if (val.trim().length < 3) { setStopSuggestions([]); return; }
     stopSuggestTimer.current = setTimeout(async () => {
       setStopSuggestBusy(true);
-      try { setStopSuggestions(await saferide360Api.geocodeSearch(val.trim())); }
+      try {
+        const results = await saferide360Api.geocodeSearch(val.trim());
+        setStopSuggestions(results.filter(r => isLocationInIndia(r.lat, r.lng)));
+      }
       catch { setStopSuggestions([]); }
       finally { setStopSuggestBusy(false); }
     }, 400);
@@ -200,9 +203,15 @@ export default function SafeRide360Page() {
     setStopErr("");
     if (!newStopName.trim()) { setStopErr("Enter a stop name."); return; }
     if (!newStopLat || !newStopLng) { setStopErr("Pick a location suggestion or use \"Use my location\" to set coordinates."); return; }
+    const lat = parseFloat(newStopLat);
+    const lng = parseFloat(newStopLng);
+    if (!isLocationInIndia(lat, lng)) {
+      setStopErr("Only India locations are supported.");
+      return;
+    }
     setStopBusy(true);
     try {
-      const s = await saferide360Api.createStop(newStopName.trim(), parseFloat(newStopLat), parseFloat(newStopLng), stops.length);
+      const s = await saferide360Api.createStop(newStopName.trim(), lat, lng, stops.length);
       setStops(prev => [...prev, s]); setNewStopName(""); setNewStopLat(""); setNewStopLng(""); setStopSuggestions([]);
     } catch (e: any) {
       setStopErr(e.message || "Could not add this stop.");
@@ -215,7 +224,15 @@ export default function SafeRide360Page() {
     if (!navigator.geolocation) { setStopErr("Location isn't supported in this browser."); return; }
     setLocatingStop(true);
     navigator.geolocation.getCurrentPosition(
-      pos => { setNewStopLat(String(pos.coords.latitude)); setNewStopLng(String(pos.coords.longitude)); setLocatingStop(false); },
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        if (!isLocationInIndia(latitude, longitude)) {
+          setStopErr("Only India locations are supported.");
+          setLocatingStop(false);
+          return;
+        }
+        setNewStopLat(String(latitude)); setNewStopLng(String(longitude)); setLocatingStop(false);
+      },
       err => { setStopErr(err.code === err.PERMISSION_DENIED ? "Location permission denied — allow location access in your browser settings, or search for the stop above." : "Could not get your location — try again or search for the stop above."); setLocatingStop(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -499,11 +516,13 @@ export default function SafeRide360Page() {
     if (!activeTrip || activeTrip.status !== "active" || !navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
       async pos => {
+        const { latitude, longitude } = pos.coords;
+        if (!isLocationInIndia(latitude, longitude)) return;
         const now = Date.now();
         if (now - lastBroadcastRef.current < 7000) return;
         lastBroadcastRef.current = now;
         try {
-          const updated = await saferide360Api.updateTripLive(activeTrip.id, pos.coords.latitude, pos.coords.longitude);
+          const updated = await saferide360Api.updateTripLive(activeTrip.id, latitude, longitude);
           setActiveTrip(updated);
         } catch { /* keep trying on the next fix */ }
       },

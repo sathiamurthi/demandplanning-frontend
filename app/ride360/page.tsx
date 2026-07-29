@@ -11,14 +11,13 @@ import {
   Fuel, Gauge, Sparkles, Plus, Radar, IndianRupee, Bell, Truck, Bike, MessageCircle, Copy, Share2,
 } from "lucide-react";
 import LocationPicker from "./components/LocationPicker";
-import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution, reverseGeocode } from "./lib/geo";
+import { haversineKm, analyzeEmptyRide, estimateFare, piggyContribution, reverseGeocode, isLocationInIndia } from "./lib/geo";
 import { analyzeDriver } from "./lib/analytics";
 import { ride360Api, getToken, setToken, clearToken, getStoredRole, setStoredRole } from "./lib/api";
 import type {
   DriverProfile, CustomerProfile, GeoPoint, Ride, CustomerRequest, RideProvider, VehicleType, FuelLog, AppNotification,
 } from "./lib/types";
 
-const NEARBY_RANGE_KM = 5;
 const VEHICLE_FILTER_ICON: Record<VehicleType, any> = { auto: Car, cab: Car, transport: Truck, bike: Bike };
 
 const RideMap = dynamic(() => import("./components/RideMap"), { ssr: false, loading: () => <div className="h-[260px] bg-slate-100 rounded-xl animate-pulse" /> });
@@ -83,6 +82,7 @@ export default function Ride360Page() {
   const locationOverriddenRef = useRef(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [nearbyRangeKm, setNearbyRangeKm] = useState(5);
 
   // Customer-initiated outreach to a specific driver's empty run
   const [targetDriverRide, setTargetDriverRide] = useState<Ride | null>(null);
@@ -174,13 +174,21 @@ export default function Ride360Page() {
       navigator.geolocation.getCurrentPosition(
         async pos => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setCurrentLoc(loc);
-          setCurrentLocLabel(await reverseGeocode(loc.lat, loc.lng));
+          if (isLocationInIndia(loc.lat, loc.lng)) {
+            setCurrentLoc(loc);
+            setCurrentLocLabel(await reverseGeocode(loc.lat, loc.lng));
+          } else {
+            setCurrentLocLabel("Location outside India — tap Change to set it");
+          }
         },
         () => setCurrentLocLabel("Location unavailable — tap Change to set it")
       );
       watchId = navigator.geolocation.watchPosition(
-        pos => { if (!locationOverriddenRef.current) setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+        pos => {
+          if (!locationOverriddenRef.current && isLocationInIndia(pos.coords.latitude, pos.coords.longitude)) {
+            setCurrentLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          }
+        },
         () => {},
         { enableHighAccuracy: true, maximumAge: 10000 }
       );
@@ -251,6 +259,10 @@ export default function Ride360Page() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async pos => {
       const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (!isLocationInIndia(loc.lat, loc.lng)) {
+        toast.error("Location must be in India.");
+        return;
+      }
       locationOverriddenRef.current = false;
       setCurrentLoc(loc);
       setCurrentLocLabel(await reverseGeocode(loc.lat, loc.lng));
@@ -510,6 +522,10 @@ export default function Ride360Page() {
   // ── Customer request ─────────────────────────────────────────────────────
   const submitRequest = async () => {
     if (!customer || !pickup || !drop || !reqDesc.trim() || !reqAmount) return;
+    if (!isLocationInIndia(pickup.lat, pickup.lng) || !isLocationInIndia(drop.lat, drop.lng)) {
+      toast.error("Pickup and drop locations must be in India.");
+      return;
+    }
     const amount = Number(reqAmount);
     try {
       const req = await ride360Api.createRequest({
@@ -540,10 +556,10 @@ export default function Ride360Page() {
         const pos = ride.liveLat != null && ride.liveLng != null ? { lat: ride.liveLat, lng: ride.liveLng } : ride.source;
         return { ride, info, pos, distKm: haversineKm(currentLoc, pos) };
       })
-      .filter(x => x.distKm <= NEARBY_RANGE_KM)
+      .filter(x => x.distKm <= nearbyRangeKm)
       .filter(x => vehicleFilter === "all" || x.info.vehicleType === vehicleFilter)
       .sort((a, b) => a.distKm - b.distKm);
-  }, [nearbyDriversRaw, currentLoc, vehicleFilter]);
+  }, [nearbyDriversRaw, currentLoc, vehicleFilter, nearbyRangeKm]);
 
   const fmtTime = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 
@@ -1347,7 +1363,7 @@ export default function Ride360Page() {
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Radar size={18} className="text-amber-500" /> Nearby Drivers</h2>
-            <p className="text-sm text-gray-500 mt-1">Drivers currently running empty within {NEARBY_RANGE_KM} km — reach out directly instead of waiting.</p>
+            <p className="text-sm text-gray-500 mt-1">Drivers currently running empty within {nearbyRangeKm} km — reach out directly instead of waiting.</p>
           </div>
 
           <div className="flex gap-2 flex-wrap">
@@ -1362,15 +1378,36 @@ export default function Ride360Page() {
             })}
           </div>
 
+          {/* Search range slider */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-2 shadow-sm">
+            <div className="flex justify-between items-center text-xs font-bold text-gray-700">
+              <span>Search Range</span>
+              <span className="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">{nearbyRangeKm} km</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="25"
+              value={nearbyRangeKm}
+              onChange={(e) => setNearbyRangeKm(Number(e.target.value))}
+              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+            />
+            <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
+              <span>1 km</span>
+              <span>13 km</span>
+              <span>25 km</span>
+            </div>
+          </div>
+
           <RideMap
             current={currentLoc}
             height="280px"
-            rangeKm={NEARBY_RANGE_KM}
+            rangeKm={nearbyRangeKm}
             markers={nearbyDrivers.map(({ ride, info, pos }) => ({ id: ride.id, lat: pos.lat, lng: pos.lng, label: `${info.name} · ${info.vehicleType} · ${info.vehicleNumber || "no vehicle number"}` }))}
           />
 
           {nearbyDrivers.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No {vehicleFilter === "all" ? "" : vehicleFilter + " "}drivers running empty within {NEARBY_RANGE_KM} km right now. Post a request instead and one will find you.</div>
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-10 text-center text-sm text-gray-400">No {vehicleFilter === "all" ? "" : vehicleFilter + " "}drivers running empty within {nearbyRangeKm} km right now. Post a request instead and one will find you.</div>
           ) : (
             <div className="space-y-2">
               {nearbyDrivers.map(({ ride, info, distKm }) => (

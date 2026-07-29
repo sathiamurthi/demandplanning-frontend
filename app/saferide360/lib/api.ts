@@ -113,3 +113,7 @@ export const saferide360Api = {
     req<{ absentToday: boolean; kind: AbsenceKind }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "POST", body: JSON.stringify({ kind }) }),
   unmarkChildAbsentToday: (passengerId: string) => req<{ absentToday: boolean }>(`/guardian/passengers/${passengerId}/absent-today`, { method: "DELETE" }),
 };
+
+export function isLocationInIndia(lat: number, lng: number): boolean {
+  return lat >= 6.0 && lat <= 38.0 && lng >= 68.0 && lng <= 99.0;
+}

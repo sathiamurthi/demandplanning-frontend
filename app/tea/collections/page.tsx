@@ -135,7 +135,10 @@ export default function CollectionsPage() {
     if (!w) return;
     const growerName = growers.find(g => g.id === entry.grower_id)?.name || entry.grower_name;
     w.document.write(`
-      <html><head><title>Collection Slip</title>
+      <html><head>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1642832204354188"
+     crossorigin="anonymous"></script>
+     <title>Collection Slip</title>
       <style>body{font-family:monospace;padding:20px;max-width:300px}
       h2{border-bottom:1px solid #000;padding-bottom:8px}
       .row{display:flex;justify-content:space-between;margin:6px 0}

@@ -64,7 +64,15 @@ export default function RideMap({
 
   return (
     <div style={{ height }} className="relative z-0 rounded-xl overflow-hidden border border-gray-200">
-      <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
+      <MapContainer
+        center={center}
+        zoom={13}
+        minZoom={4}
+        maxBounds={[[5.0, 65.0], [38.5, 99.0]]}
+        maxBoundsViscosity={1.0}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={false}
+      >
         <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {current && rangeKm && <Circle center={[current.lat, current.lng]} radius={rangeKm * 1000} pathOptions={{ color: "#f59e0b", fillColor: "#f59e0b", fillOpacity: 0.08, weight: 1.5 }} />}
         {current && <Marker position={[current.lat, current.lng]} icon={dotIcon} />}
