@@ -11,11 +11,5 @@
     "app/api/college-enquiry/route.ts":   { "maxDuration": 60 },
     "app/api/evaluate-answer/route.ts":   { "maxDuration": 60 },
     "app/api/keep-alive/route.ts":        { "maxDuration": 30 }
-  },
-  "crons": [
-    {
-      "path": "/api/keep-alive",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  }
 }

@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import '../styles/global.css';
 import { buildMeta, SITE_JSON_LD } from '../lib/seo';
 import { InstallAppBar } from '../components/InstallApp';
+import Script from 'next/script';
 
 export const metadata = buildMeta();
 
@@ -20,11 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-theme="gold">
       <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1642832204354188"
-          crossorigin="anonymous"
-        />
+        <meta name="google-adsense-account" content="ca-pub-1642832204354188" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }}
@@ -36,6 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <ToastContainer position="top-right" autoClose={3000} newestOnTop closeOnClick pauseOnHover />
         </Theme>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1642832204354188"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
