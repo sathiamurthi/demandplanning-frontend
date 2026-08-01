@@ -69,6 +69,8 @@ function buildHtml(toName: string, inq: InquiryData, responseUrl?: string | null
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1642832204354188"
+     crossorigin="anonymous"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Service Inquiry &mdash; DemandGenius</title>
