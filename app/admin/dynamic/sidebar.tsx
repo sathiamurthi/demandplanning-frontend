@@ -34,6 +34,7 @@ const NAV: NavGroup[] = [
       { label: "Users",         href: "/admin/dynamic/users",          icon: Users,     roles: OWNER_ROLES },
       { label: "Stores",        href: "/admin/dynamic/stores",         icon: Store,     roles: OWNER_ROLES },
       { label: "Store configs", href: "/admin/dynamic/store-configs",  icon: Settings2, roles: MGMT_ROLES  },
+      { label: "Unit Types",    href: "/admin/dynamic/units",          icon: Tag,       roles: MGMT_ROLES  },
       { label: "Categories",    href: "/admin/dynamic/categories",     icon: Tag,       roles: MGMT_ROLES  },
       { label: "Items",         href: "/admin/dynamic/items",          icon: Package                       },
       { label: "Quick Add Item",href: "/admin/dynamic/items?quick=1",  icon: Zap,       roles: MGMT_ROLES  },

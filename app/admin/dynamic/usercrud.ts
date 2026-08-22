@@ -22,6 +22,9 @@ export type CrudOptions<T extends CrudRecord> = {
   tenantId: string;
   /** true (default) = /tenants/{id}/stores/{storeId}/{module}; false = /tenants/{id}/{module} */
   storeLevel?: boolean;
+  globalLevel?: boolean;
+  /** true = hits global /v1/{module} directly */
+  globalLevel?: boolean;
   /** Seed data shown while the first fetch is in-flight */
   initialData?: T[];
   /** Apply UI changes before the server responds, roll back on error */
@@ -96,7 +99,8 @@ export async function req<R>(
 }
 
 
-function buildUrl(tenantId: string, module: string, storeLevel: boolean, id?: string): string {
+function buildUrl(tenantId: string, module: string, storeLevel: boolean, id?: string, globalLevel?: boolean): string {
+  if (globalLevel) { const b = `/v1/${module}`; return id ? `${b}/${id}` : b; }
   const base = storeLevel
     ? `${BASE}/tenants/${tenantId}/stores/${getStoreId()}/${module}`
     : `${BASE}/tenants/${tenantId}/${module}`;
@@ -108,7 +112,7 @@ function buildUrl(tenantId: string, module: string, storeLevel: boolean, id?: st
 export function useCrud<T extends CrudRecord>(
   opts: CrudOptions<T>
 ): UseCrudReturn<T> {
-  const { module, tenantId, storeLevel = true, initialData, optimistic, onError, onSuccess, defaultParams } = opts;
+  const { module, tenantId, storeLevel = true, globalLevel = false, initialData, optimistic, onError, onSuccess, defaultParams } = opts;
 
   const [items, setItems] = useState<T[]>(initialData ?? []);
   const [loading, setLoading] = useState(false);

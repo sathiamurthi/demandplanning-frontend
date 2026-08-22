@@ -51,7 +51,7 @@ export type EntityConfig<T extends { id: string }> = {
   searchKeys: (keyof T & string)[];
   toPayload?: (formData: Partial<T>) => Partial<T>;
   /** false = uses /tenants/{id}/{module}; true (default) = /tenants/{id}/stores/{storeId}/{module} */
-  storeLevel?: boolean;
+  storeLevel?: boolean; globalLevel?: boolean;
 };
 
 /* ─────────────────────────── Component ─────────────────────────── */
