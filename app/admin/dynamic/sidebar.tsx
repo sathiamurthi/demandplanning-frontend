@@ -45,7 +45,8 @@ const NAV: NavGroup[] = [
     roles: MGMT_ROLES,
     items: [
       { label: "Sales",           href: "/admin/dynamic/sale",            icon: ReceiptText  },
-      { label: "Purchase orders", href: "/admin/dynamic/purchase-orders", icon: ShoppingCart },
+      { label: "Sales Orders",    href: "/admin/dynamic/sales-orders",    icon: ShoppingCart },
+      { label: "Invoices",        href: "/admin/dynamic/invoices",        icon: ReceiptText },
       { label: "Coupons",         href: "/admin/dynamic/coupons",         icon: Tag,         roles: OWNER_ROLES },
     ],
   },
