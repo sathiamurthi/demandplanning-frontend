@@ -364,7 +364,7 @@ export function DynamicEntity<T extends { id: string }>({
             onChange={handleFormChange}
             errors={formErrors}
             disabled={saving}
-          />
+          />}
         </Modal.Body>
         <Modal.Footer>
           <Button onClick={() => setFormOpen(false)} disabled={saving}>

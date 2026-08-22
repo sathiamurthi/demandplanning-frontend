@@ -715,7 +715,7 @@ export const leadsConfig: any = {
     { key: "status", label: "Status" },
     { key: "value", label: "Value" }
   ],
-  renderCard: (item: any) => (
+  renderCard: (item: any, actions: any) => (
     <div className="p-4 border rounded-lg">
       <h3 className="font-bold">{item.customer_name}</h3>
       <p className="text-sm text-gray-500">{item.company_name} - {item.status}</p>
