@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Store, Settings2, Tag, Package,
   ShoppingCart, Shield, ChevronLeft, ChevronRight,
   LogOut, Bell, Menu, X, BookOpen, Sparkles,
-  FileBarChart2, Brain, Zap, ReceiptText,
+  FileBarChart2, Brain, Zap, ReceiptText, GraduationCap,
 } from "lucide-react";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -50,10 +50,25 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    section: "Accounting (ERP)",
+    roles: MGMT_ROLES,
+    items: [
+      { label: "Chart of Accounts", href: "/admin/dynamic/accounting/coa",     icon: BookOpen },
+      { label: "Journal Voucher",   href: "/admin/dynamic/accounting/journal", icon: FileBarChart2 },
+      { label: "Ledger Report",     href: "/admin/dynamic/accounting/ledger",  icon: Settings2 },
+    ],
+  },
+  {
     section: "AI Reports",
     items: [
       { label: "Basic Report",    href: "/admin/dynamic/ai-reports/basic",    icon: FileBarChart2 },
       { label: "Advanced Report", href: "/admin/dynamic/ai-reports/advanced", icon: Brain, isPro: true, roles: MGMT_ROLES },
+    ],
+  },
+  {
+    section: "Education",
+    items: [
+      { label: "School AI Tutor", href: "/admin/dynamic/school", icon: GraduationCap },
     ],
   },
   {
