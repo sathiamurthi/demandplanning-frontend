@@ -13,7 +13,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   Download, Upload, FileText, CheckCircle2,
-  XCircle, Loader2, X, AlertTriangle,
+  XCircle, Loader2, X, AlertTriangle, Sparkles, Image as ImageIcon
 } from "lucide-react";
 import { getAuthHeaders } from "./usercrud";
 import { getTenantId, getStoreId } from "@/lib/utils";
@@ -28,6 +28,7 @@ const EXPECTED_HEADERS = [
   "currentStock", "reorderLevel", "maxStockLevel",
   "sellingPrice", "purchasePrice", "mrp", "gstRate",
   "expiryDate", "batchNumber", "isSeasonal",
+  "categoryId", "categoryName"
 ];
 
 /* ─── CSV parser (no external library) ─── */
@@ -59,6 +60,8 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [submitError, setSubmitError] = useState("");
+  const [activeTab, setActiveTab] = useState<"csv" | "ai">("csv");
+  const [aiScanning, setAiScanning] = useState(false);
 
   const tenantId = getTenantId();
   const storeId  = getStoreId();
@@ -67,6 +70,7 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
   const reset = () => {
     setFileName(""); setHeaders([]); setRows([]); setParseError("");
     setResult(null); setSubmitError(""); setMode("upsert");
+    setActiveTab("csv");
   };
   const handleClose = () => { reset(); onClose(); };
 
@@ -112,14 +116,62 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) {
+      if (activeTab === "csv") processFile(file);
+      else processImageFile(file);
+    }
     e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
+    if (file) {
+      if (activeTab === "csv") processFile(file);
+      else processImageFile(file);
+    }
+  };
+
+  const processImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setParseError("Only images (PNG, JPEG) are supported for AI scanning.");
+      return;
+    }
+    setFileName(file.name);
+    setParseError("");
+    setResult(null);
+    setAiScanning(true);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      const base64 = dataUrl.split(",")[1];
+      try {
+        const res = await fetch(`${BASE}/tenants/${tenantId}/stores/${storeId}/items/import-invoice-ai`, {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ image_base64: base64, mime_type: file.type })
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "AI scan failed");
+        
+        const parsedRows = json.data.map((item: any) => {
+          const row: Record<string, string> = {};
+          for (const key of EXPECTED_HEADERS) {
+            row[key] = item[key] !== null && item[key] !== undefined ? String(item[key]) : "";
+          }
+          return row;
+        });
+        if (parsedRows.length === 0) throw new Error("No items detected in invoice.");
+        setHeaders(EXPECTED_HEADERS);
+        setRows(parsedRows);
+      } catch (err: any) {
+        setParseError(err.message);
+      } finally {
+        setAiScanning(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   /* ── Submit ── */
@@ -169,7 +221,7 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
             </div>
             <div>
               <h2 className="text-sm font-semibold text-gray-900">Import items</h2>
-              <p className="text-[11px] text-gray-400">Upload a CSV file • max 500 rows</p>
+              <p className="text-[11px] text-gray-400">Import from CSV or scan AI Invoice</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -241,12 +293,33 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
 
           {!result && (
             <>
+              {/* Tabs */}
+              <div className="flex gap-4 border-b border-gray-100 mb-4">
+                <button
+                  onClick={() => { setActiveTab("csv"); setFileName(""); setRows([]); setParseError(""); }}
+                  className={`pb-2 text-sm font-semibold transition-colors ${
+                    activeTab === "csv" ? "border-b-2 border-gold-500 text-gray-900" : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  CSV Upload
+                </button>
+                <button
+                  onClick={() => { setActiveTab("ai"); setFileName(""); setRows([]); setParseError(""); }}
+                  className={`pb-2 text-sm font-semibold flex items-center gap-1.5 transition-colors ${
+                    activeTab === "ai" ? "border-b-2 border-gold-500 text-gray-900" : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  AI Invoice Scan
+                </button>
+              </div>
+
               {/* Drop zone */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={handleDrop}
-                onClick={() => fileRef.current?.click()}
+                onClick={() => { if (!aiScanning) fileRef.current?.click(); }}
                 className={`cursor-pointer rounded-xl border-2 border-dashed p-6 text-center
                             transition-all select-none
                             ${dragging
@@ -254,16 +327,21 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
                               : rows.length > 0
                                 ? "border-green-300 bg-green-50"
                                 : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                            }`}
+                            } ${aiScanning ? "opacity-50 pointer-events-none" : ""}`}
               >
-                <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
-                {rows.length > 0 ? (
+                <input ref={fileRef} type="file" accept={activeTab === "csv" ? ".csv" : "image/*"} className="hidden" onChange={handleFileChange} />
+                {aiScanning ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+                    <p className="text-sm font-medium text-gray-600">Scanning invoice with AI...</p>
+                  </div>
+                ) : rows.length > 0 ? (
                   <div className="flex flex-col items-center gap-1.5">
-                    <FileText className="h-8 w-8 text-green-500" />
+                    {activeTab === "csv" ? <FileText className="h-8 w-8 text-green-500" /> : <ImageIcon className="h-8 w-8 text-green-500" />}
                     <p className="text-sm font-semibold text-green-700">{fileName}</p>
                     <p className="text-xs text-green-600">{rows.length} rows ready to import</p>
                     <button
-                      onClick={(e) => { e.stopPropagation(); reset(); }}
+                      onClick={(e) => { e.stopPropagation(); setFileName(""); setRows([]); setParseError(""); }}
                       className="mt-1 text-xs text-gray-400 hover:text-gray-600 underline"
                     >
                       Remove file
@@ -273,10 +351,10 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
                   <div className="flex flex-col items-center gap-2">
                     <Upload className={`h-8 w-8 ${dragging ? "text-gold-500" : "text-gray-300"}`} />
                     <p className="text-sm font-medium text-gray-600">
-                      {dragging ? "Drop to upload" : "Drag & drop CSV or click to browse"}
+                      {dragging ? "Drop to upload" : `Drag & drop ${activeTab === "csv" ? "CSV" : "Invoice image"} or click to browse`}
                     </p>
                     <p className="text-xs text-gray-400">
-                      Download the template first to ensure correct column names
+                      {activeTab === "csv" ? "Download the template first to ensure correct column names" : "Upload a clear image of the invoice (JPEG, PNG)"}
                     </p>
                   </div>
                 )}
@@ -321,9 +399,9 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
-                          {EXPECTED_HEADERS.slice(0, 7).filter(h => headers.includes(h)).map((h) => (
+                          {["name", "categoryName", "currentStock", "purchasePrice", "mrp"].filter(h => headers.includes(h)).map((h) => (
                             <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">
-                              {h}
+                              {h === "categoryName" ? "Category" : h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1').trim()}
                             </th>
                           ))}
                         </tr>
@@ -331,7 +409,7 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
                       <tbody className="divide-y divide-gray-50">
                         {rows.slice(0, 5).map((row, i) => (
                           <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                            {EXPECTED_HEADERS.slice(0, 7).filter(h => headers.includes(h)).map((h) => (
+                            {["name", "categoryName", "currentStock", "purchasePrice", "mrp"].filter(h => headers.includes(h)).map((h) => (
                               <td key={h} className="px-3 py-2 text-gray-700 max-w-[120px] truncate">
                                 {row[h] || "—"}
                               </td>

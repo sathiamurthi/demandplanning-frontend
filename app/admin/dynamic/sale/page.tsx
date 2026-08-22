@@ -33,10 +33,20 @@ interface StoreItem {
   expiry_date: string | null;
   discount_type?: string | null;
   discount_value?: string | null;
+  secondary_unit_id?: string | null;
+  secondary_unit_symbol?: string | null;
+  units_per_secondary?: string | null;
 }
 interface LineItem {
   itemId: string; name: string; unitPrice: number; qty: number;
   discountPct: number; unitId: string; unitSymbol: string; stock: number;
+  isLoose?: boolean;
+  primaryUnitId?: string;
+  primaryUnitSymbol?: string;
+  primaryUnitPrice?: number;
+  secondaryUnitId?: string;
+  secondaryUnitSymbol?: string;
+  unitsPerSecondary?: number;
 }
 interface Sale {
   id: string; sale_number: string; sale_date: string;
@@ -334,8 +344,30 @@ export default function SaleDynamicPage() {
         unitId: item.primary_unit_id || "",
         unitSymbol: item.unit_symbol || "pcs",
         stock: parseFloat(item.current_stock),
+        isLoose: false,
+        primaryUnitId: item.primary_unit_id || undefined,
+        primaryUnitSymbol: item.unit_symbol || "pcs",
+        primaryUnitPrice: parseFloat(item.selling_price || "0"),
+        secondaryUnitId: item.secondary_unit_id || undefined,
+        secondaryUnitSymbol: item.secondary_unit_symbol || undefined,
+        unitsPerSecondary: item.units_per_secondary ? parseFloat(item.units_per_secondary) : undefined,
       }]);
     }
+  };
+
+  const toggleLoose = (i: number) => {
+    setLines(prev => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      if (!l.secondaryUnitId || !l.unitsPerSecondary) return l;
+      const willBeLoose = !l.isLoose;
+      return {
+        ...l,
+        isLoose: willBeLoose,
+        unitId: willBeLoose ? l.secondaryUnitId : (l.primaryUnitId || ""),
+        unitSymbol: willBeLoose ? l.secondaryUnitSymbol! : (l.primaryUnitSymbol || "pcs"),
+        unitPrice: willBeLoose ? (l.primaryUnitPrice! / l.unitsPerSecondary) : l.primaryUnitPrice!,
+      };
+    }));
   };
 
   const updateLine = (i: number, field: keyof LineItem, value: any) =>
@@ -525,13 +557,16 @@ export default function SaleDynamicPage() {
               {lines.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {lines.map((l, i) => {
-                    const overStock = l.qty > l.stock;
+                    const overStock = l.isLoose && l.unitsPerSecondary ? (l.qty / l.unitsPerSecondary > l.stock) : (l.qty > l.stock);
+                    const stockDisplay = l.isLoose && l.unitsPerSecondary
+                      ? `${l.stock * l.unitsPerSecondary} ${l.secondaryUnitSymbol || ''}`
+                      : `${l.stock} ${l.primaryUnitSymbol || l.unitSymbol}`;
                     return (
                       <div key={i} className={`rounded-xl border p-3 ${overStock ? "border-red-200 bg-red-50" : "border-gray-100 bg-gray-50"}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">{l.name}</p>
-                            <p className="text-xs text-gray-400">Stock: {l.stock} {l.unitSymbol}</p>
+                            <p className="text-xs text-gray-400">Stock: {stockDisplay}</p>
                           </div>
                           <button onClick={() => removeLine(i)} className="text-gray-300 hover:text-red-400 shrink-0">
                             <Trash2 size={14} />
@@ -540,9 +575,25 @@ export default function SaleDynamicPage() {
                         <div className="grid grid-cols-3 gap-2 mt-2">
                           <div>
                             <label className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Qty</label>
-                            <input type="number" min="0.01" step="0.01" value={l.qty}
-                              onChange={e => updateLine(i, "qty", parseFloat(e.target.value) || 0)}
-                              className="w-full mt-0.5 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                            <div className="flex mt-0.5">
+                              <input type="number" min="0.01" step="0.01" value={l.qty}
+                                onChange={e => updateLine(i, "qty", parseFloat(e.target.value) || 0)}
+                                className="w-full rounded-l-lg border border-gray-200 px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                              {l.secondaryUnitId ? (
+                                <button
+                                  type="button"
+                                  title="Toggle Unit (Bulk/Loose)"
+                                  onClick={() => toggleLoose(i)}
+                                  className="bg-gray-200 text-gray-700 px-2 text-xs font-bold rounded-r-lg border border-l-0 border-gray-200 hover:bg-gray-300 transition-colors"
+                                >
+                                  {l.isLoose ? l.secondaryUnitSymbol || "loose" : l.primaryUnitSymbol || "bulk"}
+                                </button>
+                              ) : (
+                                <span className="bg-gray-100 text-gray-500 px-2 flex items-center text-xs font-bold rounded-r-lg border border-l-0 border-gray-200">
+                                  {l.unitSymbol}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div>
                             <label className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Unit Price ₹</label>
