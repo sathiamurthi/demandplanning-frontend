@@ -16,6 +16,7 @@ import {
   XCircle, Loader2, X, AlertTriangle, Sparkles, Image as ImageIcon
 } from "lucide-react";
 import { getAuthHeaders } from "./usercrud";
+import { apiPost } from "@/lib/api";
 import { getTenantId, getStoreId } from "@/lib/utils";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
@@ -147,13 +148,10 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
       const dataUrl = e.target?.result as string;
       const base64 = dataUrl.split(",")[1];
       try {
-        const res = await fetch(`${BASE}/tenants/${tenantId}/stores/${storeId}/items/import-invoice-ai`, {
-          method: "POST",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          body: JSON.stringify({ image_base64: base64, mime_type: file.type })
+        const json = await apiPost<any>(`/tenants/${tenantId}/stores/${storeId}/items/import-invoice-ai`, {
+          image_base64: base64,
+          mime_type: file.type
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "AI scan failed");
         
         const parsedRows = json.data.map((item: any) => {
           const row: Record<string, string> = {};
