@@ -10,6 +10,7 @@ import {
   AlertTriangle, TrendingDown, Upload, Download,
   ChevronUp, ChevronDown, Sparkles, CheckCircle2,
 } from "lucide-react";
+import { ImportItemsModal } from "../ImportItemsModal";
 
 /* ── Types ── */
 interface Item {
@@ -116,7 +117,7 @@ function ItemFormModal({ tenantId, storeId, categories, editing, onClose, onSave
     isSeasonal: editing.is_seasonal, rackLocation: editing.rack_location ?? "",
     batchNumber: (editing as any).batch_number ?? "",
     manufactureDate: (editing as any).manufacture_date ? (editing as any).manufacture_date.slice(0,10) : "",
-    expiryDate: editing.expiry_date ? editing.expiry_date.slice(0,10) : "",
+    expiryDate: editing.expiry_date ? editing.expiry_date.slice(0,7) : "",
   } : EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState<string | null>(null);
@@ -166,7 +167,7 @@ function ItemFormModal({ tenantId, storeId, categories, editing, onClose, onSave
         rackLocation:  form.rackLocation || null,
         batchNumber:   form.batchNumber || null,
         manufactureDate: form.manufactureDate || null,
-        expiryDate:    form.expiryDate || null,
+        expiryDate:    form.expiryDate ? (form.expiryDate.length === 7 ? `${form.expiryDate}-01` : form.expiryDate) : null,
       };
       if (editing) {
         await apiPut(`/tenants/${tenantId}/stores/${storeId}/items/${editing.id}`, payload);
@@ -283,8 +284,8 @@ function ItemFormModal({ tenantId, storeId, categories, editing, onClose, onSave
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gold-400" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Expiry Date</label>
-              <input type="date" value={form.expiryDate} onChange={e => set("expiryDate", e.target.value)}
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Expiry Month/Year</label>
+              <input type="month" value={form.expiryDate.slice(0,7)} onChange={e => set("expiryDate", e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gold-400" />
             </div>
           </div>
@@ -379,6 +380,7 @@ function ItemsPageInner() {
   const [error,      setError]      = useState<string | null>(null);
   const [search,     setSearch]     = useState("");
   const [showForm,   setShowForm]   = useState(() => searchParams.get("quick") === "1");
+  const [showImport, setShowImport] = useState(false);
   const [editing,    setEditing]    = useState<Item | null>(null);
   const [deleting,   setDeleting]   = useState<string | null>(null);
   const [sortKey,    setSortKey]    = useState<SortKey>("name");
@@ -484,6 +486,12 @@ function ItemsPageInner() {
             className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2
                        text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-gold-200 bg-gold-50 px-3 py-2
+                       text-xs font-semibold text-gold-700 hover:bg-gold-100 transition-colors shadow-sm">
+            <Upload className="h-3.5 w-3.5" /> AI Import
           </button>
           <button
             onClick={() => { setEditing(null); setShowForm(true); }}
@@ -711,6 +719,14 @@ function ItemsPageInner() {
           editing={editing}
           onClose={() => { setShowForm(false); setEditing(null); }}
           onSaved={() => { setShowForm(false); setEditing(null); load(); }}
+        />
+      )}
+
+      {showImport && (
+        <ImportItemsModal
+          isOpen={showImport}
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); load(); }}
         />
       )}
     </div>
