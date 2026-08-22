@@ -148,10 +148,17 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
       const dataUrl = e.target?.result as string;
       const base64 = dataUrl.split(",")[1];
       try {
-        const json = await apiPost<any>(`/tenants/${tenantId}/stores/${storeId}/items/import-invoice-ai`, {
-          image_base64: base64,
-          mime_type: file.type
+        const res = await fetch(`/api/import-invoice-ai`, {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_base64: base64,
+            mime_type: file.type,
+            tenantId
+          })
         });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to scan invoice');
         
         const parsedRows = json.data.map((item: any) => {
           const row: Record<string, string> = {};
