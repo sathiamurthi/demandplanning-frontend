@@ -24,7 +24,7 @@ const nextConfig = {
       },
       {
         // Admin panel useCrud calls /api/tenants/... — forward to backend /v1/tenants/...
-        source: "/api/:path*",
+        source: "/api/:path((?!import-invoice-ai).*)*",
         destination: `${backendBase}/v1/:path*`,
       },
     ];
