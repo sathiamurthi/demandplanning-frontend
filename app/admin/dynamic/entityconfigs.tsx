@@ -747,7 +747,7 @@ export const quotationsConfig: any = {
     { key: "status", label: "Status" },
     { key: "total_amount", label: "Total Amount" },
     { key: "actions", label: "Actions", render: (v: any, item: any) => (
-      <Button variant="outline" size="sm" onClick={() => {
+      <Button variant="secondary" onClick={() => {
         if (confirm('Convert to Sales Order?')) {
           fetch(`/v1/tenants/${item.tenant_id}/stores/${item.store_id}/sales-orders`, {
             method: 'POST',
@@ -764,7 +764,7 @@ export const quotationsConfig: any = {
         <h3 className="font-bold">{item.quote_number}</h3>
         <p className="text-sm text-gray-500">{item.customer_name} - {item.status}</p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => {
+      <Button variant="secondary" onClick={() => {
         if (confirm('Convert to Sales Order?')) {
           fetch(`/v1/tenants/${item.tenant_id}/stores/${item.store_id}/sales-orders`, {
             method: 'POST',
@@ -801,7 +801,7 @@ export const salesOrdersConfig: any = {
     { key: "status", label: "Status" },
     { key: "total_amount", label: "Total Amount" },
     { key: "actions", label: "Actions", render: (v: any, item: any) => (
-      <Button variant="outline" size="sm" onClick={() => {
+      <Button variant="secondary" onClick={() => {
         if (confirm('Generate Invoice for this order?')) {
           fetch(`/v1/stores/${item.store_id}/sales`, {
             method: 'POST',
@@ -824,7 +824,7 @@ export const salesOrdersConfig: any = {
         <h3 className="font-bold">{item.order_number}</h3>
         <p className="text-sm text-gray-500">{item.customer_name} - {item.status}</p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => {
+      <Button variant="secondary" onClick={() => {
         if (confirm('Generate Invoice?')) {
           fetch(`/v1/stores/${item.store_id}/sales`, {
             method: 'POST',
