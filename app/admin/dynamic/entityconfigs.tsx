@@ -696,14 +696,14 @@ export const leadsConfig: any = {
   title: "Leads",
   singular: "Lead",
   fields: [
-    { name: "customer_name", label: "Customer Name", type: "text", required: true },
-    { name: "company_name", label: "Company Name", type: "text" },
-    { name: "phone", label: "Phone", type: "text" },
-    { name: "email", label: "Email", type: "text" },
-    { name: "status", label: "Status", type: "select", options: [
+    { key: "customer_name", label: "Customer Name", type: "text", required: true },
+    { key: "company_name", label: "Company Name", type: "text" },
+    { key: "phone", label: "Phone", type: "text" },
+    { key: "email", label: "Email", type: "text" },
+    { key: "status", label: "Status", type: "select", options: [
       { label: "New", value: "New" }, { label: "Contacted", value: "Contacted" }, { label: "Won", value: "Won" }
     ] },
-    { name: "value", label: "Expected Value", type: "number" }
+    { key: "value", label: "Expected Value", type: "number" }
   ],
   blankForm: { customer_name: "", company_name: "", phone: "", email: "", status: "New", value: 0 },
   searchKeys: ["customer_name", "company_name", "email", "phone"],
@@ -728,9 +728,9 @@ export const quotationsConfig: any = {
   title: "Quotations",
   singular: "Quotation",
   fields: [
-    { name: "customer_name", label: "Customer Name", type: "text", required: true },
-    { name: "issue_date", label: "Issue Date", type: "date" },
-    { name: "status", label: "Status", type: "select", options: [
+    { key: "customer_name", label: "Customer Name", type: "text", required: true },
+    { key: "issue_date", label: "Issue Date", type: "date" },
+    { key: "status", label: "Status", type: "select", options: [
       { label: "Draft", value: "Draft" }, { label: "Sent", value: "Sent" }
     ] }
   ],
@@ -757,9 +757,9 @@ export const salesOrdersConfig: any = {
   title: "Sales Orders",
   singular: "Sales Order",
   fields: [
-    { name: "customer_name", label: "Customer Name", type: "text", required: true },
-    { name: "order_date", label: "Order Date", type: "date" },
-    { name: "status", label: "Status", type: "select", options: [
+    { key: "customer_name", label: "Customer Name", type: "text", required: true },
+    { key: "order_date", label: "Order Date", type: "date" },
+    { key: "status", label: "Status", type: "select", options: [
       { label: "Pending", value: "Pending" }, { label: "Confirmed", value: "Confirmed" }
     ] }
   ],
@@ -786,9 +786,9 @@ export const invoicesConfig: any = {
   title: "Invoices",
   singular: "Invoice",
   fields: [
-    { name: "customer_name", label: "Customer Name", type: "text", required: true },
-    { name: "sale_date", label: "Date", type: "date" },
-    { name: "total_amount", label: "Total Amount", type: "number" }
+    { key: "customer_name", label: "Customer Name", type: "text", required: true },
+    { key: "sale_date", label: "Date", type: "date" },
+    { key: "total_amount", label: "Total Amount", type: "number" }
   ],
   blankForm: {},
   searchKeys: ["sale_number", "customer_name"],
@@ -816,15 +816,15 @@ export const unitsConfig: any = {
   title: "Unit Types",
   singular: "Unit",
   fields: [
-    { name: "name", label: "Name", type: "text", required: true },
-    { name: "symbol", label: "Symbol", type: "text", required: true },
-    { name: "category", label: "Category", type: "select", options: [
+    { key: "name", label: "Name", type: "text", required: true },
+    { key: "symbol", label: "Symbol", type: "text", required: true },
+    { key: "category", label: "Category", type: "select", options: [
       { label: "Count", value: "count" },
       { label: "Weight", value: "weight" },
       { label: "Volume", value: "volume" },
       { label: "Length", value: "length" }
     ] },
-    { name: "is_active", label: "Active", type: "switch" }
+    { key: "is_active", label: "Active", type: "toggle" }
   ],
   blankForm: { name: "", symbol: "", category: "count", is_active: true },
   searchKeys: ["name", "symbol"],
