@@ -785,7 +785,11 @@ export const invoicesConfig: any = {
   storeLevel: true,
   title: "Invoices",
   singular: "Invoice",
-  fields: [],
+  fields: [
+    { name: "customer_name", label: "Customer Name", type: "text", required: true },
+    { name: "sale_date", label: "Date", type: "date" },
+    { name: "total_amount", label: "Total Amount", type: "number" }
+  ],
   blankForm: {},
   searchKeys: ["sale_number", "customer_name"],
   toPayload: (f: any) => f,
