@@ -132,8 +132,15 @@ export function useCrud<T extends CrudRecord>(
       try {
         const qs = new URLSearchParams({ ...defaultParams, ...params }).toString();
         const url = buildUrl(tenantId, module, storeLevel, undefined, globalLevel) + (qs ? `?${qs}` : "");
-        const res = await req<{ data: T[] }>("GET", url);
-        setItems(res.data ?? []);
+        const res = await req<any>("GET", url);
+        let arr: T[] = [];
+        if (res && res.data) {
+          if (Array.isArray(res.data)) arr = res.data;
+          else if (res.data.items && Array.isArray(res.data.items)) arr = res.data.items;
+        } else if (res && Array.isArray(res)) {
+          arr = res;
+        }
+        setItems(arr);
         onSuccess?.("fetch");
       } catch (err) {
         setError(err);

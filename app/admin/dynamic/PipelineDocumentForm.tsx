@@ -48,7 +48,10 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
     const delay = setTimeout(async () => {
       try {
         const res = await apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/items?search=${searchStr}&limit=5`);
-        setItems(res.data || res || []);
+        
+        const data = res.data || res || [];
+        setItems(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
+
       } catch (e) {
         console.error(e);
       }
