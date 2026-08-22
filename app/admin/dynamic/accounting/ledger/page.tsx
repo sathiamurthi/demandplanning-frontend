@@ -13,7 +13,7 @@ export default function LedgerPage() {
     setLoading(true);
     try {
       const cRes = await apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/accounting/coa`);
-      setAccounts(cRes);
+      setAccounts(cRes.data || cRes);
     } catch (e) {
       console.error(e);
     } finally {

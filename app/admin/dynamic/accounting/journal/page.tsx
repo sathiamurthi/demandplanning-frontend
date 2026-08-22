@@ -24,8 +24,8 @@ export default function JournalPage() {
         apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/accounting/journal`),
         apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/accounting/coa`)
       ]);
-      setEntries(jRes);
-      setAccounts(cRes);
+      setEntries(jRes.data || jRes);
+      setAccounts(cRes.data || cRes);
     } catch (e) {
       console.error(e);
     } finally {
