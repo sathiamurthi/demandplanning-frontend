@@ -22,7 +22,6 @@ export type CrudOptions<T extends CrudRecord> = {
   tenantId: string;
   /** true (default) = /tenants/{id}/stores/{storeId}/{module}; false = /tenants/{id}/{module} */
   storeLevel?: boolean;
-  globalLevel?: boolean;
   /** true = hits global /v1/{module} directly */
   globalLevel?: boolean;
   /** Seed data shown while the first fetch is in-flight */
