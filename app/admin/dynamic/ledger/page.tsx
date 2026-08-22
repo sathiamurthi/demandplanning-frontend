@@ -95,28 +95,28 @@ export default function ManageLedger() {
   const [search,       setSearch]       = useState("");
 
   const loadItems = useCallback(async () => {
-    if (!storeId) return;
+    if (!storeId || !tenantId) return;
     setLoading(true);
     try {
-      const res = await apiGet<ApiResponse<Item[]>>(`/stores/${storeId}/items?limit=500`);
+      const res = await apiGet<ApiResponse<Item[]>>(`/tenants/${tenantId}/stores/${storeId}/items?limit=500`);
       setItems(res.data ?? []);
     } catch {
       show("Failed to load items", "error");
     } finally {
       setLoading(false);
     }
-  }, [storeId, show]);
+  }, [storeId, tenantId, show]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
   const loadLedger = useCallback(async (item: Item) => {
-    if (!storeId) return;
+    if (!storeId || !tenantId) return;
     setSelectedItem(item);
     setLedger([]);
     setLedgerLoading(true);
     try {
       const res = await apiGet<ApiResponse<LedgerEntry[]>>(
-        `/stores/${storeId}/items/${item.id}/ledger?limit=200&offset=0`
+        `/tenants/${tenantId}/stores/${storeId}/items/${item.id}/ledger?limit=200&offset=0`
       );
       setLedger(res.data ?? []);
     } catch {
@@ -124,7 +124,7 @@ export default function ManageLedger() {
     } finally {
       setLedgerLoading(false);
     }
-  }, [storeId, show]);
+  }, [storeId, tenantId, show]);
 
   const filtered = items.filter(i =>
     !search || i.name.toLowerCase().includes(search.toLowerCase()) ||
