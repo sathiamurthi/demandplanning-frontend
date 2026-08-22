@@ -17,6 +17,7 @@ import {
   PURCHASE_ORDER_FIELDS,
   FieldDef,
 } from "./formbuilder";
+import { PipelineDocumentForm } from './PipelineDocumentForm';
 import { useStore } from "../appshell";
 
 /* ─────────────────────────── Shared helpers ─────────────────────────── */
@@ -723,6 +724,7 @@ export const leadsConfig: any = {
 };
 
 export const quotationsConfig: any = {
+  customForm: PipelineDocumentForm,
   module: "crm/quotations",
   storeLevel: true,
   title: "Quotations",
@@ -752,6 +754,7 @@ export const quotationsConfig: any = {
 };
 
 export const salesOrdersConfig: any = {
+  customForm: PipelineDocumentForm,
   module: "sales-orders",
   storeLevel: true,
   title: "Sales Orders",
@@ -781,12 +784,14 @@ export const salesOrdersConfig: any = {
 };
 
 export const invoicesConfig: any = {
+  customForm: PipelineDocumentForm,
   module: "sales", // points to the sales router which has a GET /
   storeLevel: true,
   title: "Invoices",
   singular: "Invoice",
   fields: [
     { key: "customer_name", label: "Customer Name", type: "text", required: true },
+    { key: "status", label: "Status", type: "select", options: [{label:"Draft",value:"draft"},{label:"Issued",value:"issued"},{label:"Paid",value:"paid"},{label:"Overdue",value:"overdue"},{label:"Void",value:"void"}] },
     { key: "sale_date", label: "Date", type: "date" },
     { key: "total_amount", label: "Total Amount", type: "number" }
   ],
@@ -795,6 +800,7 @@ export const invoicesConfig: any = {
   toPayload: (f: any) => f,
   columns: [
     { key: "sale_number", label: "Invoice Number", render: (v: any) => <strong>{v}</strong> },
+    { key: "status", label: "Status" },
     { key: "sale_date", label: "Date" },
     { key: "customer_name", label: "Customer Name" },
     { key: "total_amount", label: "Total Amount" },

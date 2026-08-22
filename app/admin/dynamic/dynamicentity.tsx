@@ -51,7 +51,7 @@ export type EntityConfig<T extends { id: string }> = {
   searchKeys: (keyof T & string)[];
   toPayload?: (formData: Partial<T>) => Partial<T>;
   /** false = uses /tenants/{id}/{module}; true (default) = /tenants/{id}/stores/{storeId}/{module} */
-  storeLevel?: boolean; globalLevel?: boolean;
+  storeLevel?: boolean; globalLevel?: boolean; customForm?: React.FC<any>;
 };
 
 /* ─────────────────────────── Component ─────────────────────────── */
@@ -358,7 +358,7 @@ export function DynamicEntity<T extends { id: string }>({
         title={editTarget ? `Edit ${config.singular}` : `Add ${config.singular}`}
       >
         <Modal.Body>
-          <FormBuilder
+          {config.customForm ? <config.customForm data={formData} onChange={setFormData} errors={formErrors} onSubmit={handleSave} onCancel={() => setFormOpen(false)} configFields={config.fields} /> : <FormBuilder
             fields={config.fields as FieldDef[]}
             data={formData}
             onChange={handleFormChange}
