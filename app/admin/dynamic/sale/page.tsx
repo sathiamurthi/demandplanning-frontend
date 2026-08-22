@@ -358,14 +358,14 @@ export default function SaleDynamicPage() {
   const toggleLoose = (i: number) => {
     setLines(prev => prev.map((l, idx) => {
       if (idx !== i) return l;
-      if (!l.secondaryUnitId || !l.unitsPerSecondary) return l;
       const willBeLoose = !l.isLoose;
+      const divisor = l.unitsPerSecondary || 10; // Default to 10 if unknown
       return {
         ...l,
         isLoose: willBeLoose,
-        unitId: willBeLoose ? l.secondaryUnitId : (l.primaryUnitId || ""),
-        unitSymbol: willBeLoose ? l.secondaryUnitSymbol! : (l.primaryUnitSymbol || "pcs"),
-        unitPrice: willBeLoose ? (l.primaryUnitPrice! / l.unitsPerSecondary) : l.primaryUnitPrice!,
+        unitId: willBeLoose ? (l.secondaryUnitId || "piece") : (l.primaryUnitId || ""),
+        unitSymbol: willBeLoose ? (l.secondaryUnitSymbol || "piece") : (l.primaryUnitSymbol || "pcs"),
+        unitPrice: willBeLoose ? (l.primaryUnitPrice! / divisor) : l.primaryUnitPrice!,
       };
     }));
   };
@@ -579,20 +579,14 @@ export default function SaleDynamicPage() {
                               <input type="number" min="0.01" step="0.01" value={l.qty}
                                 onChange={e => updateLine(i, "qty", parseFloat(e.target.value) || 0)}
                                 className="w-full rounded-l-lg border border-gray-200 px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                              {l.secondaryUnitId ? (
-                                <button
-                                  type="button"
-                                  title="Toggle Unit (Bulk/Loose)"
-                                  onClick={() => toggleLoose(i)}
-                                  className="bg-gray-200 text-gray-700 px-2 text-xs font-bold rounded-r-lg border border-l-0 border-gray-200 hover:bg-gray-300 transition-colors"
-                                >
-                                  {l.isLoose ? l.secondaryUnitSymbol || "loose" : l.primaryUnitSymbol || "bulk"}
-                                </button>
-                              ) : (
-                                <span className="bg-gray-100 text-gray-500 px-2 flex items-center text-xs font-bold rounded-r-lg border border-l-0 border-gray-200">
-                                  {l.unitSymbol}
-                                </span>
-                              )}
+                              <button
+                                type="button"
+                                title="Toggle Unit (Bulk/Loose)"
+                                onClick={() => toggleLoose(i)}
+                                className="bg-gray-200 text-gray-700 px-2 text-xs font-bold rounded-r-lg border border-l-0 border-gray-200 hover:bg-gray-300 transition-colors"
+                              >
+                                {l.isLoose ? (l.secondaryUnitSymbol || "piece") : (l.primaryUnitSymbol || l.unitSymbol || "bulk")}
+                              </button>
                             </div>
                           </div>
                           <div>
