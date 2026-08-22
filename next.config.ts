@@ -17,18 +17,17 @@ const nextConfig = {
     const backendBase = process.env.BACKEND_URL
       || process.env.NEXT_PUBLIC_API_URL
       || `http://localhost:${process.env.API_PORT || "5000"}`;
-    return {
-      fallback: [
-        {
-          source: "/v1/:path*",
-          destination: `${backendBase}/v1/:path*`,
-        },
-        {
-          source: "/api/:path*",
-          destination: `${backendBase}/v1/:path*`,
-        },
-      ]
-    };
+    return [
+      {
+        source: "/v1/:path*",
+        destination: `${backendBase}/v1/:path*`,
+      },
+      // Admin panel useCrud calls /api/... — forward ONLY known backend paths to /v1/...
+      { source: "/api/tenants/:path*", destination: `${backendBase}/v1/tenants/:path*` },
+      { source: "/api/roles/:path*", destination: `${backendBase}/v1/roles/:path*` },
+      { source: "/api/users/:path*", destination: `${backendBase}/v1/users/:path*` },
+      { source: "/api/auth/:path*", destination: `${backendBase}/v1/auth/:path*` },
+    ];
   },
 };
 
