@@ -237,7 +237,7 @@ export default function SalePage() {
           discountAmount: couponDiscount || undefined,
           items: lines.map(l => ({
             itemId: l.itemId, qtySold: l.qty,
-            unitId: l.unitId || undefined,
+            unitId: (l.unitId && l.unitId !== "null" && l.unitId.length > 10) ? l.unitId : undefined,
             unitPrice: l.unitPrice,
             discountPct: l.discountPct,
           })),

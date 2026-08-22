@@ -810,7 +810,14 @@ export const salesOrdersConfig: any = {
               customerName: item.customer_name, 
               customerEmail: item.customer_email,
               customerPhone: item.customer_phone,
-              items: (item.items || []).map((i:any) => ({ itemId: i.item_id || i.itemId, qty: i.qty, unitPrice: i.unit_price || i.unitPrice, discountPct: i.discount_pct || i.discountPct, gstRate: i.gst_rate || i.gstRate })),
+              items: (item.items || []).map((i:any) => ({ 
+                itemId: i.item_id || i.itemId, 
+                qtySold: Number(i.qty), 
+                unitPrice: i.unit_price || i.unitPrice, 
+                discountPct: i.discount_pct || i.discountPct, 
+                gstRate: i.gst_rate || i.gstRate,
+                unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined 
+              })),
               saleType: 'individual'
             })
           }).then(() => window.location.reload());
@@ -833,7 +840,14 @@ export const salesOrdersConfig: any = {
               customerName: item.customer_name, 
               customerEmail: item.customer_email,
               customerPhone: item.customer_phone,
-              items: (item.items || []).map((i:any) => ({ itemId: i.item_id, qty: i.qty, unitPrice: i.unit_price, discountPct: i.discount_pct, gstRate: i.gst_rate })),
+              items: (item.items || []).map((i:any) => ({ 
+                itemId: i.item_id || i.itemId, 
+                qtySold: Number(i.qty), 
+                unitPrice: i.unit_price || i.unitPrice, 
+                discountPct: i.discount_pct || i.discountPct, 
+                gstRate: i.gst_rate || i.gstRate,
+                unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined 
+              })),
               saleType: 'individual'
             })
           }).then(() => window.location.reload());
@@ -853,24 +867,41 @@ export const invoicesConfig: any = {
     { key: "customer_name", label: "Customer Name", type: "text", required: true },
     { key: "status", label: "Status", type: "select", options: [{label:"Draft",value:"draft"},{label:"Issued",value:"issued"},{label:"Paid",value:"paid"},{label:"Overdue",value:"overdue"},{label:"Void",value:"void"}] },
     { key: "sale_date", label: "Date", type: "date" },
-    { key: "total_amount", label: "Total Amount", type: "number" }
   ],
   blankForm: {},
   searchKeys: ["sale_number", "customer_name"],
-  toPayload: (f: any) => f,
+  toPayload: (f: any) => {
+    // Map snake_case to camelCase for the sales API
+    const mapped = { ...f };
+    if (f.customer_name) mapped.customerName = f.customer_name;
+    if (f.sale_date) mapped.saleDate = f.sale_date;
+    if (f.total_amount) mapped.totalAmount = f.total_amount;
+    mapped.saleType = mapped.saleType || 'individual';
+    
+    // Map items
+    if (f.items && Array.isArray(f.items)) {
+      mapped.items = f.items.map((i: any) => ({
+        itemId: i.item_id || i.itemId,
+        qtySold: Number(i.qty || i.qtySold),
+        unitPrice: Number(i.unit_price || i.unitPrice),
+        discountPct: Number(i.discount_pct || i.discountPct || 0),
+        gstRate: Number(i.gst_rate || i.gstRate || 0),
+        unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined
+      }));
+    }
+    return mapped;
+  },
   columns: [
     { key: "sale_number", label: "Invoice Number", render: (v: any) => <strong>{v}</strong> },
     { key: "status", label: "Status" },
     { key: "sale_date", label: "Date" },
     { key: "customer_name", label: "Customer Name" },
-    { key: "total_amount", label: "Total Amount" },
-    { key: "payment_method", label: "Payment Method" },
-    { key: "sale_type", label: "Type" }
+    { key: "total_amount", label: "Total Amount" }
   ],
   renderCard: (item: any) => (
     <div className="p-4 border rounded-lg">
       <h3 className="font-bold">{item.sale_number}</h3>
-      <p className="text-sm text-gray-500">{item.customer_name} - ${item.total_amount}</p>
+      <p className="text-sm text-gray-500">{item.customer_name} - ${item.total_amount} - {item.status}</p>
     </div>
   )
 };
