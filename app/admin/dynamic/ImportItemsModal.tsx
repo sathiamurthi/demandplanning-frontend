@@ -184,12 +184,31 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
     if (rows.length === 0) return;
     setSubmitting(true); setSubmitError(""); setResult(null);
     try {
+      // Fix dates for PostgreSQL (e.g. MM/YYYY or YYYY-MM to YYYY-MM-DD)
+      const formattedRows = rows.map(r => {
+        const row = { ...r };
+        if (row.expiryDate) {
+          let dateStr = row.expiryDate.trim();
+          // match MM/YYYY
+          if (/^\d{1,2}\/\d{4}$/.test(dateStr)) {
+            const [m, y] = dateStr.split('/');
+            dateStr = `${y}-${m.padStart(2, '0')}-01`;
+          }
+          // match YYYY-MM
+          else if (/^\d{4}-\d{1,2}$/.test(dateStr)) {
+            dateStr = `${dateStr}-01`;
+          }
+          row.expiryDate = dateStr;
+        }
+        return row;
+      });
+
       const res = await fetch(
         `${BASE}/tenants/${tenantId}/stores/${storeId}/items/import`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ rows, mode }),
+          body: JSON.stringify({ rows: formattedRows, mode }),
         }
       );
       const json = await res.json();
@@ -380,11 +399,11 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
                 </div>
               )}
 
-              {/* Preview table */}
+              {/* Editable Preview table */}
               {rows.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-gray-700">Preview ({Math.min(rows.length, 5)} of {rows.length} rows)</p>
+                <div className="space-y-2 flex flex-col min-h-[300px]">
+                  <div className="flex items-center justify-between shrink-0">
+                    <p className="text-xs font-medium text-gray-700">Preview ({rows.length} rows)</p>
                     {/* Mode selector */}
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">Mode:</span>
@@ -400,29 +419,51 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto rounded-xl border border-gray-100">
+                  <div className="flex-1 overflow-auto rounded-xl border border-gray-100 bg-white">
                     <table className="w-full text-xs">
-                      <thead className="bg-gray-50 border-b border-gray-100">
+                      <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
                         <tr>
-                          {["name", "categoryName", "currentStock", "purchasePrice", "mrp"].filter(h => headers.includes(h)).map((h) => (
-                            <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap">
-                              {h === "categoryName" ? "Category" : h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1').trim()}
+                          {headers.map((h) => (
+                            <th key={h} className="px-3 py-2 text-left text-gray-500 font-medium whitespace-nowrap bg-gray-50 border-r border-gray-100 last:border-0">
+                              {h === "categoryId" ? "Cat ID" : h === "categoryName" ? "Category Name" : h.charAt(0).toUpperCase() + h.slice(1).replace(/([A-Z])/g, ' $1').trim()}
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
-                        {rows.slice(0, 5).map((row, i) => (
+                        {rows.map((row, i) => (
                           <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                            {["name", "categoryName", "currentStock", "purchasePrice", "mrp"].filter(h => headers.includes(h)).map((h) => (
-                              <td key={h} className="px-3 py-2 text-gray-700 max-w-[120px] truncate">
-                                {row[h] || "—"}
+                            {headers.map((h) => (
+                              <td key={h} className="p-0 text-gray-700 border-r border-gray-50 last:border-0">
+                                <input
+                                  type="text"
+                                  value={row[h] || ""}
+                                  onChange={(e) => {
+                                    const newRows = [...rows];
+                                    newRows[i] = { ...newRows[i], [h]: e.target.value };
+                                    setRows(newRows);
+                                  }}
+                                  className="w-full px-3 py-2 bg-transparent border-none focus:ring-1 focus:ring-gold-400 focus:outline-none min-w-[100px]"
+                                  placeholder="—"
+                                />
                               </td>
                             ))}
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        const newRow: Record<string, string> = {};
+                        headers.forEach(h => newRow[h] = "");
+                        setRows([...rows, newRow]);
+                      }}
+                      className="text-xs font-medium text-gold-600 hover:text-gold-700 bg-gold-50 hover:bg-gold-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      + Add Row
+                    </button>
                   </div>
                 </div>
               )}

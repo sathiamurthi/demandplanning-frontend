@@ -30,7 +30,7 @@ Return a JSON array of objects, where each object has these exact keys:
 - mrp (number)
 - purchasePrice (number)
 - batchNumber (string)
-- expiryDate (string, format YYYY-MM-DD or YYYY-MM)
+- expiryDate (string, format MM/YYYY)
 - categoryId (string, strictly matching the best category ID from the list below, or null if none match)
 - categoryName (string, the name of the matched category, or null)
 
