@@ -93,6 +93,8 @@ export const data360Api = {
     req<{ data: StudyPack; provider: string; cached: boolean }>("/school/study-guide", { method: "POST", body: JSON.stringify({ raw_snippet, class_level, board, subject, file_label }) }),
   studyGuideFromImages: (images: { image_base64: string; mime_type: string }[], class_level: string, board: string, subject?: string, file_label?: string) =>
     req<{ data: StudyPack; provider: string; cached: boolean }>("/school/study-guide-image", { method: "POST", body: JSON.stringify({ images, class_level, board, subject, file_label }) }),
+  generateStudyGuide: (class_level: string, board: string, subject: string, chapter_name: string) =>
+    req<{ data: StudyPack; provider: string; cached: boolean }>("/school/generate-chapter-guide", { method: "POST", body: JSON.stringify({ class_level, board, subject, chapter_name }) }),
 
   // ── Usage quota (free trial + paid packages) ────────────────────────────
   getQuota: () => req<DataQuota>("/quota"),

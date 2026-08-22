@@ -101,6 +101,7 @@ export interface D360GenerationJob {
 export interface StudyPack {
   chapter_title: string;
   subject: string;
+  story_telling_explanation?: string;
   core_concepts: { concept: string; simple_explanation: string; why_it_matters: string }[];
   key_terms: { term: string; meaning: string }[];
   study_plan: { step: number; focus: string; time_minutes: number; activity: string }[];

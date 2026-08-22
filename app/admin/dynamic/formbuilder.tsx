@@ -35,7 +35,8 @@ export type FieldType =
   | "select"
   | "toggle"
   | "radio"
-  | "date";
+  | "date"
+  | "month";
 
 export type SelectOption = { label: string; value: string };
 
@@ -595,7 +596,7 @@ export const ITEM_FIELDS: FieldDef[] = [
   {
     key: "expiryDate",
     label: "Expiry Date",
-    type: "date",
+    type: "month",
     span: "half",
   },
 

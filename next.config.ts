@@ -3,6 +3,16 @@ const nextConfig = {
   devIndicators: {
     port: 4000
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }
+        ],
+      },
+    ];
+  },
   async rewrites() {
     const backendBase = process.env.BACKEND_URL
       || process.env.NEXT_PUBLIC_API_URL

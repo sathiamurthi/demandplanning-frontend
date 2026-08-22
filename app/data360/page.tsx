@@ -124,7 +124,7 @@ export default function Data360Page() {
 
   // ── School: chapter -> Study Pack ───────────────────────────────────────
   const BOARD_PRESETS = ["CBSE", "ICSE", "State Board", "IB", "Cambridge / IGCSE"];
-  const [schoolInputMode, setSchoolInputMode] = useState<"upload" | "text">("upload");
+  const [schoolInputMode, setSchoolInputMode] = useState<"upload" | "text" | "generate">("upload");
   const [schoolClassLevel, setSchoolClassLevel] = useState("");
   const [schoolBoard, setSchoolBoard] = useState("CBSE");
   const [schoolSubject, setSchoolSubject] = useState("");
@@ -176,6 +176,21 @@ export default function Data360Page() {
       setSchoolErr(e.message || "Could not generate the study pack");
     } finally { setSchoolBusy(false); }
   };
+
+  const runStudyGuideGenerate = async () => {
+    if (!schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()) {
+      setSchoolErr("Class, Board, Subject, and Chapter Name are strictly required for AI generation.");
+      return;
+    }
+    setSchoolBusy(true); setSchoolErr(""); setSchoolResult(null);
+    try {
+      const { data, provider, cached } = await data360Api.generateStudyGuide(schoolClassLevel, schoolBoard, schoolSubject, schoolChapterLabel);
+      setSchoolResult(data); setSchoolProvider(provider); setSchoolCached(cached);
+    } catch (e: any) {
+      setSchoolErr(e.message || "Could not generate the study pack");
+    } finally { setSchoolBusy(false); }
+  };
+
 
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -1609,16 +1624,16 @@ export default function Data360Page() {
                 <button key={b} onClick={() => setSchoolBoard(b)} className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${schoolBoard === b ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{b}</button>
               ))}
             </div>
-            <input value={schoolChapterLabel} onChange={e => setSchoolChapterLabel(e.target.value)} placeholder="Chapter title (optional, for your reference)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+            <input value={schoolChapterLabel} onChange={e => setSchoolChapterLabel(e.target.value)} placeholder={`Chapter title ${schoolInputMode === 'generate' ? '(required)' : '(optional, for your reference)'}`} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
           </div>
 
-          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6">
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {(["upload", "text"] as const).map(key => (
+          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6 print:hidden">
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {(["upload", "text", "generate"] as const).map(key => (
                 <button key={key} onClick={() => setSchoolInputMode(key)}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition ${schoolInputMode === key ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                  {key === "upload" ? <Upload size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} /> : <FileText size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} />}
-                  <span className={`text-xs font-bold ${schoolInputMode === key ? "text-teal-700" : "text-gray-600"}`}>{key === "upload" ? "Upload Pages" : "Paste Text"}</span>
+                  {key === "upload" ? <Upload size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} /> : key === "text" ? <FileText size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} /> : <Sparkles size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} />}
+                  <span className={`text-xs font-bold text-center ${schoolInputMode === key ? "text-teal-700" : "text-gray-600"}`}>{key === "upload" ? "Upload Pages" : key === "text" ? "Paste Text" : "Generate by Topic"}</span>
                 </button>
               ))}
             </div>
@@ -1644,6 +1659,15 @@ export default function Data360Page() {
                 </button>
               </div>
             )}
+            {schoolInputMode === "generate" && (
+              <div>
+                <p className="text-xs text-gray-500 mb-3">No document needed! Just ensure Class, Board, Subject, and Chapter Name are filled above, and the AI will generate a complete study pack from its curriculum knowledge.</p>
+                <button onClick={runStudyGuideGenerate} disabled={schoolBusy || !schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()}
+                  className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
+                  <Sparkles size={13} /> Generate Study Pack
+                </button>
+              </div>
+            )}
 
             {schoolBusy && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Reading the chapter and building your study pack…</p>}
             {schoolErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{schoolErr}</p>}
@@ -1657,12 +1681,24 @@ export default function Data360Page() {
                     <h3 className="font-black text-gray-900 text-lg">{schoolResult.chapter_title}</h3>
                     <p className="text-xs text-gray-400">{schoolResult.subject} · {schoolClassLevel} · {schoolBoard}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400">via {schoolProvider}</span>
-                    {schoolCached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-400">via {schoolProvider}</span>
+                      {schoolCached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
+                    </div>
+                    <button onClick={() => window.print()} className="print:hidden text-xs font-bold text-teal-700 bg-teal-100 hover:bg-teal-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                      <FileText size={14} /> Print to PDF
+                    </button>
                   </div>
                 </div>
               </div>
+
+              {schoolResult.story_telling_explanation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                  <h4 className="font-black text-blue-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={16} /> Concept Story</h4>
+                  <p className="text-sm text-blue-900 leading-relaxed">{schoolResult.story_telling_explanation}</p>
+                </div>
+              )}
 
               {schoolResult.quick_reference?.length > 0 && (
                 <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6">

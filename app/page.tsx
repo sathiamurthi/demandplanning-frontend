@@ -533,7 +533,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* TeaFactory360 */}
+            {/* GreenLeaf360 */}
             <div className="bg-slate-50 border border-gray-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
               <div>
                 <span className="text-[10px] tracking-wider uppercase text-emerald-700 font-black bg-emerald-100 px-2.5 py-1 rounded-full">Tea Factory Operations</span>
@@ -542,7 +542,7 @@ export default function HomePage() {
                     <Leaf className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">TeaFactory360</h3><InstallAppBadge label="TeaFactory360" installPath="/tea" manifestHref="/teafactory360-manifest.json" /></div>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">GreenLeaf360</h3></div>
                     <p className="text-[10px] text-gray-400">Growers to grading to sales — end to end</p>
                   </div>
                 </div>
@@ -550,15 +550,10 @@ export default function HomePage() {
                   Grower collections, production stages (withering → firing → grading → packaging), estate payroll, fleet &amp; live map, machinery &amp; vendors, inventory, sales &amp; auction, compliance, and an AI assistant for daily insights.
                 </p>
               </div>
-              <div className="pt-4 border-t border-gray-200 space-y-2">
-                <Link href="/tea" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
-                  Open TeaFactory360
-                </Link>
-                <div className="grid grid-cols-3 divide-x divide-gray-200 text-center text-[11px] font-semibold">
-                  <Link href="/tea-register" className="text-emerald-700 hover:text-emerald-800 whitespace-nowrap">Register</Link>
-                  <Link href="/tea-login" className="text-emerald-700 hover:text-emerald-800 whitespace-nowrap">Sign In</Link>
-                  <Link href="/agent-login" className="text-emerald-700 hover:text-emerald-800 whitespace-nowrap">Agent</Link>
-                </div>
+              <div className="pt-4 border-t border-gray-200">
+                <a href="https://greenleaf360.demandgeniusai.com" target="_blank" rel="noopener noreferrer" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  Open GreenLeaf360
+                </a>
               </div>
             </div>
           </div>

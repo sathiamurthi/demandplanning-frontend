@@ -148,7 +148,7 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
       const dataUrl = e.target?.result as string;
       const base64 = dataUrl.split(",")[1];
       try {
-        const res = await fetch(`/api/import-invoice-ai`, {
+        const res = await fetch(`/next-api/import-invoice-ai`, {
           method: 'POST',
           headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({

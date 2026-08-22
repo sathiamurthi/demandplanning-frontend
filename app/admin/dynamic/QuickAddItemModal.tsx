@@ -107,7 +107,7 @@ export function QuickAddItemModal({ isOpen, onClose, onCreated }: Props) {
             sellingPrice: parseFloat(price) || 0,
             currentStock: parseInt(stock) || 0,
             manufactureDate: mfgDate || undefined,
-            expiryDate: expiryDate || undefined,
+            expiryDate: expiryDate ? (expiryDate.length === 7 ? `${expiryDate}-01` : expiryDate) : undefined,
             discountType,
             discountValue: parseFloat(discountValue) || 0,
           }),
@@ -311,8 +311,8 @@ export function QuickAddItemModal({ isOpen, onClose, onCreated }: Props) {
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-400/20" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Expiry date</label>
-                  <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
+                  <label className="text-xs font-semibold text-gray-500 uppercase">Expiry Month/Year</label>
+                  <input type="month" value={expiryDate.slice(0, 7)} onChange={e => setExpiryDate(e.target.value)}
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-400/20" />
                 </div>
               </div>
