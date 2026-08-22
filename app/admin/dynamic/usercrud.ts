@@ -131,7 +131,7 @@ export function useCrud<T extends CrudRecord>(
       setError(null);
       try {
         const qs = new URLSearchParams({ ...defaultParams, ...params }).toString();
-        const url = buildUrl(tenantId, module, storeLevel) + (qs ? `?${qs}` : "");
+        const url = buildUrl(tenantId, module, storeLevel, undefined, globalLevel) + (qs ? `?${qs}` : "");
         const res = await req<{ data: T[] }>("GET", url);
         setItems(res.data ?? []);
         onSuccess?.("fetch");
@@ -159,7 +159,7 @@ export function useCrud<T extends CrudRecord>(
 
       setSaving(true);
       try {
-        const res = await req<{ data: T }>("POST", buildUrl(tenantId, module, storeLevel), data);
+        const res = await req<{ data: T }>("POST", buildUrl(tenantId, module, storeLevel, undefined, globalLevel), data);
         const created = res.data;
         setItems((prev) =>
           tempId
@@ -193,7 +193,7 @@ export function useCrud<T extends CrudRecord>(
 
       setSaving(true);
       try {
-        const res = await req<{ data: T }>("PUT", buildUrl(tenantId, module, storeLevel, id), data);
+        const res = await req<{ data: T }>("PUT", buildUrl(tenantId, module, storeLevel, id, globalLevel), data);
         const updated = res.data;
         setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
         onSuccess?.("update", updated);
@@ -221,7 +221,7 @@ export function useCrud<T extends CrudRecord>(
 
       setSaving(true);
       try {
-        await req("DELETE", buildUrl(tenantId, module, storeLevel, id));
+        await req("DELETE", buildUrl(tenantId, module, storeLevel, id, globalLevel));
         if (!optimistic) setItems((prev) => prev.filter((i) => i.id !== id));
         onSuccess?.("delete");
         return true;
