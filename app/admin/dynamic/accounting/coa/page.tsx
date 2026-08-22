@@ -18,7 +18,7 @@ export default function COAPage() {
     setLoading(true);
     try {
       const res = await apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/accounting/coa`);
-      setAccounts(res);
+      setAccounts(res.data || []);
     } catch (e) {
       console.error(e);
     } finally {
