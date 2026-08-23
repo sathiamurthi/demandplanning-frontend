@@ -151,17 +151,47 @@ export function DynamicEntity<T extends { id: string }>({
     setDeleteTarget(null);
   }, [deleteTarget, remove]);
 
-  const handleSeedUnits = useCallback(async () => {
-    const defaultUnits = [
-      { name: "Box", symbol: "BOX", category: "count", is_active: true },
-      { name: "Kilogram", symbol: "KG", category: "weight", is_active: true },
-      { name: "Liter", symbol: "L", category: "volume", is_active: true },
-      { name: "Piece", symbol: "PCS", category: "count", is_active: true }
-    ];
+  const handleSeedUnits = useCallback(async (domain: string) => {
+    let defaultUnits: any[] = [];
+    if (domain === "medical") {
+      defaultUnits = [
+        { name: "Strip", symbol: "STRIP", category: "count", is_active: true },
+        { name: "Box", symbol: "BOX", category: "count", is_active: true },
+        { name: "Vial", symbol: "VIAL", category: "volume", is_active: true },
+        { name: "Bottle", symbol: "BTL", category: "volume", is_active: true }
+      ];
+    } else if (domain === "groceries" || domain === "wholesale") {
+      defaultUnits = [
+        { name: "Kilogram", symbol: "KG", category: "weight", is_active: true },
+        { name: "Gram", symbol: "G", category: "weight", is_active: true },
+        { name: "Liter", symbol: "L", category: "volume", is_active: true },
+        { name: "Piece", symbol: "PCS", category: "count", is_active: true },
+        { name: "Dozen", symbol: "DOZ", category: "count", is_active: true },
+        { name: "Carton", symbol: "CTN", category: "count", is_active: true }
+      ];
+    } else if (domain === "autoparts") {
+      defaultUnits = [
+        { name: "Piece", symbol: "PCS", category: "count", is_active: true },
+        { name: "Set", symbol: "SET", category: "count", is_active: true },
+        { name: "Pair", symbol: "PR", category: "count", is_active: true },
+        { name: "Liter", symbol: "L", category: "volume", is_active: true },
+        { name: "Drum", symbol: "DRUM", category: "volume", is_active: true }
+      ];
+    } else {
+      defaultUnits = [
+        { name: "Box", symbol: "BOX", category: "count", is_active: true },
+        { name: "Kilogram", symbol: "KG", category: "weight", is_active: true },
+        { name: "Liter", symbol: "L", category: "volume", is_active: true },
+        { name: "Piece", symbol: "PCS", category: "count", is_active: true }
+      ];
+    }
+
+    if (!confirm(`Are you sure you want to seed default units for ${domain.toUpperCase()}?`)) return;
+
     for (const u of defaultUnits) {
       await create(u as any);
     }
-    show("Default units seeded");
+    show(`${domain.toUpperCase()} units seeded!`);
     fetch();
   }, [create, show, fetch]);
 
@@ -193,6 +223,14 @@ export function DynamicEntity<T extends { id: string }>({
                   <span className="hidden sm:inline">Quick add</span>
                   <span className="sm:hidden">Quick</span>
                 </Button>
+              </>
+            )}
+
+            {config.module === "units" && (
+              <>
+                <Button variant="secondary" onClick={() => handleSeedUnits('medical')} className="hidden lg:flex bg-blue-50 text-blue-700">Seed Medical</Button>
+                <Button variant="secondary" onClick={() => handleSeedUnits('groceries')} className="hidden lg:flex bg-green-50 text-green-700">Seed Groceries</Button>
+                <Button variant="secondary" onClick={() => handleSeedUnits('autoparts')} className="hidden lg:flex bg-gray-200 text-gray-800">Seed Autoparts</Button>
               </>
             )}
 
@@ -284,13 +322,11 @@ export function DynamicEntity<T extends { id: string }>({
                     </Button>
                   )}
                   {config.module === "units" && (
-                    <Button
-                      variant="secondary"
-                      onClick={handleSeedUnits}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto"
-                    >
-                      Seed Defaults
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
+                      <Button variant="secondary" onClick={() => handleSeedUnits('medical')} className="bg-blue-50 text-blue-700 w-full sm:w-auto">Seed Medical</Button>
+                      <Button variant="secondary" onClick={() => handleSeedUnits('groceries')} className="bg-green-50 text-green-700 w-full sm:w-auto">Seed Groceries</Button>
+                      <Button variant="secondary" onClick={() => handleSeedUnits('autoparts')} className="bg-gray-200 text-gray-800 w-full sm:w-auto">Seed Autoparts</Button>
+                    </div>
                   )}
 
                   <Button

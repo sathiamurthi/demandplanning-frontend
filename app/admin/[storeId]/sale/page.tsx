@@ -245,6 +245,38 @@ export default function SalePage() {
       });
       const d = await r.json();
       if (!d.success) throw new Error(d.error || "Failed");
+      
+      // Auto-save customer if not already exists in Khata or CRM
+      if (customerName) {
+        try {
+          const tenantId = localStorage.getItem("tenantId") || "";
+          
+          // 1. Try to add to CRM/Leads (ignoring errors if backend doesn't support it)
+          if (tenantId) {
+            fetch(`/v1/tenants/${tenantId}/stores/${storeId}/crm/leads`, {
+              method: "POST", headers: authHeaders(),
+              body: JSON.stringify({ customer_name: customerName, phone: customerPhone || "", status: "New", value: grandTotal })
+            }).catch(() => {});
+          }
+
+          // 2. Add to Local Khata Book
+          const KHATA_KEY = `khata_customers_${storeId}`;
+          const existing = JSON.parse(localStorage.getItem(KHATA_KEY) || "[]");
+          if (!existing.some((c: any) => c.name.toLowerCase() === customerName.toLowerCase())) {
+            existing.push({
+              id: `k${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              name: customerName,
+              phone: customerPhone || "",
+              address: "",
+              created_at: new Date().toISOString()
+            });
+            localStorage.setItem(KHATA_KEY, JSON.stringify(existing));
+          }
+        } catch (e) {
+          console.error("Failed to auto-save customer", e);
+        }
+      }
+
       setSaveMsg({ ok: true, text: `Sale ${d.data?.saleNumber || ""} saved!` });
       setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
       setCouponCode(""); setCouponDiscount(0); setCouponMsg("");
