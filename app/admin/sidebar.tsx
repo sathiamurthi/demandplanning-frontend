@@ -20,9 +20,7 @@ import {
   Menu,
   X,
   BookOpen,
-  Wallet,
-  Clock,
-  Calendar
+  Wallet
 } from "lucide-react";
 
 import { useStore } from "./appshell"; // ✅ IMPORTANT

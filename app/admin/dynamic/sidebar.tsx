@@ -9,6 +9,7 @@ import {
   ShoppingCart, Shield, ChevronLeft, ChevronRight,
   LogOut, Bell, Menu, X, BookOpen, Sparkles,
   FileBarChart2, Brain, Zap, ReceiptText, GraduationCap,
+  Clock, Calendar
 } from "lucide-react";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -18,7 +19,6 @@ import {
 type NavItem  = { label: string; href: string; icon: React.ElementType; badge?: number; isPro?: boolean; roles?: string[] };
 type NavGroup = { section: string; items: NavItem[]; roles?: string[] };
 
-const ALL_ROLES = ["superadmin","industry_admin","owner","manager","staff","guest"];
 const MGMT_ROLES = ["superadmin","industry_admin","owner","manager"];
 const OWNER_ROLES = ["superadmin","industry_admin","owner"];
 
@@ -72,6 +72,15 @@ const NAV: NavGroup[] = [
     items: [
       { label: "School AI Tutor", href: "/admin/dynamic/school", icon: GraduationCap },
     ],
+  },
+  {
+    section: "HR & Staff",
+    roles: MGMT_ROLES,
+    items: [
+      { label: "Attendance", href: "/admin/dynamic/attendance", icon: Calendar },
+      { label: "Timesheets", href: "/admin/dynamic/timesheets", icon: Clock },
+      { label: "Employees", href: "/admin/dynamic/users", icon: Users },
+    ]
   },
   {
     section: "Settings",
