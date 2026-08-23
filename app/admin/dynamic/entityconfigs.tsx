@@ -1109,6 +1109,50 @@ export const invoicesConfig: any = {
   )
 };
 
+export const suppliersConfig: any = {
+  module: "suppliers",
+  tenantLevel: true,
+  title: "Suppliers / Distributors",
+  singular: "Supplier",
+  fields: [
+    { key: "name", label: "Supplier Name", type: "text", required: true },
+    { key: "contact_name", label: "Contact Name", type: "text" },
+    { key: "phone", label: "Phone", type: "text" },
+    { key: "email", label: "Email", type: "text" },
+    { key: "gst_number", label: "GST Number", type: "text" },
+    { key: "address", label: "Address", type: "text" },
+    { key: "payment_terms_days", label: "Payment Terms (Days)", type: "number" },
+    { key: "lead_time_days", label: "Lead Time (Days)", type: "number" },
+    { key: "is_active", label: "Active", type: "toggle" }
+  ],
+  blankForm: { name: "", contact_name: "", phone: "", email: "", gst_number: "", address: "", payment_terms_days: 30, lead_time_days: 5, is_active: true },
+  searchKeys: ["name", "contact_name", "phone", "email", "gst_number"],
+  toPayload: (f: any) => ({
+    name: f.name,
+    contactName: f.contact_name,
+    phone: f.phone,
+    email: f.email,
+    gstNumber: f.gst_number,
+    address: f.address,
+    paymentTermsDays: Number(f.payment_terms_days) || 30,
+    leadTimeDays: Number(f.lead_time_days) || 5,
+    isActive: !!f.is_active
+  }),
+  columns: [
+    { key: "name", label: "Supplier", render: (v: any) => <strong className="text-gray-900">{v}</strong> },
+    { key: "contact_name", label: "Contact" },
+    { key: "phone", label: "Phone" },
+    { key: "gst_number", label: "GST No" },
+    { key: "is_active", label: "Status", render: (v: any) => (v ? "Active" : "Inactive") }
+  ],
+  renderCard: (item: any) => (
+    <div className="p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+      <h3 className="font-bold text-gray-900">{item.name}</h3>
+      <p className="text-sm text-gray-500 mt-1">{item.contact_name} {item.phone ? `(${item.phone})` : ""}</p>
+      {item.gst_number && <p className="text-xs text-gray-400 mt-1">GST: {item.gst_number}</p>}
+    </div>
+  )
+};
 
 export const unitsConfig: any = {
   module: "units",

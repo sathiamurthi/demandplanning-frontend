@@ -9,7 +9,7 @@ import {
   ShoppingCart, Shield, ChevronLeft, ChevronRight,
   LogOut, Bell, Menu, X, BookOpen, Sparkles,
   FileBarChart2, Brain, Zap, ReceiptText, GraduationCap,
-  Clock, Calendar, Wallet
+  Clock, Calendar, Wallet, TruckIcon
 } from "lucide-react";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -62,6 +62,7 @@ const NAV: NavGroup[] = [
     section: "Management",
     roles: MGMT_ROLES,
     items: [
+      { label: "Suppliers",     href: "/admin/dynamic/suppliers",      icon: TruckIcon, roles: MGMT_ROLES },
       { label: "Users",         href: "/admin/dynamic/users",          icon: Users,     roles: OWNER_ROLES },
       { label: "Stores",        href: "/admin/dynamic/stores",         icon: Store,     roles: OWNER_ROLES },
       { label: "Store configs", href: "/admin/dynamic/store-configs",  icon: Settings2, roles: MGMT_ROLES  },
