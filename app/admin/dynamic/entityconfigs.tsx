@@ -467,20 +467,22 @@ function formatPrice(v: unknown) {
   }).format(n);
 }
 
-function stockBadge(stock?: number | null) {
+function stockBadge(stock?: number | null, unit?: string | null) {
   if (stock === null || stock === undefined) {
     return <Badge variant="neutral">Unknown</Badge>;
   }
+
+  const u = unit ? ` ${unit}` : "";
 
   if (stock === 0) {
     return <Badge variant="error">Out of stock</Badge>;
   }
 
   if (stock <= 10) {
-    return <Badge variant="warning">Low ({stock})</Badge>;
+    return <Badge variant="warning">Low ({stock}{u})</Badge>;
   }
 
-  return <Badge variant="success">{stock} in stock</Badge>;
+  return <Badge variant="success">{stock}{u} in stock</Badge>;
 }
 
 export const itemsConfig: EntityConfig<Item> = {
