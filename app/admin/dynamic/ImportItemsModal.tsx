@@ -189,12 +189,10 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
         const row = { ...r };
         if (row.expiryDate) {
           let dateStr = row.expiryDate.trim();
-          // match MM/YYYY
           if (/^\d{1,2}\/\d{4}$/.test(dateStr)) {
             const [m, y] = dateStr.split('/');
             dateStr = `${y}-${m.padStart(2, '0')}-01`;
           }
-          // match YYYY-MM
           else if (/^\d{4}-\d{1,2}$/.test(dateStr)) {
             dateStr = `${dateStr}-01`;
           }
@@ -203,18 +201,92 @@ export function ImportItemsModal({ isOpen, onClose, onImported }: Props) {
         return row;
       });
 
-      const res = await fetch(
-        `${BASE}/tenants/${tenantId}/stores/${storeId}/items/import`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ rows: formattedRows, mode }),
+      // 1. Fetch existing items
+      const existingRes = await fetch(`${BASE}/tenants/${tenantId}/stores/${storeId}/items?limit=10000`, {
+        headers: getAuthHeaders(),
+      });
+      const existingData = await existingRes.json();
+      let existingItems: any[] = [];
+      if (Array.isArray(existingData)) existingItems = existingData;
+      else if (existingData.data && Array.isArray(existingData.data)) existingItems = existingData.data;
+      else if (existingData.items && Array.isArray(existingData.items)) existingItems = existingData.items;
+
+      let created = 0;
+      let updated = 0;
+      let errors: { row: number; message: string }[] = [];
+
+      for (let i = 0; i < formattedRows.length; i++) {
+        const row = formattedRows[i];
+        
+        const match = existingItems.find(item => 
+          (row.sku && item.sku === row.sku) || 
+          (row.name && item.name === row.name)
+        );
+
+        try {
+          if (match) {
+            const rowPrice = row.sellingPrice ? parseFloat(row.sellingPrice) : undefined;
+            const matchPrice = match.selling_price ? parseFloat(match.selling_price) : (match.sellingPrice ? parseFloat(match.sellingPrice) : undefined);
+            const pricesMatch = rowPrice === matchPrice;
+
+            const rowExpiry = row.expiryDate ? row.expiryDate.slice(0,7) : null;
+            const matchExpiry = match.expiry_date ? match.expiry_date.slice(0,7) : (match.expiryDate ? match.expiryDate.slice(0,7) : null);
+            const expiryMatch = rowExpiry === matchExpiry;
+
+            if (pricesMatch && expiryMatch) {
+              const currentStock = match.current_stock ?? match.currentStock ?? 0;
+              const addedStock = row.currentStock ? parseFloat(row.currentStock) : 0;
+              const newStock = currentStock + addedStock;
+              
+              // Backend expects items fields, typically camelCase based on entityconfigs
+              const payload = {
+                ...row,
+                currentStock: newStock,
+                sellingPrice: rowPrice,
+              };
+
+              const putRes = await fetch(`${BASE}/tenants/${tenantId}/stores/${storeId}/items/${match.id}`, {
+                method: "PUT",
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+              });
+              
+              if (!putRes.ok) {
+                const errText = await putRes.text();
+                throw new Error(errText);
+              }
+              updated++;
+            } else {
+              const postRes = await fetch(`${BASE}/tenants/${tenantId}/stores/${storeId}/items`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify(row)
+              });
+              if (!postRes.ok) {
+                const errText = await postRes.text();
+                throw new Error(errText);
+              }
+              created++;
+            }
+          } else {
+            const postRes = await fetch(`${BASE}/tenants/${tenantId}/stores/${storeId}/items`, {
+              method: "POST",
+              headers: getAuthHeaders(),
+              body: JSON.stringify(row)
+            });
+            if (!postRes.ok) {
+              const errText = await postRes.text();
+              throw new Error(errText);
+            }
+            created++;
+          }
+        } catch (e: any) {
+          errors.push({ row: i+1, message: e.message });
         }
-      );
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Import failed");
-      setResult(json.data);
-      if (json.data.created > 0 || json.data.updated > 0) onImported();
+      }
+
+      setResult({ created, updated, errors, total: formattedRows.length });
+      if (created > 0 || updated > 0) onImported();
     } catch (e: any) {
       setSubmitError(e.message);
     } finally {
