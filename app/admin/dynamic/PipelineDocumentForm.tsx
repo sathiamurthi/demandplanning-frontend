@@ -21,6 +21,7 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
       unit_price: Number(item.selling_price || 0), 
       discount_pct: 0, 
       gst_rate: Number(item.gst_rate || 0),
+      unit_id: item.primary_unit_id || undefined,
       description: "" 
     }];
     onChange({ ...data, items: newItems });

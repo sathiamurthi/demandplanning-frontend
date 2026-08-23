@@ -794,7 +794,20 @@ export const salesOrdersConfig: any = {
   ],
   blankForm: { customer_name: "", status: "Pending" },
   searchKeys: ["order_number", "customer_name"],
-  toPayload: (f: any) => f,
+  toPayload: (f: any) => {
+    const mapped = { ...f };
+    if (f.items && Array.isArray(f.items)) {
+      mapped.items = f.items.map((i: any) => ({
+        itemId: i.item_id || i.itemId,
+        qty: Number(i.qty),
+        unitPrice: Number(i.unit_price || i.unitPrice),
+        discountPct: Number(i.discount_pct || i.discountPct || 0),
+        gstRate: Number(i.gst_rate || i.gstRate || 0),
+        unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined
+      }));
+    }
+    return mapped;
+  },
   columns: [
     { key: "order_number", label: "Order Number", render: (v: any) => <strong>{v}</strong> },
     { key: "customer_name", label: "Customer Name" },
@@ -909,7 +922,7 @@ export const invoicesConfig: any = {
 
 export const unitsConfig: any = {
   module: "units",
-  globalLevel: true, // Calls /v1/units
+  storeLevel: false, // Calls /v1/tenants/:id/units
   title: "Unit Types",
   singular: "Unit",
   fields: [
