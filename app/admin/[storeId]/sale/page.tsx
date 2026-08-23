@@ -106,6 +106,7 @@ export default function SalePage() {
   const [lines, setLines] = useState<LineItem[]>([]);
   const [saleDate, setSaleDate] = useState(today());
   const [payMethod, setPayMethod] = useState("cash");
+  const [amountPaid, setAmountPaid] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -137,6 +138,31 @@ export default function SalePage() {
       .then(r => r.json()).then(d => { if (d.success || Array.isArray(d.data)) setItems(d.data || []); }).catch(() => {});
     loadTodaySales();
   }, [storeId]);
+
+  const [customerBalance, setCustomerBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!customerName) {
+      setCustomerBalance(null);
+      return;
+    }
+    const KHATA_KEY = `khata_customers_${storeId}`;
+    const TXNS_KEY = `khata_txns_${storeId}`;
+    const customers = JSON.parse(localStorage.getItem(KHATA_KEY) || "[]");
+    const found = customers.find((c: any) => c.name.toLowerCase() === customerName.toLowerCase());
+    if (found) {
+      const txns = JSON.parse(localStorage.getItem(TXNS_KEY) || "[]");
+      const cTxns = txns.filter((t: any) => t.customer_id === found.id);
+      let bal = 0;
+      for (const t of cTxns) {
+        if (t.type === "purchase") bal += t.amount;
+        else if (t.type === "payment") bal -= t.amount;
+      }
+      setCustomerBalance(bal);
+    } else {
+      setCustomerBalance(null);
+    }
+  }, [customerName, storeId, payMethod]); // re-run if payMethod changes so they see the updated balance after save
 
   const loadTodaySales = useCallback(async () => {
     setLoadingSales(true);
@@ -262,9 +288,14 @@ export default function SalePage() {
           // 2. Add to Local Khata Book
           const KHATA_KEY = `khata_customers_${storeId}`;
           const existing = JSON.parse(localStorage.getItem(KHATA_KEY) || "[]");
-          if (!existing.some((c: any) => c.name.toLowerCase() === customerName.toLowerCase())) {
+          let customerId = "";
+          const found = existing.find((c: any) => c.name.toLowerCase() === customerName.toLowerCase());
+          if (found) {
+            customerId = found.id;
+          } else {
+            customerId = `k${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
             existing.push({
-              id: `k${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              id: customerId,
               name: customerName,
               phone: customerPhone || "",
               address: "",
@@ -272,6 +303,40 @@ export default function SalePage() {
             });
             localStorage.setItem(KHATA_KEY, JSON.stringify(existing));
           }
+
+          // 3. Record transaction if partial or credit
+          if (payMethod === "credit" || payMethod === "partial") {
+             const paid = payMethod === "credit" ? 0 : parseFloat(amountPaid) || 0;
+             const TXNS_KEY = `khata_txns_${storeId}`;
+             const txns = JSON.parse(localStorage.getItem(TXNS_KEY) || "[]");
+             
+             // Add the purchase (debt)
+             txns.push({
+                id: `t${Date.now()}_1`,
+                customer_id: customerId,
+                date: new Date(saleDate).toISOString().slice(0, 10),
+                type: "purchase",
+                amount: grandTotal,
+                note: `Invoice ${d.data?.saleNumber || ""}`,
+                created_at: new Date().toISOString()
+             });
+
+             // If partial payment, add the payment
+             if (paid > 0) {
+                 txns.push({
+                    id: `t${Date.now()}_2`,
+                    customer_id: customerId,
+                    date: new Date(saleDate).toISOString().slice(0, 10),
+                    type: "payment",
+                    amount: paid,
+                    note: `Partial payment for ${d.data?.saleNumber || ""}`,
+                    created_at: new Date().toISOString()
+                 });
+             }
+             
+             localStorage.setItem(TXNS_KEY, JSON.stringify(txns));
+          }
+
         } catch (e) {
           console.error("Failed to auto-save customer", e);
         }
@@ -279,7 +344,7 @@ export default function SalePage() {
 
       setSaveMsg({ ok: true, text: `Sale ${d.data?.saleNumber || ""} saved!` });
       setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
-      setCouponCode(""); setCouponDiscount(0); setCouponMsg("");
+      setCouponCode(""); setCouponDiscount(0); setCouponMsg(""); setAmountPaid("");
       loadTodaySales();
     } catch (e: any) {
       setSaveMsg({ ok: false, text: e.message });
@@ -353,17 +418,37 @@ export default function SalePage() {
                     <option value="upi">UPI</option>
                     <option value="card">Card</option>
                     <option value="credit">Credit</option>
+                    <option value="partial">Partial</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
               </div>
+              {payMethod === "partial" && (
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Amount Paid</label>
+                    <input type="number" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
+                      placeholder={`Total is ${grandTotal}`}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
-                <input value={customerName} onChange={e => setCustomerName(e.target.value)}
-                  placeholder="Customer name (optional)"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
-                  placeholder="Phone (optional)"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                <div>
+                  <input value={customerName} onChange={e => setCustomerName(e.target.value)}
+                    placeholder="Customer name (optional)"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  {customerBalance !== null && (
+                    <p className={`text-[10px] font-bold mt-1 ml-1 ${customerBalance > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                      Balance: ₹{customerBalance.toFixed(2)}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
+                    placeholder="Phone (optional)"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
               </div>
             </div>
 

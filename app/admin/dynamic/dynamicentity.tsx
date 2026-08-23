@@ -50,6 +50,7 @@ export type EntityConfig<T extends { id: string }> = {
   blankForm: Partial<T>;
   searchKeys: (keyof T & string)[];
   toPayload?: (formData: Partial<T>) => Partial<T>;
+  onSave?: (payload: Partial<T>, isEdit: boolean, performSave: (p: Partial<T>) => Promise<any>) => Promise<void>;
   /** false = uses /tenants/{id}/{module}; true (default) = /tenants/{id}/stores/{storeId}/{module} */
   storeLevel?: boolean; globalLevel?: boolean; customForm?: React.FC<any>;
 };
@@ -137,11 +138,21 @@ export function DynamicEntity<T extends { id: string }>({
     const errs = validateForm(config.fields as FieldDef[], formData);
     if (Object.keys(errs).length) { setFormErrors(errs); return; }
     const payload = config.toPayload ? config.toPayload(formData) : formData;
-    if (editTarget) {
-      await update(editTarget.id, payload);
+    
+    const performSave = async (p: any) => {
+      if (editTarget) {
+        return await update(editTarget.id, p);
+      } else {
+        return await create(p);
+      }
+    };
+
+    if (config.onSave) {
+      await config.onSave(payload, !!editTarget, performSave);
     } else {
-      await create(payload);
+      await performSave(payload);
     }
+    
     setFormOpen(false);
   }, [formData, editTarget, config, create, update]);
 

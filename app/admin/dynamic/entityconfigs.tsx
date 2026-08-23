@@ -580,7 +580,7 @@ blankForm: {
     {
       key: "currentStock",
       label: "Stock",
-      render: (_, row) => stockBadge(row.currentStock),
+      render: (_, row: any) => stockBadge(row.currentStock ?? row.current_stock, row.unit_symbol),
     },
 
     {
@@ -636,7 +636,7 @@ blankForm: {
         {stockPct !== null && (
           <div className="mt-3">
             <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-              <span>{item.currentStock} in stock</span>
+              <span>{item.currentStock} {(item as any).unit_symbol || ""} in stock</span>
               {item.maxStockLevel && <span>max {item.maxStockLevel}</span>}
             </div>
             <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
@@ -654,7 +654,7 @@ blankForm: {
 
         {/* Industry-specific badges */}
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {stockBadge(item.currentStock)}
+          {stockBadge(item.currentStock, (item as any).unit_symbol)}
           {item.discountType && item.discountType !== "none" && item.discountValue && Number(item.discountValue) > 0 && (
             <Badge variant="success">
               {item.discountType === "percentage" ? `${parseFloat(String(item.discountValue))}% Off` : `₹${parseFloat(String(item.discountValue))} Off`}
@@ -891,10 +891,79 @@ export const invoicesConfig: any = {
   fields: [
     { key: "customer_name", label: "Customer Name", type: "text", required: true },
     { key: "status", label: "Status", type: "select", options: [{label:"Draft",value:"draft"},{label:"Issued",value:"issued"},{label:"Paid",value:"paid"},{label:"Overdue",value:"overdue"},{label:"Void",value:"void"}] },
+    { key: "paymentMethod", label: "Payment Method", type: "select", options: [{label:"Cash",value:"cash"},{label:"Credit",value:"credit"},{label:"Partial",value:"partial"},{label:"UPI",value:"upi"}] },
+    { key: "amountPaid", label: "Amount Paid (if partial)", type: "number" },
     { key: "sale_date", label: "Date", type: "date" },
   ],
-  blankForm: {},
+  blankForm: { paymentMethod: "cash" },
   searchKeys: ["sale_number", "customer_name"],
+  onSave: async (payload: any, isEdit: boolean, performSave: any) => {
+    // 1. Perform standard save
+    const res = await performSave(payload);
+    if (!res) return;
+    
+    // 2. Local Khata sync
+    try {
+      const storeId = window.location.pathname.split("/")[2]; // /admin/[storeId]/dynamic/sales
+      const customerName = payload.customerName;
+      if (!customerName || isEdit) return; // Only sync on create for now
+      
+      const KHATA_KEY = `khata_customers_${storeId}`;
+      const existing = JSON.parse(localStorage.getItem(KHATA_KEY) || "[]");
+      let customerId = "";
+      const found = existing.find((c: any) => c.name.toLowerCase() === customerName.toLowerCase());
+      
+      if (found) {
+        customerId = found.id;
+      } else {
+        customerId = `k${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        existing.push({
+          id: customerId,
+          name: customerName,
+          phone: "", address: "", created_at: new Date().toISOString()
+        });
+        localStorage.setItem(KHATA_KEY, JSON.stringify(existing));
+      }
+
+      if (payload.paymentMethod === "credit" || payload.paymentMethod === "partial") {
+         const paid = payload.paymentMethod === "credit" ? 0 : parseFloat(payload.amountPaid) || 0;
+         const TXNS_KEY = `khata_txns_${storeId}`;
+         const txns = JSON.parse(localStorage.getItem(TXNS_KEY) || "[]");
+         
+         // Calculate total amount from items if not present
+         let grandTotal = payload.totalAmount || 0;
+         if (!grandTotal && payload.items) {
+           grandTotal = payload.items.reduce((sum: number, i: any) => sum + (i.qtySold * i.unitPrice * (1 - (i.discountPct||0)/100)), 0);
+         }
+
+         txns.push({
+            id: `t${Date.now()}_1`,
+            customer_id: customerId,
+            date: (payload.saleDate ? new Date(payload.saleDate) : new Date()).toISOString().slice(0, 10),
+            type: "purchase",
+            amount: grandTotal,
+            note: `Invoice ${res.sale_number || ""}`,
+            created_at: new Date().toISOString()
+         });
+
+         if (paid > 0) {
+             txns.push({
+                id: `t${Date.now()}_2`,
+                customer_id: customerId,
+                date: (payload.saleDate ? new Date(payload.saleDate) : new Date()).toISOString().slice(0, 10),
+                type: "payment",
+                amount: paid,
+                note: `Partial payment for ${res.sale_number || ""}`,
+                created_at: new Date().toISOString()
+             });
+         }
+         
+         localStorage.setItem(TXNS_KEY, JSON.stringify(txns));
+      }
+    } catch(e) {
+      console.error("Khata sync error", e);
+    }
+  },
   toPayload: (f: any) => {
     // Map snake_case to camelCase for the sales API
     const mapped = { ...f };
