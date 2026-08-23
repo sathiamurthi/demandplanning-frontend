@@ -424,10 +424,18 @@ export function Sidebar({
             </div>
 
             {/* Footer / Close Button */}
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-between">
+              {onSignOut && (
+                <button
+                  onClick={() => { setProfileOpen(false); onSignOut(); }}
+                  className="rounded bg-red-500/10 hover:bg-red-500/20 px-4 py-2 text-sm font-semibold transition text-red-400"
+                >
+                  Sign Out
+                </button>
+              )}
               <button
                 onClick={() => setProfileOpen(false)}
-                className="rounded bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold transition text-white"
+                className="rounded bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold transition text-white ml-auto"
               >
                 Close
               </button>
