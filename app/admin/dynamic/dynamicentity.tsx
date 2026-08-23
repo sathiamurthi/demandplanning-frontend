@@ -151,6 +151,20 @@ export function DynamicEntity<T extends { id: string }>({
     setDeleteTarget(null);
   }, [deleteTarget, remove]);
 
+  const handleSeedUnits = useCallback(async () => {
+    const defaultUnits = [
+      { name: "Box", symbol: "BOX", category: "count", is_active: true },
+      { name: "Kilogram", symbol: "KG", category: "weight", is_active: true },
+      { name: "Liter", symbol: "L", category: "volume", is_active: true },
+      { name: "Piece", symbol: "PCS", category: "count", is_active: true }
+    ];
+    for (const u of defaultUnits) {
+      await create(u as any);
+    }
+    show("Default units seeded");
+    fetch();
+  }, [create, show, fetch]);
+
   return (
     <div className="flex h-full flex-col theme-content bg-gray-50 transition-colors">
       {/* ── Header ── */}
@@ -266,6 +280,15 @@ export function DynamicEntity<T extends { id: string }>({
                       className="bg-gold-50 border-gold-200 text-gold-700 hover:bg-gold-100 w-full sm:w-auto"
                     >
                       Quick add
+                    </Button>
+                  )}
+                  {config.module === "units" && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleSeedUnits}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 w-full sm:w-auto"
+                    >
+                      Seed Defaults
                     </Button>
                   )}
                   <Button

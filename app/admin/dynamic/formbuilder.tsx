@@ -215,11 +215,17 @@ if (field.type === "date") {
 
   React.useEffect(() => {
     if (field.endpoint) {
-    apiGet<{ data: any[] }>(field.endpoint)
+    apiGet<any>(field.endpoint)
       .then((res) => {
-        const opts = res.data.map((d) => ({
-          label: d[field.labelKey || "name"],
-          value: d[field.valueKey || "id"],
+        let arr = [];
+        if (Array.isArray(res)) arr = res;
+        else if (res && Array.isArray(res.data)) arr = res.data;
+        else if (res && Array.isArray(res.items)) arr = res.items;
+        else if (res && res.data && Array.isArray(res.data.items)) arr = res.data.items;
+        
+        const opts = arr.map((d: any) => ({
+          label: String(d[field.labelKey || "name"] || ""),
+          value: String(d[field.valueKey || "id"] || ""),
         }));
         setDynamicOptions(opts);
       })

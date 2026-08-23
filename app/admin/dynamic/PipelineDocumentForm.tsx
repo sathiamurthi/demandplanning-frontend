@@ -41,24 +41,29 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
     onChange({ ...data, items: arr });
   };
 
+  const [allItems, setAllItems] = useState<any[]>([]);
+
   useEffect(() => {
-    if (!searchStr || searchStr.length < 2) {
+    apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/items?limit=1000`)
+      .then(res => {
+        const data = res.data || res || [];
+        setAllItems(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!searchStr || searchStr.trim().length < 2) {
       setItems([]);
       return;
     }
-    const delay = setTimeout(async () => {
-      try {
-        const res = await apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/items?search=${searchStr}&limit=5`);
-        
-        const data = res.data || res || [];
-        setItems(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
-
-      } catch (e) {
-        console.error(e);
-      }
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [searchStr]);
+    const q = searchStr.toLowerCase().trim();
+    const filtered = allItems.filter(it => 
+      (it.name || "").toLowerCase().includes(q) || 
+      (it.sku || "").toLowerCase().includes(q)
+    ).slice(0, 8);
+    setItems(filtered);
+  }, [searchStr, allItems]);
 
   return (
     <div className="space-y-6">

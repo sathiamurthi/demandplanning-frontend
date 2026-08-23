@@ -741,7 +741,17 @@ export const quotationsConfig: any = {
   ],
   blankForm: { customer_name: "", status: "Draft" },
   searchKeys: ["quote_number", "customer_name"],
-  toPayload: (f: any) => f,
+  toPayload: (f: any) => {
+    const mapped = { ...f };
+    if (f.items && Array.isArray(f.items)) {
+      mapped.items = f.items.map((i: any) => ({
+        ...i,
+        unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined,
+        unit_id: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined
+      }));
+    }
+    return mapped;
+  },
   columns: [
     { key: "quote_number", label: "Quote Number", render: (v: any) => <strong>{v}</strong> },
     { key: "customer_name", label: "Customer Name" },
