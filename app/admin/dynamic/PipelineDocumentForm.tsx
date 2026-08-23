@@ -44,7 +44,11 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
   const [allItems, setAllItems] = useState<any[]>([]);
 
   useEffect(() => {
-    apiGet<any>(`/tenants/${getTenantId()}/stores/${getStoreId()}/items?limit=1000`)
+    const tId = getTenantId();
+    const sId = getStoreId();
+    if (!tId || !sId) return;
+    
+    apiGet<any>(`/tenants/${tId}/stores/${sId}/items?limit=1000`)
       .then(res => {
         const data = res.data || res || [];
         setAllItems(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
@@ -143,11 +147,6 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
             No items added yet. Search above to add items.
           </div>
         )}
-      </div>
-      
-      <div className="flex justify-end gap-2 mt-6">
-        <button onClick={onCancel} className="px-4 py-2 border rounded hover:bg-gray-50">Cancel</button>
-        <button onClick={onSubmit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Document</button>
       </div>
     </div>
   );

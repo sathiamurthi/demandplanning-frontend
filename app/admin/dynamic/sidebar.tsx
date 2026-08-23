@@ -28,20 +28,6 @@ const NAV: NavGroup[] = [
     items: [{ label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard }],
   },
   {
-    section: "Management",
-    roles: MGMT_ROLES,
-    items: [
-      { label: "Users",         href: "/admin/dynamic/users",          icon: Users,     roles: OWNER_ROLES },
-      { label: "Stores",        href: "/admin/dynamic/stores",         icon: Store,     roles: OWNER_ROLES },
-      { label: "Store configs", href: "/admin/dynamic/store-configs",  icon: Settings2, roles: MGMT_ROLES  },
-      { label: "Unit Types",    href: "/admin/dynamic/units",          icon: Tag,       roles: MGMT_ROLES  },
-      { label: "Categories",    href: "/admin/dynamic/categories",     icon: Tag,       roles: MGMT_ROLES  },
-      { label: "Items",         href: "/admin/dynamic/items",          icon: Package                       },
-      { label: "Quick Add Item",href: "/admin/dynamic/items?quick=1",  icon: Zap,       roles: MGMT_ROLES  },
-      { label: "Stock ledger",  href: "/admin/dynamic/ledger",         icon: BookOpen                      },
-    ],
-  },
-  {
     section: "Operations",
     roles: MGMT_ROLES,
     items: [
@@ -67,6 +53,20 @@ const NAV: NavGroup[] = [
     items: [
       { label: "Basic Report",    href: "/admin/dynamic/ai-reports/basic",    icon: FileBarChart2 },
       { label: "Advanced Report", href: "/admin/dynamic/ai-reports/advanced", icon: Brain, isPro: true, roles: MGMT_ROLES },
+    ],
+  },
+  {
+    section: "Management",
+    roles: MGMT_ROLES,
+    items: [
+      { label: "Users",         href: "/admin/dynamic/users",          icon: Users,     roles: OWNER_ROLES },
+      { label: "Stores",        href: "/admin/dynamic/stores",         icon: Store,     roles: OWNER_ROLES },
+      { label: "Store configs", href: "/admin/dynamic/store-configs",  icon: Settings2, roles: MGMT_ROLES  },
+      { label: "Unit Types",    href: "/admin/dynamic/units",          icon: Tag,       roles: MGMT_ROLES  },
+      { label: "Categories",    href: "/admin/dynamic/categories",     icon: Tag,       roles: MGMT_ROLES  },
+      { label: "Items",         href: "/admin/dynamic/items",          icon: Package                       },
+      { label: "Quick Add Item",href: "/admin/dynamic/items?quick=1",  icon: Zap,       roles: MGMT_ROLES  },
+      { label: "Stock ledger",  href: "/admin/dynamic/ledger",         icon: BookOpen                      },
     ],
   },
   {
