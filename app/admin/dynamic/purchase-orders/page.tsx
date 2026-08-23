@@ -497,7 +497,7 @@ function PurchaseOrdersInner() {
         .then(r => {
           if (r.success && r.data) {
             const aiItems = r.data.filter(f => f.order_needed).map(f => ({
-              item_id: f.id,
+              item_id: f.item_id || f.id,
               item_name: f.item_name,
               sku: "",
               quantity: f.predicted_qty_30d?.toString() || "1",
