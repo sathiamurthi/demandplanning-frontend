@@ -46,9 +46,13 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
   useEffect(() => {
     const tId = getTenantId();
     const sId = getStoreId();
-    if (!tId || !sId) return;
+    if (!sId) return; // tenantId can be missing in some setups
     
-    apiGet<any>(`/tenants/${tId}/stores/${sId}/items?limit=1000`)
+    const url = tId 
+      ? `/tenants/${tId}/stores/${sId}/items?limit=1000`
+      : `/stores/${sId}/items?limit=1000`;
+
+    apiGet<any>(url)
       .then(res => {
         const data = res.data || res || [];
         setAllItems(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
@@ -62,36 +66,13 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
       return;
     }
     const q = searchStr.toLowerCase().trim();
-    const tId = getTenantId();
-    const sId = getStoreId();
-    if (!tId || !sId) return;
-
-    // Try dynamic search first, then fallback to local filtering if backend ignores ?search=
-    apiGet<any>(`/tenants/${tId}/stores/${sId}/items?search=${encodeURIComponent(q)}&limit=20`)
-      .then(res => {
-        const data = res.data || res || [];
-        let fetchedItems = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
-        
-        // If the backend search works, it returns matching items. 
-        // If the backend search is ignored, it might return 20 unrelated items. 
-        // Let's filter locally just to be safe:
-        const filtered = fetchedItems.filter((it: any) => 
-          (it.name || "").toLowerCase().includes(q) || 
-          (it.sku || "").toLowerCase().includes(q)
-        );
-
-        if (filtered.length > 0) {
-          setItems(filtered.slice(0, 8));
-        } else {
-          // Fallback to searching locally against allItems if dynamic search failed
-          const fallbackFiltered = allItems.filter((it: any) => 
-            (it.name || "").toLowerCase().includes(q) || 
-            (it.sku || "").toLowerCase().includes(q)
-          ).slice(0, 8);
-          setItems(fallbackFiltered);
-        }
-      })
-      .catch(console.error);
+    
+    // Search locally against allItems like the sales page
+    const filtered = allItems.filter((it: any) => 
+      (it.name || "").toLowerCase().includes(q) || 
+      (it.sku || "").toLowerCase().includes(q)
+    ).slice(0, 8);
+    setItems(filtered);
   }, [searchStr, allItems]);
 
   return (
