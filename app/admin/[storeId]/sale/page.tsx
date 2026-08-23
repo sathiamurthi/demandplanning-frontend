@@ -261,12 +261,18 @@ export default function SalePage() {
           customerPhone: customerPhone || undefined,
           notes: notes || undefined,
           discountAmount: couponDiscount || undefined,
-          items: lines.map(l => ({
-            itemId: l.itemId, qtySold: l.qty,
-            unitId: (l.unitId && l.unitId !== "null" && l.unitId.length > 10) ? l.unitId : undefined,
-            unitPrice: l.unitPrice,
-            discountPct: l.discountPct,
-          })),
+          items: lines.map(l => {
+            const out: any = {
+              itemId: l.itemId,
+              qtySold: l.qty,
+              unitPrice: l.unitPrice,
+              discountPct: l.discountPct
+            };
+            if (l.unitId && typeof l.unitId === "string" && l.unitId.length === 36) {
+              out.unitId = l.unitId;
+            }
+            return out;
+          }),
         }),
       });
       const d = await r.json();

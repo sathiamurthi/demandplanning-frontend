@@ -747,11 +747,19 @@ export const quotationsConfig: any = {
   toPayload: (f: any) => {
     const mapped = { ...f };
     if (f.items && Array.isArray(f.items)) {
-      mapped.items = f.items.map((i: any) => ({
-        ...i,
-        unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined,
-        unit_id: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined
-      }));
+      mapped.items = f.items.map((i: any) => {
+        const out: any = {
+          ...i,
+        };
+        if (i.unit_id && typeof i.unit_id === "string" && i.unit_id.length === 36) {
+          out.unitId = i.unit_id;
+          out.unit_id = i.unit_id;
+        } else {
+          delete out.unitId;
+          delete out.unit_id;
+        }
+        return out;
+      });
     }
     return mapped;
   },
@@ -811,14 +819,19 @@ export const salesOrdersConfig: any = {
   toPayload: (f: any) => {
     const mapped = { ...f };
     if (f.items && Array.isArray(f.items)) {
-      mapped.items = f.items.map((i: any) => ({
-        itemId: i.item_id || i.itemId,
-        qty: Number(i.qty),
-        unitPrice: Number(i.unit_price || i.unitPrice),
-        discountPct: Number(i.discount_pct || i.discountPct || 0),
-        gstRate: Number(i.gst_rate || i.gstRate || 0),
-        unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined
-      }));
+      mapped.items = f.items.map((i: any) => {
+        const out: any = {
+          itemId: i.item_id || i.itemId,
+          qtySold: Number(i.qty),
+          unitPrice: i.unit_price || i.unitPrice,
+          discountPct: i.discount_pct || i.discountPct,
+          gstRate: i.gst_rate || i.gstRate
+        };
+        if (i.unit_id && typeof i.unit_id === "string" && i.unit_id.length === 36) {
+          out.unitId = i.unit_id;
+        }
+        return out;
+      });
     }
     return mapped;
   },
@@ -976,14 +989,19 @@ export const invoicesConfig: any = {
     
     // Map items
     if (f.items && Array.isArray(f.items)) {
-      mapped.items = f.items.map((i: any) => ({
-        itemId: i.item_id || i.itemId,
-        qtySold: Number(i.qty || i.qtySold),
-        unitPrice: Number(i.unit_price || i.unitPrice),
-        discountPct: Number(i.discount_pct || i.discountPct || 0),
-        gstRate: Number(i.gst_rate || i.gstRate || 0),
-        unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined
-      }));
+      mapped.items = f.items.map((i: any) => {
+        const out: any = {
+          itemId: i.item_id || i.itemId,
+          qtySold: Number(i.qty || i.qtySold),
+          unitPrice: Number(i.unit_price || i.unitPrice),
+          discountPct: Number(i.discount_pct || i.discountPct || 0),
+          gstRate: Number(i.gst_rate || i.gstRate || 0)
+        };
+        if (i.unit_id && typeof i.unit_id === "string" && i.unit_id.length === 36) {
+          out.unitId = i.unit_id;
+        }
+        return out;
+      });
     }
     return mapped;
   },
