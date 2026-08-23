@@ -139,6 +139,8 @@ export function useCrud<T extends CrudRecord>(
           else if (res.data.items && Array.isArray(res.data.items)) arr = res.data.items;
         } else if (res && Array.isArray(res)) {
           arr = res;
+        } else if (res && res.items && Array.isArray(res.items)) {
+          arr = res.items;
         }
         setItems(arr);
         onSuccess?.("fetch");
