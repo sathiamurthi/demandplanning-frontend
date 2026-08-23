@@ -19,6 +19,7 @@ import {
 } from "./formbuilder";
 import { PipelineDocumentForm } from './PipelineDocumentForm';
 import { useStore } from "../appshell";
+import { getTenantId } from "@/lib/utils";
 
 /* ─────────────────────────── Shared helpers ─────────────────────────── */
 
@@ -960,7 +961,15 @@ export const attendanceConfig: any = {
   title: "Attendance",
   singular: "Attendance Record",
   fields: [
-    { key: "user_id", label: "Employee", type: "text", required: true },
+    { 
+      key: "user_id", 
+      label: "Employee", 
+      type: "select", 
+      required: true,
+      endpoint: `/tenants/${getTenantId()}/users`,
+      labelKey: "first_name",
+      valueKey: "id"
+    },
     { key: "date", label: "Date", type: "date", required: true },
     { key: "check_in_time", label: "Check-in Time", type: "time" },
     { key: "check_out_time", label: "Check-out Time", type: "time" },
@@ -990,7 +999,15 @@ export const timesheetsConfig: any = {
   title: "Timesheets",
   singular: "Timesheet",
   fields: [
-    { key: "user_id", label: "Employee", type: "text", required: true },
+    { 
+      key: "user_id", 
+      label: "Employee", 
+      type: "select", 
+      required: true,
+      endpoint: `/tenants/${getTenantId()}/users`,
+      labelKey: "first_name",
+      valueKey: "id"
+    },
     { key: "period_start", label: "Period Start", type: "date", required: true },
     { key: "period_end", label: "Period End", type: "date", required: true },
     { key: "total_hours", label: "Total Hours", type: "number", required: true },
