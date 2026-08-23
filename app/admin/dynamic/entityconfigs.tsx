@@ -1005,7 +1005,7 @@ export const invoicesConfig: any = {
 
 export const unitsConfig: any = {
   module: "units",
-  globalLevel: true,
+  storeLevel: false, // Calls /v1/tenants/:id/units
   title: "Unit Types",
   singular: "Unit",
   fields: [
