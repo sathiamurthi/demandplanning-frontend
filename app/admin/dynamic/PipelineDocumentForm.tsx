@@ -75,7 +75,7 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
         // If the backend search works, it returns matching items. 
         // If the backend search is ignored, it might return 20 unrelated items. 
         // Let's filter locally just to be safe:
-        const filtered = fetchedItems.filter(it => 
+        const filtered = fetchedItems.filter((it: any) => 
           (it.name || "").toLowerCase().includes(q) || 
           (it.sku || "").toLowerCase().includes(q)
         );
@@ -84,7 +84,7 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
           setItems(filtered.slice(0, 8));
         } else {
           // Fallback to searching locally against allItems if dynamic search failed
-          const fallbackFiltered = allItems.filter(it => 
+          const fallbackFiltered = allItems.filter((it: any) => 
             (it.name || "").toLowerCase().includes(q) || 
             (it.sku || "").toLowerCase().includes(q)
           ).slice(0, 8);
