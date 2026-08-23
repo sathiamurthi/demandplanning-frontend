@@ -44,18 +44,29 @@ export function PipelineDocumentForm({ data, onChange, errors, onSubmit, onCance
   const [allItems, setAllItems] = useState<any[]>([]);
 
   useEffect(() => {
-    const tId = getTenantId();
-    const sId = getStoreId();
-    if (!sId) return; // tenantId can be missing in some setups
-    
-    const url = tId 
-      ? `/tenants/${tId}/stores/${sId}/items?limit=1000`
-      : `/stores/${sId}/items?limit=1000`;
+    const tId = typeof window !== "undefined" ? localStorage.getItem("tenantId") || "" : "";
+    const sId = typeof window !== "undefined" ? localStorage.getItem("storeId") || "" : "";
+    if (!sId) return;
 
-    apiGet<any>(url)
-      .then(res => {
-        const data = res.data || res || [];
-        setAllItems(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
+    const authHeaders = {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    };
+
+    const url = tId 
+      ? `/v1/tenants/${tId}/stores/${sId}/items` 
+      : `/v1/stores/${sId}/items`;
+
+    fetch(url, { headers: authHeaders })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success || Array.isArray(d.data)) {
+           const itemsData = d.data || d.items || [];
+           setAllItems(Array.isArray(itemsData) ? itemsData : []);
+        } else if (Array.isArray(d)) {
+           setAllItems(d);
+        }
       })
       .catch(console.error);
   }, []);
