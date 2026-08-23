@@ -311,12 +311,19 @@ function AdvancedReportInner() {
       {/* ── Action required ── */}
       {orders.length > 0 && (
         <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-            <span className="text-gold-500">02</span> Action Required
-            <span className="ml-auto rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
-              {orders.length} items
-            </span>
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
+              <span className="text-gold-500">02</span> Action Required
+              <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                {orders.length} items
+              </span>
+            </h2>
+            <a href={`/admin/dynamic/purchase-orders?ai_po=true`} 
+               className="flex items-center gap-1.5 rounded-xl bg-gold-500 text-white px-3 py-1.5 text-xs font-semibold shadow-sm hover:bg-gold-600 transition-colors">
+               <Package className="h-3.5 w-3.5" />
+               Prepare Purchase Order
+            </a>
+          </div>
           <div className="space-y-2">
             {orders.map((f, i) => (
               <div key={i} className="flex items-center gap-3 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">

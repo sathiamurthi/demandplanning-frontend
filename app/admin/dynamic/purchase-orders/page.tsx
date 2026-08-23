@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
 import { getTenantId } from "@/lib/utils";
 import { useStore } from "../appshell";
@@ -485,6 +486,47 @@ function PurchaseOrdersInner() {
   const [expanded,   setExpanded]  = useState<string | null>(null);
   const [loadingPO,  setLoadingPO] = useState<string | null>(null);
 
+  const searchParams = useSearchParams();
+  const isAiPo = searchParams?.get("ai_po") === "true";
+  const [hasLoadedAi, setHasLoadedAi] = useState(false);
+
+  useEffect(() => {
+    if (isAiPo && storeId && !showForm && !hasLoadedAi) {
+      setHasLoadedAi(true);
+      apiGet<{ success: boolean; data: any[] }>(`/stores/${storeId}/report/latest`)
+        .then(r => {
+          if (r.success && r.data) {
+            const aiItems = r.data.filter(f => f.order_needed).map(f => ({
+              item_id: f.id,
+              item_name: f.item_name,
+              sku: "",
+              quantity: f.predicted_qty_30d?.toString() || "1",
+              unit_price: "0",
+              gst_rate: "0",
+              notes: "AI Recommended",
+            }));
+            
+            if (aiItems.length > 0) {
+              setEditing({
+                id: "new",
+                order_number: "AI-DRAFT",
+                order_date: new Date().toISOString(),
+                status: "draft",
+                store_id: storeId,
+                tenant_id: tenantId,
+                items: aiItems as any,
+                total_amount: "0",
+                subtotal: "0",
+                gst_amount: "0",
+              } as any);
+              setShowForm(true);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isAiPo, storeId]);
+
   const load = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
     setLoading(true); setError(null);
@@ -847,6 +889,12 @@ function PurchaseOrdersInner() {
   );
 }
 
+import { Suspense } from "react";
+
 export default function PurchaseOrdersPage() {
-  return <PurchaseOrdersInner />;
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading purchase orders...</div>}>
+      <PurchaseOrdersInner />
+    </Suspense>
+  );
 }

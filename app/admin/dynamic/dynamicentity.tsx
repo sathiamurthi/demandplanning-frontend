@@ -71,6 +71,7 @@ export function DynamicEntity<T extends { id: string }>({
       tenantId,
       module: config.module,
       storeLevel: config.storeLevel !== false,
+      globalLevel: config.globalLevel,
       optimistic: true,
       onError: (_err, action) =>
         show(`${action} failed — changes rolled back`, "error"),

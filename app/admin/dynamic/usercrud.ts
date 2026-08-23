@@ -24,6 +24,7 @@ export type CrudOptions<T extends CrudRecord> = {
   storeLevel?: boolean;
   /** true = hits global /v1/{module} directly */
   globalLevel?: boolean;
+  tenantLevel?: boolean;
   /** Seed data shown while the first fetch is in-flight */
   initialData?: T[];
   /** Apply UI changes before the server responds, roll back on error */
@@ -98,11 +99,16 @@ export async function req<R>(
 }
 
 
-function buildUrl(tenantId: string, module: string, storeLevel: boolean, id?: string, globalLevel?: boolean): string {
+function buildUrl(tenantId: string, module: string, storeLevel: boolean, id?: string, globalLevel?: boolean, tenantLevel = true): string {
   if (globalLevel) { const b = `/v1/${module}`; return id ? `${b}/${id}` : b; }
-  const base = storeLevel
-    ? `${BASE}/tenants/${tenantId}/stores/${getStoreId()}/${module}`
-    : `${BASE}/tenants/${tenantId}/${module}`;
+  let base = "";
+  if (storeLevel) {
+    base = tenantLevel !== false
+      ? `${BASE}/tenants/${tenantId}/stores/${getStoreId()}/${module}`
+      : `${BASE}/stores/${getStoreId()}/${module}`;
+  } else {
+    base = `${BASE}/tenants/${tenantId}/${module}`;
+  }
   return id ? `${base}/${id}` : base;
 }
 
@@ -111,7 +117,7 @@ function buildUrl(tenantId: string, module: string, storeLevel: boolean, id?: st
 export function useCrud<T extends CrudRecord>(
   opts: CrudOptions<T>
 ): UseCrudReturn<T> {
-  const { module, tenantId, storeLevel = true, globalLevel = false, initialData, optimistic, onError, onSuccess, defaultParams } = opts;
+  const { module, tenantId, storeLevel = true, globalLevel = false, tenantLevel = true, initialData, optimistic, onError, onSuccess, defaultParams } = opts;
 
   const [items, setItems] = useState<T[]>(initialData ?? []);
   const [loading, setLoading] = useState(false);
@@ -126,12 +132,12 @@ export function useCrud<T extends CrudRecord>(
   /* ── Fetch ── */
   const fetch = useCallback(
     async (params?: Record<string, string>) => {
-      if (!tenantId) return;
+      if (!globalLevel && tenantLevel !== false && !tenantId) return;
       setLoading(true);
       setError(null);
       try {
         const qs = new URLSearchParams({ ...defaultParams, ...params }).toString();
-        const url = buildUrl(tenantId, module, storeLevel, undefined, globalLevel) + (qs ? `?${qs}` : "");
+        const url = buildUrl(tenantId || "", module, storeLevel, undefined, globalLevel, tenantLevel) + (qs ? `?${qs}` : "");
         const res = await req<any>("GET", url);
         let arr: T[] = [];
         if (res && res.data) {
@@ -151,24 +157,26 @@ export function useCrud<T extends CrudRecord>(
         setLoading(false);
       }
     },
-    [tenantId, module, defaultParams, onError, onSuccess]
+    [tenantId, module, defaultParams, onError, onSuccess, globalLevel, storeLevel, tenantLevel]
   );
 
   /* ── Create ── */
   const create = useCallback(
     async (data: Partial<T>): Promise<T | null> => {
-      snapshot.current = items;
-      let tempId: string | undefined;
-
-      if (optimistic) {
-        tempId = `__temp_${Date.now()}`;
-        const tempItem = { ...data, id: tempId, _pending: true } as unknown as T;
-        setItems((prev) => [...prev, tempItem]);
-      }
-
+      if (!globalLevel && tenantLevel !== false && !tenantId) return null;
       setSaving(true);
+      setError(null);
+      
+      const tempId = `temp-${Date.now()}`;
+      const optimisticItem = { id: tempId, ...data } as unknown as T;
+      
+      if (optimistic) {
+        snapshot.current = items;
+        setItems((prev) => [optimisticItem, ...prev]);
+      }
+      
       try {
-        const res = await req<{ data: T }>("POST", buildUrl(tenantId, module, storeLevel, undefined, globalLevel), data);
+        const res = await req<{ data: T }>("POST", buildUrl(tenantId || "", module, storeLevel, undefined, globalLevel, tenantLevel), data);
         const created = res.data;
         setItems((prev) =>
           tempId
@@ -192,17 +200,20 @@ export function useCrud<T extends CrudRecord>(
   /* ── Update ── */
   const update = useCallback(
     async (id: string, data: Partial<T>): Promise<T | null> => {
+      if (!globalLevel && tenantLevel !== false && !tenantId) return null;
       snapshot.current = items;
 
       if (optimistic) {
-        setItems((prev) =>
-          prev.map((i) => (i.id === id ? { ...i, ...data, _pending: true } : i))
-        );
+        setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...data } : i)));
       }
 
       setSaving(true);
       try {
-        const res = await req<{ data: T }>("PUT", buildUrl(tenantId, module, storeLevel, id, globalLevel), data);
+        const res = await req<{ data: T }>(
+          "PUT",
+          buildUrl(tenantId || "", module, storeLevel, id, globalLevel, tenantLevel),
+          data
+        );
         const updated = res.data;
         setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
         onSuccess?.("update", updated);
@@ -219,9 +230,10 @@ export function useCrud<T extends CrudRecord>(
     [items, optimistic, tenantId, module, onError, onSuccess]
   );
 
-  /* ── Remove ── */
+  /* ── Delete ── */
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
+      if (!globalLevel && tenantLevel !== false && !tenantId) return false;
       snapshot.current = items;
 
       if (optimistic) {
@@ -230,7 +242,7 @@ export function useCrud<T extends CrudRecord>(
 
       setSaving(true);
       try {
-        await req("DELETE", buildUrl(tenantId, module, storeLevel, id, globalLevel));
+        await req("DELETE", buildUrl(tenantId || "", module, storeLevel, id, globalLevel, tenantLevel));
         if (!optimistic) setItems((prev) => prev.filter((i) => i.id !== id));
         onSuccess?.("delete");
         return true;

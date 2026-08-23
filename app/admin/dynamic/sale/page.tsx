@@ -252,6 +252,54 @@ function ItemSearch({ items, onAdd }: { items: StoreItem[]; onAdd: (i: StoreItem
   );
 }
 
+// ── Customer Search ────────────────────────────────────────────────
+function CustomerSearch({ storeId, name, phone, onSelect, onChange }: { storeId: string, name: string, phone: string, onSelect: (c: any) => void, onChange: (n: string, p: string) => void }) {
+  const [q, setQ] = useState(name);
+  const [open, setOpen] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!storeId) return;
+    const KHATA_KEY = `khata_customers_${storeId}`;
+    const existing = JSON.parse(localStorage.getItem(KHATA_KEY) || "[]");
+    setCustomers(existing);
+  }, [storeId]);
+
+  useEffect(() => {
+    setQ(name);
+  }, [name]);
+
+  const filtered = q.trim().length > 0
+    ? customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || (c.phone || "").includes(q))
+    : customers.slice(0, 5);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      <input value={q} onChange={e => { setQ(e.target.value); onChange(e.target.value, phone); setOpen(true); }} onFocus={() => setOpen(true)}
+        placeholder="Customer name (optional)"
+        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+      {open && filtered.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map(c => (
+            <button key={c.id} onClick={() => { onSelect(c); setQ(c.name); setOpen(false); }}
+              className="w-full flex flex-col px-4 py-2 hover:bg-orange-50 text-left border-b border-gray-50 last:border-0">
+              <span className="text-sm font-semibold text-gray-900">{c.name}</span>
+              {c.phone && <span className="text-xs text-gray-500">{c.phone}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────
 export default function SaleDynamicPage() {
   const { storeId, stores } = useStore();
@@ -273,6 +321,10 @@ export default function SaleDynamicPage() {
   const [loadingSales, setLoadingSales] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [storeDetails, setStoreDetails] = useState<{ gst_number?: string | null; drug_license_number?: string | null } | null>(null);
+  
+  // ── Sales Orders (Pending) ──
+  const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState("");
 
   // ── Coupon state ──
   const [couponCode, setCouponCode] = useState("");
@@ -309,6 +361,18 @@ export default function SaleDynamicPage() {
         .catch(() => {});
     }
   }, [storeId]);
+
+  const loadSalesOrders = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") || "" : "";
+      if (!tenantId) return;
+      const r = await fetch(`/v1/tenants/${tenantId}/stores/${storeId}/sales-orders`, { headers: authHeaders() });
+      const d = await r.json();
+      if (d.success) setSalesOrders(d.data?.items?.filter((so:any) => so.status === "Pending" || so.status === "Confirmed") || []);
+    } catch {}
+  }, [storeId]);
+  useEffect(() => { loadSalesOrders(); }, [loadSalesOrders]);
 
   const loadTodaySales = useCallback(async () => {
     if (!storeId) return;
@@ -363,7 +427,7 @@ export default function SaleDynamicPage() {
       return {
         ...l,
         isLoose: willBeLoose,
-        unitId: willBeLoose ? (l.secondaryUnitId || "piece") : (l.primaryUnitId || ""),
+        unitId: willBeLoose ? (l.secondaryUnitId || "") : (l.primaryUnitId || ""),
         unitSymbol: willBeLoose ? (l.secondaryUnitSymbol || "piece") : (l.primaryUnitSymbol || "pcs"),
         unitPrice: willBeLoose ? (l.primaryUnitPrice! / divisor) : l.primaryUnitPrice!,
       };
@@ -373,6 +437,44 @@ export default function SaleDynamicPage() {
   const updateLine = (i: number, field: keyof LineItem, value: any) =>
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
   const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
+
+  const handleOrderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedOrderId(id);
+    if (!id) { setLines([]); return; }
+    const order = salesOrders.find(o => o.id === id);
+    if (!order) return;
+    
+    setCustomerName(order.customer_name || "");
+    setCustomerPhone(order.customer_phone || "");
+    
+    // map order.items to lines
+    if (order.items && Array.isArray(order.items)) {
+      const newLines: LineItem[] = order.items.map((i: any) => {
+        const product = items.find(pi => pi.id === (i.item_id || i.itemId));
+        return {
+          itemId: i.item_id || i.itemId,
+          name: product ? product.name : "Item",
+          unitPrice: Number(i.unit_price || i.unitPrice || 0),
+          qty: Number(i.qty || i.quantity || 1),
+          discountPct: Number(i.discount_pct || i.discountPct || 0),
+          unitId: i.unit_id || i.unitId || product?.primary_unit_id || "",
+          unitSymbol: product?.unit_symbol || "pcs",
+          stock: product ? parseFloat(product.current_stock) : 0,
+          isLoose: false,
+          primaryUnitId: product?.primary_unit_id || undefined,
+          primaryUnitSymbol: product?.unit_symbol || "pcs",
+          primaryUnitPrice: product ? parseFloat(product.selling_price || "0") : 0,
+          secondaryUnitId: product?.secondary_unit_id || undefined,
+          secondaryUnitSymbol: product?.secondary_unit_symbol || undefined,
+          unitsPerSecondary: product?.units_per_secondary ? parseFloat(product.units_per_secondary) : undefined,
+        };
+      });
+      setLines(newLines);
+    } else {
+      setLines([]);
+    }
+  };
 
   // ── Coupon validation via API ──
   const [validatingCoupon, setValidatingCoupon] = useState(false);
@@ -426,12 +528,17 @@ export default function SaleDynamicPage() {
           customerPhone: customerPhone || undefined,
           notes: notes || undefined,
           discountAmount: couponDiscount || undefined,
-          items: lines.map(l => ({
-            itemId: l.itemId, qtySold: l.qty,
-            unitId: l.unitId || undefined,
-            unitPrice: l.unitPrice,
-            discountPct: l.discountPct,
-          })),
+          items: lines.map(l => {
+            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/i;
+            const validUnitId = l.unitId && uuidRegex.test(l.unitId) ? l.unitId : undefined;
+            return {
+              itemId: l.itemId, qtySold: l.qty,
+              unitId: validUnitId,
+              unitPrice: l.unitPrice,
+              discountPct: l.discountPct,
+            };
+          }),
+          salesOrderId: selectedOrderId || undefined
         }),
       });
       const d = await r.json();
@@ -448,6 +555,27 @@ export default function SaleDynamicPage() {
         gstNumber: storeDetails?.gst_number || null,
         licenseNumber: storeDetails?.drug_license_number || null,
       });
+
+      // Sync customer to Khata
+      if (customerName) {
+        try {
+          const KHATA_KEY = `khata_customers_${storeId}`;
+          const existing = JSON.parse(localStorage.getItem(KHATA_KEY) || "[]");
+          const found = existing.find((c: any) => c.name.toLowerCase() === customerName.toLowerCase());
+          if (!found) {
+            existing.push({
+              id: `k${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              name: customerName,
+              phone: customerPhone || "",
+              created_at: new Date().toISOString()
+            });
+            localStorage.setItem(KHATA_KEY, JSON.stringify(existing));
+          } else if (customerPhone && !found.phone) {
+            found.phone = customerPhone;
+            localStorage.setItem(KHATA_KEY, JSON.stringify(existing));
+          }
+        } catch(e) {}
+      }
 
       setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
       setCouponCode(""); setCouponDiscount(0); setCouponMsg("");
@@ -516,6 +644,17 @@ export default function SaleDynamicPage() {
           {/* Left: form */}
           <div className="lg:col-span-2 space-y-3">
             <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+              <div className="mb-4 bg-orange-50/50 p-3 rounded-xl border border-orange-100 flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-orange-800 uppercase tracking-wide mb-1">Load from Sales Order (Optional)</label>
+                  <select value={selectedOrderId} onChange={handleOrderSelect} className="w-full rounded-xl border border-orange-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                    <option value="">-- Select an Order to fulfill --</option>
+                    {salesOrders.map(o => (
+                      <option key={o.id} value={o.id}>{o.order_number} - {o.customer_name} ({o.status})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Sale Date</label>
@@ -535,9 +674,9 @@ export default function SaleDynamicPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input value={customerName} onChange={e => setCustomerName(e.target.value)}
-                  placeholder="Customer name (optional)"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                <CustomerSearch storeId={storeId!} name={customerName} phone={customerPhone} 
+                  onChange={(n, p) => { setCustomerName(n); setCustomerPhone(p); }} 
+                  onSelect={(c) => { setCustomerName(c.name); if (c.phone) setCustomerPhone(c.phone); }} />
                 <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
                   placeholder="Phone for WhatsApp (optional)"
                   className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />

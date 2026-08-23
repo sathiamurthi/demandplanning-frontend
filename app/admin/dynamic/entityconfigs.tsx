@@ -25,9 +25,25 @@ import { getTenantId } from "@/lib/utils";
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <Badge variant={active ? "success" : "error"}>
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+      active ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-700"
+    }`}>
       {active ? "Active" : "Inactive"}
-    </Badge>
+    </span>
+  );
+}
+
+function TextStatusBadge({ status }: { status: string }) {
+  const s = (status || "").toLowerCase();
+  let bg = "bg-gray-100 text-gray-700";
+  if (["new", "draft", "pending"].includes(s)) bg = "bg-blue-100 text-blue-700";
+  if (["won", "issued", "paid", "fulfilled", "approved", "completed"].includes(s)) bg = "bg-emerald-100 text-emerald-700";
+  if (["lost", "void", "cancelled", "overdue", "rejected"].includes(s)) bg = "bg-red-100 text-red-700";
+  
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${bg}`}>
+      {status || "Unknown"}
+    </span>
   );
 }
 
@@ -696,7 +712,7 @@ blankForm: {
 // ==========================================
 export const leadsConfig: any = {
   customForm: PipelineDocumentForm,
-  module: "crm/leads",
+  module: "leads",
   storeLevel: true,
   title: "Leads",
   singular: "Lead",
@@ -716,13 +732,16 @@ export const leadsConfig: any = {
   columns: [
     { key: "customer_name", label: "Customer Name", render: (v: any) => <strong>{v}</strong> },
     { key: "company_name", label: "Company Name" },
-    { key: "status", label: "Status" },
+    { key: "status", label: "Status", render: (v: any) => <TextStatusBadge status={v} /> },
     { key: "value", label: "Value" }
   ],
   renderCard: (item: any, actions: any) => (
-    <div className="p-4 border rounded-lg">
+    <div className="p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all">
       <h3 className="font-bold">{item.customer_name}</h3>
-      <p className="text-sm text-gray-500">{item.company_name} - {item.status}</p>
+      <div className="mt-2 flex items-center justify-between">
+        <p className="text-sm text-gray-500">{item.company_name}</p>
+        <TextStatusBadge status={item.status} />
+      </div>
     </div>
   )
 };
@@ -766,7 +785,7 @@ export const quotationsConfig: any = {
   columns: [
     { key: "quote_number", label: "Quote Number", render: (v: any) => <strong>{v}</strong> },
     { key: "customer_name", label: "Customer Name" },
-    { key: "status", label: "Status" },
+    { key: "status", label: "Status", render: (v: any) => <TextStatusBadge status={v} /> },
     { key: "total_amount", label: "Total Amount" },
     { key: "actions", label: "Actions", render: (v: any, item: any) => (
       <Button variant="secondary" onClick={() => {
@@ -781,10 +800,10 @@ export const quotationsConfig: any = {
     )}
   ],
   renderCard: (item: any) => (
-    <div className="p-4 border rounded-lg flex justify-between items-center">
+    <div className="p-4 border rounded-lg flex justify-between items-center bg-white shadow-sm hover:shadow-md transition-all">
       <div>
-        <h3 className="font-bold">{item.quote_number}</h3>
-        <p className="text-sm text-gray-500">{item.customer_name} - {item.status}</p>
+        <h3 className="font-bold flex items-center gap-2">{item.quote_number} <TextStatusBadge status={item.status} /></h3>
+        <p className="text-sm text-gray-500 mt-1">{item.customer_name}</p>
       </div>
       <Button variant="secondary" onClick={() => {
         if (confirm('Convert to Sales Order?')) {
@@ -838,7 +857,7 @@ export const salesOrdersConfig: any = {
   columns: [
     { key: "order_number", label: "Order Number", render: (v: any) => <strong>{v}</strong> },
     { key: "customer_name", label: "Customer Name" },
-    { key: "status", label: "Status" },
+    { key: "status", label: "Status", render: (v: any) => <TextStatusBadge status={v} /> },
     { key: "total_amount", label: "Total Amount" },
     { key: "actions", label: "Actions", render: (v: any, item: any) => (
       <Button variant="secondary" onClick={() => {
@@ -858,7 +877,8 @@ export const salesOrdersConfig: any = {
                 gstRate: i.gst_rate || i.gstRate,
                 unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined 
               })),
-              saleType: 'individual'
+              saleType: 'individual',
+              salesOrderId: item.id
             })
           }).then(() => window.location.reload());
         }
@@ -866,10 +886,10 @@ export const salesOrdersConfig: any = {
     )}
   ],
   renderCard: (item: any) => (
-    <div className="p-4 border rounded-lg flex justify-between items-center">
+    <div className="p-4 border rounded-lg flex justify-between items-center bg-white shadow-sm hover:shadow-md transition-all">
       <div>
-        <h3 className="font-bold">{item.order_number}</h3>
-        <p className="text-sm text-gray-500">{item.customer_name} - {item.status}</p>
+        <h3 className="font-bold flex items-center gap-2">{item.order_number} <TextStatusBadge status={item.status} /></h3>
+        <p className="text-sm text-gray-500 mt-1">{item.customer_name}</p>
       </div>
       <Button variant="secondary" onClick={() => {
         if (confirm('Generate Invoice?')) {
@@ -888,7 +908,8 @@ export const salesOrdersConfig: any = {
                 gstRate: i.gst_rate || i.gstRate,
                 unitId: (i.unit_id && String(i.unit_id) !== "null" && String(i.unit_id).length > 10) ? String(i.unit_id) : undefined 
               })),
-              saleType: 'individual'
+              saleType: 'individual',
+              salesOrderId: item.id
             })
           }).then(() => window.location.reload());
         }
@@ -897,10 +918,71 @@ export const salesOrdersConfig: any = {
   )
 };
 
+export const purchaseOrdersConfig: any = {
+  customForm: PipelineDocumentForm,
+  module: "purchase-orders",
+  storeLevel: true, 
+  tenantLevel: true, 
+  title: "Purchase Orders",
+  singular: "Purchase Order",
+  fields: [
+    { key: "supplier_id", label: "Supplier", type: "text", required: true },
+    { key: "order_date", label: "Order Date", type: "date" },
+    { key: "expected_delivery", label: "Expected Delivery", type: "date" },
+    { key: "status", label: "Status", type: "select", options: [
+      { label: "Draft", value: "draft" }, { label: "Sent", value: "sent" },
+      { label: "Confirmed", value: "confirmed" }, { label: "Delivered", value: "delivered" },
+      { label: "Cancelled", value: "cancelled" }
+    ] }
+  ],
+  blankForm: { status: "draft" },
+  searchKeys: ["order_number", "supplier_name"],
+  toPayload: (f: any) => {
+    const mapped = { ...f };
+    mapped.supplierId = f.supplier_id || f.supplierId;
+    mapped.orderDate = f.order_date;
+    mapped.expectedDelivery = f.expected_delivery;
+    mapped.storeId = window.location.pathname.split("/")[2];
+    
+    if (f.items && Array.isArray(f.items)) {
+      mapped.items = f.items.map((i: any) => ({
+        itemId: i.item_id || i.itemId,
+        itemName: i.item_name || i.itemName || i.name,
+        sku: i.sku,
+        quantity: Number(i.qty || i.quantity || 1),
+        unitPrice: Number(i.unit_price || i.unitPrice || 0),
+        gstRate: Number(i.gst_rate || i.gstRate || 0),
+        notes: i.notes
+      }));
+    }
+    return mapped;
+  },
+  columns: [
+    { key: "order_number", label: "Order Number", render: (v: any) => <strong>{v}</strong> },
+    { key: "supplier_name", label: "Supplier" },
+    { key: "status", label: "Status", render: (v: any) => <TextStatusBadge status={v} /> },
+    { key: "total_amount", label: "Total Amount" }
+  ],
+  renderCard: (item: any) => (
+    <div className="p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold text-gray-900">{item.order_number}</h3>
+        <TextStatusBadge status={item.status} />
+      </div>
+      <p className="text-sm text-gray-800 font-medium">{item.supplier_name}</p>
+      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+        <span>{item.order_date ? new Date(item.order_date).toLocaleDateString() : "—"}</span>
+        <span className="font-semibold text-gray-700">${item.total_amount}</span>
+      </div>
+    </div>
+  )
+};
+
 export const invoicesConfig: any = {
   customForm: PipelineDocumentForm,
   module: "sales", // points to the sales router which has a GET /
   storeLevel: true,
+  tenantLevel: false, // hits /v1/stores/:storeId/sales
   title: "Invoices",
   singular: "Invoice",
   fields: [
@@ -1007,15 +1089,22 @@ export const invoicesConfig: any = {
   },
   columns: [
     { key: "sale_number", label: "Invoice Number", render: (v: any) => <strong>{v}</strong> },
-    { key: "status", label: "Status" },
-    { key: "sale_date", label: "Date" },
+    { key: "status", label: "Status", render: (v: any) => <TextStatusBadge status={v} /> },
+    { key: "sale_date", label: "Date", render: (v: any) => v ? new Date(v).toLocaleDateString() : "—" },
     { key: "customer_name", label: "Customer Name" },
     { key: "total_amount", label: "Total Amount" }
   ],
   renderCard: (item: any) => (
-    <div className="p-4 border rounded-lg">
-      <h3 className="font-bold">{item.sale_number}</h3>
-      <p className="text-sm text-gray-500">{item.customer_name} - ${item.total_amount} - {item.status}</p>
+    <div className="p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold text-gray-900">{item.sale_number}</h3>
+        <TextStatusBadge status={item.status} />
+      </div>
+      <p className="text-sm text-gray-800 font-medium">{item.customer_name}</p>
+      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+        <span>{item.sale_date ? new Date(item.sale_date).toLocaleDateString() : "—"}</span>
+        <span className="font-semibold text-gray-700">${item.total_amount}</span>
+      </div>
     </div>
   )
 };
