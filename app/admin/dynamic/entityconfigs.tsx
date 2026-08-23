@@ -1023,6 +1023,7 @@ export const invoicesConfig: any = {
 
 export const unitsConfig: any = {
   module: "units",
+  globalLevel: true, // hits /v1/units
   title: "Unit Types",
   singular: "Unit",
   fields: [
