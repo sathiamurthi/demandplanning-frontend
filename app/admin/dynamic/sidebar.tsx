@@ -9,7 +9,7 @@ import {
   ShoppingCart, Shield, ChevronLeft, ChevronRight,
   LogOut, Bell, Menu, X, BookOpen, Sparkles,
   FileBarChart2, Brain, Zap, ReceiptText, GraduationCap,
-  Clock, Calendar
+  Clock, Calendar, Wallet
 } from "lucide-react";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -36,6 +36,7 @@ const NAV: NavGroup[] = [
       { label: "Sales",           href: "/admin/dynamic/sale",            icon: ReceiptText  },
       { label: "Sales Orders",    href: "/admin/dynamic/sales-orders",    icon: ShoppingCart },
       { label: "Invoices",        href: "/admin/dynamic/invoices",        icon: ReceiptText },
+      { label: "Customer Balances", href: "/admin/dynamic/receivables",   icon: Wallet },
       { label: "Coupons",         href: "/admin/dynamic/coupons",         icon: Tag,         roles: OWNER_ROLES },
     ],
   },
