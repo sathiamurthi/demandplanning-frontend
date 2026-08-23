@@ -55,6 +55,7 @@ const NAV: NavGroup[] = [
     items: [
       { label: "Basic Report",    href: "/admin/dynamic/ai-reports/basic",    icon: FileBarChart2 },
       { label: "Advanced Report", href: "/admin/dynamic/ai-reports/advanced", icon: Brain, isPro: true, roles: MGMT_ROLES },
+      { label: "AI Suggested POs", href: "/admin/dynamic/purchase-orders?ai_po=true", icon: Package, roles: MGMT_ROLES },
     ],
   },
   {
