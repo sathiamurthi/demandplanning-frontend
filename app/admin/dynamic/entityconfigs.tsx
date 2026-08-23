@@ -693,6 +693,7 @@ blankForm: {
 // SALES PIPELINE (CRM & ORDERS)
 // ==========================================
 export const leadsConfig: any = {
+  customForm: PipelineDocumentForm,
   module: "crm/leads",
   storeLevel: true,
   title: "Leads",
