@@ -313,6 +313,7 @@ export default function SaleDynamicPage() {
   const [payMethod, setPayMethod] = useState("cash");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -526,6 +527,7 @@ export default function SaleDynamicPage() {
           paymentMethod: payMethod,
           customerName: customerName || undefined,
           customerPhone: customerPhone || undefined,
+          referredBy: referredBy || undefined,
           notes: notes || undefined,
           discountAmount: couponDiscount || undefined,
           items: lines.map(l => {
@@ -577,7 +579,7 @@ export default function SaleDynamicPage() {
         } catch(e) {}
       }
 
-      setLines([]); setCustomerName(""); setCustomerPhone(""); setNotes(""); setSaleDate(today());
+      setLines([]); setCustomerName(""); setCustomerPhone(""); setReferredBy(""); setNotes(""); setSaleDate(today());
       setCouponCode(""); setCouponDiscount(0); setCouponMsg("");
       setSaveMsg({ ok: true, text: `Sale ${d.data?.sale?.sale_number || d.data?.saleNumber || ""} saved!` });
       loadTodaySales();
@@ -680,6 +682,9 @@ export default function SaleDynamicPage() {
                 <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
                   placeholder="Phone for WhatsApp (optional)"
                   className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                <input value={referredBy} onChange={e => setReferredBy(e.target.value)}
+                  placeholder="Referred By (e.g. Dr. Smith, Friend) (optional)"
+                  className="col-span-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
               </div>
             </div>
 
