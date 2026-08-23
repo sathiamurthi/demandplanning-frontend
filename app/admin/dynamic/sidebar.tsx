@@ -36,6 +36,7 @@ const NAV: NavGroup[] = [
       { label: "Sales",           href: "/admin/dynamic/sale",            icon: ReceiptText  },
       { label: "Sales Orders",    href: "/admin/dynamic/sales-orders",    icon: ShoppingCart },
       { label: "Invoices",        href: "/admin/dynamic/invoices",        icon: ReceiptText },
+      { label: "Purchase Orders", href: "/admin/dynamic/purchase-orders", icon: ShoppingCart },
       { label: "Customer Balances", href: "/admin/dynamic/receivables",   icon: Wallet },
       { label: "Coupons",         href: "/admin/dynamic/coupons",         icon: Tag,         roles: OWNER_ROLES },
     ],
@@ -68,12 +69,6 @@ const NAV: NavGroup[] = [
       { label: "Items",         href: "/admin/dynamic/items",          icon: Package                       },
       { label: "Quick Add Item",href: "/admin/dynamic/items?quick=1",  icon: Zap,       roles: MGMT_ROLES  },
       { label: "Stock ledger",  href: "/admin/dynamic/ledger",         icon: BookOpen                      },
-    ],
-  },
-  {
-    section: "Education",
-    items: [
-      { label: "School AI Tutor", href: "/admin/dynamic/school", icon: GraduationCap },
     ],
   },
   {
