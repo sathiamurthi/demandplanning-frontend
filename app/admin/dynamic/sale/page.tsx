@@ -6,9 +6,10 @@ import {
   Trash2, Search, X, ShoppingCart, BarChart2,
   TrendingUp, Package, Download,
   CheckCircle2, AlertTriangle, Loader2, RefreshCw,
-  Printer, MessageCircle, Mail, ReceiptText, Plus,
+  Printer, MessageCircle, Mail, ReceiptText, Plus, Mic,
 } from "lucide-react";
 import { QuickAddItemModal } from "../QuickAddItemModal";
+import AIVoiceInput from "@/components/AIVoiceInput";
 
 // ── helpers ──────────────────────────────────────────────────
 function getToken() {
@@ -386,6 +387,51 @@ export default function SaleDynamicPage() {
     setLoadingSales(false);
   }, [storeId]);
 
+  const handleAIVoiceProcessed = (aiItems: any[]) => {
+    let addedCount = 0;
+    aiItems.forEach(aiItem => {
+      // Find the closest matching item in the catalog
+      const match = items.find(i => i.name.toLowerCase().includes(aiItem.name.toLowerCase()));
+      if (match) {
+        // Add to cart with specific quantity
+        const discountVal = parseFloat(match.discount_value || "0");
+        let discountPct = 0;
+        if (match.discount_type === "percentage" && discountVal > 0) {
+          discountPct = discountVal;
+        } else if (match.discount_type === "fixed" && discountVal > 0) {
+          const price = parseFloat(match.selling_price || "0");
+          if (price > 0) discountPct = Math.round((discountVal / price) * 100 * 100) / 100;
+        }
+
+        setLines(prev => {
+          const existing = prev.findIndex(l => l.itemId === match.id);
+          if (existing >= 0) {
+            return prev.map((l, i) => i === existing ? { ...l, qty: l.qty + (aiItem.quantity || 1) } : l);
+          } else {
+            return [...prev, {
+              itemId: match.id, name: match.name,
+              unitPrice: parseFloat(match.selling_price || "0"),
+              qty: aiItem.quantity || 1, discountPct,
+              unitId: match.primary_unit_id || "",
+              unitSymbol: match.unit_symbol || "pcs",
+              stock: parseFloat(match.current_stock),
+              isLoose: false,
+              primaryUnitId: match.primary_unit_id || undefined,
+              primaryUnitSymbol: match.unit_symbol || "pcs",
+              primaryUnitPrice: parseFloat(match.selling_price || "0"),
+            }];
+          }
+        });
+        addedCount++;
+      }
+    });
+    if (addedCount > 0) {
+      alert(`AI added ${addedCount} items to your cart.`);
+    } else {
+      alert("AI couldn't find any matching items in your catalog.");
+    }
+  };
+
   const addLine = (item: StoreItem) => {
     const existing = lines.findIndex(l => l.itemId === item.id);
     const discountVal = parseFloat(item.discount_value || "0");
@@ -697,6 +743,9 @@ export default function SaleDynamicPage() {
                 </button>
               </div>
               <p className="text-[11px] text-gray-400 mb-2">Search any item — medicines, general goods (soap, snacks, etc.), sold by strip, piece, or any unit. Can't find it? Add it above.</p>
+              <div className="mb-4">
+                <AIVoiceInput context="sales" onProcessed={handleAIVoiceProcessed} placeholder="Say 'two paracetamol, one soap'..." />
+              </div>
               <ItemSearch items={items} onAdd={addLine} />
               {lines.length > 0 && (
                 <div className="mt-3 space-y-2">

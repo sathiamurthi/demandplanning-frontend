@@ -11,6 +11,7 @@ import {
   Printer, Share2, MessageCircle, Mail, ChevronDown, ChevronRight,
   AlertTriangle, Search, Download,
 } from "lucide-react";
+import { Combobox, ComboboxInput, ComboboxOptions, ComboboxOption } from '@headlessui/react';
 
 /* ── Types ── */
 interface POItem {
@@ -74,6 +75,52 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function ItemCombobox({ item, index, storeItems, onChange }: any) {
+  const [query, setQuery] = useState('');
+  const selectedItem = storeItems.find((s: any) => s.id === item.itemId) || null;
+  const filteredItems = query === ''
+    ? storeItems.slice(0, 50)
+    : storeItems.filter((si: any) => si.name.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
+
+  return (
+    <Combobox 
+       value={selectedItem} 
+       onChange={(si: any) => {
+          onChange(index, "itemId", si?.id ?? "");
+          if (si) {
+             onChange(index, "itemName", si.name);
+             if (si.purchase_price) onChange(index, "unitPrice", si.purchase_price);
+             if (si.gst_rate) onChange(index, "gstRate", si.gst_rate);
+             if (si.sku) onChange(index, "sku", si.sku);
+          }
+       }}
+    >
+      <div className="relative">
+        <ComboboxInput
+          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gold-400 bg-white"
+          displayValue={(si: any) => si ? `${si.name}${si.sku ? ` (${si.sku})` : ""}` : (item.itemName || "")}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="- Search catalog -"
+        />
+        <ComboboxOptions className="absolute z-50 mt-1 max-h-60 w-[300px] overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-none">
+          {filteredItems.map((si: any) => (
+            <ComboboxOption
+              key={si.id}
+              value={si}
+              className="group relative cursor-default select-none py-2 pl-3 pr-4 text-gray-900 data-[focus]:bg-gold-500 data-[focus]:text-white"
+            >
+              {si.name}{si.sku ? ` (${si.sku})` : ""}
+            </ComboboxOption>
+          ))}
+          {filteredItems.length === 0 && query !== "" && (
+             <div className="py-2 px-3 text-gray-500 text-xs">No items found</div>
+          )}
+        </ComboboxOptions>
+      </div>
+    </Combobox>
+  );
+}
+
 /* ── Line item row for the form ── */
 function LineItemRow({
   item, index, storeItems, onChange, onRemove,
@@ -92,26 +139,8 @@ function LineItemRow({
 
   return (
     <tr className="border-b border-gray-50 last:border-0">
-      <td className="py-2 pr-2">
-        <select
-          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gold-400"
-          value={(item as any).itemId ?? ""}
-          onChange={e => {
-            const si = storeItems.find(s => s.id === e.target.value);
-            onChange(index, "itemId", e.target.value);
-            if (si) {
-              onChange(index, "itemName", si.name);
-              if (si.purchase_price) onChange(index, "unitPrice", si.purchase_price);
-              if (si.gst_rate) onChange(index, "gstRate", si.gst_rate);
-              if (si.sku) onChange(index, "sku", si.sku);
-            }
-          }}
-        >
-          <option value="">— Select item —</option>
-          {storeItems.map(si => (
-            <option key={si.id} value={si.id}>{si.name}{si.sku ? ` (${si.sku})` : ""}</option>
-          ))}
-        </select>
+      <td className="py-2 pr-2 relative">
+        <ItemCombobox item={item} index={index} storeItems={storeItems} onChange={onChange} />
       </td>
       <td className="py-2 pr-2">
         <input
@@ -238,7 +267,7 @@ function OrderFormModal({ tenantId, storeId, suppliers, storeItems, editing, onC
         })),
       };
 
-      if (editing) {
+      if (editing && editing.id !== "new") {
         await apiPut(`/tenants/${tenantId}/purchase-orders/${editing.id}`, payload);
         // Update items: delete all and re-add
         for (const oldItem of editing.items ?? []) {
@@ -490,42 +519,50 @@ function PurchaseOrdersInner() {
   const isAiPo = searchParams?.get("ai_po") === "true";
   const [hasLoadedAi, setHasLoadedAi] = useState(false);
 
+  const loadAiPo = async () => {
+    if (!storeId || !tenantId) return;
+    try {
+      const r = await apiGet<{ success: boolean; data: any[] }>(`/stores/${storeId}/report/latest`);
+      if (r.success && r.data) {
+        const aiItems = r.data.filter(f => f.order_needed).map(f => ({
+          item_id: f.item_id || f.id,
+          item_name: f.item_name,
+          sku: "",
+          quantity: f.order_qty?.toString() || f.predicted_qty_30d?.toString() || "1",
+          unit_price: "0",
+          gst_rate: "0",
+          notes: "AI Recommended",
+        }));
+        
+        if (aiItems.length > 0) {
+          setEditing({
+            id: "new",
+            order_number: "AI-DRAFT",
+            order_date: new Date().toISOString(),
+            status: "draft",
+            store_id: storeId,
+            tenant_id: tenantId,
+            items: aiItems as any,
+            total_amount: "0",
+            subtotal: "0",
+            gst_amount: "0",
+          } as any);
+          setShowForm(true);
+        } else {
+          alert("AI Forecast found no items requiring re-order.");
+        }
+      }
+    } catch (e: any) {
+      alert("Failed to load AI Forecast: " + (e?.message || "Unknown error"));
+    }
+  };
+
   useEffect(() => {
     if (isAiPo && storeId && !showForm && !hasLoadedAi) {
       setHasLoadedAi(true);
-      apiGet<{ success: boolean; data: any[] }>(`/stores/${storeId}/report/latest`)
-        .then(r => {
-          if (r.success && r.data) {
-            const aiItems = r.data.filter(f => f.order_needed).map(f => ({
-              item_id: f.item_id || f.id,
-              item_name: f.item_name,
-              sku: "",
-              quantity: f.predicted_qty_30d?.toString() || "1",
-              unit_price: "0",
-              gst_rate: "0",
-              notes: "AI Recommended",
-            }));
-            
-            if (aiItems.length > 0) {
-              setEditing({
-                id: "new",
-                order_number: "AI-DRAFT",
-                order_date: new Date().toISOString(),
-                status: "draft",
-                store_id: storeId,
-                tenant_id: tenantId,
-                items: aiItems as any,
-                total_amount: "0",
-                subtotal: "0",
-                gst_amount: "0",
-              } as any);
-              setShowForm(true);
-            }
-          }
-        })
-        .catch(() => {});
+      loadAiPo();
     }
-  }, [isAiPo, storeId]);
+  }, [isAiPo, storeId, showForm, hasLoadedAi]);
 
   const load = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -673,6 +710,13 @@ function PurchaseOrdersInner() {
                          text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+            <button
+              onClick={loadAiPo}
+              className="flex items-center gap-1.5 rounded-xl bg-gold-500 px-3 py-2
+                         text-xs font-semibold text-white hover:bg-gold-600 transition-colors shadow-sm"
+            >
+              <Package className="h-3.5 w-3.5" /> Auto-fill from AI
             </button>
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
