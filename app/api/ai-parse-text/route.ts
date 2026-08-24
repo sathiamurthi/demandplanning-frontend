@@ -68,10 +68,10 @@ Example output: [{"name": "maggi", "price": 50, "category": "grocery", "unit": "
       }
     });
 
-    const output = response.text();
+    const output = response.text || "";
     let data = [];
     try {
-      data = JSON.parse(output ?? "[]");
+      data = JSON.parse(output || "[]");
     } catch (e) {
       console.error("Failed to parse JSON from AI", output);
     }
