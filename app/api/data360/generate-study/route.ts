@@ -10,9 +10,10 @@ export async function POST(req: Request) {
     const systemInstruction = `You are an expert CBSE/Educational curriculum analyzer and curriculum developer.
 Your task is to analyze the provided syllabus/pattern images or text for a specific chapter and generate a complete study guide.
 The user is specifically asking for:
-1. Core Concepts, Key Terms, and a Study Plan.
+1. Core Concepts, Key Terms, a Study Plan, and a Quick Reference guide.
 2. Competency-Based Questions (Analytical, Logical, Application-based) with step-by-step answers.
-3. Exercise Questions (standard curriculum questions) with step-by-step answers.
+3. Exercise Questions and Practice Questions with hints and difficulties.
+4. Common Mistakes to Avoid.
 
 ${target_language ? `CRITICAL: The user has requested the explanation language to be ${target_language}. You MUST provide all explanations (story telling, simple explanations, why it matters, hints, meanings) in ${target_language}. Questions and technical terms can remain in the original language.` : ''}
 
@@ -89,7 +90,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
           }
         }
       },
-      required: ["chapter_title", "subject", "core_concepts", "competency_questions", "exercise_questions"]
+      required: ["chapter_title", "subject", "core_concepts", "key_terms", "study_plan", "quick_reference", "practice_questions", "common_mistakes", "competency_questions", "exercise_questions"]
     };
 
     const promptParts: any[] = [];

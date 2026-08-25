@@ -1738,6 +1738,20 @@ export default function Data360Page() {
             {schoolErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{schoolErr}</p>}
           </div>
 
+          {schoolHistory.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h4 className="font-black text-gray-900 text-sm mb-3">Recent Chapters</h4>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {schoolHistory.map((h, i) => (
+                  <button key={i} onClick={() => setSchoolResult(h)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:border-teal-500 hover:text-teal-700 transition whitespace-nowrap flex items-center gap-2">
+                    <BookOpen size={14} className="text-teal-600" />
+                    {h.chapter_title || "Study Pack " + (i + 1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {schoolResult && (
             <div className="space-y-5">
               <div className="bg-white border border-gray-200 rounded-2xl p-6">
