@@ -108,4 +108,6 @@ export interface StudyPack {
   quick_reference: string[];
   practice_questions: { question: string; hint: string; difficulty: "easy" | "medium" | "hard" }[];
   common_mistakes: string[];
+  competency_questions?: { question: string; answer: string; competency_tested: string }[];
+  exercise_questions?: { question: string; answer: string }[];
 }

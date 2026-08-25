@@ -133,22 +133,11 @@ export default function Data360Page() {
   const [schoolBusy, setSchoolBusy] = useState(false);
   const [schoolErr, setSchoolErr] = useState("");
   const [schoolResult, setSchoolResult] = useState<StudyPack | null>(null);
+  const [schoolHistory, setSchoolHistory] = useState<StudyPack[]>([]);
+  const [schoolTargetLang, setSchoolTargetLang] = useState("English");
   const [schoolProvider, setSchoolProvider] = useState("");
   const [schoolCached, setSchoolCached] = useState(false);
 
-  const runStudyGuideFromText = async () => {
-    if (!schoolPasteText.trim() || !schoolClassLevel.trim() || !schoolBoard.trim()) {
-      setSchoolErr("Class and Board are required — paste the chapter text too.");
-      return;
-    }
-    setSchoolBusy(true); setSchoolErr(""); setSchoolResult(null);
-    try {
-      const { data, provider, cached } = await data360Api.studyGuideFromText(schoolPasteText, schoolClassLevel, schoolBoard, schoolSubject || undefined, schoolChapterLabel || undefined);
-      setSchoolResult(data); setSchoolProvider(provider); setSchoolCached(cached);
-    } catch (e: any) {
-      setSchoolErr(e.message || "Could not generate the study pack");
-    } finally { setSchoolBusy(false); }
-  };
 
   const runStudyGuideFromFiles = async (fileList: FileList) => {
     if (!schoolClassLevel.trim() || !schoolBoard.trim()) {
@@ -165,30 +154,96 @@ export default function Data360Page() {
           const pages = await renderPdfPageImages(file, 10);
           pages.forEach(p => images.push({ image_base64: p.base64, mime_type: p.mimeType }));
         } else {
-          throw new Error(`"${file.name}" is an unsupported type — use images or a PDF of the chapter pages.`);
+          throw new Error(`"${file.name}" is an unsupported type - use images or a PDF.`);
         }
       }
       if (images.length === 0) return;
-      if (images.length > 10) images.length = 10; // one chapter's worth of pages per call
-      const { data, provider, cached } = await data360Api.studyGuideFromImages(images, schoolClassLevel, schoolBoard, schoolSubject || undefined, schoolChapterLabel || undefined);
-      setSchoolResult(data); setSchoolProvider(provider); setSchoolCached(cached);
+      if (images.length > 10) images.length = 10;
+
+      const res = await fetch("/api/data360/generate-study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images,
+          class_level: schoolClassLevel,
+          board: schoolBoard,
+          subject: schoolSubject,
+          chapter_name: schoolChapterLabel,
+          target_language: schoolTargetLang
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
+      setSchoolResult(result.data); setSchoolProvider("Gemini 2.5 Flash"); setSchoolCached(false);
+      setSchoolHistory(prev => [result.data, ...prev]);
     } catch (e: any) {
-      setSchoolErr(e.message || "Could not generate the study pack");
-    } finally { setSchoolBusy(false); }
+      setSchoolErr(e.message || "Failed to generate study guide.");
+    } finally {
+      setSchoolBusy(false);
+    }
   };
 
-  const runStudyGuideGenerate = async () => {
-    if (!schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()) {
-      setSchoolErr("Class, Board, Subject, and Chapter Name are strictly required for AI generation.");
+  const runStudyGuideFromText = async () => {
+    if (!schoolClassLevel.trim() || !schoolBoard.trim()) {
+      setSchoolErr("Class and Board are required first.");
       return;
     }
     setSchoolBusy(true); setSchoolErr(""); setSchoolResult(null);
     try {
-      const { data, provider, cached } = await data360Api.generateStudyGuide(schoolClassLevel, schoolBoard, schoolSubject, schoolChapterLabel);
-      setSchoolResult(data); setSchoolProvider(provider); setSchoolCached(cached);
+      const res = await fetch("/api/data360/generate-study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: schoolPasteText,
+          class_level: schoolClassLevel,
+          board: schoolBoard,
+          subject: schoolSubject,
+          chapter_name: schoolChapterLabel,
+          target_language: schoolTargetLang
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
+      setSchoolResult(result.data); setSchoolProvider("Gemini 2.5 Flash"); setSchoolCached(false);
+      setSchoolHistory(prev => [result.data, ...prev]);
     } catch (e: any) {
-      setSchoolErr(e.message || "Could not generate the study pack");
-    } finally { setSchoolBusy(false); }
+      setSchoolErr(e.message || "Failed to generate study guide.");
+    } finally {
+      setSchoolBusy(false);
+    }
+  };
+
+  const runStudyGuideGenerate = async () => {
+    if (!schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()) {
+      setSchoolErr("Class, Board, Subject, and Chapter Name are required to generate from scratch.");
+      return;
+    }
+    setSchoolBusy(true); setSchoolErr(""); setSchoolResult(null);
+    try {
+      const res = await fetch("/api/data360/generate-study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "Please generate a comprehensive study guide based solely on your internal knowledge of this topic.",
+          class_level: schoolClassLevel,
+          board: schoolBoard,
+          subject: schoolSubject,
+          chapter_name: schoolChapterLabel,
+          target_language: schoolTargetLang
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
+      setSchoolResult(result.data); setSchoolProvider("Gemini 2.5 Flash"); setSchoolCached(false);
+      setSchoolHistory(prev => [result.data, ...prev]);
+    } catch (e: any) {
+      setSchoolErr(e.message || "Failed to generate study guide.");
+    } finally {
+      setSchoolBusy(false);
+    }
   };
 
 
@@ -397,7 +452,7 @@ export default function Data360Page() {
     tasks.forEach((t, i) => runOneImage(t.label, t.base64, t.mimeType, baseIdx + i));
   };
 
-  const useAutoExtractResult = (idx: number) => {
+  const applyAutoExtractResult = (idx: number) => {
     const item = autoExtractItems[idx];
     if (!item?.data) return;
     const flat = flattenAutoExtract(item.data);
@@ -1053,7 +1108,7 @@ export default function Data360Page() {
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[10px] text-gray-400">via {item.provider}</span>
                           {item.cached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
-                          <button onClick={() => useAutoExtractResult(i)} className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-2 py-1 rounded-lg transition">
+                          <button onClick={() => applyAutoExtractResult(i)} className="text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 px-2 py-1 rounded-lg transition">
                             Use as Staged Row
                           </button>
                         </div>
@@ -1605,7 +1660,7 @@ export default function Data360Page() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Class / Grade</label>
                 <input value={schoolClassLevel} onChange={e => setSchoolClassLevel(e.target.value)} placeholder="e.g. Class 8" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
@@ -1617,6 +1672,16 @@ export default function Data360Page() {
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Subject (optional)</label>
                 <input value={schoolSubject} onChange={e => setSchoolSubject(e.target.value)} placeholder="e.g. Science" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Target Language</label>
+                <select value={schoolTargetLang} onChange={e => setSchoolTargetLang(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
+                  <option value="English">English</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Tamil">Tamil</option>
+                  <option value="Telugu">Telugu</option>
+                  <option value="Malayalam">Malayalam</option>
+                </select>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1735,7 +1800,7 @@ export default function Data360Page() {
                 </div>
               )}
 
-              {schoolResult.study_plan?.length > 0 && (
+            {schoolResult.study_plan?.length > 0 && (
                 <div className="bg-white border border-gray-200 rounded-2xl p-6">
                   <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><ClipboardCheck size={16} className="text-teal-600" /> Study Plan</h4>
                   <div className="space-y-2">
@@ -1747,6 +1812,45 @@ export default function Data360Page() {
                           <p className="text-xs text-gray-600 mt-0.5">{s.activity}</p>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult.competency_questions && schoolResult.competency_questions.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-purple-600" /> Competency-Based Questions</h4>
+                  <div className="space-y-3">
+                    {schoolResult.competency_questions.map((q, i) => (
+                      <details key={i} className="group border border-gray-200 rounded-xl bg-gray-50 overflow-hidden print-expand">
+                        <summary className="font-medium text-sm text-gray-900 p-4 cursor-pointer hover:bg-gray-100 transition list-none flex gap-2">
+                          <span className="text-purple-600 font-black">Q{i+1}.</span> {q.question}
+                          <span className="ml-auto text-xs text-gray-400 bg-white border px-2 py-0.5 rounded-full shrink-0">{q.competency_tested}</span>
+                        </summary>
+                        <div className="p-4 pt-0 text-sm text-gray-700 bg-white border-t border-gray-200 mt-2">
+                          <div className="font-black text-xs text-purple-600 mb-1 uppercase tracking-wide">Answer</div>
+                          <div className="whitespace-pre-wrap">{q.answer}</div>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult.exercise_questions && schoolResult.exercise_questions.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-blue-600" /> Exercise Questions</h4>
+                  <div className="space-y-3">
+                    {schoolResult.exercise_questions.map((q, i) => (
+                      <details key={i} className="group border border-gray-200 rounded-xl bg-gray-50 overflow-hidden print-expand">
+                        <summary className="font-medium text-sm text-gray-900 p-4 cursor-pointer hover:bg-gray-100 transition list-none flex gap-2">
+                          <span className="text-blue-600 font-black">Q{i+1}.</span> {q.question}
+                        </summary>
+                        <div className="p-4 pt-0 text-sm text-gray-700 bg-white border-t border-gray-200 mt-2">
+                          <div className="font-black text-xs text-blue-600 mb-1 uppercase tracking-wide">Answer</div>
+                          <div className="whitespace-pre-wrap">{q.answer}</div>
+                        </div>
+                      </details>
                     ))}
                   </div>
                 </div>
