@@ -129,6 +129,8 @@ export default function Data360Page() {
   const [schoolBoard, setSchoolBoard] = useState("CBSE");
   const [schoolSubject, setSchoolSubject] = useState("");
   const [schoolChapterLabel, setSchoolChapterLabel] = useState("");
+  const [schoolChaptersList, setSchoolChaptersList] = useState<string[]>([]);
+  const [schoolSuggesting, setSchoolSuggesting] = useState(false);
   const [schoolPasteText, setSchoolPasteText] = useState("");
   const [schoolBusy, setSchoolBusy] = useState(false);
   const [schoolErr, setSchoolErr] = useState("");
@@ -137,6 +139,49 @@ export default function Data360Page() {
   const [schoolTargetLang, setSchoolTargetLang] = useState("English");
   const [schoolProvider, setSchoolProvider] = useState("");
   const [schoolCached, setSchoolCached] = useState(false);
+
+  useEffect(() => {
+    if (!schoolBoard || !schoolClassLevel || !schoolSubject) {
+      setSchoolChaptersList([]);
+      return;
+    }
+    const cacheKey = `d360_chapters_${schoolBoard}_${schoolClassLevel}_${schoolSubject}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try { setSchoolChaptersList(JSON.parse(cached)); } catch (e) {}
+    } else {
+      setSchoolChaptersList([]);
+    }
+  }, [schoolBoard, schoolClassLevel, schoolSubject]);
+
+  const suggestChapters = async () => {
+    if (!schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim()) {
+      setSchoolErr("Class, Board, and Subject are required to suggest chapters.");
+      return;
+    }
+    setSchoolSuggesting(true); setSchoolErr("");
+    try {
+      const res = await fetch("/api/data360/suggest-chapters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: schoolPasteText,
+          class_level: schoolClassLevel,
+          board: schoolBoard,
+          subject: schoolSubject
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      setSchoolChaptersList(result.data);
+      const cacheKey = `d360_chapters_${schoolBoard}_${schoolClassLevel}_${schoolSubject}`;
+      localStorage.setItem(cacheKey, JSON.stringify(result.data));
+    } catch (error: any) {
+      setSchoolErr(error.message || "Failed to suggest chapters");
+    } finally {
+      setSchoolSuggesting(false);
+    }
+  };
 
 
   const runStudyGuideFromFiles = async (fileList: FileList) => {
@@ -1689,7 +1734,17 @@ export default function Data360Page() {
                 <button key={b} onClick={() => setSchoolBoard(b)} className={`text-xs font-bold px-3 py-1.5 rounded-full border transition ${schoolBoard === b ? "bg-teal-600 border-teal-600 text-white" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}>{b}</button>
               ))}
             </div>
-            <input value={schoolChapterLabel} onChange={e => setSchoolChapterLabel(e.target.value)} placeholder={`Chapter title ${schoolInputMode === 'generate' ? '(required)' : '(optional, for your reference)'}`} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <input list="chapters-datalist" value={schoolChapterLabel} onChange={e => setSchoolChapterLabel(e.target.value)} placeholder={`Chapter title ${schoolInputMode === 'generate' ? '(required)' : '(optional, for your reference)'}`} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-teal-400" />
+                <datalist id="chapters-datalist">
+                  {schoolChaptersList.map(c => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+              <button onClick={suggestChapters} disabled={schoolSuggesting || !schoolClassLevel || !schoolBoard || !schoolSubject} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 disabled:opacity-40 font-bold text-xs px-3 py-2 rounded-lg transition whitespace-nowrap">
+                {schoolSuggesting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Suggest Chapters
+              </button>
+            </div>
           </div>
 
           <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6 print:hidden">

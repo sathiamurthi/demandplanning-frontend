@@ -1,0 +1,71 @@
+import { NextResponse } from 'next/server';
+import { GoogleGenAI, Type } from '@google/genai';
+
+const ai = new GoogleGenAI();
+
+export async function POST(req: Request) {
+  try {
+    const { images, text, class_level, board, subject } = await req.json();
+
+    if (!class_level || !board || !subject) {
+      return NextResponse.json({ success: false, error: "Class, board, and subject are required" }, { status: 400 });
+    }
+
+    const systemInstruction = `You are an expert curriculum analyzer.
+Your task is to provide a complete list of chapters for a given school subject.
+If the user provides syllabus/index images or text, extract the chapters exactly as they appear in the source.
+If no source is provided, use your internal knowledge to provide the standard curriculum chapters for the specified board, class, and subject.
+Only return a JSON array of strings containing the chapter names in chronological order.`;
+
+    const schema = {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "List of chapter names"
+    };
+
+    const promptParts: any[] = [];
+    promptParts.push(`List the chapters for:\nClass: ${class_level}\nBoard: ${board}\nSubject: ${subject}`);
+
+    if (text) {
+      promptParts.push(`\nSource Material (Syllabus/Index):\n${text}`);
+    }
+
+    if (images && images.length > 0) {
+      for (const img of images) {
+        promptParts.push({
+          inlineData: {
+            data: img.image_base64.replace(/^data:image\/\w+;base64,/, ""),
+            mimeType: img.mime_type || "image/jpeg"
+          }
+        });
+      }
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: promptParts,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+      }
+    });
+
+    const output = response.text || "";
+    let data = null;
+    try {
+      data = JSON.parse(output);
+      if (!Array.isArray(data)) {
+        throw new Error("Expected an array");
+      }
+    } catch (e) {
+      console.error("Failed to parse JSON from AI", output);
+      return NextResponse.json({ success: false, error: "AI returned invalid JSON" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Error generating chapters:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
