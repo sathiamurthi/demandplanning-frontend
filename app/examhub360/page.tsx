@@ -637,6 +637,30 @@ export default function Data360Page() {
     }
   }, [schoolBoard, schoolClassLevel, schoolSubject, adminChapterConfig, adminPaidUsers, user, isSuperadmin]);
 
+  
+  const addChapterManually = async () => {
+    const chapterName = window.prompt("Enter Chapter Name to Add Manually:");
+    if (!chapterName || !chapterName.trim()) return;
+    const name = chapterName.trim();
+    
+    // Add to UI list immediately
+    if (!schoolChaptersList.includes(name)) {
+      setSchoolChaptersList(prev => [...prev, name]);
+      setSchoolSelectedChapters(prev => [...prev, name]);
+    }
+
+    // Save to master data
+    try {
+      await fetch('/api/examhub360/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, type: 'subject_chapter' })
+      });
+    } catch (e) {
+      console.error("Failed to store chapter in master data", e);
+    }
+  };
+
   const suggestChapters = async () => {
     if (!schoolClassLevel.trim() || !schoolBoard.trim()) {
       setSchoolErr("Class and Board are required to suggest chapters.");
@@ -1643,7 +1667,10 @@ export default function Data360Page() {
               <button className="flex-1 flex items-center justify-center gap-2 bg-teal-50 text-teal-700 hover:bg-teal-100 font-bold text-sm py-2.5 rounded-lg border border-teal-100 transition">
                 <Upload size={16} /> Upload Syllabus PDF to Extract Chapters
               </button>
-              <button onClick={suggestChapters} disabled={schoolSuggesting || !schoolClassLevel || !schoolBoard || !schoolSubject} className="flex items-center justify-center gap-2 bg-[#8cd2c7] text-white hover:bg-teal-400 disabled:opacity-40 font-bold text-sm px-6 py-2.5 rounded-lg transition">
+              <button onClick={addChapterManually} className="flex items-center justify-center gap-2 bg-white text-teal-600 border border-teal-200 hover:bg-teal-50 font-bold text-sm px-4 py-2.5 rounded-lg transition">
+                <Plus size={16} /> Add Manually
+              </button>
+              <button onClick={suggestChapters} disabled={schoolSuggesting || !schoolClassLevel || !schoolBoard || !schoolSubject} className="flex items-center justify-center gap-2 bg-[#8cd2c7] text-white hover:bg-teal-400 disabled:opacity-40 font-bold text-sm px-4 py-2.5 rounded-lg transition">
                 {schoolSuggesting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Auto-Suggest Chapters
               </button>
             </div>
