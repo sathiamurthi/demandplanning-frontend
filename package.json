@@ -6,7 +6,8 @@
     "dev": "next dev -p 4000",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prebuild": "node -e \"const fs=require('fs'); fs.rmSync('.next', {recursive:true, force:true}); fs.rmSync('app/data360', {recursive:true, force:true});\""
   },
   "dependencies": {
     "@google/genai": "^2.18.0",
