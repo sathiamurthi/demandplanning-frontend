@@ -1,4 +1,4 @@
-export const maxDuration = 300;
+export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 

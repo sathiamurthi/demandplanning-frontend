@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { generateContentWithRetry } from "@/lib/gemini";
 import { Type } from "@google/genai";
