@@ -1553,7 +1553,7 @@ export default function Data360Page() {
                 } catch(e) { alert("Error reading DB."); }
               }} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Load Pre-Generated</button>
             </div>
-          )}
+
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
               <>
