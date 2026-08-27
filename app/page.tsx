@@ -328,23 +328,26 @@ export default function HomePage() {
             {/* Card 3: Data Pipeline RPA */}
             <div className="bg-white border-2 border-gray-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 flex flex-col justify-between transition-all">
               <div>
-                <span className="text-[10px] tracking-wider uppercase text-emerald-600 font-black bg-emerald-50 px-2.5 py-1 rounded-full">I AM A Data / Ops Team</span>
+                <span className="text-[10px] tracking-wider uppercase text-emerald-600 font-black bg-emerald-50 px-2.5 py-1 rounded-full">I AM AN Educator / Student</span>
                 <div className="my-5 flex items-center gap-3">
                   <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 shrink-0">
-                    <Database className="text-emerald-600" size={24} />
+                    <GraduationCap className="text-emerald-600" size={24} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">Data360</h3><InstallAppBadge label="Data360" installPath="/data360" manifestHref="/data360-manifest.json" /></div>
-                    <p className="text-[10px] text-gray-400">Nexus Flow RPA Engine</p>
+                    <div className="flex items-center gap-1.5"><h3 className="font-black text-base text-gray-900">ExamHub360</h3><InstallAppBadge label="ExamHub360" installPath="/examhub360" manifestHref="/examhub360-manifest.json" /></div>
+                    <p className="text-[10px] text-gray-400">Autonomous Study Pack Generator</p>
                   </div>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed mb-6">
-                  Ingest Excel, PDF, screenshots, or voice — an AI validation agent flags anomalies, a human approval gate reviews them, then verified rows distribute to a file, cloud storage, or an RPA target.
+                  Upload your syllabus and instantly generate structured course sites, competitive Q&A, and customized study plans powered by AI.
                 </p>
               </div>
-              <div className="pt-4 border-t border-gray-100">
-                <Link href="/data360" className="block text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
-                  Open Data360
+              <div className="pt-4 border-t border-gray-100 flex gap-2">
+                <Link href="/examhub360" className="flex-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  School
+                </Link>
+                <Link href="/examhub360-college" className="flex-1 text-center bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold py-2.5 rounded-lg transition-colors">
+                  College
                 </Link>
               </div>
             </div>

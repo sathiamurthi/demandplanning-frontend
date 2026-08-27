@@ -10,9 +10,9 @@ const OPENAI_KEY       = process.env.OPENAI_API_KEY || '';
 
 const GEMINI_MODELS = [
   'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash-8b',
+  'gemini-3.6-flash',
+  'gemini-3.6-flash',
+  'gemini-3.6-flash-8b',
 ];
 
 const SCHEMA = `Return ONLY valid JSON — no markdown, no code blocks, no explanation.

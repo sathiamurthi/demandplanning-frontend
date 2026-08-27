@@ -25,7 +25,7 @@ const NAV = [
   { href: "/superadmin/enterprise-apps", label: "Enterprise Apps",  icon: Store },
   { href: "/superadmin/edu360",          label: "Edu360",           icon: GraduationCap },
   { href: "/superadmin/college360",      label: "College360",       icon: Rocket },
-  { href: "/superadmin/data360",         label: "Data360",          icon: Database },
+  { href: "/superadmin/examhub360",      label: "ExamHub360",       icon: Database },
   { href: "/superadmin/ride360",         label: "Ride360",          icon: Car },
   { href: "/superadmin/saferide360",     label: "SafeRide360",      icon: ShieldCheck },
   { href: "/superadmin/feeds",          label: "Feed Subscriptions",icon: Rss },

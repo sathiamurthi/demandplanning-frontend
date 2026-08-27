@@ -1,4 +1,4 @@
-export interface D360User { id: string; name: string; email: string; role: string; }
+export interface D360User { id: string; name: string; email: string; role: string; is_paid?: boolean; }
 
 // ── Usage quota (free trial + paid packages) ────────────────────────────────
 export interface DataPackage { id: string; name: string; documents: number; price_inr: number; support: boolean; }
@@ -99,7 +99,7 @@ export interface D360GenerationJob {
 
 // ── School: chapter -> Study Pack ───────────────────────────────────────────
 export interface StudyPack {
-  chapter_title: string;
+  unit_title: string;
   subject: string;
   story_telling_explanation?: string;
   core_concepts: { concept: string; simple_explanation: string; why_it_matters: string }[];
@@ -110,4 +110,6 @@ export interface StudyPack {
   common_mistakes: string[];
   competency_questions?: { question: string; answer: string; competency_tested: string }[];
   exercise_questions?: { question: string; answer: string }[];
+  lab_viva_questions?: { question: string; answer: string }[];
+  custom_qna?: { question: string; answer: string }[];
 }

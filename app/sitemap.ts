@@ -10,7 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // title/description via its layout.tsx), listed explicitly so Google
     // discovers and indexes them as first-class pages rather than relying
     // on internal-link discovery alone.
-    { url: '/data360',       priority: 0.9,  changeFrequency: 'weekly'  as const },
+    { url: '/examhub360',       priority: 0.9,  changeFrequency: 'weekly'  as const },
     { url: '/enterprise360', priority: 0.9,  changeFrequency: 'weekly'  as const },
     { url: '/lex360',        priority: 0.9,  changeFrequency: 'weekly'  as const },
     { url: '/route360',      priority: 0.85, changeFrequency: 'weekly'  as const },

@@ -8,7 +8,7 @@ const AZURE_ENDPOINT   = stripBOM(process.env.AZURE_OPENAI_ENDPOINT || '').repla
 const AZURE_DEPLOYMENT = stripBOM(process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o');
 const OPENAI_KEY       = stripBOM(process.env.OPENAI_API_KEY || '');
 
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-3.6-flash', 'gemini-3.6-flash-8b'];
 
 function buildPrompt(question: string, answer: string, technology: string, role: string, difficulty: string): string {
   return `You are a senior technical interviewer evaluating a candidate for a "${role}" position.

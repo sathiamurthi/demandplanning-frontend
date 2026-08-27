@@ -11,9 +11,9 @@ const OPENAI_KEY       = stripBOM(process.env.OPENAI_API_KEY || '');
 // Most reliable models first
 const GEMINI_MODELS = [
   'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro',
+  'gemini-3.6-flash',
+  'gemini-3.6-flash-8b',
+  'gemini-3.6-flash',
 ];
 
 function buildPrompt(technology: string, role: string, difficulty: string, count: number): string {

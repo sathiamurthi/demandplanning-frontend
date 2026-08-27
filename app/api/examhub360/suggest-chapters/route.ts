@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -7,13 +8,13 @@ export async function POST(req: Request) {
   try {
     const { images, text, class_level, board, subject } = await req.json();
 
-    if (!class_level || !board || !subject) {
-      return NextResponse.json({ success: false, error: "Class, board, and subject are required" }, { status: 400 });
+    if (!images?.length && !text && (!class_level || !board || !subject)) {
+      return NextResponse.json({ success: false, error: "Class, board, and subject are required if no syllabus document is provided" }, { status: 400 });
     }
 
     const systemInstruction = `You are an expert curriculum analyzer.
-Your task is to provide a complete list of chapters for a given school subject.
-If the user provides syllabus/index images or text, extract the chapters exactly as they appear in the source.
+Your task is to provide a complete list of chapters.
+If the user provides syllabus/index images or text, extract the chapters exactly as they appear in the source. You do not need to know the subject or class if it is not provided.
 If no source is provided, use your internal knowledge to provide the standard curriculum chapters for the specified board, class, and subject.
 Only return a JSON array of strings containing the chapter names in chronological order.`;
 
@@ -41,17 +42,33 @@ Only return a JSON array of strings containing the chapter names in chronologica
       }
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const fallbackAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    let response;
+    const generateConfig = {
+      model: 'gemini-3.6-flash',
       contents: promptParts,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
         responseSchema: schema,
       }
-    });
+    };
 
-    const output = response.text || "";
+    try {
+      response = await ai.models.generateContent(generateConfig);
+    } catch (e: any) {
+      console.warn("Primary AI failed, trying fallback key...", e.message);
+      response = await fallbackAi.models.generateContent(generateConfig);
+    }
+
+    let output = response.text || "";
+    output = output.trim();
+    if (output.startsWith("```json")) {
+      output = output.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+    } else if (output.startsWith("```")) {
+      output = output.replace(/^```\n?/, "").replace(/\n?```$/, "");
+    }
     let data = null;
     try {
       data = JSON.parse(output);

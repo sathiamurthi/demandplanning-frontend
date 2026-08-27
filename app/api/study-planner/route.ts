@@ -8,7 +8,7 @@ const AZURE_ENDPOINT   = stripBOM(process.env.AZURE_OPENAI_ENDPOINT || '').repla
 const AZURE_DEPLOYMENT = stripBOM(process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o');
 const OPENAI_KEY       = stripBOM(process.env.OPENAI_API_KEY || '');
 
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-3.6-flash', 'gemini-3.6-flash-8b'];
 
 function buildPrompt(goal: string, technology: string, currentLevel: string, hoursPerWeek: number, weeks: number): string {
   const dailyHours = Math.max(1, Math.floor(hoursPerWeek / 5));
