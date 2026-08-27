@@ -1531,7 +1531,6 @@ export default function Data360Page() {
             </div>
           </button>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
               <Link href="/examhub360-college" className="hover:text-teal-600 transition">College360</Link>
@@ -1553,7 +1552,6 @@ export default function Data360Page() {
                 } catch(e) { alert("Error reading DB."); }
               }} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Load Pre-Generated</button>
             </div>
-          )}
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
               <>
@@ -1568,16 +1566,9 @@ export default function Data360Page() {
       </nav>
 
       {/* ══════════════════════ LANDING ══════════════════════ */}
-
-
-
-
-
-
-
-
-
-
+      {(view === "school" || view === "landing") && (
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> ExamHub360 — Autonomous Course Site Generator</h2>
             <p className="text-sm text-gray-500">Configure your curriculum. The AI will autonomously generate study material and Q&A for all selected chapters.</p>
           </div>
