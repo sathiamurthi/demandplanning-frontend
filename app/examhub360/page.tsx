@@ -1578,7 +1578,7 @@ export default function Data360Page() {
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Class / Grade</label>
                 <select value={schoolClassLevel} onChange={e => setSchoolClassLevel(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
-                  {["VI","VII","VIII","IX","X","XI","XII"].map(c => <option key={c} value={c}>{c}</option>)}
+                  {["V","VI","VII","VIII","IX","X","XI","XII"].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
@@ -1591,7 +1591,11 @@ export default function Data360Page() {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Target Language</label>
-                <input value={schoolTargetLang} onChange={e => setSchoolTargetLang(e.target.value)} placeholder="English" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+                <select value={schoolTargetLang} onChange={e => setSchoolTargetLang(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
+                  {["English", "Hindi", "Tamil", "Telugu", "Kannada", "Malayalam", "Urdu"].map(lang => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1721,15 +1725,7 @@ export default function Data360Page() {
             </div>
 
           <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6 print:hidden">
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {(["upload", "text", "generate"] as const).map(key => (
-                <button key={key} onClick={() => setSchoolInputMode(key)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition ${schoolInputMode === key ? "border-teal-500 bg-teal-50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                  {key === "upload" ? <Upload size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} /> : key === "text" ? <FileText size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} /> : <Sparkles size={18} className={schoolInputMode === key ? "text-teal-600" : "text-gray-400"} />}
-                  <span className={`text-xs font-bold text-center ${schoolInputMode === key ? "text-teal-700" : "text-gray-600"}`}>{key === "upload" ? "Upload Pages" : key === "text" ? "Paste Text" : "Generate by Topic"}</span>
-                </button>
-              ))}
-            </div>
+
 
             {schoolInputMode === "upload" && (
               <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">

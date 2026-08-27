@@ -1,6 +1,7 @@
 export const maxDuration = 60;
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
+import { generateContentWithRetry } from '@/lib/gemini';
 
 
 
@@ -43,9 +44,6 @@ Only return a JSON array of strings containing the chapter names in chronologica
       }
     }
 
-    const fallbackAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    let response;
     const generateConfig = {
       model: 'gemini-2.5-flash',
       contents: promptParts,
@@ -56,12 +54,7 @@ Only return a JSON array of strings containing the chapter names in chronologica
       }
     };
 
-    try {
-      response = await ai.models.generateContent(generateConfig);
-    } catch (e: any) {
-      console.warn("Primary AI failed, trying fallback key...", e.message);
-      response = await fallbackAi.models.generateContent(generateConfig);
-    }
+    const response = await generateContentWithRetry(generateConfig);
 
     let output = response.text || "";
     output = output.trim();

@@ -15,7 +15,7 @@ Subject: ${subject || "Unknown"}
 Chapter: ${chapter_name || "Unknown"}
 
 Provide a highly detailed, step-by-step, accurate answer to the following question. If it involves math or science, explain the steps clearly.
-IMPORTANT: Format any math or formulas using valid Markdown/LaTeX.`;
+IMPORTANT: Do NOT use LaTeX ($ or $$) for math formatting. The UI does not support it. Write math formulas clearly in plain text using standard keyboard characters (e.g., x^2, sqrt(x), a/b).`;
 
         if (target_language) {
             systemInstruction += `\nCRITICAL: You MUST provide the explanation in ${target_language}.`;
