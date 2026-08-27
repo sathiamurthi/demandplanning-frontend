@@ -2,9 +2,10 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 
-const ai = new GoogleGenAI();
+
 
 export async function POST(req: Request) {
+  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {});
   try {
     const { class_level, board } = await req.json();
 

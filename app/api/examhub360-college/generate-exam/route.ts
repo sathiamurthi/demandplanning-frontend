@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 import { generateContentWithRetry } from '@/lib/gemini';
 
-const ai = new GoogleGenAI();
+
 
 export async function POST(req: Request) {
+  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {});
   try {
     const { subject, questionsText, questionsImages, patternText, patternImages, includeCompetitive, includeExercise, includeNCERT, questionCount, promptOverride } = await req.json();
 
