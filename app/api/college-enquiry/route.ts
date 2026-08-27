@@ -8,7 +8,7 @@ const AZURE_ENDPOINT   = stripBOM(process.env.AZURE_OPENAI_ENDPOINT || '').repla
 const AZURE_DEPLOYMENT = stripBOM(process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o');
 const OPENAI_KEY       = stripBOM(process.env.OPENAI_API_KEY || '');
 
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-3.6-flash', 'gemini-3.6-flash-8b'];
+const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-8b'];
 
 function buildPrompt(type: string, collegeName: string, program: string, queries: string, userName: string, userEmail: string, recipientName: string, context: string): string {
   if (type === 'outreach') {

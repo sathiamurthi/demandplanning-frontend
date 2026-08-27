@@ -2097,7 +2097,7 @@ export default function Data360Page() {
       )}
 
       {/* ══════════════════════ COURSE SITE ══════════════════════ */}
-      {view === "courseSite" && user && courseSiteData.length > 0 && (
+      {view === "courseSite" && courseSiteData.length > 0 && (
         <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
           {/* Sidebar */}
           <div className="w-72 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">

@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const maxDuration = 60;
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -91,7 +91,7 @@ Output a JSON array of objects, where each object has a 'question', 'options' (a
     
     let response;
     const generateConfig = {
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       contents: promptParts,
       config: {
         systemInstruction,

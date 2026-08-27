@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { generateContentWithRetry } from "@/lib/gemini";
 import { Type } from "@google/genai";
@@ -41,7 +41,7 @@ IMPORTANT: Format any math or formulas using valid Markdown/LaTeX.`;
 
         const result = await generateContentWithRetry({
             contents: [question],
-            model: ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"],
+            model: ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"],
             config: {
                 systemInstruction,
                 responseMimeType: "application/json",

@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const maxDuration = 60;
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -47,7 +47,7 @@ Only return a JSON array of strings containing the chapter names in chronologica
     
     let response;
     const generateConfig = {
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       contents: promptParts,
       config: {
         systemInstruction,

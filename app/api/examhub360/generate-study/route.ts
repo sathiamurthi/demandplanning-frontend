@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const maxDuration = 60;
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 import { generateContentWithRetry } from '@/lib/gemini';
@@ -162,7 +162,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
 
     let response;
     const generateConfig = {
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       contents: promptParts,
       config: {
         systemInstruction,

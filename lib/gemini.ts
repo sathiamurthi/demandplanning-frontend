@@ -11,7 +11,7 @@ export async function generateContentWithRetry(generateConfig: any) {
   const maxRetriesPerKey = 2; // Try each key twice if rate limited
   
   // Convert model to array for failover
-  const models = Array.isArray(generateConfig.model) ? generateConfig.model : [generateConfig.model, 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
+  const models = Array.isArray(generateConfig.model) ? generateConfig.model : [generateConfig.model, 'gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest'];
 
   for (const model of models) {
     if (!model) continue;

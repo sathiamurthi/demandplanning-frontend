@@ -10,10 +10,10 @@ const OPENAI_KEY       = process.env.OPENAI_API_KEY || '';
 
 // Ordered fastest-first so we get a response before Vercel's function timeout
 const GEMINI_MODELS = [
-  'gemini-3.6-flash-8b',
+  'gemini-2.5-flash-8b',
   'gemini-2.0-flash',
-  'gemini-3.6-flash',
-  'gemini-3.6-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash',
 ];
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
