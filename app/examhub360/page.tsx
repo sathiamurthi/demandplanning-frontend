@@ -1577,7 +1577,9 @@ export default function Data360Page() {
 
 
 
-
+      {(view === "school" || view === "landing") && (
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> ExamHub360 — Autonomous Course Site Generator</h2>
             <p className="text-sm text-gray-500">Configure your curriculum. The AI will autonomously generate study material and Q&A for all selected chapters.</p>
           </div>
