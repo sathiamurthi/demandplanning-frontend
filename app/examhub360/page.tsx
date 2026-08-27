@@ -1523,14 +1523,14 @@ export default function Data360Page() {
       {/* ── Navbar ── */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <button onClick={() => go(user ? "school" : "landing")} className="flex items-center gap-2 shrink-0">
+          <button onClick={() => go("school")} className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center"><GraduationCap size={16} className="text-white" /></div>
             <div className="text-left">
               <p className="font-black text-gray-900 text-sm leading-none">ExamHub360</p>
               <p className="text-[9px] text-teal-600 font-semibold leading-none mt-1">Autonomous Study Pack Generator</p>
             </div>
           </button>
-          {user && (
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
@@ -1557,27 +1557,27 @@ export default function Data360Page() {
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
               <>
-                <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white font-black text-sm">{user.name[0]}</div>
+                <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white font-black text-sm">{(user.name ? user.name[0] : "A")}</div>
                 <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition"><LogOut size={16} /></button>
               </>
             ) : (
-              <button onClick={() => go("auth")} className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition">Get Started</button>
+              <button onClick={() => go("auth")} className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition">Admin Login</button>
             )}
           </div>
         </div>
       </nav>
 
       {/* ══════════════════════ LANDING ══════════════════════ */}
-      {view === "landing" && (
-         <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-            <h1 className="text-3xl font-black mb-4">ExamHub360</h1>
-         </div>
-      )}
 
-      {/* ══════════════════════ SCHOOL ══════════════════════ */}
-      {view === "school" && user && (
-        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-          <div>
+
+
+
+
+
+
+
+
+
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> ExamHub360 — Autonomous Course Site Generator</h2>
             <p className="text-sm text-gray-500">Configure your curriculum. The AI will autonomously generate study material and Q&A for all selected chapters.</p>
           </div>
