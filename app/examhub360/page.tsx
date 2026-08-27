@@ -1542,7 +1542,7 @@ export default function Data360Page() {
                   const db = JSON.parse(dbStr);
                   if (db.length === 0) { alert("No pre-generated data found."); return; }
                   let finalDb = db;
-                  if (user && !user.is_paid) {
+                  if (!user || !user.is_paid) {
                      finalDb = [db[0]];
                      alert("Free tier limited to 1 chapter viewing.");
                   }
