@@ -1587,14 +1587,12 @@ export default function Data360Page() {
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">ExamHub360</h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">The autonomous study platform. Generate complete study packs, quizzes, and course sites instantly.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 max-w-4xl mx-auto">
             <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
                <h2 className="text-2xl font-bold mb-2">Student & Guest Access</h2>
-               <p className="text-gray-500 mb-6">Explore pre-generated study materials and try out the generator. Free tier limited to 1 chapter viewing.</p>
                <button onClick={() => { setGuestPhone(""); setGuestErr(""); setGuestAccessOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Guest Access</button>
             </div>
             
@@ -1666,7 +1664,6 @@ export default function Data360Page() {
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> ExamHub360 — Autonomous Course Site Generator</h2>
-            <p className="text-sm text-gray-500">Configure your curriculum. The AI will autonomously generate study material and Q&A for all selected chapters.</p>
           </div>
 
                     <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
@@ -1811,12 +1808,10 @@ export default function Data360Page() {
               <div className="border border-gray-200 rounded-xl p-4 bg-white flex flex-col gap-4">
                 <div>
                   <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Questions</h3>
-                  <p className="text-[10px] text-gray-500 mb-1">Add specific questions you want the AI to answer in the study pack.</p>
                   <textarea value={examPrepCustomQuestions} onChange={e => setExamPrepCustomQuestions(e.target.value)} rows={2} placeholder="e.g. Explain the difference between..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Prompt Override (Optional)</h3>
-                  <p className="text-[10px] text-gray-500 mb-1">Provide custom rules for generation.</p>
                   <textarea value={examPrepPromptOverride} onChange={e => setExamPrepPromptOverride(e.target.value)} rows={2} placeholder="e.g. Ensure all questions are strictly aligned to the latest NCERT competency framework..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
                 </div>
               </div>
@@ -1888,7 +1883,6 @@ export default function Data360Page() {
             )}
             {schoolInputMode === "generate" && (
               <div>
-                <p className="text-xs text-gray-500 mb-3">No document needed! Just ensure Class, Board, Subject, and Chapter Name are filled above, and the AI will generate a complete study pack from its curriculum knowledge.</p>
                 <button onClick={runStudyGuideGenerate} disabled={schoolBusy || !schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()}
                   className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
                   <Sparkles size={13} /> Generate Study Pack
@@ -1896,7 +1890,6 @@ export default function Data360Page() {
               </div>
             )}
 
-            {schoolBusy && <p className="mt-3 text-xs text-teal-600 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Reading the chapter and building your study pack…</p>}
             {schoolErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{schoolErr}</p>}
           </div>
 
@@ -2084,7 +2077,6 @@ export default function Data360Page() {
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> Exam Prep — AI Q&A Generator</h2>
-            <p className="text-sm text-gray-500">Upload multiple previous questions and a competitive exam pattern. AI will prepare new questions and answers specifically tailored for 2026-2027 based on your inputs.</p>
           </div>
 
           {examPrepUploadProgress && (
