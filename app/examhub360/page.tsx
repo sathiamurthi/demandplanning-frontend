@@ -1548,7 +1548,7 @@ export default function Data360Page() {
               <p className="text-[9px] text-teal-600 font-semibold leading-none mt-1">Autonomous Study Pack Generator</p>
             </div>
           </button>
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
+          {view !== "landing" && <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
               <Link href="/examhub360-college" className="hover:text-teal-600 transition">College360</Link>
@@ -1570,7 +1570,7 @@ export default function Data360Page() {
                 } catch(e) { alert("Error reading DB."); }
               }} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Load Pre-Generated</button>
               <button onClick={() => go("translator")} className={`hover:text-teal-600 transition ${view === "translator" ? "text-teal-600 font-bold" : ""}`}>Translator</button>
-            </div>
+            </div>}
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
               <>
