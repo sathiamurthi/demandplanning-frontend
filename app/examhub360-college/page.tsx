@@ -177,6 +177,9 @@ export default function Data360Page() {
   const isSuperadmin = user?.email?.toLowerCase() === "superadmin@demandgeniusai.com" || user?.email?.toLowerCase() === "sathia@examhub360.com";
   const [authTab, setAuthTab] = useState<"login" | "register">("register");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [authCollege, setAuthCollege] = useState("");
+  const [authState, setAuthState] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authErr, setAuthErr] = useState("");
@@ -999,17 +1002,17 @@ export default function Data360Page() {
   const handleAuth = async () => {
     setAuthErr(""); setAuthBusy(true);
     try {
-      const endpoint = authTab === "register" ? "/api/examhub360/auth/register" : "/api/examhub360/auth/login";
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
-      
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Authentication failed");
-      
-      const { token, user: u } = data;
+      if (authTab === "register" && (!name.trim() || !phone.trim() || !authCollege.trim() || !authState)) {
+        throw new Error("Name, mobile number, college, and state are required.");
+      }
+      if (!email.trim() || !password) throw new Error("Email and password are required.");
+      const result = authTab === "register"
+        ? await data360Api.register({ name, email, password, phone, college: authCollege, state: authState })
+        : await data360Api.login(email, password);
+      const token = result.token || result.accessToken;
+      if (!token) throw new Error("Authentication succeeded without an access token.");
+      const rawUser = result.user;
+      const u = { ...rawUser, name: rawUser.name || [rawUser.firstName, rawUser.lastName].filter(Boolean).join(" ") || email.split("@")[0] };
       setToken(token);
       
       if (authPortal === "school") {
@@ -1509,6 +1512,37 @@ export default function Data360Page() {
           </div>
         </div>
       </nav>
+
+      {view === "auth" && (
+        <div className="max-w-md mx-auto px-4 py-12">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-5">
+              {(["register", "login"] as const).map(tab => (
+                <button key={tab} onClick={() => setAuthTab(tab)} className={`flex-1 py-2 rounded-md text-sm font-bold ${authTab === tab ? "bg-teal-600 text-white" : "text-gray-600"}`}>
+                  {tab === "register" ? "Register" : "Login"}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-3">
+              {authTab === "register" && <>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Mobile number" type="tel" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+                <input value={authCollege} onChange={e => setAuthCollege(e.target.value)} placeholder="College name" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+                <select value={authState} onChange={e => setAuthState(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+                  <option value="">Select state</option>
+                  {INDIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}
+                </select>
+              </>}
+              <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+              <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" type="password" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            {authErr && <p className="mt-3 text-sm text-red-600">{authErr}</p>}
+            <button onClick={handleAuth} disabled={authBusy} className="w-full mt-5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-lg">
+              {authBusy ? "Please wait..." : authTab === "register" ? "Create account" : "Login"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ====================== LANDING ====================== */}
       {view === "landing" && (

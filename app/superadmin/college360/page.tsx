@@ -147,8 +147,9 @@ function ConfigTab() {
 function UsersTab() {
   return (
     <AccountTable
-      listUrl="/v1/superadmin/college360/users"
-      actionBase="/v1/superadmin/college360/users"
+      listUrl="/v1/superadmin/data360/users"
+      actionBase="/v1/superadmin/data360/users"
+      planActionBase="/v1/superadmin/data360/users"
       emptyLabel="No College360 users yet."
       columns={[
         { key: "name", label: "Name", render: r => <>{r.name}<p className="text-xs text-gray-400">{r.email}</p></> },

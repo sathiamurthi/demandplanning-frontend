@@ -31,10 +31,21 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 export const data360Api = {
-  register: (name: string, email: string, password: string) =>
-    req<{ token: string; user: D360User }>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }),
+  register: (payload: { name: string; email: string; password: string; phone: string; college: string; state: string }) =>
+    req<{ token?: string; accessToken?: string; user: D360User }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email: payload.email,
+        password: payload.password,
+        phone: payload.phone,
+        firstName: payload.name.trim().split(/\s+/)[0],
+        lastName: payload.name.trim().split(/\s+/).slice(1).join(" "),
+        college: payload.college,
+        state: payload.state,
+      }),
+    }),
   login: (email: string, password: string) =>
-    req<{ token: string; user: D360User }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    req<{ token?: string; accessToken?: string; user: D360User }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => req<D360User>("/auth/me"),
 
   createBatch: (name: string, source_channel: string, rows: IngestRow[], extraction_fields: string[], template_id?: string) =>

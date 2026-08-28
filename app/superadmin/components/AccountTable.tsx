@@ -22,12 +22,13 @@ function auth() { return { "Content-Type": "application/json", Authorization: `B
  * drivers + customers in one table).
  */
 export default function AccountTable({
-  listUrl, actionBase, columns, emptyLabel,
+  listUrl, actionBase, columns, emptyLabel, planActionBase,
 }: {
   listUrl: string;
   actionBase: string | ((row: AccountRow) => string);
   columns: AccountColumn[];
   emptyLabel: string;
+  planActionBase?: string;
 }) {
   const [rows, setRows] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,15 @@ export default function AccountTable({
       } else {
         setMsg(d.error || "Action failed");
       }
+    } finally { setBusyId(null); }
+  };
+
+  const setPlan = async (row: AccountRow, premium: boolean) => {
+    setBusyId(row.id); setMsg("");
+    try {
+      const r = await fetch(`${planActionBase}/${row.id}/plan`, { method: "POST", headers: auth(), body: JSON.stringify({ premium }) });
+      const d = await r.json();
+      if (d.success) load(); else setMsg(d.error || "Plan update failed");
     } finally { setBusyId(null); }
   };
 
@@ -101,6 +111,9 @@ export default function AccountTable({
                       <button onClick={() => act(row, "send-reminder")} disabled={busyId === row.id} className="flex items-center gap-1 text-[11px] font-bold text-gray-500 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 px-2 py-1 rounded-lg transition">
                         <Send size={11} /> Reminder
                       </button>
+                      {planActionBase && <button onClick={() => setPlan(row, !row.premium)} disabled={busyId === row.id} className="text-[11px] font-bold text-amber-700 border border-amber-200 hover:bg-amber-50 disabled:opacity-50 px-2 py-1 rounded-lg transition">
+                        {row.premium ? "Make Trial" : "Make Paid"}
+                      </button>}
                     </div>
                   </td>
                 </tr>
