@@ -23,6 +23,13 @@ const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
   custom:  { label: "Custom", fields: [] },
 };
 
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Assam", "Bihar", "Delhi", "Gujarat", "Haryana",
+  "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Odisha",
+  "Punjab", "Rajasthan", "Tamil Nadu", "Telangana", "Uttar Pradesh",
+  "Uttarakhand", "West Bengal",
+];
+
 // ── Marketing content ───────────────────────────────────────────────────────
 const CHANNELS = [
   { icon: Upload,  title: "Excel / CSV / JSON",   desc: "Direct-stream table parsing — drag & drop a spreadsheet, columns auto-detected." },
