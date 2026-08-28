@@ -1,4 +1,4 @@
-export interface D360User { id: string; name: string; email: string; role: string; phone?: string; college?: string; state?: string; is_paid?: boolean; }
+export interface D360User { id: string; name: string; email: string; role: string; firstName?: string; lastName?: string; phone?: string; college?: string; state?: string; is_paid?: boolean; }
 
 // ── Usage quota (free trial + paid packages) ────────────────────────────────
 export interface DataPackage { id: string; name: string; documents: number; price_inr: number; support: boolean; }
