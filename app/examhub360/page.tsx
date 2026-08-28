@@ -1568,11 +1568,10 @@ export default function Data360Page() {
             {user ? (
               <>
                 <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white font-black text-sm">{(user.name ? user.name[0] : "A")}</div>
+                <button onClick={() => go("dashboard")} className="text-sm font-bold text-gray-600 hover:text-teal-600 transition">Profile</button>
                 <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition"><LogOut size={16} /></button>
               </>
-            ) : (
-              <button onClick={() => go("auth")} className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition">Admin Login</button>
-            )}
+            ) : null}
           </div>
         </div>
       </nav>
