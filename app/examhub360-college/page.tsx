@@ -185,6 +185,9 @@ export default function Data360Page() {
   const [authErr, setAuthErr] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authPortal, setAuthPortal] = useState<"school" | "college">("college");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestAccessOpen, setGuestAccessOpen] = useState(false);
+  const [guestErr, setGuestErr] = useState("");
   const [allRegisteredUsers, setAllRegisteredUsers] = useState<string[]>([]);
   
   const [globalConfig, setGlobalConfig] = useState({ tier: "free", enableQuestionBank: true, enableDemoMode: true });
@@ -1078,6 +1081,18 @@ export default function Data360Page() {
     clearToken(); setUser(null); setView("landing"); setBatches([]);
   };
 
+  const continueAsGuest = () => {
+    const normalizedPhone = guestPhone.replace(/[\s()-]/g, "");
+    if (!/^\+?\d{10,15}$/.test(normalizedPhone)) {
+      setGuestErr("Enter a valid mobile number.");
+      return;
+    }
+    localStorage.setItem("college360_guest_phone", normalizedPhone);
+    setGuestAccessOpen(false);
+    setGuestErr("");
+    setView("college");
+  };
+
   // ── Ingestion ────────────────────────────────────────────────────────────
   // Auto-extraction: no field list at all — hand it any document(s) and get
   // back whatever key/value structure each one actually has (flat fields,
@@ -1557,7 +1572,7 @@ export default function Data360Page() {
                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
                <h2 className="text-2xl font-bold mb-2">Student & Guest Access</h2>
                <p className="text-gray-500 mb-6">Explore pre-generated study materials and try out the generator. Free tier limited to 1 chapter viewing.</p>
-               <button onClick={() => setView("college")} className="bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Guest Access</button>
+               <button onClick={() => { setGuestPhone(""); setGuestErr(""); setGuestAccessOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Guest Access</button>
             </div>
             
             <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
@@ -1585,6 +1600,18 @@ export default function Data360Page() {
                <div className="text-3xl font-black text-teal-600 mb-1">98%</div>
                <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Accuracy</div>
              </div>
+          </div>
+        </div>
+      )}
+
+      {guestAccessOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setGuestAccessOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-black text-gray-900">Continue as Guest</h2>
+            <p className="text-sm text-gray-500 mt-1">Enter your mobile number to continue to College360.</p>
+            <input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="Mobile number" type="tel" autoFocus className="mt-5 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            {guestErr && <p className="mt-2 text-sm text-red-600">{guestErr}</p>}
+            <button onClick={continueAsGuest} className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg">Continue</button>
           </div>
         </div>
       )}
