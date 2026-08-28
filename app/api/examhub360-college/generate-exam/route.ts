@@ -8,14 +8,16 @@ import { generateContentWithRetry } from '@/lib/gemini';
 export async function POST(req: Request) {
   const ai = new GoogleGenAI(process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {});
   try {
-    const { subject, questionsText, questionsImages, patternText, patternImages, includeCompetitive, includeExercise, includeNCERT, questionCount, promptOverride } = await req.json();
+    const { subject, course, state, questionsText, questionsImages, patternText, patternImages, includeCompetitive, includeExercise, includeNCERT, questionCount, promptOverride } = await req.json();
 
     if (!subject) {
       return NextResponse.json({ success: false, error: "Subject is required" }, { status: 400 });
     }
 
     let instructionBase = `You are an expert exam setter and educator for 2026-2027 competitive and school exams.
-Your task is to generate highly relevant practice questions and detailed answers based on the provided subject, previous questions, and target patterns.
+Your task is to generate highly relevant practice questions and detailed answers based on the provided course, state, subject, previous questions, and target patterns.
+Course: ${course || "Unknown"}
+State: ${state || "Not state-specific"}
 Generate EXACTLY ${questionCount || 50} questions. `;
 
     let mix = [];
@@ -52,7 +54,7 @@ Output a JSON array of objects, where each object has a 'question', 'options' (a
     };
 
     const promptParts: any[] = [];
-    promptParts.push(`Subject: ${subject}\n`);
+    promptParts.push(`Course: ${course || "Unknown"}\nState: ${state || "Not state-specific"}\nSubject: ${subject}\n`);
 
     if (questionsText) {
       promptParts.push(`Previous Questions:\n${questionsText}\n`);

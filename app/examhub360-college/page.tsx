@@ -9,7 +9,7 @@ import {
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
   GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, MessageSquare, Save
-, Printer } from "lucide-react";
+, Printer, MonitorPlay, Users } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
@@ -248,9 +248,11 @@ export default function Data360Page() {
 
   // ── College: unit -> Study Pack ───────────────────────────────────────
   const DEGREE_PRESETS = ["B.Tech", "B.Sc", "B.Com", "B.A", "M.Tech", "MBA", "MBBS"];
+  const INDIAN_STATES = ["Andhra Pradesh", "Assam", "Bihar", "Delhi", "Gujarat", "Haryana", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Odisha", "Punjab", "Rajasthan", "Tamil Nadu", "Telangana", "Uttar Pradesh", "Uttarakhand", "West Bengal"];
   const [collegeInputMode, setCollegeInputMode] = useState<"upload" | "text" | "generate">("upload");
   const [collegeSemester, setCollegeSemester] = useState("");
   const [collegeDegree, setCollegeDegree] = useState("B.Tech");
+  const [collegeState, setCollegeState] = useState("");
   const [masterDegree, setMasterDegree] = useState("B.Tech");
   const [masterSemester, setMasterSemester] = useState("1");
   const [masterCourse, setMasterCourse] = useState("");
@@ -305,7 +307,7 @@ export default function Data360Page() {
       const res = await fetch("/api/examhub360/generate-tips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ marks: studyTipsMarks, subject, chapter, class_level: collegeDegree })
+        body: JSON.stringify({ marks: studyTipsMarks, subject, chapter, class_level: collegeDegree, course: collegeCourse, state: collegeState })
       });
       const data = await res.json();
       if (data.success) {
@@ -404,7 +406,7 @@ export default function Data360Page() {
     setExamPrepResult([]);
     
     // Simple caching mechanism
-    const cacheKey = `examPrep_${examPrepSubject}_${examPrepIncludeCompetitive}_${examPrepIncludeExercise}_${examPrepIncludeViva}_${examPrepQuestionCount}_${examPrepPromptOverride}_${examPrepQuestionsText}_${examPrepPatternText}_${examPrepQuestionsImages.length}_${examPrepPatternImages.length}`;
+    const cacheKey = `examPrep_${collegeState}_${collegeDegree}_${collegeSemester}_${examPrepSubject}_${examPrepIncludeCompetitive}_${examPrepIncludeExercise}_${examPrepIncludeViva}_${examPrepQuestionCount}_${examPrepPromptOverride}_${examPrepQuestionsText}_${examPrepPatternText}_${examPrepQuestionsImages.length}_${examPrepPatternImages.length}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -422,6 +424,8 @@ export default function Data360Page() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject: examPrepSubject,
+          course: collegeDegree,
+          state: collegeState,
           questionsText: examPrepQuestionsText,
           questionsImages: examPrepQuestionsImages,
           patternText: examPrepPatternText,
@@ -522,7 +526,7 @@ export default function Data360Page() {
         const res = await fetch("/api/examhub360-college/suggest-subjects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ collegeSemester: collegeSemester, collegeDegree: collegeDegree })
+          body: JSON.stringify({ collegeSemester: collegeSemester, collegeDegree: collegeDegree, state: collegeState })
         });
         const result = await res.json();
         if (result.success && Array.isArray(result.data)) {
@@ -600,6 +604,7 @@ export default function Data360Page() {
           text: collegePasteText,
           collegeSemester: collegeSemester,
           collegeDegree: collegeDegree,
+          state: collegeState,
           subject: collegeCourse
         })
       });
@@ -658,6 +663,7 @@ export default function Data360Page() {
           images,
           collegeSemester: collegeSemester,
           collegeDegree: collegeDegree,
+          state: collegeState,
           subject: collegeCourse,
           unit_name: collegeUnitLabel,
           target_language: collegeTargetLang
@@ -689,6 +695,7 @@ export default function Data360Page() {
           text: collegePasteText,
           collegeSemester: collegeSemester,
           collegeDegree: collegeDegree,
+          state: collegeState,
           subject: collegeCourse,
           unit_name: collegeUnitLabel,
           target_language: collegeTargetLang
@@ -783,6 +790,7 @@ export default function Data360Page() {
               text: "Please generate a comprehensive study guide based solely on your internal knowledge of this topic.",
               collegeSemester: collegeSemester,
               collegeDegree: collegeDegree,
+              state: collegeState,
               subject: collegeCourse,
               unit_name: chap,
               target_language: collegeTargetLang,
@@ -854,6 +862,8 @@ export default function Data360Page() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               subject: `${collegeCourse} - ${chap}`,
+              course: collegeDegree,
+              state: collegeState,
               questionsText: "",
               questionsImages: [],
               patternText: `Focus heavily on ${collegeDegree} Class ${collegeSemester} competitive patterns.`,
@@ -1475,7 +1485,7 @@ export default function Data360Page() {
                   const db = JSON.parse(dbStr);
                   if (db.length === 0) { alert("No pre-generated data found."); return; }
                   let finalDb = db;
-                  if (user && !user.is_paid) {
+                  if (!user || !user.is_paid) {
                      finalDb = [db[0]];
                      alert("Free tier limited to 1 chapter viewing.");
                   }
@@ -1484,6 +1494,7 @@ export default function Data360Page() {
                   setView("courseSite");
                 } catch(e) { alert("Error reading DB."); }
               }} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Load Pre-Generated</button>
+              <button onClick={() => go("translator")} className={`hover:text-teal-600 transition ${view === "translator" ? "text-teal-600 font-bold" : ""}`}>Translator</button>
             </div>
           )}
           <div className="flex items-center gap-2 shrink-0">
@@ -1499,15 +1510,53 @@ export default function Data360Page() {
         </div>
       </nav>
 
-      {/* ══════════════════════ LANDING ══════════════════════ */}
+      {/* ====================== LANDING ====================== */}
       {view === "landing" && (
-         <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-            <h1 className="text-3xl font-black mb-4">ExamHub360</h1>
-         </div>
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">College360</h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">The autonomous study platform for higher education. Generate complete study packs, quizzes, and course sites instantly.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
+               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
+               <h2 className="text-2xl font-bold mb-2">Student & Guest Access</h2>
+               <p className="text-gray-500 mb-6">Explore pre-generated study materials and try out the generator. Free tier limited to 1 chapter viewing.</p>
+               <button onClick={() => setView("college")} className="bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Guest Access</button>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
+               <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-4"><ShieldCheck size={32} /></div>
+               <h2 className="text-2xl font-bold mb-2">Admin / Professor Login</h2>
+               <p className="text-gray-500 mb-6">Full access to generate unlimited chapters, configure syllabus, and manage courses.</p>
+               <button onClick={() => setView("auth")} className="bg-teal-600 hover:bg-teal-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Login / Register</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center max-w-5xl mx-auto">
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">12,500+</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Questions Generated</div>
+             </div>
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">450+</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Courses Covered</div>
+             </div>
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">2,100+</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Active Users</div>
+             </div>
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">98%</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Accuracy</div>
+             </div>
+          </div>
+        </div>
       )}
 
-      {/* ══════════════════════ COLLEGE ══════════════════════ */}
-      {view === "college" && user && (
+      {/* ====================== COLLEGE ====================== */}
+      {view === "college" && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> College360 — Autonomous Course Site Generator</h2>
@@ -1520,6 +1569,9 @@ export default function Data360Page() {
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Degree</label>
                 <select value={collegeDegree} onChange={e => setCollegeDegree(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
                   <option value="B.Tech">B.Tech</option>
+                  <option value="BE">BE</option>
+                  <option value="I PUC">I PUC</option>
+                  <option value="II PUC">II PUC</option>
                   <option value="B.Sc">B.Sc</option>
                   <option value="B.Com">B.Com</option>
                   <option value="B.A">B.A</option>
@@ -1530,6 +1582,13 @@ export default function Data360Page() {
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Semester</label>
                 <select value={collegeSemester} onChange={e => setCollegeSemester(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
                   {["I","II","III","IV","V","VI","VII","VIII"].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">State</label>
+                <select value={collegeState} onChange={e => setCollegeState(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
+                  <option value="">Not State Specific</option>
+                  {INDIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}
                 </select>
               </div>
               <div>
@@ -1551,6 +1610,49 @@ export default function Data360Page() {
               <button onClick={suggestUnits} disabled={collegeSuggesting || !collegeSemester || !collegeDegree || !collegeCourse} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 disabled:opacity-40 font-bold text-sm px-6 py-2.5 rounded-lg transition whitespace-nowrap">
                 {collegeSuggesting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Fetch Chapters from Master Data
               </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                <h3 className="font-bold text-sm text-gray-800 mb-3">Generation Options</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={examPrepIncludeCompetitive} onChange={e => setExamPrepIncludeCompetitive(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                    Include Competitive Exam Questions
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={examPrepIncludeExercise} onChange={e => setExamPrepIncludeExercise(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                    Include Standard Exercise Questions
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={examPrepIncludeViva} onChange={e => setExamPrepIncludeViva(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                    Include Lab Viva Questions & Answers
+                  </label>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Total Question Count (Approx)</span>
+                    <select value={examPrepQuestionCount} onChange={e => setExamPrepQuestionCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-teal-400">
+                      <option value={15}>15 Questions (Fastest)</option>
+                      <option value={50}>50 Questions</option>
+                      <option value={100}>100 Questions</option>
+                      <option value={150}>150 Questions</option>
+                      <option value={200}>200 Questions</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-white flex flex-col gap-4">
+                <div>
+                  <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Questions</h3>
+                  <p className="text-[10px] text-gray-500 mb-1">Add specific questions you want the AI to answer in the study pack.</p>
+                  <textarea value={examPrepCustomQuestions} onChange={e => setExamPrepCustomQuestions(e.target.value)} rows={2} placeholder="e.g. Explain the difference between..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Prompt Override (Optional)</h3>
+                  <p className="text-[10px] text-gray-500 mb-1">Provide custom rules for generation.</p>
+                  <textarea value={examPrepPromptOverride} onChange={e => setExamPrepPromptOverride(e.target.value)} rows={2} placeholder="e.g. Ensure all questions are strictly aligned to the latest lab viva competency framework..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                </div>
+              </div>
             </div>
             
             {collegeUnitsList.length > 0 && (
@@ -1595,7 +1697,7 @@ export default function Data360Page() {
           </div>
       )}
 
-      {/* ══════════════════════ EXAM PREP ══════════════════════ */}
+      {/* ====================== EXAM PREP ====================== */}
       {view === "examPrep" && user && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div>
@@ -1746,8 +1848,8 @@ export default function Data360Page() {
         </div>
       )}
 
-      {/* ══════════════════════ COURSE SITE ══════════════════════ */}
-      {view === "courseSite" && user && courseSiteData.length > 0 && (
+      {/* ====================== COURSE SITE ====================== */}
+      {view === "courseSite" && courseSiteData.length > 0 && (
         <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
           {/* Sidebar */}
           <div className="w-72 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
@@ -1783,6 +1885,7 @@ export default function Data360Page() {
                   {courseActiveUnit === data.unit && (
                     <div className="pl-6 pr-2 py-1 space-y-1 mt-1 border-l-2 border-teal-100 ml-4">
                       <button onClick={() => setCourseActiveTab("plan")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "plan") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Study Plan</button>
+                      <button onClick={() => setCourseActiveTab("videos")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "videos") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>YouTube References</button>
                       <button onClick={() => setCourseActiveTab("core")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "core") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Core Concepts</button>
 <button onClick={() => setCourseActiveTab("glossary")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "glossary") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Glossary & Key Terms</button>
 <button onClick={() => setCourseActiveTab("formulas")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "formulas") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Quick Reference / Formulas</button>
@@ -1827,6 +1930,35 @@ export default function Data360Page() {
                     <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-200">
                       Failed to generate content for this unit.
                     </div>
+                  )}
+
+                                    {/* YouTube References */}
+                  {(isPrinting || courseActiveTab === "videos") && (
+                    <section className="mb-10">
+                      <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2"><MonitorPlay size={20} className="text-red-500" /> Top 5 YouTube References</h2>
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.unit} ${collegeCourse || ''} ${collegeDegree || ''} full chapter explained`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">1. Full Chapter Explanation</h3><p className="text-xs text-gray-500">Comprehensive overview of {data.unit}</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.unit} ${collegeCourse || ''} ${collegeDegree || ''} one shot revision`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">2. One Shot Revision</h3><p className="text-xs text-gray-500">Quick recap and summary</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.unit} ${collegeCourse || ''} ${collegeDegree || ''} important questions`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">3. Important Questions</h3><p className="text-xs text-gray-500">University exam focused questions</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.unit} ${collegeCourse || ''} ${collegeDegree || ''} practical examples`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">4. Practical Examples</h3><p className="text-xs text-gray-500">Real-world applications and numericals</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.unit} ${collegeCourse || ''} ${collegeDegree || ''} interview questions`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">5. Interview Questions</h3><p className="text-xs text-gray-500">Job interview preparation for this topic</p></div>
+                        </a>
+                      </div>
+                    </section>
                   )}
 
                   {/* Core Concepts */}
@@ -2125,7 +2257,7 @@ export default function Data360Page() {
         </div>
       )}
 
-      {/* ══════════════════════ SETTINGS ══════════════════════ */}
+      {/* ====================== SETTINGS ====================== */}
       {view === "settings" && user && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div className="flex items-start justify-between flex-wrap gap-3">
@@ -2548,7 +2680,7 @@ export default function Data360Page() {
           </div>
         </div>
       )}
-      {view === "translator" && user && (
+      {view === "translator" && (
         <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Languages size={18} className="text-teal-600" /> Free Content Translator</h2>

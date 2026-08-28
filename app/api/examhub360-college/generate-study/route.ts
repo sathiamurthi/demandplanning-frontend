@@ -9,15 +9,16 @@ export async function POST(req: Request) {
   const ai = new GoogleGenAI(process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {});
   try {
     const { 
-      images, text, collegeSemester, collegeDegree, subject, unit_name, target_language,
+      images, text, collegeSemester, collegeDegree, subject, unit_name, target_language, state,
       includeCompetitive, includeExercise, includeViva, questionCount, promptOverride, chunkType, customQuestions
     } = await req.json();
 
-    const qCount = Math.min(questionCount || 15, 15);
+    const qCount = Math.min(questionCount || 15, 200);
     const mode = chunkType || "all";
     
     let systemInstruction = `You are an expert Higher Education University curriculum analyzer and examiner.
 Your task is to analyze the provided syllabus/pattern images or text for a specific university course unit and generate a partial study guide.
+Use the selected state (${state || "Not state-specific"}) when interpreting the curriculum, terminology, and examination expectations.
 
 Ensure the output is strictly structured as the provided JSON schema.`;
 
@@ -73,7 +74,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING }, hint: { type: Type.STRING }, difficulty: { type: Type.STRING, enum: ["easy", "medium", "hard"] } }
+                properties: { question: { type: Type.STRING }, hint: { type: Type.STRING }, difficulty: { type: Type.STRING, enum: ["easy", "medium", "hard"] }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "practice" || mode === "questions") required.push("common_mistakes", "practice_questions");
@@ -85,7 +86,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING }, competency_tested: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, competency_tested: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "competency") required.push("competency_questions");
@@ -97,7 +98,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "exercise") required.push("exercise_questions");
@@ -109,7 +110,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "custom_qna") required.push("custom_qna");
@@ -123,7 +124,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "viva") {
@@ -139,7 +140,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
     };
 
     const promptParts: any[] = [];
-    promptParts.push(`Generate study materials for:\nSemester: ${collegeSemester}\nDegree: ${collegeDegree}\nSubject: ${subject || "Unknown"}\nChapter: ${unit_name || "Unknown"}`);
+    promptParts.push(`Generate study materials for:\nState: ${state || "Not state-specific"}\nSemester: ${collegeSemester}\nDegree/Course: ${collegeDegree}\nSubject: ${subject || "Unknown"}\nChapter: ${unit_name || "Unknown"}`);
 
     if (text) {
       promptParts.push(`\nSource Material / Syllabus Text:\n${text}`);

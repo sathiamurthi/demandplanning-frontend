@@ -8,14 +8,14 @@ import { generateContentWithRetry } from '@/lib/gemini';
 export async function POST(req: Request) {
   const ai = new GoogleGenAI(process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {});
   try {
-    const { collegeSemester, collegeDegree } = await req.json();
+    const { collegeSemester, collegeDegree, state } = await req.json();
 
     if (!collegeSemester || !collegeDegree) {
       return NextResponse.json({ success: false, error: "Class and collegeDegree are required" }, { status: 400 });
     }
 
     const systemInstruction = `You are an expert curriculum analyzer.
-Your task is to provide a complete list of typical school subjects for a given Board and Class level.
+Your task is to provide a complete list of typical college subjects for the selected degree, semester, and state.
 Only return a JSON array of strings containing the subject names. Ensure it includes core subjects and common electives. Keep subject names standard (e.g. "Mathematics", "Physics", "History").`;
 
     const schema = {
@@ -24,7 +24,7 @@ Only return a JSON array of strings containing the subject names. Ensure it incl
       description: "List of subject names"
     };
 
-    const promptParts = [`List the subjects for:\nSemester: ${collegeSemester}\nDegree: ${collegeDegree}`];
+    const promptParts = [`List the subjects for:\nState: ${state || "Not state-specific"}\nSemester: ${collegeSemester}\nDegree/Course: ${collegeDegree}`];
 
     let response;
     const generateConfig = {
