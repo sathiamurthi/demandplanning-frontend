@@ -9,7 +9,7 @@ import {
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
   GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, MessageSquare, Save
-, Printer } from "lucide-react";
+, Printer, MonitorPlay, Users } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
@@ -177,11 +177,17 @@ export default function Data360Page() {
   const isSuperadmin = user?.email?.toLowerCase() === "superadmin@demandgeniusai.com" || user?.email?.toLowerCase() === "sathia@examhub360.com";
   const [authTab, setAuthTab] = useState<"login" | "register">("register");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [authCollege, setAuthCollege] = useState("");
+  const [authState, setAuthState] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authErr, setAuthErr] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authPortal, setAuthPortal] = useState<"school" | "college">("school");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestAccessOpen, setGuestAccessOpen] = useState(false);
+  const [guestErr, setGuestErr] = useState("");
   const [allRegisteredUsers, setAllRegisteredUsers] = useState<string[]>([]);
   
   const [globalConfig, setGlobalConfig] = useState({ tier: "free", enableQuestionBank: true, enableDemoMode: true });
@@ -1055,17 +1061,15 @@ export default function Data360Page() {
   const handleAuth = async () => {
     setAuthErr(""); setAuthBusy(true);
     try {
-      const endpoint = authTab === "register" ? "/api/examhub360/auth/register" : "/api/examhub360/auth/login";
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
-      
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Authentication failed");
-      
-      const { token, user: u } = data;
+      if (authTab === "register" && (!name.trim() || !phone.trim() || !authCollege.trim() || !authState)) throw new Error("Name, mobile number, college, and state are required.");
+      if (!email.trim() || !password) throw new Error("Email and password are required.");
+      const result = authTab === "register"
+        ? await data360Api.register({ name, email, password, phone, college: authCollege, state: authState })
+        : await data360Api.login(email, password);
+      const token = result.token || result.accessToken;
+      if (!token) throw new Error("Authentication succeeded without an access token.");
+      const rawUser = result.user;
+      const u = { ...rawUser, name: rawUser.name || [rawUser.firstName, rawUser.lastName].filter(Boolean).join(" ") || email.split("@")[0] };
       setToken(token);
       
       if (authPortal === "college") {
@@ -1095,6 +1099,13 @@ export default function Data360Page() {
     } finally {
       setAuthBusy(false);
     }
+  };
+
+  const continueAsGuest = () => {
+    const normalizedPhone = guestPhone.replace(/[\s()-]/g, "");
+    if (!/^\+?\d{10,15}$/.test(normalizedPhone)) { setGuestErr("Enter a valid mobile number."); return; }
+    localStorage.setItem("examhub360_guest_phone", normalizedPhone);
+    setGuestAccessOpen(false); setGuestErr(""); setView("school");
   };
 
   const handleDemo = async () => {
@@ -1551,6 +1562,7 @@ export default function Data360Page() {
                   setView("courseSite");
                 } catch(e) { alert("Error reading DB."); }
               }} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Load Pre-Generated</button>
+              <button onClick={() => go("translator")} className={`hover:text-teal-600 transition ${view === "translator" ? "text-teal-600 font-bold" : ""}`}>Translator</button>
             </div>
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
@@ -1565,8 +1577,87 @@ export default function Data360Page() {
         </div>
       </nav>
 
-      {/* ══════════════════════ LANDING ══════════════════════ */}
-      {(view === "school" || view === "landing") && (
+      {/* ====================== LANDING ====================== */}
+      {view === "landing" && (
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">ExamHub360</h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">The autonomous study platform. Generate complete study packs, quizzes, and course sites instantly.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
+               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4"><Users size={32} /></div>
+               <h2 className="text-2xl font-bold mb-2">Student & Guest Access</h2>
+               <p className="text-gray-500 mb-6">Explore pre-generated study materials and try out the generator. Free tier limited to 1 chapter viewing.</p>
+               <button onClick={() => { setGuestPhone(""); setGuestErr(""); setGuestAccessOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Guest Access</button>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
+               <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-4"><ShieldCheck size={32} /></div>
+               <h2 className="text-2xl font-bold mb-2">Admin / Teacher Login</h2>
+               <p className="text-gray-500 mb-6">Full access to generate unlimited chapters, configure syllabus, and manage courses.</p>
+               <button onClick={() => setView("auth")} className="bg-teal-600 hover:bg-teal-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Login / Register</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center max-w-5xl mx-auto">
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">12,500+</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Questions Generated</div>
+             </div>
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">450+</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Subjects Covered</div>
+             </div>
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">2,100+</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Active Users</div>
+             </div>
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+               <div className="text-3xl font-black text-teal-600 mb-1">98%</div>
+               <div className="text-sm font-bold text-gray-500 uppercase tracking-wide">Accuracy</div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {guestAccessOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setGuestAccessOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-black text-gray-900">Continue as Guest</h2>
+            <p className="text-sm text-gray-500 mt-1">Enter your mobile number to continue.</p>
+            <input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="Mobile number" type="tel" autoFocus className="mt-5 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            {guestErr && <p className="mt-2 text-sm text-red-600">{guestErr}</p>}
+            <button onClick={continueAsGuest} className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg">Continue</button>
+          </div>
+        </div>
+      )}
+
+      {view === "auth" && (
+        <div className="max-w-md mx-auto px-4 py-12">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-5">
+              {(["register", "login"] as const).map(tab => <button key={tab} onClick={() => setAuthTab(tab)} className={`flex-1 py-2 rounded-md text-sm font-bold ${authTab === tab ? "bg-teal-600 text-white" : "text-gray-600"}`}>{tab === "register" ? "Register" : "Login"}</button>)}
+            </div>
+            <div className="space-y-3">
+              {authTab === "register" && <>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Mobile number" type="tel" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+                <input value={authCollege} onChange={e => setAuthCollege(e.target.value)} placeholder="College / School name" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+                <select value={authState} onChange={e => setAuthState(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm"><option value="">Select state</option>{INDIAN_STATES.map(state => <option key={state}>{state}</option>)}</select>
+              </>}
+              <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+              <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" type="password" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            {authErr && <p className="mt-3 text-sm text-red-600">{authErr}</p>}
+            <button onClick={handleAuth} disabled={authBusy} className="w-full mt-5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-lg">{authBusy ? "Please wait..." : authTab === "register" ? "Create account" : "Login"}</button>
+          </div>
+        </div>
+      )}
+
+      {/* ====================== SCHOOL GENERATOR ====================== */}
+      {view === "school" && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> ExamHub360 — Autonomous Course Site Generator</h2>
@@ -1681,6 +1772,48 @@ export default function Data360Page() {
                 <button onClick={() => setSchoolInputMode('generate')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'generate' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
                   <Sparkles size={16} /> Generate by Topic
                 </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                <h3 className="font-bold text-sm text-gray-800 mb-3">Generation Options</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={examPrepIncludeCompetitive} onChange={e => setExamPrepIncludeCompetitive(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                    Include Competitive Exam Questions
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={examPrepIncludeExercise} onChange={e => setExamPrepIncludeExercise(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                    Include Standard Exercise Questions
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={examPrepIncludeNCERT} onChange={e => setExamPrepIncludeNCERT(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                    Include NCERT Questions & Answers
+                  </label>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Total Question Count (Approx)</span>
+                    <select value={examPrepQuestionCount} onChange={e => setExamPrepQuestionCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-teal-400">
+                      <option value={15}>15 Questions (Fastest)</option>
+                      <option value={50}>50 Questions</option>
+                      <option value={100}>100 Questions</option>
+                      <option value={150}>150 Questions</option>
+                      <option value={200}>200 Questions</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-white flex flex-col gap-4">
+                <div>
+                  <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Questions</h3>
+                  <p className="text-[10px] text-gray-500 mb-1">Add specific questions you want the AI to answer in the study pack.</p>
+                  <textarea value={examPrepCustomQuestions} onChange={e => setExamPrepCustomQuestions(e.target.value)} rows={2} placeholder="e.g. Explain the difference between..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Prompt Override (Optional)</h3>
+                  <p className="text-[10px] text-gray-500 mb-1">Provide custom rules for generation.</p>
+                  <textarea value={examPrepPromptOverride} onChange={e => setExamPrepPromptOverride(e.target.value)} rows={2} placeholder="e.g. Ensure all questions are strictly aligned to the latest NCERT competency framework..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                </div>
               </div>
             </div>
             
@@ -1941,7 +2074,7 @@ export default function Data360Page() {
       )}
 
 
-      {/* ══════════════════════ EXAM PREP ══════════════════════ */}
+      {/* ====================== EXAM PREP ====================== */}
       {view === "examPrep" && user && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div>
@@ -2092,7 +2225,7 @@ export default function Data360Page() {
         </div>
       )}
 
-      {/* ══════════════════════ COURSE SITE ══════════════════════ */}
+      {/* ====================== COURSE SITE ====================== */}
       {view === "courseSite" && courseSiteData.length > 0 && (
         <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
           {/* Sidebar */}
@@ -2117,6 +2250,7 @@ export default function Data360Page() {
                   {courseActiveChapter === data.chapter && (
                     <div className="pl-6 pr-2 py-1 space-y-1 mt-1 border-l-2 border-teal-100 ml-4">
                       <button onClick={() => setCourseActiveTab("plan")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "plan") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Study Plan</button>
+                      <button onClick={() => setCourseActiveTab("videos")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "videos") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>YouTube References</button>
                       <button onClick={() => setCourseActiveTab("core")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "core") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Core Concepts</button>
 <button onClick={() => setCourseActiveTab("glossary")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "glossary") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Glossary & Key Terms</button>
 <button onClick={() => setCourseActiveTab("formulas")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "formulas") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Quick Reference / Formulas</button>
@@ -2160,6 +2294,35 @@ export default function Data360Page() {
                     <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-200">
                       Failed to generate content for this chapter.
                     </div>
+                  )}
+
+                                    {/* YouTube References */}
+                  {(isPrinting || courseActiveTab === "videos") && (
+                    <section className="mb-10">
+                      <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2"><MonitorPlay size={20} className="text-red-500" /> Top 5 YouTube References</h2>
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.chapter} ${schoolSubject || ''} class ${schoolClassLevel || ''} full chapter explained`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">1. Full Chapter Explanation</h3><p className="text-xs text-gray-500">Comprehensive overview of {data.chapter}</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.chapter} ${schoolSubject || ''} class ${schoolClassLevel || ''} one shot revision`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">2. One Shot Revision</h3><p className="text-xs text-gray-500">Quick recap and summary</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.chapter} ${schoolSubject || ''} class ${schoolClassLevel || ''} important questions`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">3. Important Questions</h3><p className="text-xs text-gray-500">Board exam focused questions</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.chapter} ${schoolSubject || ''} class ${schoolClassLevel || ''} ncert solutions`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">4. NCERT Solutions</h3><p className="text-xs text-gray-500">Step by step textbook solutions</p></div>
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${data.chapter} ${schoolSubject || ''} class ${schoolClassLevel || ''} mcqs competency`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition">
+                          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><MonitorPlay size={20} /></div>
+                          <div><h3 className="font-bold text-gray-800 text-sm">5. MCQs & Competency</h3><p className="text-xs text-gray-500">Objective and critical thinking questions</p></div>
+                        </a>
+                      </div>
+                    </section>
                   )}
 
                   {/* Core Concepts */}
@@ -2458,7 +2621,7 @@ export default function Data360Page() {
         </div>
       )}
 
-      {/* ══════════════════════ SETTINGS ══════════════════════ */}
+      {/* ====================== SETTINGS ====================== */}
       {view === "settings" && user && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
           <div className="flex items-start justify-between flex-wrap gap-3">
@@ -2881,7 +3044,7 @@ export default function Data360Page() {
           </div>
         </div>
       )}
-      {view === "translator" && user && (
+      {view === "translator" && (
         <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
           <div>
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Languages size={18} className="text-teal-600" /> Free Content Translator</h2>
