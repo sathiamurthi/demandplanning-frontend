@@ -1494,7 +1494,6 @@ export default function Data360Page() {
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
-              <Link href="/examhub360" className="hover:text-teal-600 transition">School / Study</Link>
               <button onClick={() => go("college")} className={`hover:text-teal-600 transition ${view === "college" ? "text-teal-600 font-bold" : ""}`}>College / Study</button>
               <button onClick={() => {
                 const dbStr = localStorage.getItem("examhub_saved_chapters");
