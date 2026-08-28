@@ -1577,7 +1577,7 @@ export default function Data360Page() {
             
             <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm flex flex-col items-center text-center">
                <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-4"><ShieldCheck size={32} /></div>
-               <h2 className="text-2xl font-bold mb-2">Admin / Professor Login</h2>
+               <h2 className="text-2xl font-bold mb-2">Admin / Professor / Student / Parent Login</h2>
                <p className="text-gray-500 mb-6">Full access to generate unlimited chapters, configure syllabus, and manage courses.</p>
                <button onClick={() => setView("auth")} className="bg-teal-600 hover:bg-teal-700 text-white text-lg font-bold py-3 px-8 rounded-xl transition w-full">Login / Register</button>
             </div>
