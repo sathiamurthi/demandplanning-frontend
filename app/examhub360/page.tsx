@@ -8,7 +8,7 @@ import {
   AlertTriangle, ChevronRight, X, Loader2, Plus, LogOut, ArrowRight,
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
-  GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, MessageSquare, Save
+  GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, Menu, MessageSquare, Save
 , Printer, MonitorPlay, Users } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
@@ -399,6 +399,7 @@ export default function Data360Page() {
   const [courseSiteData, setCourseSiteData] = useState<CourseChapterData[]>([]);
   const [courseActiveChapter, setCourseActiveChapter] = useState("");
   const [courseActiveTab, setCourseActiveTab] = useState("core");
+  const [courseNavOpen, setCourseNavOpen] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number, total: number, status: string } | null>(null);
 
 
@@ -2270,17 +2271,21 @@ export default function Data360Page() {
 
       {/* ====================== COURSE SITE ====================== */}
       {view === "courseSite" && courseSiteData.length > 0 && (
-        <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+        <div className="relative flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+          {courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25" />}
           {/* Sidebar */}
-          <div className="w-72 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
+          <aside className={`absolute inset-y-0 left-0 z-30 w-80 max-w-[85vw] bg-white border-r border-gray-200 overflow-y-auto flex flex-col shadow-xl transition-transform duration-200 ${courseNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
             <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10 shadow-sm">
-              <button onClick={() => setView("dashboard")} className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-teal-600 transition">
-                <ArrowRight size={12} className="rotate-180" /> Back to Dashboard
-              </button>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <button onClick={() => setView("dashboard")} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-teal-600 transition">
+                  <ArrowRight size={12} className="rotate-180" /> Back to Dashboard
+                </button>
+                <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="p-1 text-gray-400 hover:text-gray-700" title="Close navigation"><X size={16} /></button>
+              </div>
               <h2 className="font-black text-gray-900 text-sm flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Complete Course Site</h2>
               <p className="text-[10px] text-gray-500 mt-1">{schoolBoard} • Class {schoolClassLevel} • {schoolSubject}</p>
             </div>
-            <div className="p-3 space-y-1">
+            <div className="p-3 space-y-1" onClick={event => { if ((event.target as HTMLElement).closest("button")) setCourseNavOpen(false); }}>
               {courseSiteData.map((data, idx) => (
                 <div key={data.chapter}>
                   <button 
@@ -2295,16 +2300,15 @@ export default function Data360Page() {
                       <button onClick={() => setCourseActiveTab("plan")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "plan") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Study Plan</button>
                       <button onClick={() => setCourseActiveTab("videos")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "videos") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>YouTube References</button>
                       <button onClick={() => setCourseActiveTab("core")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "core") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Core Concepts</button>
-<button onClick={() => setCourseActiveTab("glossary")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "glossary") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Glossary & Key Terms</button>
-<button onClick={() => setCourseActiveTab("formulas")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "formulas") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Quick Reference / Formulas</button>
-<button onClick={() => setCourseActiveTab("mistakes")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "mistakes") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Common Mistakes to Avoid</button>
+                      <button onClick={() => setCourseActiveTab("glossary")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "glossary") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Glossary & Key Terms</button>
+                      <button onClick={() => setCourseActiveTab("formulas")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "formulas") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Quick Reference / Formulas</button>
+                      <button onClick={() => setCourseActiveTab("mistakes")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "mistakes") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Common Mistakes to Avoid</button>
                       <button onClick={() => setCourseActiveTab("practice")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "practice") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Practice Questions</button>
                       <button onClick={() => setCourseActiveTab("competitive")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "competitive") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Competitive Exam Prep</button>
                       <button onClick={() => setCourseActiveTab("competency")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "competency") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Competency Questions</button>
                       <button onClick={() => setCourseActiveTab("exercise")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "exercise") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Exercise Questions</button>
                       {data.studyPack?.custom_qna && data.studyPack.custom_qna.length > 0 && (
                         <button onClick={() => setCourseActiveTab("custom")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "custom") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>Custom Questions</button>
-                      
                       )}
                       {data.studyPack?.ncert_questions && data.studyPack.ncert_questions.length > 0 && (
                         <button onClick={() => setCourseActiveTab("ncert")} className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded transition ${(isPrinting || courseActiveTab === "ncert") ? "text-teal-700 bg-teal-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"}`}>NCERT / Textual</button>
@@ -2314,11 +2318,15 @@ export default function Data360Page() {
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto p-6 md:p-10">
             <div className="max-w-4xl mx-auto space-y-10 pb-20">
+              <div className="flex items-center gap-3 print:hidden">
+                <button aria-label="Open chapter navigation" onClick={() => setCourseNavOpen(true)} className="p-2 text-gray-600 hover:text-teal-700 bg-white border border-gray-200 rounded-lg shadow-sm" title="Open chapter navigation"><Menu size={18} /></button>
+                <span className="text-xs font-bold text-gray-500 truncate">{courseActiveChapter || "Course navigation"}</span>
+              </div>
               {courseSiteData.filter(d => d.chapter === courseActiveChapter).map(data => (
                 <div key={data.chapter}>
                   {/* Header */}
