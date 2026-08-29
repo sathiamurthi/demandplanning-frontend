@@ -1701,416 +1701,417 @@ export default function Data360Page() {
           </div>
 
           {schoolSection === "single" && (
-                    <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Class / Grade</label>
-                <select value={schoolClassLevel} onChange={e => setSchoolClassLevel(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
-                  {["V","VI","VII","VIII","IX","X","XI","XII"].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Board</label>
-                <input value={schoolBoard} onChange={e => setSchoolBoard(e.target.value)} placeholder="CBSE" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Subject</label>
-                <input value={schoolSubject} onChange={e => setSchoolSubject(e.target.value)} placeholder="e.g. Science" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Target Language</label>
-                <select value={schoolTargetLang} onChange={e => setSchoolTargetLang(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
-                  {["English", "Hindi", "Tamil", "Telugu", "Kannada", "Malayalam", "Urdu"].map(lang => (
-                    <option key={lang} value={lang}>{lang}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              {["CBSE", "ICSE", "State Board", "IB", "Cambridge / IGCSE"].map(board => (
-                <button 
-                  key={board} 
-                  onClick={() => setSchoolBoard(board)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors border ${
-                    schoolBoard === board ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  {board}
-                </button>
-              ))}
-            </div>
-
-            {schoolBoard === "State Board" && (
-              <div className="pt-2">
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">State</label>
-                <select value={schoolState} onChange={e => setSchoolState(e.target.value)} className="mt-1 w-full sm:w-1/4 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
-                  <option value="">Not State Specific (Default)</option>
-                    <option value="Andhra Pradesh">Andhra Pradesh</option>
-                    <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-                    <option value="Assam">Assam</option>
-                    <option value="Bihar">Bihar</option>
-                    <option value="Chhattisgarh">Chhattisgarh</option>
-                    <option value="Goa">Goa</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Haryana">Haryana</option>
-                    <option value="Himachal Pradesh">Himachal Pradesh</option>
-                    <option value="Jharkhand">Jharkhand</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Kerala">Kerala</option>
-                    <option value="Madhya Pradesh">Madhya Pradesh</option>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Manipur">Manipur</option>
-                    <option value="Meghalaya">Meghalaya</option>
-                    <option value="Mizoram">Mizoram</option>
-                    <option value="Nagaland">Nagaland</option>
-                    <option value="Odisha">Odisha</option>
-                    <option value="Punjab">Punjab</option>
-                    <option value="Rajasthan">Rajasthan</option>
-                    <option value="Sikkim">Sikkim</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Telangana">Telangana</option>
-                    <option value="Tripura">Tripura</option>
-                    <option value="Uttar Pradesh">Uttar Pradesh</option>
-                    <option value="Uttarakhand">Uttarakhand</option>
-                    <option value="West Bengal">West Bengal</option>
-                    <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
-                    <option value="Chandigarh">Chandigarh</option>
-                    <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Jammu and Kashmir">Jammu and Kashmir</option>
-                    <option value="Ladakh">Ladakh</option>
-                    <option value="Lakshadweep">Lakshadweep</option>
-                    <option value="Puducherry">Puducherry</option>
-                </select>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-3">
-              <button className="flex-1 flex items-center justify-center gap-2 bg-teal-50 text-teal-700 hover:bg-teal-100 font-bold text-sm py-2.5 rounded-lg border border-teal-100 transition">
-                <Upload size={16} /> Upload Syllabus PDF to Extract Chapters
-              </button>
-              <button onClick={addChapterManually} className="flex items-center justify-center gap-2 bg-white text-teal-600 border border-teal-200 hover:bg-teal-50 font-bold text-sm px-4 py-2.5 rounded-lg transition">
-                <Plus size={16} /> Add Manually
-              </button>
-              <button onClick={suggestChapters} disabled={schoolSuggesting || !schoolClassLevel || !schoolBoard || !schoolSubject} className="flex items-center justify-center gap-2 bg-[#8cd2c7] text-white hover:bg-teal-400 disabled:opacity-40 font-bold text-sm px-4 py-2.5 rounded-lg transition">
-                {schoolSuggesting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Auto-Suggest Chapters
-              </button>
-            </div>
-            
-            <div className="mt-6 border border-teal-200 border-dashed rounded-xl p-1">
-              <div className="flex flex-col sm:flex-row bg-white rounded-lg overflow-hidden">
-                <button onClick={() => setSchoolInputMode('upload')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'upload' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
-                  <Upload size={16} /> Upload Pages
-                </button>
-                <button onClick={() => setSchoolInputMode('text')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'text' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
-                  <FileText size={16} /> Paste Text
-                </button>
-                <button onClick={() => setSchoolInputMode('generate')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'generate' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
-                  <Sparkles size={16} /> Generate by Topic
-                </button>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-              <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                <h3 className="font-bold text-sm text-gray-800 mb-3">Generation Options</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={examPrepIncludeCompetitive} onChange={e => setExamPrepIncludeCompetitive(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
-                    Include Competitive Exam Questions
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={examPrepIncludeExercise} onChange={e => setExamPrepIncludeExercise(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
-                    Include Standard Exercise Questions
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={examPrepIncludeNCERT} onChange={e => setExamPrepIncludeNCERT(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
-                    Include NCERT Questions & Answers
-                  </label>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Total Question Count (Approx)</span>
-                    <select value={examPrepQuestionCount} onChange={e => setExamPrepQuestionCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-teal-400">
-                      <option value={15}>15 Questions (Fastest)</option>
-                      <option value={50}>50 Questions</option>
-                      <option value={100}>100 Questions</option>
-                      <option value={150}>150 Questions</option>
-                      <option value={200}>200 Questions</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border border-gray-200 rounded-xl p-4 bg-white flex flex-col gap-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Questions</h3>
-                  <textarea value={examPrepCustomQuestions} onChange={e => setExamPrepCustomQuestions(e.target.value)} rows={2} placeholder="e.g. Explain the difference between..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Class / Grade</label>
+                  <select value={schoolClassLevel} onChange={e => setSchoolClassLevel(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
+                    {["V","VI","VII","VIII","IX","X","XI","XII"].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Prompt Override (Optional)</h3>
-                  <textarea value={examPrepPromptOverride} onChange={e => setExamPrepPromptOverride(e.target.value)} rows={2} placeholder="e.g. Ensure all questions are strictly aligned to the latest NCERT competency framework..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Board</label>
+                  <input value={schoolBoard} onChange={e => setSchoolBoard(e.target.value)} placeholder="CBSE" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
                 </div>
-              </div>
-            </div>
-            
-          {schoolSection === "batch" && schoolChaptersList.length > 0 && (
-              <div className="bg-white border border-teal-200 rounded-2xl p-6 space-y-4">
-                <div className="flex items-center justify-between gap-3 pb-3 border-b border-teal-100">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-700">Course Site Batch Builder</p>
-                    <h3 className="text-sm font-black text-gray-800">Generate multiple chapters in one flow</h3>
-                  </div>
-                  <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2 py-1">Separate from chapter mode</span>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Subject</label>
+                  <input value={schoolSubject} onChange={e => setSchoolSubject(e.target.value)} placeholder="e.g. Science" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
                 </div>
-
-                <div className="pt-1">
-                  <h3 className="text-sm font-bold text-gray-800 mb-3">Select Chapters to Generate ({schoolSelectedChapters.length} selected)</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    {schoolChaptersList.map(chap => (
-                      <label key={chap} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition ${schoolSelectedChapters.includes(chap) ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                        <input type="checkbox" className="rounded text-teal-600 focus:ring-teal-500" checked={schoolSelectedChapters.includes(chap)} onChange={(e) => {
-                          if (e.target.checked) setSchoolSelectedChapters(p => [...p, chap]);
-                          else setSchoolSelectedChapters(p => p.filter(c => c !== chap));
-                        }} />
-                        <span className="text-xs font-semibold text-gray-700 truncate">{chap}</span>
-                      </label>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Target Language</label>
+                  <select value={schoolTargetLang} onChange={e => setSchoolTargetLang(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
+                    {["English", "Hindi", "Tamil", "Telugu", "Kannada", "Malayalam", "Urdu"].map(lang => (
+                      <option key={lang} value={lang}>{lang}</option>
                     ))}
-                  </div>
-                  
-                  <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-teal-100">
-                    <button onClick={() => runBatchGeneration(true)} disabled={schoolBusy || schoolSelectedChapters.length === 0} className="h-10 flex items-center justify-center gap-2 bg-white border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
-                      <Sparkles size={16} /> Regenerate (Bypass Cache)
-                    </button>
-
-                      <button onClick={() => runBatchGeneration(false)} disabled={schoolBusy} className="h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
-                        {schoolBusy ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />} 
-                        {schoolBusy ? "Batch Generating..." : `Generate Course Site (${schoolSelectedChapters.length} Chapters)`}
-                      </button>
-                    </div>
-                    {batchProgress && (
-                      <div className="mt-3 p-3 bg-teal-50 rounded-lg border border-teal-100 flex flex-col gap-2">
-                        <div className="flex justify-between items-center text-xs font-bold text-teal-800">
-                          <span>{batchProgress.status}</span>
-                          <span>{batchProgress.current} / {batchProgress.total}</span>
-                        </div>
-                        <div className="w-full bg-teal-200 rounded-full h-1.5">
-                          <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  </select>
                 </div>
-              )}
-            </div>
-
-          <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6 print:hidden">
-
-
-            {schoolInputMode === "upload" && (
-              <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
-                <BookOpen size={22} className="text-gray-300" />
-                <span className="text-sm text-gray-600 font-bold">Drag & drop, or click to choose chapter pages</span>
-                <span className="text-xs text-gray-400">Images or a PDF — up to 10 pages</span>
-                <input type="file" accept="image/*,application/pdf,.pdf" multiple className="hidden"
-                  onChange={e => { if (e.target.files?.length) runStudyGuideFromFiles(e.target.files); e.target.value = ""; }} />
-              </label>
-            )}
-            {schoolInputMode === "text" && (
-              <div>
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Paste the chapter's text</label>
-                <textarea value={schoolPasteText} onChange={e => setSchoolPasteText(e.target.value)} rows={8}
-                  placeholder="Paste the chapter content here…"
-                  className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
-                <button onClick={runStudyGuideFromText} disabled={schoolBusy || !schoolPasteText.trim()}
-                  className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
-                  <Sparkles size={13} /> Generate Study Pack
-                </button>
               </div>
-            )}
-            {schoolInputMode === "generate" && (
-              <div>
-                <button onClick={runStudyGuideGenerate} disabled={schoolBusy || !schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()}
-                  className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
-                  <Sparkles size={13} /> Generate Study Pack
-                </button>
-              </div>
-            )}
 
-            {schoolErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{schoolErr}</p>}
-          </div>
-
-          {schoolHistory.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h4 className="font-black text-gray-900 text-sm mb-3">Recent Chapters</h4>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {schoolHistory.map((h, i) => (
-                  <button key={i} onClick={() => setSchoolResult(h)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:border-teal-500 hover:text-teal-700 transition whitespace-nowrap flex items-center gap-2">
-                    <BookOpen size={14} className="text-teal-600" />
-                    {h.chapter_title || "Study Pack " + (i + 1)}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {["CBSE", "ICSE", "State Board", "IB", "Cambridge / IGCSE"].map(board => (
+                  <button 
+                    key={board} 
+                    onClick={() => setSchoolBoard(board)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors border ${
+                      schoolBoard === board ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {board}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
 
-          {schoolResult && (
-            <div className="space-y-5">
-              <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <h3 className="font-black text-gray-900 text-lg">{schoolResult.chapter_title}</h3>
-                    <p className="text-xs text-gray-400">{schoolResult.subject} · {schoolClassLevel} · {schoolBoard}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-400">via {schoolProvider}</span>
-                      {schoolCached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
+              {schoolBoard === "State Board" && (
+                <div className="pt-2">
+                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">State</label>
+                  <select value={schoolState} onChange={e => setSchoolState(e.target.value)} className="mt-1 w-full sm:w-1/4 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400">
+                    <option value="">Not State Specific (Default)</option>
+                      <option value="Andhra Pradesh">Andhra Pradesh</option>
+                      <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                      <option value="Assam">Assam</option>
+                      <option value="Bihar">Bihar</option>
+                      <option value="Chhattisgarh">Chhattisgarh</option>
+                      <option value="Goa">Goa</option>
+                      <option value="Gujarat">Gujarat</option>
+                      <option value="Haryana">Haryana</option>
+                      <option value="Himachal Pradesh">Himachal Pradesh</option>
+                      <option value="Jharkhand">Jharkhand</option>
+                      <option value="Karnataka">Karnataka</option>
+                      <option value="Kerala">Kerala</option>
+                      <option value="Madhya Pradesh">Madhya Pradesh</option>
+                      <option value="Maharashtra">Maharashtra</option>
+                      <option value="Manipur">Manipur</option>
+                      <option value="Meghalaya">Meghalaya</option>
+                      <option value="Mizoram">Mizoram</option>
+                      <option value="Nagaland">Nagaland</option>
+                      <option value="Odisha">Odisha</option>
+                      <option value="Punjab">Punjab</option>
+                      <option value="Rajasthan">Rajasthan</option>
+                      <option value="Sikkim">Sikkim</option>
+                      <option value="Tamil Nadu">Tamil Nadu</option>
+                      <option value="Telangana">Telangana</option>
+                      <option value="Tripura">Tripura</option>
+                      <option value="Uttar Pradesh">Uttar Pradesh</option>
+                      <option value="Uttarakhand">Uttarakhand</option>
+                      <option value="West Bengal">West Bengal</option>
+                      <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                      <option value="Chandigarh">Chandigarh</option>
+                      <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                      <option value="Delhi">Delhi</option>
+                      <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                      <option value="Ladakh">Ladakh</option>
+                      <option value="Lakshadweep">Lakshadweep</option>
+                      <option value="Puducherry">Puducherry</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-3">
+                <button className="flex-1 flex items-center justify-center gap-2 bg-teal-50 text-teal-700 hover:bg-teal-100 font-bold text-sm py-2.5 rounded-lg border border-teal-100 transition">
+                  <Upload size={16} /> Upload Syllabus PDF to Extract Chapters
+                </button>
+                <button onClick={addChapterManually} className="flex items-center justify-center gap-2 bg-white text-teal-600 border border-teal-200 hover:bg-teal-50 font-bold text-sm px-4 py-2.5 rounded-lg transition">
+                  <Plus size={16} /> Add Manually
+                </button>
+                <button onClick={suggestChapters} disabled={schoolSuggesting || !schoolClassLevel || !schoolBoard || !schoolSubject} className="flex items-center justify-center gap-2 bg-[#8cd2c7] text-white hover:bg-teal-400 disabled:opacity-40 font-bold text-sm px-4 py-2.5 rounded-lg transition">
+                  {schoolSuggesting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Auto-Suggest Chapters
+                </button>
+              </div>
+
+              <div className="mt-6 border border-teal-200 border-dashed rounded-xl p-1">
+                <div className="flex flex-col sm:flex-row bg-white rounded-lg overflow-hidden">
+                  <button onClick={() => setSchoolInputMode('upload')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'upload' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Upload size={16} /> Upload Pages
+                  </button>
+                  <button onClick={() => setSchoolInputMode('text')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'text' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <FileText size={16} /> Paste Text
+                  </button>
+                  <button onClick={() => setSchoolInputMode('generate')} className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition ${schoolInputMode === 'generate' ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Sparkles size={16} /> Generate by Topic
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                  <h3 className="font-bold text-sm text-gray-800 mb-3">Generation Options</h3>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={examPrepIncludeCompetitive} onChange={e => setExamPrepIncludeCompetitive(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                      Include Competitive Exam Questions
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={examPrepIncludeExercise} onChange={e => setExamPrepIncludeExercise(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                      Include Standard Exercise Questions
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={examPrepIncludeNCERT} onChange={e => setExamPrepIncludeNCERT(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
+                      Include NCERT Questions & Answers
+                    </label>
+                    <div>
+                      <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Total Question Count (Approx)</span>
+                      <select value={examPrepQuestionCount} onChange={e => setExamPrepQuestionCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-teal-400">
+                        <option value={15}>15 Questions (Fastest)</option>
+                        <option value={50}>50 Questions</option>
+                        <option value={100}>100 Questions</option>
+                        <option value={150}>150 Questions</option>
+                        <option value={200}>200 Questions</option>
+                      </select>
                     </div>
-                    <button onClick={() => window.print()} className="print:hidden text-xs font-bold text-teal-700 bg-teal-100 hover:bg-teal-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                      <FileText size={14} /> Print to PDF
-                    </button>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 rounded-xl p-4 bg-white flex flex-col gap-4">
+                  <div>
+                    <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Questions</h3>
+                    <textarea value={examPrepCustomQuestions} onChange={e => setExamPrepCustomQuestions(e.target.value)} rows={2} placeholder="e.g. Explain the difference between..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-gray-800 mb-1">Custom Prompt Override (Optional)</h3>
+                    <textarea value={examPrepPromptOverride} onChange={e => setExamPrepPromptOverride(e.target.value)} rows={2} placeholder="e.g. Ensure all questions are strictly aligned to the latest NCERT competency framework..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 resize-none" />
                   </div>
                 </div>
               </div>
 
-              {schoolResult.story_telling_explanation && (
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-                  <h4 className="font-black text-blue-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={16} /> Concept Story</h4>
-                  <p className="text-sm text-blue-900 leading-relaxed">{schoolResult.story_telling_explanation}</p>
-                </div>
-              )}
+              <div className="bg-white border-2 border-dashed border-teal-200 rounded-2xl p-6 print:hidden">
+                {schoolInputMode === "upload" && (
+                  <label className="border-2 border-dashed border-gray-200 hover:border-teal-300 rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer transition">
+                    <BookOpen size={22} className="text-gray-300" />
+                    <span className="text-sm text-gray-600 font-bold">Drag & drop, or click to choose chapter pages</span>
+                    <span className="text-xs text-gray-400">Images or a PDF — up to 10 pages</span>
+                    <input type="file" accept="image/*,application/pdf,.pdf" multiple className="hidden"
+                      onChange={e => { if (e.target.files?.length) runStudyGuideFromFiles(e.target.files); e.target.value = ""; }} />
+                  </label>
+                )}
+                {schoolInputMode === "text" && (
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Paste the chapter's text</label>
+                    <textarea value={schoolPasteText} onChange={e => setSchoolPasteText(e.target.value)} rows={8}
+                      placeholder="Paste the chapter content here…"
+                      className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 resize-none" />
+                    <button onClick={runStudyGuideFromText} disabled={schoolBusy || !schoolPasteText.trim()}
+                      className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
+                      <Sparkles size={13} /> Generate Study Pack
+                    </button>
+                  </div>
+                )}
+                {schoolInputMode === "generate" && (
+                  <div>
+                    <button onClick={runStudyGuideGenerate} disabled={schoolBusy || !schoolClassLevel.trim() || !schoolBoard.trim() || !schoolSubject.trim() || !schoolChapterLabel.trim()}
+                      className="mt-2 flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs px-3 py-2 rounded-lg transition">
+                      <Sparkles size={13} /> Generate Study Pack
+                    </button>
+                  </div>
+                )}
 
-              {schoolResult.quick_reference && schoolResult.quick_reference.length > 0 && (
-                <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6">
-                  <h4 className="font-black text-teal-800 text-sm mb-3 flex items-center gap-2"><ListChecks size={16} /> Quick Reference</h4>
-                  <ul className="space-y-1.5">
-                    {schoolResult.quick_reference.map((q, i) => <li key={i} className="text-sm text-teal-900 flex gap-2"><span className="text-teal-400">•</span>{q}</li>)}
-                  </ul>
-                </div>
-              )}
+                {schoolErr && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{schoolErr}</p>}
+              </div>
 
-              {schoolResult.quick_reference?.length > 0 && (
+              {schoolHistory.length > 0 && (
                 <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-amber-500" /> Core Concepts</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {schoolResult.core_concepts.map((c, i) => (
-                      <div key={i} className="border border-gray-200 rounded-xl p-4">
-                        <p className="font-bold text-gray-900 text-sm">{c.concept}</p>
-                        <p className="text-sm text-gray-600 mt-1">{c.simple_explanation}</p>
-                        <p className="text-xs text-gray-400 mt-2 italic">Why it matters: {c.why_it_matters}</p>
+                  <h4 className="font-black text-gray-900 text-sm mb-3">Recent Chapters</h4>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {schoolHistory.map((h, i) => (
+                      <button key={i} onClick={() => setSchoolResult(h)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:border-teal-500 hover:text-teal-700 transition whitespace-nowrap flex items-center gap-2">
+                        <BookOpen size={14} className="text-teal-600" />
+                        {h.chapter_title || "Study Pack " + (i + 1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schoolResult && (
+                <div className="space-y-5">
+                  <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <h3 className="font-black text-gray-900 text-lg">{schoolResult.chapter_title}</h3>
+                        <p className="text-xs text-gray-400">{schoolResult.subject} · {schoolClassLevel} · {schoolBoard}</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {schoolResult.key_terms && schoolResult.key_terms.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Key Terms</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {schoolResult.key_terms.map((t, i) => (
-                      <div key={i} className="text-sm"><span className="font-bold text-gray-900">{t.term}:</span> <span className="text-gray-600">{t.meaning}</span></div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-            {schoolResult.study_plan && schoolResult.study_plan.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><ClipboardCheck size={16} className="text-teal-600" /> Study Plan</h4>
-                  <div className="space-y-2">
-                    {schoolResult.study_plan.map((s, i) => (
-                      <div key={i} className="flex items-start gap-3 border border-gray-100 rounded-xl p-3">
-                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{s.step}</span>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{s.focus} <span className="text-xs font-normal text-gray-400">· {s.time_minutes} min</span></p>
-                          <p className="text-xs text-gray-600 mt-0.5">{s.activity}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-400">via {schoolProvider}</span>
+                          {schoolCached && <span className="text-[9px] font-bold text-teal-600 bg-teal-50 border border-teal-200 rounded-full px-1.5 py-0.5">cached</span>}
                         </div>
+                        <button onClick={() => window.print()} className="print:hidden text-xs font-bold text-teal-700 bg-teal-100 hover:bg-teal-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                          <FileText size={14} /> Print to PDF
+                        </button>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {schoolResult.competency_questions && schoolResult.competency_questions.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-purple-600" /> Competency-Based Questions</h4>
-                  <div className="space-y-3">
-                    {schoolResult.competency_questions.map((q, i) => (
-                      <details key={i} open={isPrinting} className="group border border-gray-200 rounded-xl bg-gray-50 overflow-hidden print-expand">
-                        <summary className="font-medium text-sm text-gray-900 p-4 cursor-pointer hover:bg-gray-100 transition list-none flex gap-2">
-                          <span className="text-purple-600 font-black">Q{i+1}.</span> {q.question}
-                          <span className="ml-auto text-xs text-gray-400 bg-white border px-2 py-0.5 rounded-full shrink-0">{q.competency_tested}</span>
-                        </summary>
-                        <div className="p-4 pt-0 text-sm text-gray-700 bg-white border-t border-gray-200 mt-2">
-                          <div className="font-black text-xs text-purple-600 mb-1 uppercase tracking-wide">Answer</div>
-                          <div className="whitespace-pre-wrap">{q.answer}</div>
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                </div>
-              )}
+                  {schoolResult.story_telling_explanation && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                      <h4 className="font-black text-blue-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={16} /> Concept Story</h4>
+                      <p className="text-sm text-blue-900 leading-relaxed">{schoolResult.story_telling_explanation}</p>
+                    </div>
+                  )}
 
-              {schoolResult.exercise_questions && schoolResult.exercise_questions.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-blue-600" /> Exercise Questions</h4>
-                  <div className="space-y-3">
-                    {schoolResult.exercise_questions.map((q, i) => (
-                      <details key={i} open={isPrinting} className="group border border-gray-200 rounded-xl bg-gray-50 overflow-hidden print-expand">
-                        <summary className="font-medium text-sm text-gray-900 p-4 cursor-pointer hover:bg-gray-100 transition list-none flex gap-2">
-                          <span className="text-blue-600 font-black">Q{i+1}.</span> {q.question}
-                        </summary>
-                        <div className="p-4 pt-0 text-sm text-gray-700 bg-white border-t border-gray-200 mt-2">
-                          <div className="font-black text-xs text-blue-600 mb-1 uppercase tracking-wide">Answer</div>
-                          <div className="whitespace-pre-wrap">{q.answer}</div>
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                </div>
-              )}
+                  {schoolResult.quick_reference && schoolResult.quick_reference.length > 0 && (
+                    <div className="bg-teal-50 border border-teal-200 rounded-2xl p-6">
+                      <h4 className="font-black text-teal-800 text-sm mb-3 flex items-center gap-2"><ListChecks size={16} /> Quick Reference</h4>
+                      <ul className="space-y-1.5">
+                        {schoolResult.quick_reference.map((q, i) => <li key={i} className="text-sm text-teal-900 flex gap-2"><span className="text-teal-400">•</span>{q}</li>)}
+                      </ul>
+                    </div>
+                  )}
 
-              {schoolResult.practice_questions && schoolResult.practice_questions.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={16} className="text-teal-600" /> Practice Questions</h4>
-                  <div className="space-y-2">
-                    {schoolResult.practice_questions.map((q, i) => (
-                      <div key={i} className="border border-gray-100 rounded-xl p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-gray-900">{i + 1}. {q.question}</p>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${q.difficulty === "easy" ? "bg-green-50 text-green-700 border-green-200" : q.difficulty === "hard" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{q.difficulty}</span>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">Hint: {q.hint}</p>
+                  {schoolResult.quick_reference?.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-amber-500" /> Core Concepts</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {schoolResult.core_concepts.map((c, i) => (
+                          <div key={i} className="border border-gray-200 rounded-xl p-4">
+                            <p className="font-bold text-gray-900 text-sm">{c.concept}</p>
+                            <p className="text-sm text-gray-600 mt-1">{c.simple_explanation}</p>
+                            <p className="text-xs text-gray-400 mt-2 italic">Why it matters: {c.why_it_matters}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )}
 
-              {schoolResult.ncert_questions && schoolResult.ncert_questions.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-4">
-                  <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> NCERT Questions</h4>
-                  <div className="space-y-2">
-                    {schoolResult.ncert_questions.map((q, i) => (
-                      <div key={i} className="border border-gray-100 rounded-xl p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-gray-900">Q{i + 1}. {q.question}</p>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">Ans: {q.answer}</p>
+                  {schoolResult.key_terms && schoolResult.key_terms.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Key Terms</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {schoolResult.key_terms.map((t, i) => (
+                          <div key={i} className="text-sm"><span className="font-bold text-gray-900">{t.term}:</span> <span className="text-gray-600">{t.meaning}</span></div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )}
 
-              {schoolResult.common_mistakes && schoolResult.common_mistakes.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-                  <h4 className="font-black text-amber-800 text-sm mb-3 flex items-center gap-2"><AlertTriangle size={16} /> Common Mistakes to Avoid</h4>
-                  <ul className="space-y-1.5">
-                    {schoolResult.common_mistakes.map((m, i) => <li key={i} className="text-sm text-amber-900 flex gap-2"><span className="text-amber-400">•</span>{m}</li>)}
-                  </ul>
+                  {schoolResult.study_plan && schoolResult.study_plan.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><ClipboardCheck size={16} className="text-teal-600" /> Study Plan</h4>
+                      <div className="space-y-2">
+                        {schoolResult.study_plan.map((s, i) => (
+                          <div key={i} className="flex items-start gap-3 border border-gray-100 rounded-xl p-3">
+                            <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{s.step}</span>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">{s.focus} <span className="text-xs font-normal text-gray-400">· {s.time_minutes} min</span></p>
+                              <p className="text-xs text-gray-600 mt-0.5">{s.activity}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {schoolResult.competency_questions && schoolResult.competency_questions.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-purple-600" /> Competency-Based Questions</h4>
+                      <div className="space-y-3">
+                        {schoolResult.competency_questions.map((q, i) => (
+                          <details key={i} open={isPrinting} className="group border border-gray-200 rounded-xl bg-gray-50 overflow-hidden print-expand">
+                            <summary className="font-medium text-sm text-gray-900 p-4 cursor-pointer hover:bg-gray-100 transition list-none flex gap-2">
+                              <span className="text-purple-600 font-black">Q{i+1}.</span> {q.question}
+                              <span className="ml-auto text-xs text-gray-400 bg-white border px-2 py-0.5 rounded-full shrink-0">{q.competency_tested}</span>
+                            </summary>
+                            <div className="p-4 pt-0 text-sm text-gray-700 bg-white border-t border-gray-200 mt-2">
+                              <div className="font-black text-xs text-purple-600 mb-1 uppercase tracking-wide">Answer</div>
+                              <div className="whitespace-pre-wrap">{q.answer}</div>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {schoolResult.exercise_questions && schoolResult.exercise_questions.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-blue-600" /> Exercise Questions</h4>
+                      <div className="space-y-3">
+                        {schoolResult.exercise_questions.map((q, i) => (
+                          <details key={i} open={isPrinting} className="group border border-gray-200 rounded-xl bg-gray-50 overflow-hidden print-expand">
+                            <summary className="font-medium text-sm text-gray-900 p-4 cursor-pointer hover:bg-gray-100 transition list-none flex gap-2">
+                              <span className="text-blue-600 font-black">Q{i+1}.</span> {q.question}
+                            </summary>
+                            <div className="p-4 pt-0 text-sm text-gray-700 bg-white border-t border-gray-200 mt-2">
+                              <div className="font-black text-xs text-blue-600 mb-1 uppercase tracking-wide">Answer</div>
+                              <div className="whitespace-pre-wrap">{q.answer}</div>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {schoolResult.practice_questions && schoolResult.practice_questions.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><Sparkles size={16} className="text-teal-600" /> Practice Questions</h4>
+                      <div className="space-y-2">
+                        {schoolResult.practice_questions.map((q, i) => (
+                          <div key={i} className="border border-gray-100 rounded-xl p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-900">{i + 1}. {q.question}</p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${q.difficulty === "easy" ? "bg-green-50 text-green-700 border-green-200" : q.difficulty === "hard" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{q.difficulty}</span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">Hint: {q.hint}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {schoolResult.ncert_questions && schoolResult.ncert_questions.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-4">
+                      <h4 className="font-black text-gray-900 text-sm mb-3 flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> NCERT Questions</h4>
+                      <div className="space-y-2">
+                        {schoolResult.ncert_questions.map((q, i) => (
+                          <div key={i} className="border border-gray-100 rounded-xl p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-900">Q{i + 1}. {q.question}</p>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1 line-clamp-2">Ans: {q.answer}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {schoolResult.common_mistakes && schoolResult.common_mistakes.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                      <h4 className="font-black text-amber-800 text-sm mb-3 flex items-center gap-2"><AlertTriangle size={16} /> Common Mistakes to Avoid</h4>
+                      <ul className="space-y-1.5">
+                        {schoolResult.common_mistakes.map((m, i) => <li key={i} className="text-sm text-amber-900 flex gap-2"><span className="text-amber-400">•</span>{m}</li>)}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
+            </div>
+          )}
+
+          {schoolSection === "batch" && schoolChaptersList.length > 0 && (
+            <div className="bg-white border border-teal-200 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-teal-100">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-700">Course Site Batch Builder</p>
+                  <h3 className="text-sm font-black text-gray-800">Generate multiple chapters in one flow</h3>
+                </div>
+                <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2 py-1">Separate from chapter mode</span>
+              </div>
+
+              <div className="pt-1">
+                <h3 className="text-sm font-bold text-gray-800 mb-3">Select Chapters to Generate ({schoolSelectedChapters.length} selected)</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {schoolChaptersList.map(chap => (
+                    <label key={chap} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition ${schoolSelectedChapters.includes(chap) ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="checkbox" className="rounded text-teal-600 focus:ring-teal-500" checked={schoolSelectedChapters.includes(chap)} onChange={(e) => {
+                        if (e.target.checked) setSchoolSelectedChapters(p => [...p, chap]);
+                        else setSchoolSelectedChapters(p => p.filter(c => c !== chap));
+                      }} />
+                      <span className="text-xs font-semibold text-gray-700 truncate">{chap}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-teal-100">
+                  <button onClick={() => runBatchGeneration(true)} disabled={schoolBusy || schoolSelectedChapters.length === 0} className="h-10 flex items-center justify-center gap-2 bg-white border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
+                    <Sparkles size={16} /> Regenerate (Bypass Cache)
+                  </button>
+
+                  <button onClick={() => runBatchGeneration(false)} disabled={schoolBusy} className="h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
+                    {schoolBusy ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />} 
+                    {schoolBusy ? "Batch Generating..." : `Generate Course Site (${schoolSelectedChapters.length} Chapters)`}
+                  </button>
+                </div>
+
+                {batchProgress && (
+                  <div className="mt-3 p-3 bg-teal-50 rounded-lg border border-teal-100 flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-xs font-bold text-teal-800">
+                      <span>{batchProgress.status}</span>
+                      <span>{batchProgress.current} / {batchProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-teal-200 rounded-full h-1.5">
+                      <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}></div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
