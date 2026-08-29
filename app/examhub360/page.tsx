@@ -262,6 +262,7 @@ export default function Data360Page() {
   // ── School: chapter -> Study Pack ───────────────────────────────────────
   const BOARD_PRESETS = ["CBSE", "ICSE", "State Board", "IB", "Cambridge / IGCSE"];
   const [schoolInputMode, setSchoolInputMode] = useState<"upload" | "text" | "generate">("upload");
+  const [schoolSection, setSchoolSection] = useState<"single" | "batch">("single");
   const [schoolClassLevel, setSchoolClassLevel] = useState("X");
   const [schoolBoard, setSchoolBoard] = useState("CBSE");
   const [schoolState, setSchoolState] = useState("");
@@ -1580,6 +1581,30 @@ export default function Data360Page() {
             ) : null}
           </div>
         </div>
+        {view !== "landing" && (
+          <div className="md:hidden border-t border-gray-100 px-4 py-2">
+            <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-gray-600">
+              <button onClick={() => go("school")} className={`px-3 py-1.5 rounded-full border transition ${view === "school" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>School / Study</button>
+              <button onClick={() => {
+                const dbStr = localStorage.getItem("examhub_saved_chapters");
+                if (!dbStr) { alert("No pre-generated data found."); return; }
+                try {
+                  const db = JSON.parse(dbStr);
+                  if (db.length === 0) { alert("No pre-generated data found."); return; }
+                  let finalDb = db;
+                  if (!user || !user.is_paid) {
+                     finalDb = [db[0]];
+                     alert("Free tier limited to 1 chapter viewing.");
+                  }
+                  setCourseSiteData(finalDb);
+                  setCourseActiveChapter(finalDb[0].chapter);
+                  setView("courseSite");
+                } catch(e) { alert("Error reading DB."); }
+              }} className={`px-3 py-1.5 rounded-full border transition ${view === "courseSite" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Load Pre-Generated</button>
+              <button onClick={() => go("translator")} className={`px-3 py-1.5 rounded-full border transition ${view === "translator" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Translator</button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ====================== LANDING ====================== */}
@@ -1666,6 +1691,16 @@ export default function Data360Page() {
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> ExamHub360 — Autonomous Course Site Generator</h2>
           </div>
 
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setSchoolSection("single")} className={`px-4 py-2 rounded-full text-sm font-bold border transition ${schoolSection === "single" ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>
+              Single Chapter Generator
+            </button>
+            <button onClick={() => setSchoolSection("batch")} className={`px-4 py-2 rounded-full text-sm font-bold border transition ${schoolSection === "batch" ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>
+              Course Site Batch Builder
+            </button>
+          </div>
+
+          {schoolSection === "single" && (
                     <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
@@ -1817,42 +1852,52 @@ export default function Data360Page() {
               </div>
             </div>
             
-            {schoolChaptersList.length > 0 && (
-              <div className="mt-4 border-t border-gray-100 pt-4">
-                <h3 className="text-sm font-bold text-gray-800 mb-3">Select Chapters to Generate ({schoolSelectedChapters.length} selected)</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {schoolChaptersList.map(chap => (
-                    <label key={chap} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition ${schoolSelectedChapters.includes(chap) ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                      <input type="checkbox" className="rounded text-teal-600 focus:ring-teal-500" checked={schoolSelectedChapters.includes(chap)} onChange={(e) => {
-                        if (e.target.checked) setSchoolSelectedChapters(p => [...p, chap]);
-                        else setSchoolSelectedChapters(p => p.filter(c => c !== chap));
-                      }} />
-                      <span className="text-xs font-semibold text-gray-700 truncate">{chap}</span>
-                    </label>
-                  ))}
-                </div>
-                
-                <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
-                  <button onClick={() => runBatchGeneration(true)} disabled={schoolBusy || schoolSelectedChapters.length === 0} className="h-10 flex items-center justify-center gap-2 bg-white border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
-                    <Sparkles size={16} /> Regenerate (Bypass Cache)
-                  </button>
-
-                    <button onClick={() => runBatchGeneration(false)} disabled={schoolBusy} className="h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
-                      {schoolBusy ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />} 
-                      {schoolBusy ? "Batch Generating..." : `Generate Course Site (${schoolSelectedChapters.length} Chapters)`}
-                    </button>
+          {schoolSection === "batch" && schoolChaptersList.length > 0 && (
+              <div className="bg-white border border-teal-200 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-teal-100">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-700">Course Site Batch Builder</p>
+                    <h3 className="text-sm font-black text-gray-800">Generate multiple chapters in one flow</h3>
                   </div>
-                  {batchProgress && (
-                    <div className="mt-3 p-3 bg-teal-50 rounded-lg border border-teal-100 flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-xs font-bold text-teal-800">
-                        <span>{batchProgress.status}</span>
-                        <span>{batchProgress.current} / {batchProgress.total}</span>
-                      </div>
-                      <div className="w-full bg-teal-200 rounded-full h-1.5">
-                        <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}></div>
-                      </div>
+                  <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-full px-2 py-1">Separate from chapter mode</span>
+                </div>
+
+                <div className="pt-1">
+                  <h3 className="text-sm font-bold text-gray-800 mb-3">Select Chapters to Generate ({schoolSelectedChapters.length} selected)</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {schoolChaptersList.map(chap => (
+                      <label key={chap} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition ${schoolSelectedChapters.includes(chap) ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                        <input type="checkbox" className="rounded text-teal-600 focus:ring-teal-500" checked={schoolSelectedChapters.includes(chap)} onChange={(e) => {
+                          if (e.target.checked) setSchoolSelectedChapters(p => [...p, chap]);
+                          else setSchoolSelectedChapters(p => p.filter(c => c !== chap));
+                        }} />
+                        <span className="text-xs font-semibold text-gray-700 truncate">{chap}</span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-teal-100">
+                    <button onClick={() => runBatchGeneration(true)} disabled={schoolBusy || schoolSelectedChapters.length === 0} className="h-10 flex items-center justify-center gap-2 bg-white border border-teal-600 text-teal-700 hover:bg-teal-50 disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
+                      <Sparkles size={16} /> Regenerate (Bypass Cache)
+                    </button>
+
+                      <button onClick={() => runBatchGeneration(false)} disabled={schoolBusy} className="h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white disabled:opacity-40 font-bold text-sm px-6 rounded-lg transition shadow-sm">
+                        {schoolBusy ? <Loader2 size={16} className="animate-spin" /> : <GraduationCap size={16} />} 
+                        {schoolBusy ? "Batch Generating..." : `Generate Course Site (${schoolSelectedChapters.length} Chapters)`}
+                      </button>
                     </div>
-                  )}
+                    {batchProgress && (
+                      <div className="mt-3 p-3 bg-teal-50 rounded-lg border border-teal-100 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-teal-800">
+                          <span>{batchProgress.status}</span>
+                          <span>{batchProgress.current} / {batchProgress.total}</span>
+                        </div>
+                        <div className="w-full bg-teal-200 rounded-full h-1.5">
+                          <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
