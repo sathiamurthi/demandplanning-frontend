@@ -1525,6 +1525,30 @@ export default function Data360Page() {
             )}
           </div>
         </div>
+        {user && (
+          <div className="md:hidden border-t border-gray-100 px-4 py-2">
+            <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-gray-600">
+              <button onClick={() => go("college")} className={`px-3 py-1.5 rounded-full border transition ${view === "college" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>College / Study</button>
+              <button onClick={() => {
+                const dbStr = localStorage.getItem("examhub_saved_chapters");
+                if (!dbStr) { alert("No pre-generated data found."); return; }
+                try {
+                  const db = JSON.parse(dbStr);
+                  if (db.length === 0) { alert("No pre-generated data found."); return; }
+                  let finalDb = db;
+                  if (!user || !user.is_paid) {
+                     finalDb = [db[0]];
+                     alert("Free tier limited to 1 chapter viewing.");
+                  }
+                  setCourseSiteData(finalDb);
+                  setCourseActiveUnit(finalDb[0].chapter);
+                  setView("courseSite");
+                } catch(e) { alert("Error reading DB."); }
+              }} className={`px-3 py-1.5 rounded-full border transition ${view === "courseSite" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Load Pre-Generated</button>
+              <button onClick={() => go("translator")} className={`px-3 py-1.5 rounded-full border transition ${view === "translator" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Translator</button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {view === "auth" && (

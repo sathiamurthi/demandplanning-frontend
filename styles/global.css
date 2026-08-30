@@ -234,3 +234,14 @@ body {
     overflow: hidden;
   }
 }
+
+@media print {
+  .overflow-y-auto, .overflow-y-scroll, .overflow-auto, .overflow-hidden, .flex-1, .h-screen, .h-full {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  body, html {
+    height: auto !important;
+  }
+}

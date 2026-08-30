@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const tenantRes = await query(`SELECT id FROM tenants WHERE domain = 'examhub360.com' LIMIT 1`);

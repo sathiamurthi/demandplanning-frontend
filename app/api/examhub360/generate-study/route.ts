@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       includeCompetitive, includeExercise, includeNCERT, questionCount, promptOverride, chunkType, customQuestions
     } = await req.json();
 
-    const qCount = Math.min(questionCount || 15, 15);
+    const qCount = Math.min(questionCount || 15, 200);
     const mode = chunkType || "all";
     
     let systemInstruction = `You are an expert CBSE/Educational curriculum analyzer and curriculum developer.
@@ -73,7 +73,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING }, hint: { type: Type.STRING }, difficulty: { type: Type.STRING, enum: ["easy", "medium", "hard"] } }
+                properties: { question: { type: Type.STRING }, hint: { type: Type.STRING }, difficulty: { type: Type.STRING, enum: ["easy", "medium", "hard"] }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "practice" || mode === "questions") required.push("common_mistakes", "practice_questions");
@@ -85,7 +85,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING }, competency_tested: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, competency_tested: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "competency") required.push("competency_questions");
@@ -97,7 +97,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "exercise") required.push("exercise_questions");
@@ -109,7 +109,7 @@ Ensure the output is strictly structured as the provided JSON schema.`;
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { question: { type: Type.STRING } }
+                properties: { question: { type: Type.STRING }, answer: { type: Type.STRING } }
               }
             };
             if (mode === "custom_qna") required.push("custom_qna");

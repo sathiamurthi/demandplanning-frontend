@@ -1,5 +1,5 @@
 "use client";
-import { Activity, Database, RefreshCw, Users } from "lucide-react";
+import { Activity, Database, RefreshCw, Users, type LucideIcon } from "lucide-react";
 import AccountTable from "../components/AccountTable";
 import { useState, useEffect } from "react";
 
@@ -11,10 +11,10 @@ type Overview = {
   recentLogins: { id: string; name: string; email: string; logged_in_at: string }[];
 };
 
-function authHeader() {
+function authHeader(): HeadersInit {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("token") || "";
-  return { Authorization: `Bearer ${token}` };
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export default function ExamHub360SuperAdmin() {
@@ -61,19 +61,18 @@ export default function ExamHub360SuperAdmin() {
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          ["Registered Accounts", overview?.accounts || 0, Users],
-          ["Current Users (24h)", overview?.active24h || 0, Activity],
-          ["Active This Week", overview?.active7d || 0, Activity],
-          ["New This Week", overview?.registered7d || 0, Users],
-        ].map(([label, value, Icon]) => {
-          const StatIcon = Icon as typeof Users;
-          return <div key={label as string} className="bg-white border border-gray-200 rounded-xl p-4">
-            <StatIcon size={16} className="text-teal-600 mb-2" />
+        {([
+          { label: "Registered Accounts", value: overview?.accounts || 0, icon: Users },
+          { label: "Current Users (24h)", value: overview?.active24h || 0, icon: Activity },
+          { label: "Active This Week", value: overview?.active7d || 0, icon: Activity },
+          { label: "New This Week", value: overview?.registered7d || 0, icon: Users },
+        ] as Array<{ label: string; value: number; icon: LucideIcon }>).map(({ label, value, icon: Icon }) => (
+          <div key={label} className="bg-white border border-gray-200 rounded-xl p-4">
+            <Icon size={16} className="text-teal-600 mb-2" />
             <p className="text-2xl font-black text-gray-900">{loading ? "-" : value}</p>
-            <p className="text-xs text-gray-500 mt-1">{label as string}</p>
-          </div>;
-        })}
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
