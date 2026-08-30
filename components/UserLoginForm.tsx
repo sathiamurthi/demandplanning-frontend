@@ -44,11 +44,12 @@ export default function UserLoginForm() {
 
         const industryId = res.data.user?.industryId;
         const role = res.data.user?.role ?? "staff";
+        const tenantId = res.data.user?.tenantId;
         const redirect = new URLSearchParams(window.location.search).get("redirect");
 
         if (redirect) {
           router.push(redirect);
-        } else if (role === "superadmin") {
+        } else if (role === "superadmin" && !tenantId) {
           router.push("/superadmin");
         } else if (industryId === "tea") {
           router.push("/tea");
