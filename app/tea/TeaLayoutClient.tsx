@@ -163,7 +163,7 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
         hidden lg:flex flex-col bg-white border-r border-gray-200
         transition-all duration-300
         ${collapsed ? "w-16" : "w-60"}
-      `}>
+      `} aria-hidden={!mobileOpen && typeof window !== 'undefined' && window.innerWidth < 1024 ? true : undefined}>
         {/* Logo */}
         <div className={`flex items-center gap-2.5 px-4 py-5 border-b border-gray-200 ${collapsed ? "justify-center" : ""}`}>
           <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-700 rounded-xl flex items-center justify-center shrink-0 shadow-md">
@@ -253,32 +253,36 @@ export default function TeaLayoutClient({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMobileOpen(false)}>
-          <nav className="bg-white w-60 h-full py-16 px-2 shadow-xl" onClick={e => e.stopPropagation()}>
-            {activeNav.map(item => {
-              const Icon = item.icon;
-              const active = isActive(item);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm my-0.5 ${
-                    active ? "bg-emerald-50 text-emerald-700 font-medium" : "text-gray-600"
-                  }`}
-                >
-                  <Icon size={16} />
-                  {item.label}
-                </Link>
-              );
-            })}
-            <button onClick={logout} className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm my-0.5 text-red-500">
-              <LogOut size={16} /> Sign out
-            </button>
-          </nav>
-        </div>
-      )}
+      <div
+        className={`lg:hidden fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setMobileOpen(false)}
+      >
+        <nav
+          className={`bg-white w-60 h-full py-16 px-2 shadow-xl transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+          onClick={e => e.stopPropagation()}
+        >
+          {activeNav.map(item => {
+            const Icon = item.icon;
+            const active = isActive(item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm my-0.5 ${
+                  active ? "bg-emerald-50 text-emerald-700 font-medium" : "text-gray-600"
+                }`}
+              >
+                <Icon size={16} />
+                {item.label}
+              </Link>
+            );
+          })}
+          <button onClick={logout} className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm my-0.5 text-red-500">
+            <LogOut size={16} /> Sign out
+          </button>
+        </nav>
+      </div>
 
       {/* Main content */}
       <main className="flex-1 min-w-0 pt-14 lg:pt-0 overflow-auto">

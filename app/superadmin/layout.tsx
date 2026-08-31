@@ -67,7 +67,8 @@ export default function SuperadminLayout({ children }: { children: React.ReactNo
       {/* Sidebar */}
       <aside className={`fixed top-0 left-0 h-full w-60 bg-white border-r border-gray-100 shadow-sm z-50
           flex flex-col transition-transform duration-200
-          ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+          ${open ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"}
+          lg:translate-x-0 lg:opacity-100 lg:pointer-events-auto`}>
 
         {/* Brand */}
         <div className="px-5 py-5 border-b border-gray-100 flex items-center justify-between">

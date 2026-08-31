@@ -184,8 +184,8 @@ export function Sidebar({
           bg-gray-950
           transition-all duration-200 ease-in-out
           ${width}
-          ${mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
-          lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto
+          ${mobileOpen ? "translate-x-0 shadow-2xl opacity-100" : "-translate-x-full opacity-0 pointer-events-none"}
+          lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto lg:opacity-100 lg:pointer-events-auto
         `}
       >
         {/* ── Logo + collapse toggle ── */}

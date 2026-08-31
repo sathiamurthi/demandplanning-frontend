@@ -187,8 +187,8 @@ export function Sidebar() {
           fixed inset-y-0 left-0 z-50 flex flex-col bg-gray-950 text-white
           transition-all duration-200
           ${width}
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:relative lg:translate-x-0
+          ${mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"}
+          lg:relative lg:translate-x-0 lg:opacity-100 lg:pointer-events-auto
         `}
       >
         {/* HEADER */}

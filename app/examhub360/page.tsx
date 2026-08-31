@@ -1554,6 +1554,9 @@ export default function Data360Page() {
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
               <button onClick={() => go("school")} className={`hover:text-teal-600 transition ${view === "school" ? "text-teal-600 font-bold" : ""}`}>School / Study</button>
+              {canAccessQuestionBank && (
+                <button onClick={() => go("questionBank")} className={`hover:text-teal-600 transition ${view === "questionBank" ? "text-teal-600 font-bold" : ""}`}>Question Bank</button>
+              )}
               <button onClick={() => {
                 const dbStr = localStorage.getItem("examhub_saved_chapters");
                 if (!dbStr) { alert("No pre-generated data found."); return; }
@@ -1586,6 +1589,9 @@ export default function Data360Page() {
           <div className="md:hidden border-t border-gray-100 px-4 py-2">
             <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-gray-600">
               <button onClick={() => go("school")} className={`px-3 py-1.5 rounded-full border transition ${view === "school" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>School / Study</button>
+              {canAccessQuestionBank && (
+                <button onClick={() => go("questionBank")} className={`px-3 py-1.5 rounded-full border transition ${view === "questionBank" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Question Bank</button>
+              )}
               <button onClick={() => {
                 const dbStr = localStorage.getItem("examhub_saved_chapters");
                 if (!dbStr) { alert("No pre-generated data found."); return; }

@@ -256,7 +256,7 @@ export default function Data360Page() {
   const DEGREE_PRESETS = ["B.Tech", "B.Sc", "B.Com", "B.A", "M.Tech", "MBA", "MBBS"];
   const INDIAN_STATES = ["Andhra Pradesh", "Assam", "Bihar", "Delhi", "Gujarat", "Haryana", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Odisha", "Punjab", "Rajasthan", "Tamil Nadu", "Telangana", "Uttar Pradesh", "Uttarakhand", "West Bengal"];
   const [collegeInputMode, setCollegeInputMode] = useState<"upload" | "text" | "generate">("upload");
-  const [collegeSemester, setCollegeSemester] = useState("");
+  const [collegeSemester, setCollegeSemester] = useState("I");
   const [collegeDegree, setCollegeDegree] = useState("B.Tech");
   const [collegeState, setCollegeState] = useState("");
   const [masterDegree, setMasterDegree] = useState("B.Tech");
@@ -267,6 +267,7 @@ export default function Data360Page() {
   const [masterMessage, setMasterMessage] = useState("");
   const [collegeCourse, setCollegeCourse] = useState("");
   const [collegeUnitLabel, setCollegeUnitLabel] = useState("");
+  const [collegeCourseHint, setCollegeCourseHint] = useState("Type a subject or select from saved suggestions.");
   const [collegeSelectedUnits, setCollegeSelectedUnits] = useState<string[]>([]);
   const [collegeUnitsList, setCollegeUnitsList] = useState<string[]>([]);
   const [collegeCoursesList, setCollegeCoursesList] = useState<string[]>([]);
@@ -295,6 +296,47 @@ export default function Data360Page() {
     studyPack: StudyPack | null;
     examPrep: any[] | null;
   };
+  const normalizeCourseSiteData = (raw: any[]): CourseUnitData[] => raw
+    .filter(Boolean)
+    .map((item: any) => ({
+      unit: item?.unit || item?.chapter || item?.title || "Untitled Chapter",
+      studyPack: item?.studyPack || item?.content || item?.study_pack || null,
+      examPrep: item?.examPrep || item?.exam_prep || item?.questions || null,
+    }))
+    .filter((item) => item.unit && (item.studyPack || item.examPrep));
+
+  const loadSavedCourseSite = (showMessage = true) => {
+    const candidateKeys = ["examhub_saved_units", "examhub_saved_chapters", "d360_courseSiteData"];
+    const found: any[] = [];
+
+    for (const key of candidateKeys) {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+      try {
+        const parsed = JSON.parse(stored);
+        const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];
+        if (list.length === 0) continue;
+        const normalized = normalizeCourseSiteData(list);
+        if (normalized.length > 0) {
+          found.push(...normalized);
+          setCourseSiteData(normalized);
+          setCourseActiveUnit(normalized[0].unit);
+          setView("courseSite");
+          setCollegeErr("");
+          return;
+        }
+      } catch (e) {
+        console.warn("Failed to parse saved chapter data for key:", key, e);
+      }
+    }
+
+    if (showMessage) {
+      setCollegeErr("No saved chapters were found yet. Generate a chapter set from the College / Study screen to start.");
+    }
+    setCourseSiteData([]);
+    setView("dashboard");
+  };
+
   const [courseSiteData, setCourseSiteData] = useState<CourseUnitData[]>([]);
   const [courseActiveUnit, setCourseActiveUnit] = useState("");
   const [courseActiveTab, setCourseActiveTab] = useState("core");
@@ -1495,22 +1537,7 @@ export default function Data360Page() {
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
               <button onClick={() => go("college")} className={`hover:text-teal-600 transition ${view === "college" ? "text-teal-600 font-bold" : ""}`}>College / Study</button>
-              <button onClick={() => {
-                const dbStr = localStorage.getItem("examhub_saved_chapters");
-                if (!dbStr) { alert("No pre-generated data found."); return; }
-                try {
-                  const db = JSON.parse(dbStr);
-                  if (db.length === 0) { alert("No pre-generated data found."); return; }
-                  let finalDb = db;
-                  if (!user || !user.is_paid) {
-                     finalDb = [db[0]];
-                     alert("Free tier limited to 1 chapter viewing.");
-                  }
-                  setCourseSiteData(finalDb);
-                  setCourseActiveUnit(finalDb[0].chapter);
-                  setView("courseSite");
-                } catch(e) { alert("Error reading DB."); }
-              }} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Load Pre-Generated</button>
+              <button onClick={loadSavedCourseSite} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Open Saved Chapters</button>
               <button onClick={() => go("translator")} className={`hover:text-teal-600 transition ${view === "translator" ? "text-teal-600 font-bold" : ""}`}>Translator</button>
             </div>
           )}
@@ -1529,22 +1556,7 @@ export default function Data360Page() {
           <div className="md:hidden border-t border-gray-100 px-4 py-2">
             <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-gray-600">
               <button onClick={() => go("college")} className={`px-3 py-1.5 rounded-full border transition ${view === "college" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>College / Study</button>
-              <button onClick={() => {
-                const dbStr = localStorage.getItem("examhub_saved_chapters");
-                if (!dbStr) { alert("No pre-generated data found."); return; }
-                try {
-                  const db = JSON.parse(dbStr);
-                  if (db.length === 0) { alert("No pre-generated data found."); return; }
-                  let finalDb = db;
-                  if (!user || !user.is_paid) {
-                     finalDb = [db[0]];
-                     alert("Free tier limited to 1 chapter viewing.");
-                  }
-                  setCourseSiteData(finalDb);
-                  setCourseActiveUnit(finalDb[0].chapter);
-                  setView("courseSite");
-                } catch(e) { alert("Error reading DB."); }
-              }} className={`px-3 py-1.5 rounded-full border transition ${view === "courseSite" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Load Pre-Generated</button>
+              <button onClick={loadSavedCourseSite} className={`px-3 py-1.5 rounded-full border transition ${view === "courseSite" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Open Saved Chapters</button>
               <button onClick={() => go("translator")} className={`px-3 py-1.5 rounded-full border transition ${view === "translator" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Translator</button>
             </div>
           </div>
@@ -1637,6 +1649,62 @@ export default function Data360Page() {
         </div>
       )}
 
+      {view === "dashboard" && (
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-teal-600">College360 Dashboard</p>
+                <h2 className="text-2xl font-black text-gray-900 mt-1">Welcome back{user?.name ? `, ${user.name}` : ""}</h2>
+              </div>
+              <button onClick={() => setView("college")} className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-lg text-sm">Open College Studio</button>
+            </div>
+
+            {collegeErr && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{collegeErr}</div>
+            )}
+
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button onClick={() => setView("college")} className="bg-teal-50 border border-teal-100 rounded-xl p-4 text-left hover:bg-teal-100 transition">
+                <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Generate</p>
+                <p className="mt-2 font-bold text-gray-900">Create study packs and chapter content</p>
+              </button>
+              <button onClick={() => loadSavedCourseSite(false)} className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-left hover:bg-indigo-100 transition">
+                <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">Saved</p>
+                <p className="mt-2 font-bold text-gray-900">Open previously generated chapters</p>
+              </button>
+              <button onClick={() => go("translator")} className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-left hover:bg-amber-100 transition">
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Translate</p>
+                <p className="mt-2 font-bold text-gray-900">Translate study content to another language</p>
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Quick access</p>
+                  <h3 className="mt-1 text-lg font-black text-gray-900">Your saved chapters</h3>
+                </div>
+                <button onClick={() => loadSavedCourseSite(false)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:border-teal-300 hover:text-teal-700">
+                  Open saved content
+                </button>
+              </div>
+              {courseSiteData.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {courseSiteData.slice(0, 6).map((item) => (
+                    <button key={item.unit} onClick={() => { setCourseActiveUnit(item.unit); setCourseActiveTab("core"); setView("courseSite"); }} className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-100">
+                      {item.unit}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-gray-500">No chapter packs are saved yet. Choose a subject and generate a course site to create your first study pack.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ====================== COLLEGE ====================== */}
       {view === "college" && (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -1674,7 +1742,8 @@ export default function Data360Page() {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Course / Subject</label>
-                <input value={collegeCourse} onChange={e => setCollegeCourse(e.target.value)} placeholder="e.g. Data Structures" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+                <input value={collegeCourse} onChange={e => { setCollegeCourse(e.target.value); if (e.target.value.trim()) setCollegeCourseHint("Subject selected. You can now fetch chapters."); }} placeholder="e.g. Data Structures" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400" />
+                <p className="mt-1 text-[10px] text-gray-500">{collegeCourseHint}</p>
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Target Language</label>
@@ -1688,10 +1757,11 @@ export default function Data360Page() {
             </div>
             
             <div className="flex justify-end pt-2">
-              <button onClick={suggestUnits} disabled={collegeSuggesting || !collegeSemester || !collegeDegree || !collegeCourse} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 disabled:opacity-40 font-bold text-sm px-6 py-2.5 rounded-lg transition whitespace-nowrap">
+              <button onClick={suggestUnits} disabled={collegeSuggesting || !collegeSemester || !collegeDegree || (!collegeCourse && collegeCoursesList.length === 0)} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 disabled:opacity-40 font-bold text-sm px-6 py-2.5 rounded-lg transition whitespace-nowrap">
                 {collegeSuggesting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Fetch Chapters from Master Data
               </button>
             </div>
+            <p className="text-[11px] text-gray-500">Semester is preselected as I. Choose the subject and click the button to load available chapters instantly.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
               <div className="border border-gray-200 rounded-xl p-4 bg-white">
