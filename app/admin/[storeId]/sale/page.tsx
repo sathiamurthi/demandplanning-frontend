@@ -64,7 +64,7 @@ function ItemSearch({ items, onAdd }: { items: StoreItem[]; onAdd: (i: StoreItem
           placeholder="Search item by name or SKU…"
           className="flex-1 text-sm outline-none text-gray-900 placeholder-gray-400"
         />
-        {q && <button onClick={() => { setQ(""); setOpen(false); }}><X size={13} className="text-gray-300" /></button>}
+        {q && <button type="button" onClick={() => { setQ(""); setOpen(false); }}><X size={13} className="text-gray-300" /></button>}
       </div>
       {open && filtered.length > 0 && (
         <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
@@ -73,7 +73,7 @@ function ItemSearch({ items, onAdd }: { items: StoreItem[]; onAdd: (i: StoreItem
             const expired = exp ? exp < new Date() : false;
             const nearExp = exp && !expired ? (exp.getTime() - Date.now()) / 86400000 < 30 : false;
             return (
-              <button key={item.id} onClick={() => { onAdd(item); setQ(""); setOpen(false); }}
+              <button type="button" key={item.id} onClick={() => { onAdd(item); setQ(""); setOpen(false); }}
                 className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-orange-50 text-left border-b border-gray-50 last:border-0">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{item.name}
