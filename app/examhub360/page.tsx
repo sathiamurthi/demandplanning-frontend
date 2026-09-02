@@ -1708,7 +1708,7 @@ export default function Data360Page() {
           </div>
 
           {schoolSection === "single" && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Class / Grade</label>
@@ -2277,7 +2277,7 @@ export default function Data360Page() {
 
       {/* ====================== COURSE SITE ====================== */}
       {view === "courseSite" && courseSiteData.length > 0 && (
-        <div className="relative flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+        <div className="relative flex h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
           {courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25" />}
           {/* Sidebar */}
           <aside className={`absolute inset-y-0 left-0 z-30 w-80 max-w-[85vw] bg-white border-r border-gray-200 overflow-y-auto flex flex-col shadow-xl transition-transform duration-200 ${courseNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
@@ -2327,7 +2327,7 @@ export default function Data360Page() {
           </aside>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-10">
+          <div className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-10">
             <div className="max-w-4xl mx-auto space-y-10 pb-20">
               <div className="flex items-center gap-3 print:hidden">
                 <button aria-label="Open chapter navigation" onClick={() => setCourseNavOpen(true)} className="p-2 text-gray-600 hover:text-teal-700 bg-white border border-gray-200 rounded-lg shadow-sm" title="Open chapter navigation"><Menu size={18} /></button>

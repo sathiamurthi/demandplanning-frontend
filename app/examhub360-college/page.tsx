@@ -8,8 +8,8 @@ import {
   AlertTriangle, ChevronRight, X, Loader2, Plus, LogOut, ArrowRight,
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
-  GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, MessageSquare, Save
-, Printer, MonitorPlay, Users } from "lucide-react";
+  GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, MessageSquare, Save,
+  Printer, MonitorPlay, Users, Menu } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
@@ -342,6 +342,7 @@ export default function Data360Page() {
   const [courseSiteData, setCourseSiteData] = useState<CourseUnitData[]>([]);
   const [courseActiveUnit, setCourseActiveUnit] = useState("");
   const [courseActiveTab, setCourseActiveTab] = useState("core");
+  const [courseNavOpen, setCourseNavOpen] = useState(false);
 
   
   
@@ -886,6 +887,8 @@ export default function Data360Page() {
           
           if (i === 0) {
             setCourseActiveUnit(chap);
+            setCourseActiveTab("core");
+            setView("courseSite");
           }
 
           setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Generating Practice & Competency Questions for "${chap}" (2/3)...` });
@@ -947,11 +950,6 @@ export default function Data360Page() {
       }
       
       setCourseSiteData([...results]);
-      if (results.length > 0) {
-        setCourseActiveUnit(results[0].unit);
-        setCourseActiveTab("core");
-        setView("courseSite");
-      }
       
       // Save cumulatively to simulate DB
       for (const res of results) {
@@ -1731,7 +1729,7 @@ export default function Data360Page() {
             <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><GraduationCap size={18} className="text-teal-600" /> College360 — Autonomous Course Site Generator</h2>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Degree</label>
@@ -2023,13 +2021,17 @@ export default function Data360Page() {
 
       {/* ====================== COURSE SITE ====================== */}
       {view === "courseSite" && courseSiteData.length > 0 && (
-        <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+        <div className="relative flex h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
+          {courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25 md:hidden" />}
           {/* Sidebar */}
-          <div className="w-72 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
+          <aside className={`absolute inset-y-0 left-0 z-30 w-80 max-w-[85vw] bg-white border-r border-gray-200 overflow-y-auto flex flex-col shadow-xl transition-transform duration-200 md:static md:w-72 md:max-w-none md:translate-x-0 md:shadow-none ${courseNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
             <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10 shadow-sm">
-              <button onClick={() => setView("dashboard")} className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-teal-600 transition">
-                <ArrowRight size={12} className="rotate-180" /> Back to Dashboard
-              </button>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <button onClick={() => setView("dashboard")} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-teal-600 transition">
+                  <ArrowRight size={12} className="rotate-180" /> Back to Dashboard
+                </button>
+                <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="p-1 text-gray-400 hover:text-gray-700 md:hidden" title="Close navigation"><X size={16} /></button>
+              </div>
               <h2 className="font-black text-gray-900 text-sm flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Complete Course Site</h2>
               <p className="text-[10px] text-gray-500 mt-1">{collegeDegree} • Sem {collegeSemester} • {collegeCourse}</p>
               
@@ -2045,7 +2047,7 @@ export default function Data360Page() {
                 </div>
               )}
             </div>
-            <div className="p-3 space-y-1">
+            <div className="p-3 space-y-1" onClick={event => { if ((event.target as HTMLElement).closest("button")) setCourseNavOpen(false); }}>
               {courseSiteData.map((data, idx) => (
                 <div key={data.unit}>
                   <button 
@@ -2080,11 +2082,15 @@ export default function Data360Page() {
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-10">
+          <div className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-10">
             <div className="max-w-4xl mx-auto space-y-10 pb-20">
+              <div className="flex items-center gap-3 print:hidden md:hidden">
+                <button aria-label="Open chapter navigation" onClick={() => setCourseNavOpen(true)} className="p-2 text-gray-600 hover:text-teal-700 bg-white border border-gray-200 rounded-lg shadow-sm" title="Open chapter navigation"><Menu size={18} /></button>
+                <span className="text-xs font-bold text-gray-500 truncate">{courseActiveUnit || "Course navigation"}</span>
+              </div>
               {courseSiteData.filter(d => d.unit === courseActiveUnit).map(data => (
                 <div key={data.unit}>
                   {/* Header */}

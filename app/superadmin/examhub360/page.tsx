@@ -2,6 +2,7 @@
 import { Activity, Database, RefreshCw, Users, type LucideIcon } from "lucide-react";
 import AccountTable from "../components/AccountTable";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "https://demandplanning-backend.onrender.com";
 
@@ -20,6 +21,7 @@ function authHeader(): HeadersInit {
 }
 
 export default function ExamHub360SuperAdmin() {
+  const router = useRouter();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,6 +32,13 @@ export default function ExamHub360SuperAdmin() {
     try {
       const response = await fetch(`${API}/v1/superadmin/data360/overview`, { headers: authHeader() });
       const data = await response.json();
+      if (response.status === 401 && data.error === "Token expired") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("nexus_superadmin_token");
+        router.replace("/login?redirect=%2Fsuperadmin%2Fexamhub360");
+        return;
+      }
       if (!response.ok || !data.success) throw new Error(data.error || "Unable to load ExamHub360 activity");
       setOverview(data.data);
     } catch (err: any) {
@@ -41,7 +50,7 @@ export default function ExamHub360SuperAdmin() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [router]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
