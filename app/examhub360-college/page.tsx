@@ -881,41 +881,49 @@ export default function Data360Page() {
         try {
           const coreChunk = await fetchChunk("core");
           studyPack = { ...studyPack, ...coreChunk };
-          
-          results.push({ unit: chap, studyPack, examPrep: null });
-          setCourseSiteData([...results]);
-          
-          if (i === 0) {
-            setCourseActiveUnit(chap);
-            setCourseActiveTab("core");
-            setView("courseSite");
-          }
+        } catch (e: any) {
+          console.error("Failed study pack chunking for " + chap, e);
+          setCollegeErr(`Core content failed for "${chap}". Continuing with the remaining chapters.`);
+          continue;
+        }
 
-          setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Generating Practice & Competency Questions for "${chap}" (2/3)...` });
-          const promises = [fetchChunk("practice")];
-          if (examPrepIncludeCompetitive) promises.push(fetchChunk("competency"));
-          if (examPrepIncludeExercise) promises.push(fetchChunk("exercise"));
-          if (examPrepCustomQuestions) promises.push(fetchChunk("custom_qna"));
+        results.push({ unit: chap, studyPack, examPrep: null });
+        setCourseSiteData([...results]);
+        
+        if (i === 0) {
+          setCourseActiveUnit(chap);
+          setCourseActiveTab("core");
+          setView("courseSite");
+        }
 
-          const chunks = await Promise.all(promises);
-          chunks.forEach(chunk => { studyPack = { ...studyPack, ...chunk }; });
-          
-          // update results
-          results[results.length - 1].studyPack = studyPack;
-          setCourseSiteData([...results]);
+        setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Generating Practice & Competency Questions for "${chap}" (2/3)...` });
+        const promises = [fetchChunk("practice")];
+        if (examPrepIncludeCompetitive) promises.push(fetchChunk("competency"));
+        if (examPrepIncludeExercise) promises.push(fetchChunk("exercise"));
+        if (examPrepCustomQuestions) promises.push(fetchChunk("custom_qna"));
 
-          if (examPrepIncludeViva) {
-            setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Extracting Lab Viva Questions for "${chap}" (3/3)...` });
+        const chunkResults = await Promise.allSettled(promises);
+        const failedSections = chunkResults.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+        chunkResults.forEach(result => {
+          if (result.status === "fulfilled") studyPack = { ...studyPack, ...result.value };
+        });
+        if (failedSections.length > 0) {
+          setCollegeErr(`${failedSections.length} optional section${failedSections.length === 1 ? "" : "s"} could not be generated for "${chap}". The remaining content is available.`);
+        }
+        
+        results[results.length - 1].studyPack = studyPack;
+        setCourseSiteData([...results]);
+
+        if (examPrepIncludeViva) {
+          setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Extracting Lab Viva Questions for "${chap}" (3/3)...` });
+          try {
             const vivaChunk = await fetchChunk("viva");
             studyPack = { ...studyPack, ...vivaChunk };
             results[results.length - 1].studyPack = studyPack;
             setCourseSiteData([...results]);
+          } catch (e) {
+            setCollegeErr(`Viva questions could not be generated for "${chap}". The remaining content is available.`);
           }
-        } catch (e: any) {
-          console.error("Failed study pack chunking for " + chap, e);
-          setCollegeErr("Study Pack Generation Failed: " + (e.message || String(e)));
-          setCollegeBusy(false);
-          return;
         }
 
         setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Generating Competitive Q&A for "${chap}"...` });
@@ -1564,9 +1572,7 @@ export default function Data360Page() {
                 <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white font-black text-sm">{user.name[0]}</div>
                 <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 transition"><LogOut size={16} /></button>
               </>
-            ) : (
-              <button onClick={() => go("auth")} className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition">Get Started</button>
-            )}
+            ) : null}
           </div>
         </div>
         {user && (
