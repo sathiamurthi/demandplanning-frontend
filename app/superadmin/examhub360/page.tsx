@@ -3,6 +3,8 @@ import { Activity, Database, RefreshCw, Users, type LucideIcon } from "lucide-re
 import AccountTable from "../components/AccountTable";
 import { useState, useEffect } from "react";
 
+const API = process.env.NEXT_PUBLIC_BACKEND_URL || "https://demandplanning-backend.onrender.com";
+
 type Overview = {
   accounts: number;
   active24h: number;
@@ -26,7 +28,7 @@ export default function ExamHub360SuperAdmin() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/v1/superadmin/data360/overview", { headers: authHeader() });
+      const response = await fetch(`${API}/v1/superadmin/data360/overview`, { headers: authHeader() });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error || "Unable to load ExamHub360 activity");
       setOverview(data.data);
@@ -90,8 +92,8 @@ export default function ExamHub360SuperAdmin() {
 
       <h2 className="font-bold text-gray-900">Registered Accounts</h2>
       <AccountTable
-        listUrl="/v1/superadmin/data360/users"
-        actionBase="/v1/superadmin/data360/users"
+        listUrl={`${API}/v1/superadmin/data360/users`}
+        actionBase={`${API}/v1/superadmin/data360/users`}
         emptyLabel="No ExamHub360 users yet."
         columns={[
           { key: "name", label: "Name" },

@@ -556,7 +556,7 @@ export default function Data360Page() {
   };
 
   useEffect(() => {
-    if (!collegeDegree || !collegeSemester) {
+    if (view !== "college" || !collegeDegree || !collegeSemester) {
       setCollegeCoursesList([]);
       return;
     }
@@ -588,7 +588,7 @@ export default function Data360Page() {
       }
     };
     fetchSubjects();
-  }, [collegeDegree, collegeSemester]);
+  }, [collegeDegree, collegeSemester, view]);
 
   useEffect(() => {
     if (view === "master") {
@@ -1537,7 +1537,7 @@ export default function Data360Page() {
               {/* <button onClick={() => go("dashboard")} className={`hover:text-teal-600 transition ${view === "dashboard" ? "text-teal-600 font-bold" : ""}`}>Batches</button> */}
               {/* <button onClick={() => { setPendingRows([]); go("ingest"); }} className={`hover:text-teal-600 transition ${view === "ingest" ? "text-teal-600 font-bold" : ""}`}>New Batch</button> */}
               <button onClick={() => go("college")} className={`hover:text-teal-600 transition ${view === "college" ? "text-teal-600 font-bold" : ""}`}>College / Study</button>
-              <button onClick={loadSavedCourseSite} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Open Saved Chapters</button>
+              <button onClick={() => loadSavedCourseSite()} className={`hover:text-teal-600 transition ${view === "courseSite" ? "text-teal-600 font-bold" : ""}`}>Open Saved Chapters</button>
               <button onClick={() => go("translator")} className={`hover:text-teal-600 transition ${view === "translator" ? "text-teal-600 font-bold" : ""}`}>Translator</button>
             </div>
           )}
@@ -1556,7 +1556,7 @@ export default function Data360Page() {
           <div className="md:hidden border-t border-gray-100 px-4 py-2">
             <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-gray-600">
               <button onClick={() => go("college")} className={`px-3 py-1.5 rounded-full border transition ${view === "college" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>College / Study</button>
-              <button onClick={loadSavedCourseSite} className={`px-3 py-1.5 rounded-full border transition ${view === "courseSite" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Open Saved Chapters</button>
+              <button onClick={() => loadSavedCourseSite()} className={`px-3 py-1.5 rounded-full border transition ${view === "courseSite" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Open Saved Chapters</button>
               <button onClick={() => go("translator")} className={`px-3 py-1.5 rounded-full border transition ${view === "translator" ? "bg-teal-600 text-white border-teal-600" : "bg-white border-gray-200 hover:border-teal-300 hover:text-teal-600"}`}>Translator</button>
             </div>
           </div>
