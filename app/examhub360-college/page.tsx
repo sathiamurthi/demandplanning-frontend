@@ -175,6 +175,8 @@ export default function Data360Page() {
   const [view, setView] = useState<View>("landing");
   const [user, setUser] = useState<D360User | null>(null);
   const isSuperadmin = user?.email?.toLowerCase() === "superadmin@demandgeniusai.com" || user?.email?.toLowerCase() === "sathia@examhub360.com";
+  const isGuestUser = !user;
+  const maxChaptersPerBatch = isGuestUser ? 2 : 4;
   const [authTab, setAuthTab] = useState<"login" | "register">("register");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -627,20 +629,30 @@ export default function Data360Page() {
   useEffect(() => {
     if (!collegeDegree || !collegeSemester || !collegeCourse) {
       setCollegeUnitsList([]);
+      setCollegeSelectedUnits([]);
       return;
     }
     const cacheKey = `d360_units_${collegeDegree}_${collegeSemester}_${collegeCourse}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      try { setCollegeUnitsList(filterUnits(JSON.parse(cached))); } catch (e) {}
+      try {
+        const units = filterUnits(JSON.parse(cached));
+        setCollegeUnitsList(units);
+        setCollegeSelectedUnits(units.slice(0, maxChaptersPerBatch));
+      } catch (e) {}
     } else {
       setCollegeUnitsList([]);
+      setCollegeSelectedUnits([]);
     }
-  }, [collegeDegree, collegeSemester, collegeCourse, adminUnitConfig, adminPaidUsers, user, isSuperadmin]);
+  }, [collegeDegree, collegeSemester, collegeCourse, adminUnitConfig, adminPaidUsers, user, isSuperadmin, maxChaptersPerBatch]);
 
   const suggestUnits = async () => {
     if (!collegeSemester.trim() || !collegeDegree.trim()) {
       setCollegeErr("Class and Degree are required to suggest units.");
+      return;
+    }
+    if (!collegeCourse.trim()) {
+      setCollegeErr("Select or enter a subject before fetching chapters.");
       return;
     }
     setCollegeSuggesting(true); setCollegeErr("");
@@ -661,7 +673,7 @@ export default function Data360Page() {
       
       const filtered = filterUnits(result.data);
       setCollegeUnitsList(filtered);
-      setCollegeSelectedUnits(filtered);
+      setCollegeSelectedUnits(filtered.slice(0, maxChaptersPerBatch));
       
       const cacheKey = `d360_units_${collegeDegree}_${collegeSemester}_${collegeCourse}`;
       localStorage.setItem(cacheKey, JSON.stringify(result.data)); // save full list to cache
@@ -797,6 +809,10 @@ export default function Data360Page() {
       setCollegeErr("Please select at least one unit to generate.");
       return;
     }
+    if (collegeSelectedUnits.length > maxChaptersPerBatch) {
+      setCollegeErr(`You can select up to ${maxChaptersPerBatch} chapters per batch.`);
+      return;
+    }
     
     setCollegeBusy(true);
     setCollegeErr("");
@@ -870,8 +886,6 @@ export default function Data360Page() {
           
           if (i === 0) {
             setCourseActiveUnit(chap);
-            setView("courseSite");
-            setCollegeBusy(false);
           }
 
           setBatchProgress({ current: i + 1, total: collegeSelectedUnits.length, status: `Generating Practice & Competency Questions for "${chap}" (2/3)...` });
@@ -933,6 +947,11 @@ export default function Data360Page() {
       }
       
       setCourseSiteData([...results]);
+      if (results.length > 0) {
+        setCourseActiveUnit(results[0].unit);
+        setCourseActiveTab("core");
+        setView("courseSite");
+      }
       
       // Save cumulatively to simulate DB
       for (const res of results) {
@@ -1757,7 +1776,7 @@ export default function Data360Page() {
             </div>
             
             <div className="flex justify-end pt-2">
-              <button onClick={suggestUnits} disabled={collegeSuggesting || !collegeSemester || !collegeDegree || (!collegeCourse && collegeCoursesList.length === 0)} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 disabled:opacity-40 font-bold text-sm px-6 py-2.5 rounded-lg transition whitespace-nowrap">
+              <button onClick={suggestUnits} disabled={collegeSuggesting || !collegeSemester || !collegeDegree || !collegeCourse.trim()} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 disabled:opacity-40 font-bold text-sm px-6 py-2.5 rounded-lg transition whitespace-nowrap">
                 {collegeSuggesting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Fetch Chapters from Master Data
               </button>
             </div>
@@ -1811,7 +1830,13 @@ export default function Data360Page() {
                   {collegeUnitsList.map(chap => (
                     <label key={chap} className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition ${collegeSelectedUnits.includes(chap) ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
                       <input type="checkbox" className="rounded text-teal-600 focus:ring-teal-500" checked={collegeSelectedUnits.includes(chap)} onChange={(e) => {
-                        if (e.target.checked) setCollegeSelectedUnits(p => [...p, chap]);
+                        if (e.target.checked) {
+                          if (collegeSelectedUnits.length >= maxChaptersPerBatch) {
+                            setCollegeErr(`You can select up to ${maxChaptersPerBatch} chapters per batch.`);
+                            return;
+                          }
+                          setCollegeSelectedUnits(p => [...p, chap]);
+                        }
                         else setCollegeSelectedUnits(p => p.filter(c => c !== chap));
                       }} />
                       <span className="text-xs font-semibold text-gray-700 truncate">{chap}</span>
