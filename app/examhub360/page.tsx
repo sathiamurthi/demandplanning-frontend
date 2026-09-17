@@ -3368,46 +3368,50 @@ export default function Data360Page() {
                     // SECTION E: Q36 - Q38
                     { id: "q36", qNo: "Q36", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Coordinate Geometry / AP", question: "Case Study 1: Traffic Monitoring Camera Placement on Highway. Cameras placed at A(2, 3), B(6, 7), C(10, 11).\n(i) Find distance AB. [1 Mark]\n(ii) Find coordinates of midpoint of AC. [1 Mark]\n(iii) Check if A, B, C are collinear using distance formula. [2 Marks]", solution: "(i) AB = √((6-2)² + (7-3)²) = √(16+16) = √32 = 4√2.\n(ii) Midpoint = ((2+10)/2, (3+11)/2) = (6, 7) which is point B!\n(iii) AB = 4√2, BC = 4√2, AC = 8√2. Since AB + BC = AC, points A, B, C are collinear.", likelihood: 98, occurrences: "Aligned 100% with 2026/2027 CBSE Competency Guidelines" },
                     { id: "q37", qNo: "Q37", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Quadratic Equations / Physics", question: "Case Study 2: Rocket Height Trajectory h(t) = -5t² + 40t + 45.\n(i) What is the initial height of the rocket at t = 0? [1 Mark]\n(ii) After how many seconds will the rocket reach the ground (h = 0)? [2 Marks]\n(iii) Find the maximum height attained by the rocket. [1 Mark]", solution: "(i) h(0) = 45 m.\n(ii) -5t² + 40t + 45 = 0 => t² - 8t - 9 = 0 => (t-9)(t+1) = 0 => t = 9 seconds.\n(iii) Max height at vertex t = -b/(2a) = 40/10 = 4 sec. h(4) = -5(16) + 40(4) + 45 = -80 + 160 + 45 = 125 m.", likelihood: 99, occurrences: "Aligned 100% with 2026/2027 CBSE Sample Paper" },
-                    { id: "q38", qNo: "Q38", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Probability & Statistics", question: "Case Study 3: Quality Control Inspection in Electronics Factory. Out of 500 microchips produced daily, 20 are defective.\n(i) What is the probability of selecting a non-defective chip? [1 Mark]\n(ii) If 3 chips are tested with replacement, find the probability that all 3 are non-defective. [1 Mark]\n(iii) Calculate expected defective chips in a monthly batch of 15,000 microchips. [2 Marks]", solution: "(i) P(Defective) = 20/500 = 0.04. P(Non-defective) = 0.96.\n(ii) P(All 3 non-defective) = (0.96)³ = 0.8847.\n(iii) Expected defective = 15,000 * 0.04 = 600 microchips.", likelihood: 97, occurrences: "Aligned 100% with 2026/2027 CBSE Competency Framework" }
-                  ]
-                    .filter(eq => qbSectionFilter === "ALL" || eq.section === qbSectionFilter)
-                    .map((eq) => (
-                      <div key={eq.id} className="p-5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded bg-blue-600 text-white font-black text-xs">{eq.qNo}</span>
-                            <span className="text-xs font-bold text-blue-300">{eq.type}</span>
-                            <span className="text-xs text-slate-400">• {eq.chapter}</span>
+                        { id: "q38", qNo: "Q38", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Probability & Statistics", question: "Case Study 3: Quality Control Inspection in Electronics Factory. Out of 500 microchips produced daily, 20 are defective.\n(i) What is the probability of selecting a non-defective chip? [1 Mark]\n(ii) If 3 chips are tested with replacement, find the probability that all 3 are non-defective. [1 Mark]\n(iii) Calculate expected defective chips in a monthly batch of 15,000 microchips. [2 Marks]", solution: "(i) P(Defective) = 20/500 = 0.04. P(Non-defective) = 0.96.\n(ii) P(All 3 non-defective) = (0.96)³ = 0.8847.\n(iii) Expected defective = 15,000 * 0.04 = 600 microchips.", likelihood: 97, occurrences: "Aligned 100% with 2026/2027 CBSE Competency Framework" }
+                      ];
+                    };
+
+                    return getSubjectQuestions(cbseTargetSubject)
+                      .filter(eq => qbSectionFilter === "ALL" || eq.section === qbSectionFilter)
+                      .map((eq) => (
+                        <div key={eq.id} className="p-5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded bg-blue-600 text-white font-black text-xs">{eq.qNo}</span>
+                              <span className="text-xs font-bold text-blue-300">{eq.type}</span>
+                              <span className="text-xs text-slate-400">• {eq.chapter}</span>
+                            </div>
+                            <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                              ✨ {eq.likelihood}% Match Likelihood ({cbseTargetYear})
+                            </span>
                           </div>
-                          <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                            ✨ {eq.likelihood}% Match Likelihood ({cbseTargetYear})
-                          </span>
+
+                          <p className="text-sm font-semibold text-white leading-relaxed whitespace-pre-wrap">{eq.question}</p>
+
+                          {eq.options && (
+                            <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
+                              {eq.options.map((opt, oIdx) => (
+                                <div key={oIdx} className={`p-2 rounded-lg border ${opt.includes(eq.correct || "(A)") ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 font-bold" : "bg-slate-900 border-slate-800"}`}>
+                                  {opt}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <details className="group text-xs">
+                            <summary className="cursor-pointer font-bold text-emerald-400 hover:underline pt-1">
+                              View Model Answer & Marking Scheme ({eq.marks} {eq.marks === 1 ? 'Mark' : 'Marks'})
+                            </summary>
+                            <div className="mt-2 p-3 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 whitespace-pre-wrap">
+                              <div className="font-bold text-white mb-1">Step-by-Step Solution & Marking Scheme:</div>
+                              {eq.solution}
+                              <div className="text-[11px] text-slate-500 mt-2">Historical Context: {eq.occurrences}</div>
+                            </div>
+                          </details>
                         </div>
-
-                        <p className="text-sm font-semibold text-white leading-relaxed whitespace-pre-wrap">{eq.question}</p>
-
-                        {eq.options && (
-                          <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-1">
-                            {eq.options.map((opt, oIdx) => (
-                              <div key={oIdx} className={`p-2 rounded-lg border ${opt.includes(eq.correct || "(A)") ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 font-bold" : "bg-slate-900 border-slate-800"}`}>
-                                {opt}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <details className="group text-xs">
-                          <summary className="cursor-pointer font-bold text-emerald-400 hover:underline pt-1">
-                            View Model Answer & Marking Scheme ({eq.marks} {eq.marks === 1 ? 'Mark' : 'Marks'})
-                          </summary>
-                          <div className="mt-2 p-3 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 whitespace-pre-wrap">
-                            <div className="font-bold text-white mb-1">Step-by-Step Solution & Marking Scheme:</div>
-                            {eq.solution}
-                            <div className="text-[11px] text-slate-500 mt-2">Historical Context: {eq.occurrences}</div>
-                          </div>
-                        </details>
-                      </div>
-                    )})}
+                      ));
+                  })()}
                 </div>
               </div>
             </main>
