@@ -439,7 +439,14 @@ export default function Data360Page() {
   const [qbUploadYear, setQbUploadYear] = useState<string>("2026");
   const [qbUploadSubject, setQbUploadSubject] = useState<string>("");
   const [qbUploadClass, setQbUploadClass] = useState<string>("");
-  const [qbList, setQbList] = useState<{ id: string; uploader: string; year: string; subject: string; className: string; fileName: string; isPublic: boolean; isZip?: boolean; pdfCount?: number; status?: string; extractedQuestionsCount?: number; }[]>([]);
+  const DEFAULT_QB_PAPERS = [
+    { id: "h1", uploader: "Verified CBSE Repository", year: "2024", subject: "Hindi Course A (002)", className: "Class 10", fileName: "HINDI_A (1).zip", isZip: true, pdfCount: 4, isPublic: true, status: "valid", extractedQuestionsCount: 52 },
+    { id: "h2", uploader: "Verified CBSE Repository", year: "2024", subject: "Hindi Course A Set 1", className: "Class 10", fileName: "Class 10 Hindi Course A Set 30-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
+    { id: "m1", uploader: "Verified CBSE Repository", year: "2024", subject: "Mathematics Standard", className: "Class 10", fileName: "Class 10 Maths Basic Set 430-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
+    { id: "p1", uploader: "Verified CBSE Repository", year: "2024", subject: "Physics", className: "Class 12", fileName: "Class 12 Physics Set 55-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 33 }
+  ];
+
+  const [qbList, setQbList] = useState<{ id: string; uploader: string; year: string; subject: string; className: string; fileName: string; isPublic: boolean; isZip?: boolean; pdfCount?: number; status?: string; extractedQuestionsCount?: number; }[]>(DEFAULT_QB_PAPERS);
   const [qbSectionFilter, setQbSectionFilter] = useState<string>("ALL");
   const [cbseTargetYear, setCbseTargetYear] = useState<string>("2026");
   const [qbActiveNav, setQbActiveNav] = useState<"all" | "upload" | "repository" | "predicted">("all");
@@ -448,7 +455,10 @@ export default function Data360Page() {
     // Load mock database from local storage
     try {
       const storedQb = localStorage.getItem("examhub_question_bank");
-      if (storedQb) setQbList(JSON.parse(storedQb));
+      if (storedQb) {
+        const parsed = JSON.parse(storedQb);
+        if (Array.isArray(parsed) && parsed.length > 0) setQbList(parsed);
+      }
       
       const storedChapters = localStorage.getItem("examhub_chapter_config");
       if (storedChapters) setAdminChapterConfig(JSON.parse(storedChapters));
