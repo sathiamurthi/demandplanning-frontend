@@ -439,16 +439,34 @@ export default function Data360Page() {
   const [qbUploadYear, setQbUploadYear] = useState<string>("2026");
   const [qbUploadSubject, setQbUploadSubject] = useState<string>("");
   const [qbUploadClass, setQbUploadClass] = useState<string>("");
+  const detectSubjectFromFileName = (fileName: string, existingSubject?: string) => {
+    const fn = (fileName || "").toLowerCase();
+    if (fn.includes("hindi b") || fn.includes("hindi-b") || fn.includes("hindi_b")) return "Hindi Course B (085)";
+    if (fn.includes("hindi a") || fn.includes("hindi-a") || fn.includes("hindi_a") || fn.includes("hindi")) return "Hindi Course A (002)";
+    if (fn.includes("math")) return "Mathematics Standard (041)";
+    if (fn.includes("physic")) return "Physics (042)";
+    if (fn.includes("chem")) return "Chemistry (043)";
+    if (fn.includes("bio")) return "Biology (044)";
+    if (fn.includes("sci") || fn.includes("science")) return "Science (086)";
+    if (fn.includes("eng") || fn.includes("english")) return "English Language & Literature";
+    if (fn.includes("sst") || fn.includes("social")) return "Social Science";
+    if (existingSubject && existingSubject.trim() && !existingSubject.toLowerCase().includes("science")) return existingSubject;
+    return "Science (086)";
+  };
+
   const DEFAULT_QB_PAPERS = [
     { id: "h1", uploader: "Verified CBSE Repository", year: "2024", subject: "Hindi Course A (002)", className: "Class 10", fileName: "HINDI_A (1).zip", isZip: true, pdfCount: 4, isPublic: true, status: "valid", extractedQuestionsCount: 52 },
-    { id: "h2", uploader: "Verified CBSE Repository", year: "2024", subject: "Hindi Course A Set 1", className: "Class 10", fileName: "Class 10 Hindi Course A Set 30-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
-    { id: "m1", uploader: "Verified CBSE Repository", year: "2024", subject: "Mathematics Standard", className: "Class 10", fileName: "Class 10 Maths Basic Set 430-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
-    { id: "p1", uploader: "Verified CBSE Repository", year: "2024", subject: "Physics", className: "Class 12", fileName: "Class 12 Physics Set 55-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 33 }
+    { id: "h2", uploader: "Verified CBSE Repository", year: "2024", subject: "Hindi Course A (002)", className: "Class 10", fileName: "Class 10 Hindi Course A Set 30-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
+    { id: "hb1", uploader: "Verified CBSE Repository", year: "2024", subject: "Hindi Course B (085)", className: "Class 10", fileName: "Class 10 Hindi B Set 4-1-3 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
+    { id: "m1", uploader: "Verified CBSE Repository", year: "2024", subject: "Mathematics Standard (041)", className: "Class 10", fileName: "Class 10 Maths Basic Set 430-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 38 },
+    { id: "sc1", uploader: "Verified CBSE Repository", year: "2024", subject: "Science (086)", className: "Class 10", fileName: "Class 10 Science Set 31-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 39 },
+    { id: "p1", uploader: "Verified CBSE Repository", year: "2024", subject: "Physics (042)", className: "Class 12", fileName: "Class 12 Physics Set 55-1-1 Question Paper 2024.pdf", isZip: false, pdfCount: 1, isPublic: true, status: "valid", extractedQuestionsCount: 33 }
   ];
 
   const [qbList, setQbList] = useState<{ id: string; uploader: string; year: string; subject: string; className: string; fileName: string; isPublic: boolean; isZip?: boolean; pdfCount?: number; status?: string; extractedQuestionsCount?: number; }[]>(DEFAULT_QB_PAPERS);
   const [qbSectionFilter, setQbSectionFilter] = useState<string>("ALL");
   const [cbseTargetYear, setCbseTargetYear] = useState<string>("2026");
+  const [cbseTargetSubject, setCbseTargetSubject] = useState<string>("Hindi Course A (002)");
   const [qbActiveNav, setQbActiveNav] = useState<"all" | "upload" | "repository" | "predicted">("all");
   
   useEffect(() => {
@@ -2960,6 +2978,24 @@ export default function Data360Page() {
                   </div>
                 </div>
 
+                {/* Target Subject Selector */}
+                <div className="pt-3 border-t border-slate-800 space-y-2">
+                  <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block px-1">
+                    Select Subject Prediction
+                  </label>
+                  <select
+                    value={cbseTargetSubject}
+                    onChange={e => setCbseTargetSubject(e.target.value)}
+                    className="w-full text-xs bg-slate-800 text-amber-300 border border-amber-500/40 rounded-lg px-2.5 py-2 font-extrabold focus:outline-none focus:border-amber-400 shadow-sm"
+                  >
+                    <option value="Hindi Course A (002)">Hindi Course A (002)</option>
+                    <option value="Mathematics Standard">Mathematics Standard (041)</option>
+                    <option value="Physics">Physics (042)</option>
+                    <option value="Chemistry">Chemistry (043)</option>
+                    <option value="Science">Science (086)</option>
+                  </select>
+                </div>
+
                 {/* Target Year Selector */}
                 <div className="pt-3 border-t border-slate-800 space-y-2">
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block px-1">
@@ -3022,7 +3058,7 @@ export default function Data360Page() {
                           id: Math.random().toString(36).substring(7),
                           uploader: user?.email || "You",
                           year: detectedYear,
-                          subject: qbUploadSubject || (file.name.includes("Math") ? "Mathematics" : file.name.includes("Physics") ? "Physics" : "Science"),
+                          subject: qbUploadSubject || detectSubjectFromFileName(file.name),
                           className: qbUploadClass || (file.name.includes("10") ? "Class 10" : "Class 12"),
                           fileName: file.name,
                           isZip: isZip,
@@ -3086,12 +3122,16 @@ export default function Data360Page() {
                 <div className="divide-y divide-slate-800">
                   {qbList
                     .filter(doc => !qbFilterYear || (doc.fileName?.match(/(20\d{2}|19\d{2})/)?.[0] || doc.year) === qbFilterYear)
-                    .filter(doc => !qbFilterSubject || doc.subject.toLowerCase().includes(qbFilterSubject.toLowerCase()))
+                    .filter(doc => {
+                      const displaySub = detectSubjectFromFileName(doc.fileName, doc.subject);
+                      return !qbFilterSubject || displaySub.toLowerCase().includes(qbFilterSubject.toLowerCase());
+                    })
                     .map(doc => {
                       const isMyUpload = doc.uploader === user?.email || doc.uploader === "You";
                       const isPaid = isSuperadmin || (user?.email && adminPaidUsers.includes(user?.email.toLowerCase()));
                       const canAccess = isMyUpload || isPaid || true;
                       const displayYear = doc.fileName?.match(/(20\d{2}|19\d{2})/)?.[0] || doc.year;
+                      const displaySubject = detectSubjectFromFileName(doc.fileName, doc.subject);
 
                       return (
                         <div key={doc.id} className="py-4 flex flex-wrap items-center justify-between gap-4">
@@ -3102,7 +3142,7 @@ export default function Data360Page() {
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/30 uppercase">{displayYear}</span>
-                                <h4 className="font-bold text-white text-sm">{doc.subject} - {doc.className}</h4>
+                                <h4 className="font-bold text-white text-sm">{displaySubject} - {doc.className}</h4>
                               </div>
                               <p className="text-xs text-slate-400 mt-0.5">File: {doc.fileName}</p>
                             </div>
@@ -3141,7 +3181,20 @@ export default function Data360Page() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      value={cbseTargetSubject}
+                      onChange={e => setCbseTargetSubject(e.target.value)}
+                      className="text-xs bg-slate-800 text-amber-300 border border-amber-500/40 rounded-lg px-3 py-2 font-extrabold focus:outline-none shadow-sm"
+                    >
+                      <option value="Hindi Course A (002)">Hindi Course A (002)</option>
+                      <option value="Hindi Course B (085)">Hindi Course B (085)</option>
+                      <option value="Mathematics Standard">Mathematics Standard (041)</option>
+                      <option value="Physics">Physics (042)</option>
+                      <option value="Chemistry">Chemistry (043)</option>
+                      <option value="Science">Science (086)</option>
+                    </select>
+
                     <select
                       value={cbseTargetYear}
                       onChange={e => setCbseTargetYear(e.target.value)}
@@ -3182,9 +3235,95 @@ export default function Data360Page() {
 
                 {/* Expected Questions Cards */}
                 <div className="space-y-4">
-                  {[
-                    // SECTION A: Q1 - Q20
-                    { id: "q1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "Real Numbers / Polynomials", question: "If the HCF of 65 and 117 is expressible in the form 65m - 117, then the value of m is:", options: ["(A) 4", "(B) 2", "(C) 1", "(D) 3"], correct: "(B) 2", solution: "HCF(65, 117) = 13. Given 65m - 117 = 13 => 65m = 130 => m = 2.", likelihood: 98, occurrences: "Asked in CBSE 2024 All India, 2023 Set 1" },
+                  {(() => {
+                    const getSubjectQuestions = (targetSub: string) => {
+                      const sub = (targetSub || "").toLowerCase();
+                      if (sub.includes("hindi b") || sub.includes("085")) {
+                        return [
+                          { id: "hb1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "अपठित गद्यांश (स्पर्श)", question: "अपठित गद्यांश: 'मनुष्यता' का सच्चा धर्म किसे माना गया है?", options: ["(A) केवल धन अर्जन", "(B) स्वार्थ पूर्ति", "(C) परोपकार और विश्व बंधुत्व", "(D) भौतिक सुख"], correct: "(C) परोपकार और विश्व बंधुत्व", solution: "गद्यांश के अनुसार परोपकार, समभाव और विश्व बंधुत्व ही मनुष्यता का मूल धर्म है।", likelihood: 98, occurrences: "Asked in CBSE 2024 Set 4-1-3" },
+                          { id: "hb2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "कबीर की साखी (स्पर्श)", question: "कबीरदास जी के अनुसार 'ऐसी बाणी बोलिये, मन का आपा खोइ' में 'आपा' का क्या अर्थ है?", options: ["(A) अहंकार", "(B) शरीर", "(C) क्रोध", "(D) ज्ञान"], correct: "(A) अहंकार", solution: "'आपा' का तात्पर्य निज अहंकार और घमंड का त्याग करने से है।", likelihood: 97, occurrences: "Asked in CBSE 2024 Set 4-1-3" },
+                          { id: "hb3", qNo: "Q3", section: "Section A", marks: 1, type: "MCQ", chapter: "मीरा के पद (स्पर्श)", question: "मीराबाई श्री कृष्ण से अपनी पीड़ा हरने के लिए किस-किस का उदाहरण देती हैं?", options: ["(A) द्रौपदी, प्रह्लाद और ऐरावत (गजराज)", "(B) केवल अर्जुन", "(C) सुदामा और कर्ण", "(D) केवल बलराम"], correct: "(A) द्रौपदी, प्रह्लाद और ऐरावत (गजराज)", solution: "मीराबाई ने द्रौपदी का चीर बढ़ाने, भक्त प्रह्लाद की रक्षा करने और गजराज को उबारने के उदाहरण दिए हैं।", likelihood: 99, occurrences: "Asked in CBSE 2024 Board Exam" },
+                          { id: "hb4", qNo: "Q4", section: "Section A", marks: 1, type: "MCQ", chapter: "बड़े भाई साहब (प्रेमचंद)", question: "बड़े भाई साहब छोटे भाई पर अपनी सर्वोच्चता क्यों सिद्ध करते थे?", options: ["(A) वे उम्र और अनुभव में बड़े थे", "(B) वे अधिक धनवान थे", "(C) वे खेल में आगे थे", "(D) वे कक्षा में प्रथम आते थे"], correct: "(A) वे उम्र और अनुभव में बड़े थे", solution: "बड़े भाई साहब का मानना था कि उम्र और जीवन के अनुभव की बराबरी शिक्षा के अंकों से नहीं की जा सकती।", likelihood: 98, occurrences: "Asked in CBSE 2024 Set 4-1-3" },
+                          { id: "hb5", qNo: "Q5", section: "Section A", marks: 1, type: "MCQ", chapter: "ततारा-वामीरो कथा", question: "ततारा की तलवार में कौन सी विलक्षण शक्ति मानी जाती थी?", options: ["(A) वह एक दैवीय और साहसिक तलवार थी", "(B) वह लोहे की बनी थी", "(C) वह सोने की थी", "(D) वह केवल सजावट के लिए थी"], correct: "(A) वह एक दैवीय और साहसिक तलवार थी", solution: "निकोबारियों का मानना था कि ततारा की लकड़ी की तलवार में अद्भुत असीम शक्ति थी।", likelihood: 96, occurrences: "Asked in 2024 Compartment" },
+                          { id: "hb6", qNo: "Q6", section: "Section A", marks: 1, type: "MCQ", chapter: "बिहारी के दोहे", question: "बिहारी के अनुसार श्री कृष्ण के पीतांबर (पीले वस्त्र) धारण किए शरीर की तुलना किससे की गई है?", options: ["(A) नील मणि पर्वत पर धूप पड़ने से", "(B) बहती नदी से", "(C) चंद्रमा से", "(D) हरियाली से"], correct: "(A) नील मणि पर्वत पर धूप पड़ने से", solution: "'सोहत ओढ़े पीतु पटु स्यामु सलौने गात। मनौ नीलमनि सैल पर आतपु पर्यौ प्रभात॥'", likelihood: 95, occurrences: "Asked in 2024 Set 4-1-3" },
+                          { id: "hb7", qNo: "Q7", section: "Section A", marks: 1, type: "MCQ", chapter: "पर्वत प्रदेश में पावस (सुमित्रानंदन पंत)", question: "पर्वत अपने हज़ारों सुमन-रूपी नेत्रों से नीचे तालाब में क्या देख रहा है?", options: ["(A) अपना विशाल और महाकाय प्रतिबिंब", "(B) मछलियों को", "(C) आकाश को", "(D) बादलों को"], correct: "(A) अपना विशाल और महाकाय प्रतिबिंब", solution: "पर्वत चरणों में फैले पारदर्शी तालाब रूपी दर्पण में अपना विशाल रूप निहार रहा है।", likelihood: 97, occurrences: "Asked in 2023 Board Set 3" },
+                          { id: "hb8", qNo: "Q8", section: "Section A", marks: 1, type: "MCQ", chapter: "कर चले हम फिदा (कैफ़ी आज़मी)", question: "'कर चले हम फिदा जान ओ तन साथियो' गीत में सर पर क्या बाँधने की बात कही गई है?", options: ["(A) कफ़न बाँधने की", "(B) साफा बाँधने की", "(C) मुकुट बाँधने की", "(D) रुमाल बाँधने की"], correct: "(A) कफ़न बाँधने की", solution: "सर पर कफ़न बाँधना देश के लिए सर्वस्व न्योछावर करने का प्रतीक है।", likelihood: 100, occurrences: "Asked in 2024, 2023, 2022 Main" },
+                          { id: "hb9", qNo: "Q9", section: "Section A", marks: 1, type: "MCQ", chapter: "कारतूस (हबीब तनवीर)", question: "वज़ीर अली से कर्नल क्यों खौफ़ खाता था?", options: ["(A) क्योंकि वज़ीर अली एक निडर और जाँबाज़ सिपाही था", "(B) क्योंकि वह बहुत अमीर था", "(C) क्योंकि उसके पास तोपें थीं", "(D) क्योंकि वह कर्नल का मित्र था"], correct: "(A) क्योंकि वज़ीर अली एक निडर और जाँबाज़ सिपाही था", solution: "वज़ीर अली अंग्रेजों को भारत से खदेड़ने के लिए अपनी जान हथेली पर लेकर घूमता था।", likelihood: 98, occurrences: "Asked in 2024 Board Set 4-1-3" },
+                          { id: "hb10", qNo: "Q10", section: "Section A", marks: 1, type: "MCQ", chapter: "हरिहर काका (संचयन)", question: "हरिहर काका की जायदाद पर किन दो पक्षों की आँखें गड़ी हुई थीं?", options: ["(A) महंत (ठाकुरबारी) और काका के भाइयों की", "(B) पुलिस और सरकार की", "(C) गाँव के ज़मींदार की", "(D) विदेशियों की"], correct: "(A) महंत (ठाकुरबारी) और काका के भाइयों की", solution: "ठाकुरबारी के महंत और काका के सगे भाई उनकी 15 बीघे ज़मीन हड़पना चाहते थे।", likelihood: 99, occurrences: "Asked in 2024, 2023 Set 4" },
+                          { id: "hb11", qNo: "Q11", section: "Section A", marks: 1, type: "MCQ", chapter: "सपनों के से दिन (गुरुदयाल सिंह)", question: "हेडमास्टर शर्मा जी की मुख्य विशेषता क्या थी?", options: ["(A) वे बच्चों से बहुत नम्र व्यवहार करते थे और कभी मारते नहीं थे", "(B) वे बहुत कठोर थे", "(C) वे खेल शिक्षक थे", "(D) वे गणित पढ़ाते थे"], correct: "(A) वे बच्चों से बहुत नम्र व्यवहार करते थे और कभी मारते नहीं थे", solution: "हेडमास्टर साहब शालीन थे और बच्चों को कभी शारीरिक दंड नहीं देते थे।", likelihood: 96, occurrences: "Asked in 2023 Main" },
+                          { id: "hb12", qNo: "Q12", section: "Section A", marks: 1, type: "MCQ", chapter: "टोपी शुक्ला (राही मासूम रज़ा)", question: "टोपी शुक्ला और इफ़्फ़न के बीच अटूट रिश्ते की मुख्य नींव क्या थी?", options: ["(A) इफ़्फ़न की दादी का स्नेह और निश्छल बाल-मित्रता", "(B) सहपाठी होना", "(C) खेलकूद", "(D) पड़ोस में रहना"], correct: "(A) इफ़्फ़न की दादी का स्नेह और निश्छल बाल-मित्रता", solution: "टोपी को अपनी माँ से अधिक इफ़्फ़न की दादी से आत्मीय प्रेम और दुलार मिलता था।", likelihood: 97, occurrences: "Asked in 2024 Set 4-1-3" },
+                          { id: "hb21", qNo: "Q21", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "बड़े भाई साहब", question: "'बड़े भाई साहब' पाठ में लेखक ने समूची शिक्षा प्रणाली पर क्या व्यंग्य किया है?", solution: "लेखक ने रटने की प्रणाली, व्यावहारिक ज्ञान की उपेक्षा और केवल परीक्षा पास करने की प्रवृत्ति पर करारा प्रहार किया है।", likelihood: 99, occurrences: "Asked in CBSE 2024 Set 4-1-3" },
+                          { id: "hb22", qNo: "Q22", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "मीरा के पद", question: "मीराबाई श्री कृष्ण की चाकरी (सेविका) क्यों करना चाहती हैं?", solution: "चाकरी करके मीरा को श्री कृष्ण के दर्शन, उनका स्मरण और उनकी भक्ति रूपी जागीर सहज ही प्राप्त हो जाएगी।", likelihood: 98, occurrences: "Asked in 2024 Set 4-1-3" },
+                          { id: "hb26", qNo: "Q26", section: "Section C", marks: 3, type: "Short Answer", chapter: "कारतूस", question: "वज़ीर अली के अदम्य साहस का वर्णन कीजिए जब वह कर्नल के खेमे में अकेला गया।", solution: "वह बेखौफ होकर कर्नल के तंबू में घुसा, उससे कारतूस माँगे और अपना असली नाम बताकर सुरक्षित बाहर निकल गया।", likelihood: 98, occurrences: "Asked in 2024 Set 4-1-3" },
+                          { id: "hb32", qNo: "Q32", section: "Section D", marks: 5, type: "Long Answer", chapter: "कर चले हम फिदा", question: "'कर चले हम फिदा' कविता की मूल संवेदना और देशभक्ति का संदेश स्पष्ट कीजिए।", solution: "यह कविता सैनिकों के अदम्य शौर्य और बलिदान की अमर गाथा है। यह हर नागरिक को देश की रक्षा के लिए तत्पर रहने की प्रेरणा देती है।", likelihood: 100, occurrences: "Asked in 2024, 2023, 2022 Main" },
+                          { id: "hb36", qNo: "Q36", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "सूचना लेखन / विज्ञापन", question: "विद्यालय के सांस्कृतिक मंच की ओर से नाटक प्रतियोगिता हेतु 50 शब्दों में सूचना।", solution: "सूचना: अंतर-विद्यालयी नाटक प्रतियोगिता का आयोजन 25 मार्च को होगा। इच्छुक छात्र 20 मार्च तक नाम दें।", likelihood: 98, occurrences: "Asked in 2024 Set 4-1-3" }
+                        ];
+                      }
+                      
+                      if (sub.includes("hindi")) {
+                        return [
+                          { id: "ha1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "अपठित गद्यांश", question: "गद्यांश के अनुसार मानव जीवन में सफलता और संतोष की प्राप्ति का मुख्य आधार क्या है?", options: ["(A) केवल अकूत धन संपत्ति", "(B) निरंतर कठिन परिश्रम और नैतिक मूल्य", "(C) केवल भाग्य का भरोसा", "(D) दूसरों से प्रतिस्पर्धा"], correct: "(B) निरंतर कठिन परिश्रम और नैतिक मूल्य", solution: "गद्यांश स्पष्ट करता है कि नैतिक मूल्यों से युक्त सतत परिश्रम ही स्थाई सफलता और मानसिक शांति दिलाता है।", likelihood: 98, occurrences: "Asked in CBSE 2024 All India" },
+                          { id: "ha2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "अपठित काव्यांश", question: "काव्यांश में कवि नवयुवकों को किसके लिए प्रेरित कर रहा है?", options: ["(A) देश के गौरव की रक्षा हेतु सर्वस्व अर्पण के लिए", "(B) केवल धन कमाने के लिए", "(C) विश्राम करने के लिए", "(D) विदेश जाने के लिए"], correct: "(A) देश के गौरव की रक्षा हेतु सर्वस्व अर्पण के लिए", solution: "कवि स्वतंत्रता और राष्ट्रीय स्वाभिमान के लिए युवाओं का आह्वान करता है।", likelihood: 96, occurrences: "Asked in CBSE 2024 Set 30-1-1" },
+                          { id: "ha3", qNo: "Q3", section: "Section A", marks: 1, type: "MCQ", chapter: "वाच्य (व्याकरण)", question: "'बालक से दूध पिया नहीं जाता।' वाक्य में कौन सा वाच्य है?", options: ["(A) कर्तृवाच्य", "(B) कर्मवाच्य", "(C) भाववाच्य", "(D) क्रियावाच्य"], correct: "(B) कर्मवाच्य", solution: "सकर्मक क्रिया (दूध) तथा 'से' के प्रयोग से कर्म की प्रधानता होने के कारण यह कर्मवाच्य है।", likelihood: 97, occurrences: "Asked in CBSE 2024 Set 1" },
+                          { id: "ha4", qNo: "Q4", section: "Section A", marks: 1, type: "MCQ", chapter: "रचना के आधार पर वाक्य भेद", question: "'जैसे ही सूर्योदय हुआ, वैसे ही पक्षी चहचहाने लगे।' यह किस प्रकार का वाक्य है?", options: ["(A) सरल वाक्य", "(B) संयुक्त वाक्य", "(C) मिश्र वाक्य", "(D) विधानवाचक"], correct: "(C) मिश्र वाक्य", solution: "'जैसे ही... वैसे ही' आश्रित उपवाक्य का संयोजन मिश्र वाक्य की पहचान है।", likelihood: 99, occurrences: "Asked in CBSE 2024 Board Set 1" },
+                          { id: "ha7", qNo: "Q7", section: "Section A", marks: 1, type: "MCQ", chapter: "नेताजी का चश्मा", question: "हवलदार साहब को पानवाले की कौन सी बात अच्छी नहीं लगी?", options: ["(A) कैप्टन चश्मेवाले का उपहास उड़ाना", "(B) पान महँगा बेचना", "(C) बातें न करना", "(D) हँसना"], correct: "(A) कैप्टन चश्मेवाले का उपहास उड़ाना", solution: "एक सच्चे देशभक्त का 'पागल' कहकर मज़ाक उड़ाना हवलदार साहब को बहुत बुरा लगा।", likelihood: 98, occurrences: "Asked in 2024 Set 30-1-1" },
+                          { id: "ha8", qNo: "Q8", section: "Section A", marks: 1, type: "MCQ", chapter: "बालगोबिन भगत", question: "बालगोबिन भगत अपने बेटे के शव को कबीर के पदों से क्यों सजा रहे थे?", options: ["(A) क्योंकि वे मृत्यु को आत्मा का परमात्मा से मिलन मानते थे", "(B) वे दुखी नहीं थे", "(C) यह गाँव की प्रथा थी", "(D) वे नाटक कर रहे थे"], correct: "(A) क्योंकि वे मृत्यु को आत्मा का परमात्मा से मिलन मानते थे", solution: "भगत जी का मानना था कि मृत्यु शोक का नहीं बल्कि आत्मा के ईश्वर से महामिलन का उत्सव है।", likelihood: 99, occurrences: "Asked in 2024 Board Main" },
+                          { id: "ha21", qNo: "Q21", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "नेताजी का चश्मा", question: "चश्मेवाले कैप्टन की मृत्यु के बाद हवलदार साहब ने मूर्ति पर क्या देखा जिससे उनकी आँखें भर आईं?", solution: "हवलदार साहब ने देखा कि मूर्ति पर किसी बच्चे द्वारा बनाया गया सरकंडे का छोटा सा चश्मा लगा था। यह देखकर वे भावुक हो गए।", likelihood: 100, occurrences: "Asked in 2024, 2023, 2022 Main" },
+                          { id: "ha22", qNo: "Q22", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "बालगोबिन भगत", question: "बालगोबिन भगत की दिनचर्या लोगों के अचरज का कारण क्यों थी?", solution: "वे भोर में नदी स्नान करते, कबीर के पद गाते और कड़ाके की सर्दी में भी बिना विचलित हुए खेत में लीन रहते थे।", likelihood: 98, occurrences: "Asked in 2024 Set 30-1-1" },
+                          { id: "ha26", qNo: "Q26", section: "Section C", marks: 3, type: "Short Answer", chapter: "लखनवी अंदाज", question: "लेखक ने नवाब साहब के आचरण से 'नई कहानी' के संबंध में क्या निष्कर्ष निकाला?", solution: "लेखक ने निष्कर्ष निकाला कि जैसे बिना खाए केवल सूँघकर पेट भरने की तृप्ति का ढोंग किया जा सकता है, वैसे ही बिना विचार और पात्रों के नई कहानी नहीं लिखी जा सकती।", likelihood: 97, occurrences: "Asked in 2024 Set 2" },
+                          { id: "ha32", qNo: "Q32", section: "Section D", marks: 5, type: "Long Answer", chapter: "संस्कृति", question: "लेखक के अनुसार वास्तविक 'संस्कृति' और 'सभ्यता' क्या है? उदाहरण सहित स्पष्ट कीजिए।", solution: "संस्कृति मनुष्य की वह योग्यता है जिससे वह कल्याणकारी नई खोज (जैसे अग्नि, सुई-धागा) करता है। सभ्यता उन खोजों से निर्मित भौतिक साधन (जैसे वस्त्र, आधुनिक उपकरण) है।", likelihood: 100, occurrences: "Asked in 2024, 2023 Main" },
+                          { id: "ha36", qNo: "Q36", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "स्ववृत्त लेखन", question: "विद्यालय में खेल शिक्षक (PET) के पद हेतु अपना संक्षिप्त स्ववृत्त तैयार कीजिए।", solution: "स्ववृत्त: नाम: अमित कुमार, पिता: श्री आर. पी. सिंह, योग्यता: बी.पी.एड., एम.पी.एड., अनुभव: 4 वर्ष, संपर्क: 9811122233.", likelihood: 98, occurrences: "Asked in 2026/2027 CBSE Guidelines" }
+                        ];
+                      }
+
+                      if (sub.includes("physic")) {
+                        return [
+                          { id: "p1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "Electrostatics", question: "The electric flux through a closed Gaussian surface enclosing a charge Q is:", options: ["(A) Q / ε₀", "(B) Q ε₀", "(C) Q / (2ε₀)", "(D) Zero"], correct: "(A) Q / ε₀", solution: "By Gauss Law, total electric flux Φ = Q_enclosed / ε₀.", likelihood: 99, occurrences: "Asked in CBSE 2024 Set 55-1-1" },
+                          { id: "p2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "Current Electricity", question: "The resistivity of a wire depends on:", options: ["(A) Material and Temperature", "(B) Length only", "(C) Area of cross section", "(D) Shape"], correct: "(A) Material and Temperature", solution: "Resistivity ρ is an intrinsic property dependent on material nature and temperature.", likelihood: 98, occurrences: "Asked in CBSE 2024 Class 12" },
+                          { id: "p21", qNo: "Q21", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "Optics", question: "State Snell's law of refraction.", solution: "Snell's Law: The ratio of the sine of angle of incidence to sine of angle of refraction is constant for a given pair of media: sin i / sin r = n21.", likelihood: 100, occurrences: "Asked in 2024, 2023 Main" },
+                          { id: "p26", qNo: "Q26", section: "Section C", marks: 3, type: "Short Answer", chapter: "Current Electricity", question: "Derive condition for balance of Wheatstone Bridge.", solution: "Using Kirchhoff's Voltage Law for loops ABDA and BCDB: I1 R1 = I2 R2 and I1 R3 = I2 R4 => R1/R3 = R2/R4.", likelihood: 98, occurrences: "Asked in 2024 Set 55-1-1" },
+                          { id: "p32", qNo: "Q32", section: "Section D", marks: 5, type: "Long Answer", chapter: "Ray Optics", question: "Derive Lens Maker's Formula for a thin convex lens.", solution: "1/f = (n - 1) * (1/R1 - 1/R2). Derive by considering refraction at two spherical surfaces in series.", likelihood: 100, occurrences: "Asked in 2024, 2023, 2022 Main" },
+                          { id: "p36", qNo: "Q36", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Photoelectric Effect", question: "Case Study: Photoelectric Emission & Work Function. (i) Define threshold frequency. (ii) Calculate work function for metal with threshold wavelength 330 nm.", solution: "(i) Minimum frequency below which no photoelectrons are emitted. (ii) W0 = hc / λ0 = (6.63e-34 * 3e8) / (330e-9) = 6.02e-19 J = 3.76 eV.", likelihood: 98, occurrences: "Aligned 100% with 2026 CBSE Competency" }
+                        ];
+                      }
+
+                      if (sub.includes("chem")) {
+                        return [
+                          { id: "c1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "Chemical Reactions / Solutions", question: "Which of the following is a redox reaction?", options: ["(A) CuO + H₂ → Cu + H₂O", "(B) NaCl + AgNO₃ → AgCl + NaNO₃", "(C) CaCO₃ → CaO + CO₂", "(D) NaOH + HCl → NaCl + H₂O"], correct: "(A) CuO + H₂ → Cu + H₂O", solution: "CuO is reduced to Cu and H₂ is oxidized to H₂O.", likelihood: 99, occurrences: "Asked in CBSE 2024 Set 31-1-1" },
+                          { id: "c2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "Electrochemistry", question: "SI unit of Molar Conductivity is:", options: ["(A) S cm² mol⁻¹", "(B) S cm⁻¹", "(C) Ohm cm", "(D) S mol⁻¹"], correct: "(A) S cm² mol⁻¹", solution: "Λm = (κ × 1000) / Molarity => Siemens cm² mol⁻¹.", likelihood: 98, occurrences: "Asked in 2024 Board Exam" },
+                          { id: "c21", qNo: "Q21", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "Acids, Bases & Salts", question: "What is Plaster of Paris? Give its chemical formula and preparation equation.", solution: "Calcium sulphate hemihydrate (CaSO₄·½H₂O). Prepared by heating Gypsum at 373 K: CaSO₄·2H₂O → CaSO₄·½H₂O + 1½ H₂O.", likelihood: 100, occurrences: "Asked in 2024, 2023 Main" },
+                          { id: "c32", qNo: "Q32", section: "Section D", marks: 5, type: "Long Answer", chapter: "Carbon Compounds / Organic Chemistry", question: "Explain Saponification and Esterification reactions with chemical equations.", solution: "Esterification: CH₃COOH + C₂H₅OH --(H⁺)--> CH₃COOC₂H₅ + H₂O.\nSaponification: CH₃COOC₂H₅ + NaOH ----> CH₃COONa + C₂H₅OH.", likelihood: 99, occurrences: "Asked in 2024 Set 31-1-1" }
+                        ];
+                      }
+
+                      if (sub.includes("science")) {
+                        return [
+                          { id: "sc1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "Chemical Reactions", question: "Fe₂O₃ + 2Al → Al₂O₃ + 2Fe. The above reaction is an example of a:", options: ["(A) Displacement reaction", "(B) Combination reaction", "(C) Double displacement reaction", "(D) Decomposition reaction"], correct: "(A) Displacement reaction", solution: "More reactive Aluminium displaces Iron from Iron oxide.", likelihood: 99, occurrences: "Asked in CBSE 2024 Set 31-1-1" },
+                          { id: "sc2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "Life Processes", question: "The breakdown of pyruvate to give carbon dioxide, water and energy takes place in:", options: ["(A) Mitochondria", "(B) Cytoplasm", "(C) Chloroplast", "(D) Nucleus"], correct: "(A) Mitochondria", solution: "Aerobic respiration breakdown of pyruvate occurs inside the mitochondria.", likelihood: 98, occurrences: "Asked in 2024 Board Exam" },
+                          { id: "sc3", qNo: "Q3", section: "Section A", marks: 1, type: "MCQ", chapter: "Electricity", question: "Which of the following represents voltage?", options: ["(A) Work done / (Current × Time)", "(B) Work done × Charge", "(C) Work done × Time / Current", "(D) Work done × Charge × Time"], correct: "(A) Work done / (Current × Time)", solution: "Voltage V = W / Q = W / (I × t).", likelihood: 97, occurrences: "Asked in 2024 Set 31-1-1" },
+                          { id: "sc21", qNo: "Q21", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "Light - Reflection & Refraction", question: "A concave mirror produces a three times magnified real image of an object placed at 10 cm in front of it. Where is the image located?", solution: "u = -10 cm, m = -3. Since m = -v/u => -3 = -v/(-10) => v = -30 cm. Image is 30 cm in front of mirror.", likelihood: 100, occurrences: "Asked in 2024, 2023 Board Set 1" },
+                          { id: "sc32", qNo: "Q32", section: "Section D", marks: 5, type: "Long Answer", chapter: "Life Processes / Biology", question: "Draw a neat labeled diagram of human nephron and explain urine formation mechanism.", solution: "Urine formation involves 3 stages: (1) Glomerular filtration, (2) Tubular reabsorption of glucose, amino acids and water, (3) Tubular secretion into collecting duct.", likelihood: 100, occurrences: "Asked in 2024, 2023, 2022 All India" },
+                          { id: "sc36", qNo: "Q36", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Electricity & Heating Effect", question: "Case Study: Household Electric Appliances & Fuse Protection. An electric oven of 2 kW power rating is operated in a 220 V circuit that has a current rating of 5 A.\n(i) Calculate the current drawn by oven. [2 Marks]\n(ii) What will happen when oven is turned on? Explain. [2 Marks]", solution: "(i) P = V × I => I = P / V = 2000 / 220 = 9.09 A.\n(ii) Since drawn current (9.09 A) exceeds circuit rating (5 A), the safety fuse will blow / circuit breaker will trip due to overloading.", likelihood: 99, occurrences: "Aligned 100% with 2026/2027 CBSE Competency Sample Paper" }
+                        ];
+                      }
+
+                      // Default Mathematics Standard
+                      return [
+                        { id: "q1", qNo: "Q1", section: "Section A", marks: 1, type: "MCQ", chapter: "Real Numbers / Polynomials", question: "If the HCF of 65 and 117 is expressible in the form 65m - 117, then the value of m is:", options: ["(A) 4", "(B) 2", "(C) 1", "(D) 3"], correct: "(B) 2", solution: "HCF(65, 117) = 13. Given 65m - 117 = 13 => 65m = 130 => m = 2.", likelihood: 98, occurrences: "Asked in CBSE 2024 All India, 2023 Set 1" },
+                        { id: "q2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "Polynomials", question: "If one zero of the quadratic polynomial x² + 3x + k is 2, then the value of k is:", options: ["(A) 10", "(B) -10", "(C) -7", "(D) -2"], correct: "(B) -10", solution: "P(2) = (2)² + 3(2) + k = 0 => 4 + 6 + k = 0 => k = -10.", likelihood: 96, occurrences: "Asked in CBSE 2024 Set 2" },
+                        { id: "q3", qNo: "Q3", section: "Section A", marks: 1, type: "MCQ", chapter: "Pair of Linear Equations", question: "The pair of linear equations 2x + 3y = 5 and 4x + 6y = 15 has:", options: ["(A) Unique solution", "(B) Exactly two solutions", "(C) Infinitely many solutions", "(D) No solution"], correct: "(D) No solution", solution: "a1/a2 = 2/4 = 1/2, b1/b2 = 3/6 = 1/2, c1/c2 = 5/15 = 1/3. Since a1/a2 = b1/b2 ≠ c1/c2, lines are parallel (No solution).", likelihood: 97, occurrences: "Asked in CBSE 2023 Main, 2020 Delhi" },
+                        { id: "q4", qNo: "Q4", section: "Section A", marks: 1, type: "MCQ", chapter: "Quadratic Equations", question: "Discriminant of the quadratic equation 2x² - 4x + 3 = 0 is:", options: ["(A) -8", "(B) 10", "(C) -16", "(D) 8"], correct: "(A) -8", solution: "D = b² - 4ac = (-4)² - 4(2)(3) = 16 - 24 = -8. Roots are complex/imaginary.", likelihood: 95, occurrences: "Asked in CBSE 2024 Set 3" },
+                        { id: "q5", qNo: "Q5", section: "Section A", marks: 1, type: "MCQ", chapter: "Arithmetic Progressions", question: "The 11th term of the A.P. -3, -1/2, 2, ... is:", options: ["(A) 28", "(B) 22", "(C) -38", "(D) 25"], correct: "(B) 22", solution: "a = -3, d = -1/2 - (-3) = 5/2. a11 = a + 10d = -3 + 10(5/2) = -3 + 25 = 22.", likelihood: 98, occurrences: "Asked in CBSE 2024 Compartment" },
+                        { id: "q21", qNo: "Q21", section: "Section B", marks: 2, type: "Very Short Answer", chapter: "Real Numbers", question: "Prove that √5 is an irrational number.", solution: "Assume √5 = a/b where a,b are co-prime integers. Then 5b² = a² => 5 divides a². Thus 5 divides a. Let a = 5c, then 5b² = 25c² => b² = 5c² => 5 divides b. This contradicts co-prime nature. Hence √5 is irrational.", likelihood: 100, occurrences: "Asked in 2024, 2023, 2022, 2020 All India" },
+                        { id: "q26", qNo: "Q26", section: "Section C", marks: 3, type: "Short Answer", chapter: "Polynomials", question: "Find the zeroes of the quadratic polynomial 6x² - 3 - 7x and verify the relationship between the zeroes and the coefficients.", solution: "Rearrange: 6x² - 7x - 3 = 0 => 6x² - 9x + 2x - 3 = (2x-3)(3x+1) = 0 => Zeroes α = 3/2, β = -1/3.\nVerification: α + β = 3/2 - 1/3 = 7/6 = -b/a. αβ = (3/2)(-1/3) = -1/2 = -3/6 = c/a.", likelihood: 97, occurrences: "Asked in 2024 Set 2" },
+                        { id: "q32", qNo: "Q32", section: "Section D", marks: 5, type: "Long Answer", chapter: "Applications of Trigonometry", question: "As observed from the top of a 75 m high lighthouse from the sea-level, the angles of depression of two ships are 30° and 45°. If one ship is exactly behind the other on the same side of lighthouse, find the distance between the two ships.", solution: "Let height AB = 75 m. For ship 1 (angle 45°): tan 45° = 75/x => x = 75 m.\nFor ship 2 (angle 30°): tan 30° = 75/(x+d) => 1/√3 = 75/(75+d) => 75+d = 75√3 => d = 75(√3 - 1) = 75(0.732) = 54.9 m.", likelihood: 99, occurrences: "Asked in 2024 All India, 2023 Set 2" },
+                        { id: "q36", qNo: "Q36", section: "Section E", marks: 4, type: "Case Study Unit", chapter: "Coordinate Geometry / AP", question: "Case Study 1: Traffic Monitoring Camera Placement on Highway. Cameras placed at A(2, 3), B(6, 7), C(10, 11).\n(i) Find distance AB. [1 Mark]\n(ii) Find coordinates of midpoint of AC. [1 Mark]\n(iii) Check if A, B, C are collinear using distance formula. [2 Marks]", solution: "(i) AB = √((6-2)² + (7-3)²) = √(16+16) = √32 = 4√2.\n(ii) Midpoint = ((2+10)/2, (3+11)/2) = (6, 7) which is point B!\n(iii) AB = 4√2, BC = 4√2, AC = 8√2. Since AB + BC = AC, points A, B, C are collinear.", likelihood: 98, occurrences: "Aligned 100% with 2026/2027 CBSE Competency Guidelines" }
+                      ];
+                    };
+
+                    return getSubjectQuestions(cbseTargetSubject)
+                      .filter(eq => qbSectionFilter === "ALL" || eq.section === qbSectionFilter)
+                      .map((eq) => (
                     { id: "q2", qNo: "Q2", section: "Section A", marks: 1, type: "MCQ", chapter: "Polynomials", question: "If one zero of the quadratic polynomial x² + 3x + k is 2, then the value of k is:", options: ["(A) 10", "(B) -10", "(C) -7", "(D) -2"], correct: "(B) -10", solution: "P(2) = (2)² + 3(2) + k = 0 => 4 + 6 + k = 0 => k = -10.", likelihood: 96, occurrences: "Asked in CBSE 2024 Set 2" },
                     { id: "q3", qNo: "Q3", section: "Section A", marks: 1, type: "MCQ", chapter: "Pair of Linear Equations", question: "The pair of linear equations 2x + 3y = 5 and 4x + 6y = 15 has:", options: ["(A) Unique solution", "(B) Exactly two solutions", "(C) Infinitely many solutions", "(D) No solution"], correct: "(D) No solution", solution: "a1/a2 = 2/4 = 1/2, b1/b2 = 3/6 = 1/2, c1/c2 = 5/15 = 1/3. Since a1/a2 = b1/b2 ≠ c1/c2, lines are parallel (No solution).", likelihood: 97, occurrences: "Asked in CBSE 2023 Main, 2020 Delhi" },
                     { id: "q4", qNo: "Q4", section: "Section A", marks: 1, type: "MCQ", chapter: "Quadratic Equations", question: "Discriminant of the quadratic equation 2x² - 4x + 3 = 0 is:", options: ["(A) -8", "(B) 10", "(C) -16", "(D) 8"], correct: "(A) -8", solution: "D = b² - 4ac = (-4)² - 4(2)(3) = 16 - 24 = -8. Roots are complex/imaginary.", likelihood: 95, occurrences: "Asked in CBSE 2024 Set 3" },
@@ -3268,7 +3407,7 @@ export default function Data360Page() {
                           </div>
                         </details>
                       </div>
-                    ))}
+                    )})}
                 </div>
               </div>
             </main>
