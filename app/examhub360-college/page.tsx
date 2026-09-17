@@ -426,7 +426,7 @@ export default function Data360Page() {
   const [qbUploadYear, setQbUploadYear] = useState<string>("2026");
   const [qbUploadSubject, setQbUploadSubject] = useState<string>("");
   const [qbUploadClass, setQbUploadClass] = useState<string>("");
-  const [qbList, setQbList] = useState<{ id: string; uploader: string; year: string; subject: string; className: string; fileName: string; isPublic: boolean }[]>([]);
+  const [qbList, setQbList] = useState<{ id: string; uploader: string; year: string; subject: string; className: string; fileName: string; isPublic: boolean; isZip?: boolean; pdfCount?: number; status?: string; extractedQuestionsCount?: number; }[]>([]);
   
   useEffect(() => {
     // Load mock database from local storage
