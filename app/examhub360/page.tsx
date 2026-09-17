@@ -2927,7 +2927,7 @@ export default function Data360Page() {
                             <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/30 uppercase">{doc.year}</span>
                             <h4 className="font-bold text-white text-sm">{doc.subject} - {doc.className}</h4>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">File: {doc.fileName} • Uploaded by {isMyUpload ? "You" : doc.uploader}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">File: {doc.fileName}</p>
                         </div>
                       </div>
 
