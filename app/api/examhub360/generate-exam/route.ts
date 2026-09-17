@@ -1,11 +1,8 @@
-export const maxDuration = 60;
 import { NextResponse } from 'next/server';
-import { GoogleGenAI, Type } from '@google/genai';
-
-
+import { Type } from '@google/genai';
+import { generateContentWithRetry } from '@/lib/gemini';
 
 export async function POST(req: Request) {
-  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY ? { apiKey: process.env.GEMINI_API_KEY } : {});
   try {
     const { subject, questionsText, questionsImages, patternText, patternImages, includeCompetitive, includeExercise, includeNCERT, questionCount, promptOverride } = await req.json();
 
@@ -15,7 +12,7 @@ export async function POST(req: Request) {
 
     let instructionBase = `You are an expert exam setter and educator for 2026-2027 competitive and school exams.
 Your task is to generate highly relevant practice questions and detailed answers based on the provided subject, previous questions, and target patterns.
-Generate EXACTLY ${questionCount || 50} questions. `;
+Generate EXACTLY ${questionCount || 10} questions. `;
 
     let mix = [];
     if (includeCompetitive) mix.push("competitive exam style questions");
@@ -87,11 +84,8 @@ Output a JSON array of objects, where each object has a 'question', 'options' (a
 
     promptParts.push(`\nPlease generate the new practice questions and answers matching the 2026-2027 pattern requirements.`);
 
-    const fallbackAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    let response;
     const generateConfig = {
-      model: 'gemini-2.5-flash',
+      model: ['gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'],
       contents: promptParts,
       config: {
         systemInstruction,
@@ -100,12 +94,7 @@ Output a JSON array of objects, where each object has a 'question', 'options' (a
       }
     };
 
-    try {
-      response = await ai.models.generateContent(generateConfig);
-    } catch (e: any) {
-      console.warn("Primary AI failed, trying fallback key...", e.message);
-      response = await fallbackAi.models.generateContent(generateConfig);
-    }
+    const response = await generateContentWithRetry(generateConfig);
 
     let output = response.text || "";
     output = output.trim();
