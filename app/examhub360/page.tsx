@@ -2843,12 +2843,15 @@ export default function Data360Page() {
                     return;
                   }
 
+                  const matchYear = file.name.match(/(20\d{2}|19\d{2})/);
+                  const detectedYear = matchYear ? matchYear[0] : (qbUploadYear || "2025");
+
                   newDocs.push({
                     id: Math.random().toString(36).substring(7),
                     uploader: user?.email || "You",
-                    year: qbUploadYear || "2025",
+                    year: detectedYear,
                     subject: qbUploadSubject || (file.name.includes("Math") ? "Mathematics" : file.name.includes("Physics") ? "Physics" : "Science"),
-                    className: qbUploadClass || "Class 12",
+                    className: qbUploadClass || (file.name.includes("10") ? "Class 10" : "Class 12"),
                     fileName: file.name,
                     isZip: isZip,
                     pdfCount: isZip ? 4 : 1,
