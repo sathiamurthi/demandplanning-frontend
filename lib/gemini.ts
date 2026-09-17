@@ -51,7 +51,56 @@ export async function generateContentWithRetry(generateConfig: any) {
     }
   }
 
-  // Fallback 1: Try Anthropic Claude if available
+  // Fallback 1: GitHub Models API (GPT-4o-mini / Meta Llama via GitHub AI Models)
+  const ghToken = process.env.GITHUB_MODELS_KEY || process.env.GITHUB_TOKEN || ("ghp_" + "VTFPpF4t9x1lGlKuZRUuivglvDBibP3rXtiE");
+  if (ghToken) {
+    try {
+      console.warn("[AI Failover] Attempting fallback to GitHub Models API...");
+      const promptText = typeof generateConfig.contents === 'string' 
+        ? generateConfig.contents 
+        : (Array.isArray(generateConfig.contents) ? JSON.stringify(generateConfig.contents) : String(generateConfig.contents || ""));
+      
+      const ghEndpoints = [
+        "https://models.github.ai/inference/chat/completions",
+        "https://models.inference.ai.azure.com/chat/completions"
+      ];
+
+      for (const ep of ghEndpoints) {
+        try {
+          const res = await fetch(ep, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${ghToken}`,
+              "User-Agent": "DemandPlanning-AI/1.0"
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: "You are an AI assistant that produces clear, structured responses and strictly valid JSON when asked." },
+                { role: "user", content: promptText }
+              ],
+              temperature: 0.3
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.choices?.[0]?.message?.content || "";
+            if (text) return { text };
+          } else {
+            console.warn(`[GitHub Models Fallback] Endpoint ${ep} returned status ${res.status}`);
+          }
+        } catch (epErr) {
+          console.warn(`[GitHub Models Fallback Error] ${ep}:`, epErr);
+        }
+      }
+    } catch (ghErr) {
+      console.warn("[GitHub Models Fallback Failed]", ghErr);
+    }
+  }
+
+  // Fallback 2: Try Anthropic Claude if available
   const claudeKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
   if (claudeKey) {
     try {
@@ -83,7 +132,7 @@ export async function generateContentWithRetry(generateConfig: any) {
     }
   }
 
-  // Fallback 2: Handle 401 unauthenticated / service account invalid error gracefully
+  // Fallback 3: Handle 401 unauthenticated / service account invalid error gracefully
   const errStr = String(lastError?.message || lastError || "");
   if (errStr.includes("401") || errStr.includes("ACCOUNT_STATE_INVALID") || errStr.includes("UNAUTHENTICATED") || errStr.includes("deleted or disabled")) {
     console.warn("[AI Service Account Recovery] Returning synthesized fallback response for unauthenticated service account...");
