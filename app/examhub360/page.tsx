@@ -2912,12 +2912,13 @@ export default function Data360Page() {
             {/* List Items */}
             <div className="divide-y divide-slate-800">
               {qbList
-                .filter(doc => !qbFilterYear || doc.year === qbFilterYear)
+                .filter(doc => !qbFilterYear || (doc.fileName?.match(/(20\d{2}|19\d{2})/)?.[0] || doc.year) === qbFilterYear)
                 .filter(doc => !qbFilterSubject || doc.subject.toLowerCase().includes(qbFilterSubject.toLowerCase()))
                 .map(doc => {
                   const isMyUpload = doc.uploader === user?.email || doc.uploader === "You";
                   const isPaid = isSuperadmin || (user?.email && adminPaidUsers.includes(user?.email.toLowerCase()));
                   const canAccess = isMyUpload || isPaid || true;
+                  const displayYear = doc.fileName?.match(/(20\d{2}|19\d{2})/)?.[0] || doc.year;
 
                   return (
                     <div key={doc.id} className="py-4 flex flex-wrap items-center justify-between gap-4">
@@ -2927,7 +2928,7 @@ export default function Data360Page() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/30 uppercase">{doc.year}</span>
+                            <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/30 uppercase">{displayYear}</span>
                             <h4 className="font-bold text-white text-sm">{doc.subject} - {doc.className}</h4>
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">File: {doc.fileName}</p>

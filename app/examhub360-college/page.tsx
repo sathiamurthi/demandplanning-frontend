@@ -2586,9 +2586,9 @@ export default function Data360Page() {
               <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2">Upload Question Paper</h3>
               
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Year</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Year (Auto-Detected)</label>
                 <select value={qbUploadYear} onChange={e => setQbUploadYear(e.target.value)} className="w-full text-sm border-gray-200 rounded-lg">
-                  {["2023", "2024", "2025", "2026", "2027"].map(y => <option key={y} value={y}>{y}</option>)}
+                  {["2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027"].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
               
@@ -2603,17 +2603,39 @@ export default function Data360Page() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">File (PDF/Image)</label>
-                <input type="file" accept=".pdf,image/*" onChange={e => setQbUploadFile(e.target.files?.[0] || null)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5" />
+                <label className="block text-xs font-bold text-gray-700 mb-1">File (PDF Only)</label>
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) { setQbUploadFile(null); return; }
+                    const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+                    if (!isPdf) {
+                      alert("⚠️ Only PDF files are accepted for Question Paper uploads.");
+                      e.target.value = "";
+                      setQbUploadFile(null);
+                      return;
+                    }
+                    const matchYear = file.name.match(/(20\d{2}|19\d{2})/);
+                    if (matchYear) {
+                      setQbUploadYear(matchYear[0]);
+                    }
+                    setQbUploadFile(file);
+                  }}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5"
+                />
               </div>
 
               <button 
                 onClick={() => {
                   if (!qbUploadSubject || !qbUploadClass || !qbUploadFile) return;
+                  const matchYear = qbUploadFile.name.match(/(20\d{2}|19\d{2})/);
+                  const detectedYear = matchYear ? matchYear[0] : (qbUploadYear || "2025");
                   const newDoc = {
                     id: Math.random().toString(36).substring(7),
                     uploader: user?.email || "Unknown",
-                    year: qbUploadYear,
+                    year: detectedYear,
                     subject: qbUploadSubject,
                     className: qbUploadClass,
                     fileName: qbUploadFile.name,
@@ -2636,28 +2658,29 @@ export default function Data360Page() {
               <div className="flex items-center gap-3 mb-4">
                 <select value={qbFilterYear} onChange={e => setQbFilterYear(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none">
                   <option value="">All Years</option>
-                  {["2023", "2024", "2025", "2026", "2027"].map(y => <option key={y} value={y}>{y}</option>)}
+                  {["2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027"].map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
                 <input value={qbFilterSubject} onChange={e => setQbFilterSubject(e.target.value)} placeholder="Filter Subject..." className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 flex-1 focus:outline-none" />
               </div>
               
               <div className="space-y-3">
                 {qbList
-                  .filter(doc => !qbFilterYear || doc.year === qbFilterYear)
+                  .filter(doc => !qbFilterYear || (doc.fileName?.match(/(20\d{2}|19\d{2})/)?.[0] || doc.year) === qbFilterYear)
                   .filter(doc => !qbFilterSubject || doc.subject.toLowerCase().includes(qbFilterSubject.toLowerCase()))
                   .map(doc => {
                     const isMyUpload = doc.uploader === user?.email;
                     const isPaid = isSuperadmin || (user?.email && adminPaidUsers.includes(user?.email.toLowerCase()));
                     const canAccess = isMyUpload || isPaid;
+                    const displayYear = doc.fileName?.match(/(20\d{2}|19\d{2})/)?.[0] || doc.year;
                     
                     return (
                       <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-100 rounded-xl bg-gray-50 hover:bg-white transition gap-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="bg-teal-100 text-teal-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">{doc.year}</span>
+                            <span className="bg-teal-100 text-teal-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">{displayYear}</span>
                             <h4 className="font-bold text-gray-800 text-sm">{doc.subject} - {doc.className}</h4>
                           </div>
-                          <p className="text-xs text-gray-500">File: {doc.fileName} • Uploaded by {isMyUpload ? "You" : doc.uploader}</p>
+                          <p className="text-xs text-gray-500">File: {doc.fileName}</p>
                         </div>
                         
                         {canAccess ? (
