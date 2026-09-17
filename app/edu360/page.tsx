@@ -741,6 +741,14 @@ export default function Edu360Page() {
 
           <div className="flex-1"/>
 
+          {/* Question Bank Button */}
+          <Link
+            href="/question-bank"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-sm transition"
+          >
+            <BookOpen size={14} /> Question Bank
+          </Link>
+
           {/* Actions */}
           {user ? (
             <div className="flex items-center gap-3">

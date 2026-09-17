@@ -16,12 +16,12 @@ type Role = "driver" | "shipper" | "lender";
 interface RUser { name: string; role: Role; email: string; }
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
-const MOCK_MATCHES = [
-  { id:"m1", score:94, from:"Mumbai",    to:"Pune",       cargo:"Electronics · 2.5T",  rate:8500,  km:148, time:"Tomorrow 8AM",  status:"open" },
-  { id:"m2", score:87, from:"Delhi",     to:"Agra",       cargo:"FMCG Goods · 4T",     rate:12000, km:220, time:"Today 4PM",     status:"open" },
-  { id:"m3", score:78, from:"Bengaluru", to:"Hyderabad",  cargo:"Auto Parts · 1.8T",   rate:15500, km:575, time:"Tomorrow 6PM",  status:"open" },
-  { id:"m4", score:72, from:"Chennai",   to:"Coimbatore", cargo:"Textiles · 3T",        rate:9000,  km:498, time:"Day after",     status:"open" },
-  { id:"m5", score:68, from:"Pune",      to:"Mumbai",     cargo:"Machine Parts · 5T",  rate:11000, km:148, time:"Today 7PM",     status:"open" },
+const MOCK_MATCHES: { id:string; score:number; from:string; to:string; cargo:string; rate:number; km:number; time:string; status:string; role:Role }[] = [
+  { id:"m1", score:94, from:"Mumbai",    to:"Pune",       cargo:"Electronics · 2.5T",  rate:8500,  km:148, time:"Tomorrow 8AM",  status:"open", role:"driver"  },
+  { id:"m2", score:87, from:"Delhi",     to:"Agra",       cargo:"FMCG Goods · 4T",     rate:12000, km:220, time:"Today 4PM",     status:"open", role:"shipper" },
+  { id:"m3", score:78, from:"Bengaluru", to:"Hyderabad",  cargo:"Auto Parts · 1.8T",   rate:15500, km:575, time:"Tomorrow 6PM",  status:"open", role:"driver"  },
+  { id:"m4", score:72, from:"Chennai",   to:"Coimbatore", cargo:"Textiles · 3T",        rate:9000,  km:498, time:"Day after",     status:"open", role:"lender"  },
+  { id:"m5", score:68, from:"Pune",      to:"Mumbai",     cargo:"Machine Parts · 5T",  rate:11000, km:148, time:"Today 7PM",     status:"open", role:"shipper" },
 ];
 
 const MOCK_VEHICLES = [
@@ -80,10 +80,14 @@ function MatchCard({ m, accepted, onAccept }: { m:typeof MOCK_MATCHES[0]; accept
           {m.score}%
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-bold text-gray-900 text-[15px]">{m.from}</span>
             <ArrowRight size={13} className="text-teal-500 shrink-0"/>
             <span className="font-bold text-gray-900 text-[15px]">{m.to}</span>
+            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ml-1 ${ROLE[m.role].badgeCls}`}>
+              {m.role==="driver"?<Truck size={9}/>:m.role==="shipper"?<Package size={9}/>:<IndianRupee size={9}/>}
+              {ROLE[m.role].label}
+            </span>
           </div>
           <p className="text-sm text-gray-500 mb-2.5">{m.cargo}</p>
           <div className="flex flex-wrap gap-3 text-[11px] text-gray-500">
@@ -217,10 +221,13 @@ export default function Route360Page() {
   const [email,     setEmail]     = useState("");
   const [pw,        setPw]        = useState("");
   const [authErr,   setAuthErr]   = useState("");
-  const [accepted,  setAccepted]  = useState<string[]>([]);
-  const [mobileNav, setMobileNav] = useState(false);
-  const [apiKey,    setApiKey]    = useState("");
-  const [keySaved,  setKeySaved]  = useState(false);
+  const [accepted,    setAccepted]    = useState<string[]>([]);
+  const [mobileNav,   setMobileNav]   = useState(false);
+  const [apiKey,      setApiKey]      = useState("");
+  const [keySaved,    setKeySaved]    = useState(false);
+  const [roleFilter,  setRoleFilter]  = useState<"all" | Role>("all");
+  const [location,    setLocation]    = useState<{ city:string; status:"idle"|"loading"|"ok"|"denied" }>({ city:"", status:"idle" });
+  const locationFetched = useRef(false);
 
   useEffect(() => {
     document.title = "Route360 — Collaborative Logistics";
@@ -228,6 +235,27 @@ export default function Route360Page() {
     if (u) { setUser(u); setView("dashboard"); }
     return () => { document.title = "NexusOS"; };
   }, []);
+
+  useEffect(() => {
+    if (!user || locationFetched.current) return;
+    locationFetched.current = true;
+    if (!navigator.geolocation) { setLocation({ city:"", status:"denied" }); return; }
+    setLocation(l => ({ ...l, status:"loading" }));
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords: { latitude: lat, longitude: lon } }) => {
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=en`);
+          const d = await r.json();
+          const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || "Your Area";
+          setLocation({ city, status:"ok" });
+        } catch {
+          setLocation({ city:`${lat.toFixed(1)}°N ${lon.toFixed(1)}°E`, status:"ok" });
+        }
+      },
+      () => setLocation({ city:"", status:"denied" }),
+      { timeout:8000 }
+    );
+  }, [user]);
 
   const go = (v: View) => { setView(v); setMobileNav(false); };
 
@@ -477,7 +505,19 @@ export default function Route360Page() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black text-gray-900">Welcome back, {user.name.split(" ")[0]}</h2>
-              <p className="text-sm text-gray-500">Here's your activity at a glance.</p>
+              {location.status === "ok" && (
+                <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
+                  <MapPin size={13} className="text-teal-500 shrink-0"/>Near <strong className="text-gray-700">{location.city}</strong>
+                </p>
+              )}
+              {location.status === "loading" && (
+                <p className="text-sm text-gray-400 flex items-center gap-1.5 mt-0.5">
+                  <Loader2 size={13} className="animate-spin shrink-0"/>Locating…
+                </p>
+              )}
+              {location.status !== "ok" && location.status !== "loading" && (
+                <p className="text-sm text-gray-500">Here's your activity at a glance.</p>
+              )}
             </div>
             <button onClick={() => go("matchboard")}
               className="hidden sm:flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition">
@@ -546,39 +586,68 @@ export default function Route360Page() {
       {/* ══════════════════════════════════════════════════════════
           MATCH BOARD
       ══════════════════════════════════════════════════════════ */}
-      {view === "matchboard" && user && (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-black text-gray-900">Match Board</h2>
-              <p className="text-sm text-gray-500">{MOCK_MATCHES.length} live corridor matches · sorted by fit score</p>
-            </div>
-            <button className="flex items-center gap-2 text-sm text-teal-600 font-bold border border-teal-200 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-xl transition">
-              <RefreshCw size={14}/> Refresh
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2 mb-5">
-            {["All Types","Driver","Shipper","Lender"].map((f,i) => (
-              <button key={f}
-                className={`text-xs font-bold px-4 py-2 rounded-xl border transition ${i===0?"bg-teal-600 text-white border-teal-600":"bg-white text-gray-600 border-gray-200 hover:border-teal-300"}`}>
-                {f}
+      {view === "matchboard" && user && (() => {
+        const filtered = roleFilter === "all" ? MOCK_MATCHES : MOCK_MATCHES.filter(m => m.role === roleFilter);
+        const FILTER_CFG: { key:"all"|Role; label:string; activeCls:string }[] = [
+          { key:"all",     label:"All Types", activeCls:"bg-gray-800 text-white border-gray-800" },
+          { key:"driver",  label:"Driver",    activeCls:"bg-blue-600 text-white border-blue-600"   },
+          { key:"shipper", label:"Shipper",   activeCls:"bg-teal-600 text-white border-teal-600"   },
+          { key:"lender",  label:"Lender",    activeCls:"bg-violet-600 text-white border-violet-600"},
+        ];
+        return (
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">Match Board</h2>
+                <p className="text-sm text-gray-500 flex items-center gap-2">
+                  <span>{filtered.length} of {MOCK_MATCHES.length} matches · sorted by fit score</span>
+                  {location.status === "ok" && (
+                    <span className="flex items-center gap-1 text-teal-600 font-semibold">
+                      <MapPin size={12}/>{location.city}
+                    </span>
+                  )}
+                  {location.status === "loading" && (
+                    <span className="flex items-center gap-1 text-gray-400">
+                      <Loader2 size={12} className="animate-spin"/>Locating…
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button className="flex items-center gap-2 text-sm text-teal-600 font-bold border border-teal-200 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-xl transition">
+                <RefreshCw size={14}/> Refresh
               </button>
-            ))}
-            <select className="ml-auto text-xs border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-600 bg-white">
-              <option>All Cities</option>
-              {["Mumbai","Delhi","Bengaluru","Hyderabad","Chennai","Pune"].map(c=><option key={c}>{c}</option>)}
-            </select>
-          </div>
+            </div>
 
-          <div className="space-y-3">
-            {MOCK_MATCHES.map(m => (
-              <MatchCard key={m.id} m={m} accepted={accepted.includes(m.id)} onAccept={id => setAccepted(p=>[...p,id])}/>
-            ))}
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2 mb-5">
+              {FILTER_CFG.map(({ key, label, activeCls }) => (
+                <button key={key} onClick={() => setRoleFilter(key)}
+                  className={`text-xs font-bold px-4 py-2 rounded-xl border transition flex items-center gap-1.5 ${
+                    roleFilter === key ? activeCls : "bg-white text-gray-600 border-gray-200 hover:border-teal-300"
+                  }`}>
+                  {key === "driver"  && <Truck size={11}/>}
+                  {key === "shipper" && <Package size={11}/>}
+                  {key === "lender"  && <IndianRupee size={11}/>}
+                  {label}
+                </button>
+              ))}
+              <select className="ml-auto text-xs border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-teal-400 text-gray-600 bg-white">
+                <option>All Cities</option>
+                {["Mumbai","Delhi","Bengaluru","Hyderabad","Chennai","Pune"].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+
+            <div className="space-y-3">
+              {filtered.length === 0
+                ? <div className="text-center py-16 text-gray-400 text-sm">No matches found for this filter.</div>
+                : filtered.map(m => (
+                    <MatchCard key={m.id} m={m} accepted={accepted.includes(m.id)} onAccept={id => setAccepted(p=>[...p,id])}/>
+                  ))
+              }
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ══════════════════════════════════════════════════════════
           AI ASSISTANT
