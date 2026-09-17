@@ -9,7 +9,7 @@ import {
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
   GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, Menu, MessageSquare, Save
-, Printer, MonitorPlay, Users, FileCheck, FileArchive, CheckCircle2 } from "lucide-react";
+, Printer, MonitorPlay, Users, FileCheck, FileArchive, CheckCircle2, Flame } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
