@@ -9,7 +9,7 @@ import {
   ShieldCheck, GitMerge, Cloud, HardDrive, Bot, Sparkles, Download,
   Cpu, ClipboardCheck, Workflow, Globe, ArrowRightLeft, LayoutTemplate, FileOutput,
   GraduationCap, BookOpen, Lightbulb, ListChecks, PenTool, Calendar, Lock, Languages, Menu, MessageSquare, Save
-, Printer, MonitorPlay, Users, FileCheck, FileArchive, CheckCircle2, Flame } from "lucide-react";
+, Printer, MonitorPlay, Users, FileCheck, FileArchive, CheckCircle2, Flame, Pin } from "lucide-react";
 import { data360Api, getToken, setToken, clearToken, ApiError } from "./lib/api";
 import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
@@ -400,6 +400,7 @@ export default function Data360Page() {
   const [courseActiveChapter, setCourseActiveChapter] = useState("");
   const [courseActiveTab, setCourseActiveTab] = useState("core");
   const [courseNavOpen, setCourseNavOpen] = useState(false);
+  const [isNavPinned, setIsNavPinned] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number, total: number, status: string } | null>(null);
 
 
@@ -2309,24 +2310,30 @@ export default function Data360Page() {
       {/* ====================== COURSE SITE ====================== */}
       {view === "courseSite" && courseSiteData.length > 0 && (
         <div className="relative flex h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
-          {courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25" />}
+          {!isNavPinned && courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25" />}
           {/* Sidebar */}
-          <aside className={`absolute inset-y-0 left-0 z-30 w-80 max-w-[85vw] bg-white border-r border-gray-200 overflow-y-auto flex flex-col shadow-xl transition-transform duration-200 ${courseNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <aside className={isNavPinned ? "relative w-80 shrink-0 border-r border-gray-200 bg-white overflow-y-auto flex flex-col shadow-sm z-20 h-full" : `absolute inset-y-0 left-0 z-30 w-80 max-w-[85vw] bg-white border-r border-gray-200 overflow-y-auto flex flex-col shadow-xl transition-transform duration-200 ${courseNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
             <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <button onClick={() => setView("dashboard")} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-teal-600 transition">
                   <ArrowRight size={12} className="rotate-180" /> Back to Dashboard
                 </button>
-                <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="p-1 text-gray-400 hover:text-gray-700" title="Close navigation"><X size={16} /></button>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setIsNavPinned(!isNavPinned)} className={`p-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1 ${isNavPinned ? "bg-teal-50 text-teal-700 border-teal-300 font-bold" : "bg-gray-50 text-gray-400 border-gray-200 hover:text-gray-700"}`} title={isNavPinned ? "Unpin sidebar" : "Pin sidebar to stay open"}>
+                    <Pin size={14} className={isNavPinned ? "fill-teal-600 text-teal-600" : ""} />
+                    <span className="text-[10px]">{isNavPinned ? "Pinned" : "Pin"}</span>
+                  </button>
+                  {!isNavPinned && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="p-1 text-gray-400 hover:text-gray-700" title="Close navigation"><X size={16} /></button>}
+                </div>
               </div>
               <h2 className="font-black text-gray-900 text-sm flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Complete Course Site</h2>
               <p className="text-[10px] text-gray-500 mt-1">{schoolBoard} • Class {schoolClassLevel} • {schoolSubject}</p>
             </div>
-            <div className="p-3 space-y-1" onClick={event => { if ((event.target as HTMLElement).closest("button")) setCourseNavOpen(false); }}>
+            <div className="p-3 space-y-1" onClick={event => { if (!isNavPinned && (event.target as HTMLElement).closest("button")) setCourseNavOpen(false); }}>
               {courseSiteData.map((data, idx) => (
                 <div key={data.chapter}>
                   <button 
-                    onClick={() => { setCourseActiveChapter(data.chapter); setCourseActiveTab("core"); }}
+                    onClick={() => { setCourseActiveChapter(data.chapter); setCourseActiveTab("all"); }}
                     className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-between group ${courseActiveChapter === data.chapter ? "bg-teal-50 text-teal-700 border border-teal-200" : "text-gray-600 hover:bg-gray-100 border border-transparent"}`}
                   >
                     <span className="truncate pr-2">{idx + 1}. {data.chapter}</span>

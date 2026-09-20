@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Brain, FileText, CheckCircle2, AlertTriangle, BookOpen, GraduationCap,
   Sparkles, Download, Copy, Printer, Check, X, HelpCircle, Layers,
@@ -12,14 +12,35 @@ interface Props {
   studyPack: StudyPack;
   isCollege?: boolean;
   onClose?: () => void;
+  externalTab?: string;
 }
 
-export function UniversalMasterStudyPackViewer({ studyPack, isCollege = false, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<string>("all");
+const mapExternalTabToMasterTab = (ext?: string): string => {
+  if (!ext || ext === "all") return "all";
+  if (ext === "plan") return "all";
+  if (ext === "core" || ext === "glossary") return "sec1";
+  if (ext === "formulas" || ext === "quick_reference") return "sec2";
+  if (ext === "solutions" || ext === "exercise" || ext === "ncert") return "sec3";
+  if (ext === "competitive" || ext === "pyq") return "sec4";
+  if (ext === "predictions") return "sec5";
+  if (ext === "practice" || ext === "mcq") return "sec6";
+  if (ext === "mistakes" || ext === "pitfalls") return "sec7";
+  if (ext === "test" || ext === "class_test") return "sec8";
+  return "all";
+};
+
+export function UniversalMasterStudyPackViewer({ studyPack, isCollege = false, onClose, externalTab }: Props) {
+  const [activeTab, setActiveTab] = useState<string>(() => mapExternalTabToMasterTab(externalTab));
   const [copied, setCopied] = useState(false);
   const [quizState, setQuizState] = useState<Record<number, { selected?: string; revealed?: boolean }>>({});
   const [showTestAnswers, setShowTestAnswers] = useState(false);
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (externalTab) {
+      setActiveTab(mapExternalTabToMasterTab(externalTab));
+    }
+  }, [externalTab]);
 
   const title = studyPack.chapter_title || studyPack.unit_title || "Master Study Pack";
   const subject = studyPack.subject || "Subject";

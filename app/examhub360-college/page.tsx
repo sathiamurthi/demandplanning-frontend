@@ -343,6 +343,7 @@ export default function Data360Page() {
   const [courseActiveUnit, setCourseActiveUnit] = useState("");
   const [courseActiveTab, setCourseActiveTab] = useState("core");
   const [courseNavOpen, setCourseNavOpen] = useState(false);
+  const [isNavPinned, setIsNavPinned] = useState(false);
 
   
   
@@ -2028,7 +2029,7 @@ export default function Data360Page() {
       {/* ====================== COURSE SITE ====================== */}
       {view === "courseSite" && courseSiteData.length > 0 && (
         <div className="relative flex h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
-          {courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25 md:hidden" />}
+          {!isNavPinned && courseNavOpen && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="absolute inset-0 z-20 bg-gray-900/25 md:hidden" />}
           {/* Sidebar */}
           <aside className={`absolute inset-y-0 left-0 z-30 w-80 max-w-[85vw] bg-white border-r border-gray-200 overflow-y-auto flex flex-col shadow-xl transition-transform duration-200 md:static md:w-72 md:max-w-none md:translate-x-0 md:shadow-none ${courseNavOpen ? "translate-x-0" : "-translate-x-full"}`}>
             <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10 shadow-sm">
@@ -2053,7 +2054,7 @@ export default function Data360Page() {
                 </div>
               )}
             </div>
-            <div className="p-3 space-y-1" onClick={event => { if ((event.target as HTMLElement).closest("button")) setCourseNavOpen(false); }}>
+            <div className="p-3 space-y-1" onClick={event => { if (!isNavPinned && (event.target as HTMLElement).closest("button")) setCourseNavOpen(false); }}>
               {courseSiteData.map((data, idx) => (
                 <div key={data.unit}>
                   <button 
