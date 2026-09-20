@@ -16,14 +16,13 @@ interface Props {
 }
 
 const mapExternalTabToMasterTab = (ext?: string): string => {
-  if (!ext || ext === "all") return "all";
-  if (ext === "plan") return "all";
+  if (!ext || ext === "all" || ext === "plan") return "all";
   if (ext === "core" || ext === "glossary") return "sec1";
   if (ext === "formulas" || ext === "quick_reference") return "sec2";
-  if (ext === "solutions" || ext === "exercise" || ext === "ncert") return "sec3";
+  if (ext === "solutions" || ext === "exercise" || ext === "ncert" || ext === "custom") return "sec3";
   if (ext === "competitive" || ext === "pyq") return "sec4";
   if (ext === "predictions") return "sec5";
-  if (ext === "practice" || ext === "mcq") return "sec6";
+  if (ext === "practice" || ext === "mcq" || ext === "competency") return "sec6";
   if (ext === "mistakes" || ext === "pitfalls") return "sec7";
   if (ext === "test" || ext === "class_test") return "sec8";
   return "all";

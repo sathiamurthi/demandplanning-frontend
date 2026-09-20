@@ -15,6 +15,7 @@ import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob, StudyPack, DataQuota } from "./lib/types";
+import { UniversalMasterStudyPackViewer } from "@/components/UniversalMasterStudyPackViewer";
 
 const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
   invoice: { label: "Invoice", fields: ["Invoice Number", "Vendor Name", "Amount", "Due Date"] },
@@ -799,6 +800,38 @@ export default function Data360Page() {
       
       setCollegeResult(result.data); setCollegeProvider("Gemini 2.5 Flash"); setCollegeCached(false);
       setCollegeHistory(prev => [result.data, ...prev]);
+    } catch (e: any) {
+      setCollegeErr(e.message || "Failed to generate study guide.");
+    } finally {
+      setCollegeBusy(false);
+    }
+  };
+
+  const handleGenerateChapterGuide = async (unitName: string) => {
+    if (!unitName) return;
+    setCollegeBusy(true); setCollegeErr("");
+    try {
+      const res = await fetch("/api/examhub360-college/generate-study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "Please generate a comprehensive study guide based solely on your internal knowledge of this topic.",
+          collegeSemester: collegeSemester,
+          collegeDegree: collegeDegree,
+          subject: collegeCourse,
+          unit_name: unitName,
+          target_language: collegeTargetLang
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
+      setCourseSiteData(prev => {
+        const updated = prev.map(item => item.unit === unitName ? { ...item, studyPack: result.data } : item);
+        localStorage.setItem("d360_college_courseSiteData", JSON.stringify(updated));
+        return updated;
+      });
+      setCollegeResult(result.data);
     } catch (e: any) {
       setCollegeErr(e.message || "Failed to generate study guide.");
     } finally {
@@ -2058,7 +2091,7 @@ export default function Data360Page() {
               {courseSiteData.map((data, idx) => (
                 <div key={data.unit}>
                   <button 
-                    onClick={() => { setCourseActiveUnit(data.unit); setCourseActiveTab("core"); }}
+                    onClick={() => { setCourseActiveUnit(data.unit); setCourseActiveTab("all"); }}
                     className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-between group ${courseActiveUnit === data.unit ? "bg-teal-50 text-teal-700 border border-teal-200" : "text-gray-600 hover:bg-gray-100 border border-transparent"}`}
                   >
                     <span className="truncate pr-2">{idx + 1}. {data.unit}</span>
@@ -2111,6 +2144,29 @@ export default function Data360Page() {
                     </div>
 
                   </div>
+
+                  {/* Universal Master Study Pack Viewer (2026-2027) */}
+                  {data.studyPack ? (
+                    <div className="mb-10">
+                      <UniversalMasterStudyPackViewer studyPack={data.studyPack} externalTab={courseActiveTab} isCollege={true} />
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-br from-teal-50 to-indigo-50 border border-teal-200 rounded-2xl p-6 text-center space-y-3 mb-10 shadow-sm">
+                      <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-2xl flex items-center justify-center mx-auto font-black text-lg">
+                        <Sparkles size={24} />
+                      </div>
+                      <h3 className="text-base font-bold text-gray-900">Universal Master Study Pack for {data.unit}</h3>
+                      <p className="text-xs text-gray-600 max-w-md mx-auto">
+                        Generating complete 8-section study materials (Core concepts, formula sheet, textbook solutions, PYQs, predictions, MCQs, and test paper).
+                      </p>
+                      <button
+                        onClick={() => handleGenerateChapterGuide(data.unit)}
+                        className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90 text-white text-xs font-bold rounded-xl shadow-md transition inline-flex items-center gap-2"
+                      >
+                        <Sparkles size={14} /> Generate Unit Guide Now →
+                      </button>
+                    </div>
+                  )}
 
                   {!data.studyPack && !data.examPrep && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-200">

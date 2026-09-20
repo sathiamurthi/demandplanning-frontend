@@ -15,6 +15,7 @@ import {
   isVoiceSupported, createVoiceRecognizer, parseFieldInstruction, flattenAutoExtract, renderPdfPageImages,
 } from "./lib/parsers";
 import type { D360User, D360Batch, D360Row, D360Job, IngestRow, TargetType, D360Template, D360GenerationJob, StudyPack, DataQuota } from "./lib/types";
+import { UniversalMasterStudyPackViewer } from "@/components/UniversalMasterStudyPackViewer";
 
 const FIELD_TEMPLATES: Record<string, { label: string; fields: string[] }> = {
   invoice: { label: "Invoice", fields: ["Invoice Number", "Vendor Name", "Amount", "Due Date"] },
@@ -852,6 +853,38 @@ export default function Data360Page() {
       
       setSchoolResult(result.data); setSchoolProvider("Gemini 2.5 Flash"); setSchoolCached(false);
       setSchoolHistory(prev => [result.data, ...prev]);
+    } catch (e: any) {
+      setSchoolErr(e.message || "Failed to generate study guide.");
+    } finally {
+      setSchoolBusy(false);
+    }
+  };
+
+  const handleGenerateChapterGuide = async (chapName: string) => {
+    if (!chapName) return;
+    setSchoolBusy(true); setSchoolErr("");
+    try {
+      const res = await fetch("/api/examhub360/generate-study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "Please generate a comprehensive study guide based solely on your internal knowledge of this topic.",
+          class_level: schoolClassLevel,
+          board: `${schoolBoard} ${schoolBoard.toLowerCase().includes('state') ? schoolState : ''}`.trim(),
+          subject: schoolSubject,
+          chapter_name: chapName,
+          target_language: schoolTargetLang
+        })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      
+      setCourseSiteData(prev => {
+        const updated = prev.map(item => item.chapter === chapName ? { ...item, studyPack: result.data } : item);
+        localStorage.setItem("d360_courseSiteData", JSON.stringify(updated));
+        return updated;
+      });
+      setSchoolResult(result.data);
     } catch (e: any) {
       setSchoolErr(e.message || "Failed to generate study guide.");
     } finally {
@@ -2323,7 +2356,13 @@ export default function Data360Page() {
                     <Pin size={14} className={isNavPinned ? "fill-teal-600 text-teal-600" : ""} />
                     <span className="text-[10px]">{isNavPinned ? "Pinned" : "Pin"}</span>
                   </button>
+                  {!isNavPinned && <div className="flex items-center gap-1">
+                  <button onClick={() => setIsNavPinned(!isNavPinned)} className={`p-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1 ${isNavPinned ? "bg-teal-50 text-teal-700 border-teal-300 font-bold shadow-sm" : "bg-gray-50 text-gray-400 border-gray-200 hover:text-gray-700"}`} title={isNavPinned ? "Unpin sidebar" : "Pin left navigation to stay open"}>
+                    <Pin size={14} className={isNavPinned ? "fill-teal-600 text-teal-600" : ""} />
+                    <span className="text-[10px] font-bold">{isNavPinned ? "Pinned" : "Pin"}</span>
+                  </button>
                   {!isNavPinned && <button aria-label="Close chapter navigation" onClick={() => setCourseNavOpen(false)} className="p-1 text-gray-400 hover:text-gray-700" title="Close navigation"><X size={16} /></button>}
+                </div>}
                 </div>
               </div>
               <h2 className="font-black text-gray-900 text-sm flex items-center gap-2"><BookOpen size={16} className="text-teal-600" /> Complete Course Site</h2>
@@ -2384,6 +2423,29 @@ export default function Data360Page() {
                     </div>
 
                   </div>
+
+                  {/* Universal Master Study Pack Viewer (2026-2027) */}
+                  {data.studyPack ? (
+                    <div className="mb-10">
+                      <UniversalMasterStudyPackViewer studyPack={data.studyPack} externalTab={courseActiveTab} isCollege={false} />
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-br from-teal-50 to-indigo-50 border border-teal-200 rounded-2xl p-6 text-center space-y-3 mb-10 shadow-sm">
+                      <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-2xl flex items-center justify-center mx-auto font-black text-lg">
+                        <Sparkles size={24} />
+                      </div>
+                      <h3 className="text-base font-bold text-gray-900">Universal Master Study Pack for {data.chapter}</h3>
+                      <p className="text-xs text-gray-600 max-w-md mx-auto">
+                        Generating complete 8-section study materials (Core concepts, formula sheet, textbook solutions, PYQs, predictions, MCQs, and test paper).
+                      </p>
+                      <button
+                        onClick={() => handleGenerateChapterGuide(data.chapter)}
+                        className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90 text-white text-xs font-bold rounded-xl shadow-md transition inline-flex items-center gap-2"
+                      >
+                        <Sparkles size={14} /> Generate Chapter Guide Now →
+                      </button>
+                    </div>
+                  )}
 
                   {!data.studyPack && !data.examPrep && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-200">
