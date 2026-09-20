@@ -809,6 +809,31 @@ export default function Edu360Page() {
 
       <AdBanner page="edu360" />
 
+      {/* ── Universal Master Study Pack Banner ── */}
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <div className="bg-gradient-to-r from-teal-950 via-slate-900 to-indigo-950 border border-teal-500/30 rounded-2xl p-4 md:p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 bg-teal-500/20 text-teal-300 border border-teal-500/30 rounded-full text-xs font-bold flex items-center gap-1">
+                ✨ Universal Master Study Pack (2026–2027)
+              </span>
+              <span className="text-xs text-indigo-300 font-semibold">School360 & ExamHub Edition</span>
+            </div>
+            <h3 className="text-lg font-black text-white">AI Master Study Pack & Exam Predictions</h3>
+            <p className="text-xs text-slate-300 max-w-2xl">
+              Generate complete 8-section study packs, formula sheets, textbook exercise solutions, past 10-year PYQs, prediction papers, interactive MCQs & self-assessment test papers.
+            </p>
+          </div>
+          <Link
+            href="/examhub360"
+            className="px-5 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:opacity-90 text-slate-950 font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2 shrink-0"
+          >
+            Open Study Pack Generator →
+          </Link>
+        </div>
+      </div>
+
+
       {/* ── BODY ── */}
       <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
         {/* ── SIDEBAR ── */}

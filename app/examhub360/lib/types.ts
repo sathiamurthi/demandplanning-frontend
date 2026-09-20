@@ -98,18 +98,122 @@ export interface D360GenerationJob {
 }
 
 // ── School: chapter -> Study Pack ───────────────────────────────────────────
+export interface KeyTermItem {
+  term: string;
+  meaning: string;
+  formula?: string;
+  practical_context?: string;
+}
+
+export interface FormulaItem {
+  formula_name: string;
+  equation: string;
+  parameters_breakdown: string;
+  key_rules?: string[];
+}
+
+export interface TextbookSolutionItem {
+  problem_title?: string;
+  question: string;
+  step1_given_data: string;
+  step2_execution: string;
+  step3_final_answer: string;
+}
+
+export interface PYQItem {
+  question: string;
+  difficulty?: "easy" | "medium" | "hard";
+  exam_year?: string;
+  marks?: number;
+  marking_scheme?: {
+    introduction_points?: string[];
+    derivation_points?: string[];
+    conclusion_diagram_result?: string;
+  };
+  solution?: string;
+}
+
+export interface ExamPredictionItem {
+  question_type?: string;
+  marks?: number;
+  question: string;
+  solution_steps?: string[];
+}
+
+export interface MCQItem {
+  question: string;
+  options: { label: string; text: string }[];
+  correct_option: string;
+  explanation: string;
+  is_assertion_reason?: boolean;
+  assertion?: string;
+  reason?: string;
+}
+
+export interface MisconceptionItem {
+  misconception: string;
+  correction: string;
+}
+
+export interface ClassTestSectionQuestion {
+  q_no: number;
+  question: string;
+  marks: number;
+}
+
+export interface ClassTestPaper {
+  test_title?: string;
+  max_marks?: number;
+  time_minutes?: number;
+  section_a_objective?: ClassTestSectionQuestion[];
+  section_b_analytical?: ClassTestSectionQuestion[];
+  section_c_comprehensive?: ClassTestSectionQuestion[];
+  answer_key_and_marking_scheme?: string;
+}
+
 export interface StudyPack {
-  chapter_title: string;
+  chapter_title?: string;
+  unit_title?: string;
   subject: string;
+  course_grade_semester?: string;
+  subject_code?: string;
+  institution_or_board?: string;
+
+  // Section 1: Executive Summary & Mind Map
+  conceptual_mind_map?: string;
   story_telling_explanation?: string;
   core_concepts: { concept: string; simple_explanation: string; why_it_matters: string }[];
-  key_terms: { term: string; meaning: string }[];
-  study_plan: { step: number; focus: string; time_minutes: number; activity: string }[];
+  key_terms: KeyTermItem[];
+
+  // Section 2: Core Theorems & Formulae
+  formula_sheet?: FormulaItem[];
   quick_reference: string[];
-  practice_questions: { question: string; hint: string; difficulty: "easy" | "medium" | "hard" }[];
-  common_mistakes: string[];
-  competency_questions?: { question: string; answer: string; competency_tested: string }[];
+
+  // Section 3: Textbook Core Exercise Solutions
+  textbook_solutions?: TextbookSolutionItem[];
   exercise_questions?: { question: string; answer: string }[];
   ncert_questions?: { question: string; answer: string }[];
+
+  // Section 4: Top 10-Yr PYQs
+  pyqs?: PYQItem[];
+
+  // Section 5: High-Probability Exam Predictions
+  exam_predictions?: ExamPredictionItem[];
+  competency_questions?: { question: string; answer: string; competency_tested: string }[];
+
+  // Section 6: MCQs & Quiz Bank
+  mcq_quiz_bank?: MCQItem[];
+  practice_questions: { question: string; hint?: string; difficulty?: "easy" | "medium" | "hard"; answer?: string }[];
+
+  // Section 7: Misconceptions & Exam Pitfalls
+  misconception_pitfalls?: MisconceptionItem[];
+  common_mistakes: string[];
+
+  // Section 8: Class Test & Self Assessment Paper
+  class_test_paper?: ClassTestPaper;
+
+  // Study Plan & Custom QnA
+  study_plan: { step: number; focus: string; time_minutes: number; activity: string }[];
   custom_qna?: { question: string; answer: string }[];
+  lab_viva_questions?: { question: string; answer: string }[];
 }
